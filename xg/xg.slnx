@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="xgBase/xgBase.vcxproj" Id="caa21a27-7e4b-45ca-8915-bf017af8f3af" />
+  <Project Path="xgCore/xgCore.vcxproj" Id="eebfc737-b3c1-4075-b6f8-e3262dea651f">
+    <BuildDependency Project="xgBase/xgBase.vcxproj" />
+  </Project>
+  <Project Path="xge/xge.vcxproj" Id="595d3fa6-8693-4e85-897a-fa3f0ca16c6b">
+    <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
+  </Project>
+  <Project Path="xgPlatform/xgPlatform.vcxproj" Id="e288c667-2735-4b5c-b72a-b21b2ae92e84" />
+</Solution>
