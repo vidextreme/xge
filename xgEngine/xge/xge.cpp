@@ -1,29 +1,21 @@
-#include <memory>
-#include "Window.h"
+#include "xgWindow.h"
+#include "xgRenderer.h"
 
-int main(int argc, char** argv)
-{
-    // Create the main engine window
-    auto window = xg::CreateWindow("XG Engine", 1280, 720);
+int main() {
+    // Create the engine window
+    auto window = xg::NewWindow("xgEngine", 1280, 720);
 
+	xg::RendererDLL = "xgRendererDX12.dll";
+    // Create the renderer backend (DX12, Vulkan, etc.)
+    xg::Renderer* renderer = xg::CreateRenderer(*window);
 
-    while (!window->ShouldClose())
-    {
-        // Pump platform events
+    // Main loop
+    while (!window->ShouldClose()) {
         window->PollEvents();
-
-        // TODO: Add engine tick here
-        // core->Tick();
-
-        // TODO: Add renderer tick here
-        // renderer->Render();
-
-        // Simple exit condition for now
-        if (window->IsMinimized())
-        {
-            // You can choose to skip rendering here
-        }
+        renderer->Render();
     }
 
+    // Cleanup
+    xg::DestroyRenderer(renderer);
     return 0;
 }

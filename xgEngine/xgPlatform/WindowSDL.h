@@ -1,6 +1,8 @@
 #pragma once
-#include "Window.h"
-#include <SDL3/SDL.h>
+#include "xgWindow.h"
+
+// Forward declare SDL types to avoid leaking SDL headers
+struct SDL_Window;
 
 namespace xg {
 
@@ -10,18 +12,25 @@ namespace xg {
         ~WindowSDL() override;
 
         void PollEvents() override;
-        void* NativeHandle() noexcept override;
 
-        int Width() const noexcept override;
-        int Height() const noexcept override;
+        void* GetNativeHandle() const noexcept override;
 
-        bool IsMinimized() const noexcept override;
-        bool IsFocused() const noexcept override;
+        int GetWidth() const noexcept override { return width; }
+        int GetHeight() const noexcept override { return height; }
+
+        bool IsMinimized() const noexcept override { return minimized; }
+        bool IsFocused() const noexcept override { return focused; }
 
         bool ShouldClose() const noexcept override { return shouldClose; }
 
     private:
-        SDL_Window* window = nullptr;
+        SDL_Window* sdlWindow = nullptr;
+
+        int width = 0;
+        int height = 0;
+
+        bool minimized = false;
+        bool focused = true;
         bool shouldClose = false;
     };
 

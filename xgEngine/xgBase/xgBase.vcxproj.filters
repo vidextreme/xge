@@ -23,10 +23,10 @@
     <ClInclude Include="pch.h">
       <Filter>private</Filter>
     </ClInclude>
-    <ClInclude Include="public\Window.h">
+    <ClInclude Include="public\xgBase.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgBase.h">
+    <ClInclude Include="public\xgWindow.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>

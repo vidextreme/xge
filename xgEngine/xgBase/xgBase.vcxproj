@@ -86,8 +86,8 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="public\Window.h" />
     <ClInclude Include="public\xgBase.h" />
+    <ClInclude Include="public\xgWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

@@ -11,21 +11,22 @@ namespace xg {
         // Pump OS/platform events
         virtual void PollEvents() = 0;
 
-        // Native OS window handle (HWND, NSWindow*, etc.)
-        virtual void* NativeHandle() noexcept = 0;
+        // Native OS window handle (HWND on Windows, NSWindow* on macOS, etc.)
+        virtual void* GetNativeHandle() const noexcept = 0;
 
         // Dimensions
-        virtual int Width() const noexcept = 0;
-        virtual int Height() const noexcept = 0;
+        virtual int GetWidth() const noexcept = 0;
+        virtual int GetHeight() const noexcept = 0;
 
         // State
         virtual bool IsMinimized() const noexcept = 0;
         virtual bool IsFocused() const noexcept = 0;
 
+        // Close request (e.g., user clicked X)
         virtual bool ShouldClose() const noexcept = 0;
     };
 
     // Factory implemented in xgPlatform
-    XG_API std::unique_ptr<Window> CreateWindow(const char* title, int width, int height);
+    XG_API std::unique_ptr<Window> NewWindow(const char* title, int width, int height);
 
 } // namespace xg

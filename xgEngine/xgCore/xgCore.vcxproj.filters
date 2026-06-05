@@ -16,6 +16,9 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="public">
+      <UniqueIdentifier>{c2de1175-0299-4733-830e-5118945e3dde}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -24,9 +27,21 @@
     <ClInclude Include="pch.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgModules.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgRenderer.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgModules.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgRendererAPI.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

@@ -31,16 +31,22 @@
 #endif
 
 //
-// Export / import macro
+// API macro
+// xgCore = static library → NO dllimport/dllexport
+// Renderer DLLs define XG_EXPORTS → dllexport
 //
 #if XG_PLATFORM_WINDOWS
 #ifdef XG_EXPORTS
 #define XG_API __declspec(dllexport)
 #else
-#define XG_API __declspec(dllimport)
+#define XG_API
 #endif
 #else
+#ifdef XG_EXPORTS
+#define XG_API __attribute__((visibility("default")))
+#else
 #define XG_API
+#endif
 #endif
 
 //
@@ -54,9 +60,6 @@
 #define XG_FORCEINLINE inline __attribute__((always_inline))
 #endif
 
-//
-// Assertions
-//
 #if XG_DEBUG
 #include <cassert>
 #define XG_ASSERT(expr) assert(expr)
