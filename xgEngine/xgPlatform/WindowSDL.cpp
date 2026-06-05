@@ -4,59 +4,68 @@
 
 namespace xg {
 
-    WindowSDL::WindowSDL(const char* title, int width, int height) {
+    WindowSDL::WindowSDL(const char* title, int w, int h)
+        : width(w), height(h)
+    {
         SDL_Init(SDL_INIT_VIDEO);
 
-        window = SDL_CreateWindow(title, width, height, 0);
+        sdlWindow = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
     }
 
     WindowSDL::~WindowSDL() {
-        if (window) {
-            SDL_DestroyWindow(window);
-            window = nullptr;
+        if (sdlWindow) {
+            SDL_DestroyWindow(sdlWindow);
+            sdlWindow = nullptr;
         }
-        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+
+        SDL_Quit();
     }
 
     void WindowSDL::PollEvents() {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) {
+
+            switch (e.type) {
+
+            case SDL_EVENT_QUIT:
                 shouldClose = true;
+                break;
+
+            case SDL_EVENT_WINDOW_RESIZED:
+                width = e.window.data1;
+                height = e.window.data2;
+                break;
+
+            case SDL_EVENT_WINDOW_MINIMIZED:
+                minimized = true;
+                break;
+
+            case SDL_EVENT_WINDOW_RESTORED:
+                minimized = false;
+                break;
+
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
+                focused = true;
+                break;
+
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
+                focused = false;
+                break;
             }
         }
     }
 
-
-    void* WindowSDL::NativeHandle() noexcept {
-        // SDL3: get property list, then get HWND pointer
-        SDL_PropertiesID props = SDL_GetWindowProperties(window);
+    void* WindowSDL::GetNativeHandle() const noexcept {
+#if XG_PLATFORM_WINDOWS
+        SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
         return SDL_GetPointerProperty(
             props,
             SDL_PROP_WINDOW_WIN32_HWND_POINTER,
             nullptr
         );
-    }
-
-    int WindowSDL::Width() const noexcept {
-        int w = 0;
-        SDL_GetWindowSize(window, &w, nullptr);
-        return w;
-    }
-
-    int WindowSDL::Height() const noexcept {
-        int h = 0;
-        SDL_GetWindowSize(window, nullptr, &h);
-        return h;
-    }
-
-    bool WindowSDL::IsMinimized() const noexcept {
-        return (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) != 0;
-    }
-
-    bool WindowSDL::IsFocused() const noexcept {
-        return (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) != 0;
+#else
+        return nullptr;
+#endif
     }
 
 } // namespace xg
-

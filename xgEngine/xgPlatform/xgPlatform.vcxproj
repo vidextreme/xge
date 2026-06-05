@@ -65,7 +65,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>SDL3.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;..\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
       <ImportLibrary>$(SolutionDir)\lib\$(TargetName).lib</ImportLibrary>
     </Link>
   </ItemDefinitionGroup>
@@ -87,7 +87,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>SDL3.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;..\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
       <ImportLibrary>$(SolutionDir)\lib\$(TargetName).lib</ImportLibrary>
     </Link>
   </ItemDefinitionGroup>
