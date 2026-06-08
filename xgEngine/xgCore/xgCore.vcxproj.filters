@@ -33,6 +33,21 @@
     <ClInclude Include="public\xgRenderer.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgEngine.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgScriptModule.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgScriptHost.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgHostCoreCLR.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgScriptCoreCLR.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -42,6 +57,15 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgRendererAPI.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgEngine.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgScriptModule.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgHostCoreCLR.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

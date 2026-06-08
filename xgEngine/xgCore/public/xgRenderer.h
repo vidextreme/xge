@@ -19,3 +19,5 @@ namespace xg {
     XG_API void      DestroyRenderer(Renderer* renderer);
 
 }
+
+XG_DECLARE_MODULE(xg, Renderer)

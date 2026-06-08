@@ -11,4 +11,5 @@
 #include "framework.h"
 #include <map>
 #include <string>
+#include <memory>
 #endif //PCH_H
