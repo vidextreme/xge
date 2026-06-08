@@ -29,9 +29,15 @@
     <ClInclude Include="public\xgWindow.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgPathUtils.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgPathUtils.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

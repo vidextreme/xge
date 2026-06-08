@@ -5,8 +5,11 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="public">
+      <UniqueIdentifier>{1114d187-b8c1-4ade-8055-ab0ae3bf7747}</UniqueIdentifier>
+    </Filter>
     <Filter Include="private">
-      <UniqueIdentifier>{81e31838-a0fd-4831-87b8-db5d9f4d0abb}</UniqueIdentifier>
+      <UniqueIdentifier>{67485fe1-bfe3-41f9-aa06-227107e33ff1}</UniqueIdentifier>
     </Filter>
     <Filter Include="private\headers">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
@@ -16,9 +19,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="public">
-      <UniqueIdentifier>{c2de1175-0299-4733-830e-5118945e3dde}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -27,25 +27,7 @@
     <ClInclude Include="pch.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgModules.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgRenderer.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgEngine.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgScriptModule.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgScriptHost.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgHostCoreCLR.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgScriptCoreCLR.h">
+    <ClInclude Include="public\xgScriptModuleCoreCLR.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>
@@ -53,19 +35,10 @@
     <ClCompile Include="pch.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgModules.cpp">
+    <ClCompile Include="xgScriptModuleCoreCLR.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgRendererAPI.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgEngine.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgScriptModule.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgHostCoreCLR.cpp">
+    <ClCompile Include="xgScriptCoreCLR.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

@@ -5,20 +5,13 @@
 #define XG_STRINGIFY2(x) #x
 #define XG_STRINGIFY(x) XG_STRINGIFY2(x)
 
-namespace xg {
+//
+// Generate EnsureRendererLoaded() using the macro system
+//
+XG_DEFINE_MODULE_LOADER(xg, Renderer);
 
-    static bool rendererLoaded = false;
-
-    static void EnsureRendererLoaded()
-    {
-        if (!rendererLoaded)
-        {
-            //xg::RendererDLL = "xgRendererDX12.dll";
-            xg::LoadRendererLib();
-            rendererLoaded = true;
-        }
-    }
-
+namespace xg
+{
     Renderer* CreateRenderer(Window& window)
     {
         EnsureRendererLoaded();
@@ -29,12 +22,14 @@ namespace xg {
 
     void DestroyRenderer(Renderer* renderer)
     {
+        if (!renderer)
+            return;
+
         EnsureRendererLoaded();
 
         XG_MODULE_PROCEDURE(xg, Renderer, DestroyRenderer);
         XG_MODULE_CALL(DestroyRenderer)(renderer);
     }
-
 }
 
 #pragma message("Compiling xgRendererAPI.cpp with XG_API = " XG_STRINGIFY(XG_API))

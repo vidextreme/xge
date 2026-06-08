@@ -10,9 +10,11 @@
     <BuildDependency Project="xgCore/xgCore.vcxproj" />
     <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
     <BuildDependency Project="xgRendererDX12/xgRendererDX12.vcxproj" />
+    <BuildDependency Project="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" />
   </Project>
   <Project Path="xgPlatform/xgPlatform.vcxproj" Id="e288c667-2735-4b5c-b72a-b21b2ae92e84" />
   <Project Path="xgRendererDX12/xgRendererDX12.vcxproj" Id="39cadf1a-e87e-42ac-abf5-6807a839d54e">
     <BuildDependency Project="xgCore/xgCore.vcxproj" />
   </Project>
+  <Project Path="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" Id="0f12b426-13da-459a-961e-eff3a418ec39" />
 </Solution>

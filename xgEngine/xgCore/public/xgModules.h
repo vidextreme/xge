@@ -45,6 +45,11 @@ namespace xg {
 
 } // namespace xg
 
+
+//
+// MODULE DECLARATION MACROS
+//
+
 #define XG_DECLARE_MODULE_FUNCTION(FUNCNAME, RETTYPE, ...) \
     using FUNCNAME##Func = RETTYPE (*)(__VA_ARGS__)
 
@@ -82,6 +87,12 @@ namespace NS { \
     } \
 }
 
+
+//
+// PROCEDURE LOOKUP MACROS
+//
+
+// Legacy: binds to a variable named 'func'
 #define XG_MODULE_PROCEDURE(NS, MODULENAME, FUNCNAME) \
     FUNCNAME##Func func = nullptr; \
     if (NS::MODULENAME##Procs) { \
@@ -99,6 +110,48 @@ namespace NS { \
     }
 
 #define XG_MODULE_CALL(FUNCNAME) func
-#define XG_MODULE_EXPORT extern "C" XG_API
 
-XG_DECLARE_MODULE(xg, Renderer)
+
+//
+// NEW: Named procedure lookup macro
+// Allows binding multiple functions in the same scope without collisions
+// Works with ANY function signature (1, 2, 3, N parameters)
+//
+#define XG_MODULE_PROCEDURE_NAMED(NS, MODULENAME, FUNCNAME, LOCALNAME) \
+    FUNCNAME##Func LOCALNAME = nullptr; \
+    if (NS::MODULENAME##Procs) { \
+        auto it = NS::MODULENAME##Procs->find(#FUNCNAME); \
+        if (it != NS::MODULENAME##Procs->end()) \
+            LOCALNAME = (FUNCNAME##Func)it->second; \
+    } \
+    if (!LOCALNAME) { \
+        LOCALNAME = (FUNCNAME##Func)xg::GetSymbol(NS::MODULENAME##Lib, #FUNCNAME); \
+        if (LOCALNAME) { \
+            if (!NS::MODULENAME##Procs) \
+                NS::MODULENAME##Procs = new std::map<std::string, void*>(); \
+            (*NS::MODULENAME##Procs)[#FUNCNAME] = (void*)LOCALNAME; \
+        } \
+    }
+
+#define XG_MODULE_CALL_NAMED(LOCALNAME) LOCALNAME
+
+
+//
+// MODULE LOADER MACRO
+//
+#define XG_DEFINE_MODULE_LOADER(MODULE_PREFIX, MODULE_NAME) \
+    static inline void Ensure##MODULE_NAME##Loaded() { \
+        if ((MODULE_PREFIX::MODULE_NAME##DLL) == nullptr) { \
+            printf("ERROR: " #MODULE_NAME " DLL name is null. Engine must set it before use.\n"); \
+            return; \
+        } \
+        if ((MODULE_PREFIX::MODULE_NAME##Lib) == nullptr) { \
+            printf("Loading " #MODULE_NAME " DLL: %s\n", (MODULE_PREFIX::MODULE_NAME##DLL)); \
+            (MODULE_PREFIX::Load##MODULE_NAME##Lib)(); \
+            if ((MODULE_PREFIX::MODULE_NAME##Lib) == nullptr) { \
+                printf("FAILED to load " #MODULE_NAME " DLL: %s\n", (MODULE_PREFIX::MODULE_NAME##DLL)); \
+                return; \
+            } \
+            printf("SUCCESS: Loaded " #MODULE_NAME " DLL: %s\n", (MODULE_PREFIX::MODULE_NAME##DLL)); \
+        } \
+    }
