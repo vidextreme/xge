@@ -2,9 +2,6 @@
 #include "public/xgRenderer.h"
 #include "public/xgModules.h"
 
-#define XG_STRINGIFY2(x) #x
-#define XG_STRINGIFY(x) XG_STRINGIFY2(x)
-
 //
 // Generate EnsureRendererLoaded() using the macro system
 //

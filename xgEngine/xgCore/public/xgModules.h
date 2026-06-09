@@ -1,7 +1,5 @@
 #pragma once
 #include "xgBase.h"
-#include <string>
-#include <map>
 
 #if XG_PLATFORM_WINDOWS
 #include <Windows.h>

@@ -12,4 +12,6 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 #endif //PCH_H
