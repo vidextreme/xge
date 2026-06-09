@@ -155,3 +155,5 @@ namespace NS { \
             printf("SUCCESS: Loaded " #MODULE_NAME " DLL: %s\n", (MODULE_PREFIX::MODULE_NAME##DLL)); \
         } \
     }
+
+#define XG_MODULE_EXPORT extern "C" XG_API

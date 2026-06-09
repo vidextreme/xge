@@ -1,7 +1,9 @@
 <Solution>
   <Configurations>
+    <Platform Name="Any CPU" />
     <Platform Name="x64" />
   </Configurations>
+  <Project Path="Editor.CoreCLR/Editor.CoreCLR.csproj" Id="e40dbddf-0bd5-4ed3-93e6-f7d0528a079b" />
   <Project Path="xgBase/xgBase.vcxproj" Id="caa21a27-7e4b-45ca-8915-bf017af8f3af" />
   <Project Path="xgCore/xgCore.vcxproj" Id="eebfc737-b3c1-4075-b6f8-e3262dea651f">
     <BuildDependency Project="xgBase/xgBase.vcxproj" />

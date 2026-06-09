@@ -30,6 +30,9 @@
     <ClInclude Include="public\xgScriptModuleCoreCLR.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="ScriptHostCoreCLR.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -38,7 +41,10 @@
     <ClCompile Include="xgScriptModuleCoreCLR.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgScriptCoreCLR.cpp">
+    <ClCompile Include="ScriptCoreCLR.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptHostCoreCLR.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

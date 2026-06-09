@@ -4,12 +4,12 @@
 
 namespace xg
 {
-    class xgHostCoreCLR;
+    class ScriptHostCoreCLR;
 
     class xgScriptModuleCoreCLR : public ScriptModule
     {
     public:
-        explicit xgScriptModuleCoreCLR(xgHostCoreCLR* host);
+        explicit xgScriptModuleCoreCLR(ScriptHostCoreCLR* host);
         ~xgScriptModuleCoreCLR() override;
 
         bool Load(const char* path);
@@ -20,7 +20,7 @@ namespace xg
         bool IsValid() const override;
 
     private:
-        xgHostCoreCLR* _host = nullptr;
+        ScriptHostCoreCLR* _host = nullptr;
 
         void* _managedInit = nullptr;
         void* _managedUpdate = nullptr;
