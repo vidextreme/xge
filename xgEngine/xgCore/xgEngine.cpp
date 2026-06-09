@@ -46,6 +46,9 @@ namespace xg
         if (config.RendererModule)
             return SetRendererModule(config.RendererModule);
 
+        //TODO look for a better place for this!
+        ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
+
         return true;
     }
 
@@ -64,17 +67,22 @@ namespace xg
         return Renderer != nullptr;
     }
 
+    bool IsCoreCLRModule(const char* path)
+    {
+        return std::string(path).find(".CoreCLR.") != std::string::npos;
+    }
+
     //
     // Backend selection logic
     //
     ScriptHost* Engine::GetOrCreateHostFor(const std::string& path)
     {
         std::string ext = xg::GetExtension(path.c_str());
-
-		ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
-        
-        if (ext == ".dll")
+		
+        if (IsCoreCLRModule(path.c_str()))
+        {
             return CreateScriptHostCoreCLR(path.c_str());
+        }
 
         /*if (ext == ".NativeAOT.dll")
             return new HostNativeAOT();
