@@ -66,3 +66,7 @@
 #else
 #define XG_ASSERT(expr) ((void)0)
 #endif
+
+
+#define XG_STRINGIFY2(x) #x
+#define XG_STRINGIFY(x) XG_STRINGIFY2(x)

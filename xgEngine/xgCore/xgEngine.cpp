@@ -4,11 +4,7 @@
 #include "public/xgEngine.h"
 #include "public/xgScriptModule.h"
 #include "public/xgScriptHost.h"
-
-#include "public/xgHostCoreCLR.h"     // backend-specific, but only in .cpp
-//#include "public/HostNativeAOT.h"   // optional
-//#include "public/HostLua.h"         // optional
-//#include "public/HostPython.h"      // optional
+#include "public/xgScriptHost.h"
 
 #include <unordered_map>
 #include <string>
@@ -75,8 +71,10 @@ namespace xg
     {
         std::string ext = xg::GetExtension(path.c_str());
 
-        if (ext == ".CoreCLR.dll")
-            return new xgHostCoreCLR();
+		ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
+        
+        if (ext == ".dll")
+            return CreateScriptHostCoreCLR(path.c_str());
 
         /*if (ext == ".NativeAOT.dll")
             return new HostNativeAOT();

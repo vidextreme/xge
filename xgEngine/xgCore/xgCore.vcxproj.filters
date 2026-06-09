@@ -42,12 +42,6 @@
     <ClInclude Include="public\xgScriptHost.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgHostCoreCLR.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgScriptCoreCLR.h">
-      <Filter>public</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -62,10 +56,7 @@
     <ClCompile Include="xgEngine.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgScriptModule.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgHostCoreCLR.cpp">
+    <ClCompile Include="xgScriptAPI.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

@@ -95,15 +95,12 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgEngine.h" />
-    <ClInclude Include="public\xgHostCoreCLR.h" />
     <ClInclude Include="public\xgModules.h" />
     <ClInclude Include="public\xgRenderer.h" />
-    <ClInclude Include="public\xgScriptCoreCLR.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="xgHostCoreCLR.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="xgModules.cpp" />
     <ClCompile Include="pch.cpp">
@@ -111,7 +108,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="xgRendererAPI.cpp" />
-    <ClCompile Include="xgScriptModule.cpp" />
+    <ClCompile Include="xgScriptAPI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\xgBase\xgBase.vcxproj">

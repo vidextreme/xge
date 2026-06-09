@@ -3,7 +3,7 @@
 namespace xg
 {
     class Engine;
-
+	class ScriptHost;
     class ScriptModule
     {
     public:
@@ -25,6 +25,9 @@ namespace xg
         const char* _id; // user-defined stable C-string (e.g., "editor", "game")
     };
 
+    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostCoreCLR, ScriptHost*, const char*);
+
+    XG_API ScriptHost* CreateScriptHostCoreCLR(const char* path);
 }
 
-XG_DECLARE_MODULE(xg, ScriptBackendCoreCLR)
+XG_DECLARE_MODULE(xg, ScriptCoreCLR)

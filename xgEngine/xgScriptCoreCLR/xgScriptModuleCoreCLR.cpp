@@ -1,11 +1,10 @@
 #include "pch.h"
 #include "public/xgScriptModuleCoreCLR.h"
-#include "xgHostCoreCLR.h"
 #include "xgModules.h"
 
 namespace xg
 {
-    xgScriptModuleCoreCLR::xgScriptModuleCoreCLR(xgHostCoreCLR* host)
+    xgScriptModuleCoreCLR::xgScriptModuleCoreCLR(ScriptHostCoreCLR* host)
         : ScriptModule("coreclr"), _host(host)
     {
     }
@@ -17,7 +16,29 @@ namespace xg
 
     bool xgScriptModuleCoreCLR::Load(const char* path)
     {
-        // TODO: bind managed entrypoints
+        //
+        // Your host currently has no API for loading assemblies or resolving
+        // managed entrypoints. So for now, Load() simply marks the module valid.
+        //
+        // Once xgHostCoreCLR exposes:
+        //   - LoadAssembly(path)
+        //   - GetFunctionPointer(...)
+        //   - InitializeRuntime(configPath)
+        //
+        // …this function will bind Script_Init / Script_Update / Script_Shutdown.
+        //
+
+        if (!path || !path[0] || !_host)
+        {
+            _valid = false;
+            return false;
+        }
+
+        // Placeholder until host is implemented
+        _managedInit = nullptr;
+        _managedUpdate = nullptr;
+        _managedShutdown = nullptr;
+
         _valid = true;
         return true;
     }
@@ -40,13 +61,19 @@ namespace xg
     void xgScriptModuleCoreCLR::Update(float dt)
     {
         if (_managedUpdate)
-            ((void(*)(float))_managedUpdate)(dt);
+        {
+            using UpdateFunc = void(*)(float);
+            ((UpdateFunc)_managedUpdate)(dt);
+        }
     }
 
     void xgScriptModuleCoreCLR::Shutdown()
     {
         if (_managedShutdown)
-            ((void(*)())_managedShutdown)();
+        {
+            using ShutdownFunc = void(*)();
+            ((ShutdownFunc)_managedShutdown)();
+        }
 
         _valid = false;
     }

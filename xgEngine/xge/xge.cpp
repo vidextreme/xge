@@ -1,9 +1,4 @@
 #include "xgEngine.h"
-#include "xgScriptModule.h"
-
-// If you have a CoreCLR or NativeAOT host, include it here:
-// #include "CoreClrScriptHost.h"
-// #include "NativeAotScriptHost.h"
 
 int main(int argc, char** argv)
 {
@@ -15,22 +10,28 @@ int main(int argc, char** argv)
         return -1;
 
     //
-    // Script modules are created OUTSIDE the engine.
-    // Example (pseudo-code):
+    // Load Editor.CoreCLR.dll using a CoreCLR host
     //
-    // auto* editorHost = new CoreClrScriptHost();
-    // xg::ScriptModule* editorModule = editorHost->LoadModule("Editor.CoreCLR.dll");
-    // engine.AddScriptModule("editor", editorModule);
-    //
-    // auto* gameHost = new CoreClrScriptHost();
-    // xg::ScriptModule* gameModule = gameHost->LoadModule("Game.CoreCLR.dll");
-    // engine.AddScriptModule("game", gameModule);
-    //
-    // For now, we run with no script modules.
-    //
+    xg::ScriptHost* usedHost =
+        engine.AddScriptModule(
+            "editor",
+            "Editor.CoreCLR.dll");
 
+    if (!usedHost)
+    {
+        printf("Failed to load Editor.CoreCLR.dll\n");
+    }
+
+    //
+    // Run engine loop
+    //
     engine.Run();
+
+    //
+    // Shutdown
+    //
     engine.Shutdown();
 
+    delete usedHost;
     return 0;
 }

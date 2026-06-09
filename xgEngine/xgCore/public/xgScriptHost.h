@@ -22,4 +22,5 @@ namespace xg
         // The engine will store and later destroy the returned ScriptModule.
         virtual ScriptModule* LoadModule(const char* path) = 0;
     };
+
 }
