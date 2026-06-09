@@ -1,5 +1,4 @@
 #pragma once
-
 #include "xgScriptModule.h"
 
 namespace xg
@@ -9,12 +8,11 @@ namespace xg
     class xgScriptModuleCoreCLR : public ScriptModule
     {
     public:
-        explicit xgScriptModuleCoreCLR(ScriptHostCoreCLR* host);
+        xgScriptModuleCoreCLR(ScriptHostCoreCLR* host);
         ~xgScriptModuleCoreCLR() override;
 
         bool Load(const char* path);
-
-        bool Init(Engine* engine) override;   // ← REQUIRED
+        bool Init(Engine* engine) override;
         void Update(float dt) override;
         void Shutdown() override;
         bool IsValid() const override;

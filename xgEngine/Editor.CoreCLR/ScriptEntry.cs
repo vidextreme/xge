@@ -1,14 +1,29 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 
-namespace Editor.CoreCLR
+namespace xgEditor
 {
     public static class ScriptEntry
     {
         [UnmanagedCallersOnly(EntryPoint = "Script_Init")]
-        public static bool Init(nint enginePtr) => true;
+        public static void Init()
+        {
+            try
+            {
+                //System.Diagnostics.Debugger.Launch();
+                Debugger.Break();
+            }
+            catch { }
+
+            Console.WriteLine("wow");
+            //return true;
+        }
 
         [UnmanagedCallersOnly(EntryPoint = "Script_Update")]
-        public static void Update(float dt) { }
+        public static void Update(float dt) 
+        {
+            
+        }
 
         [UnmanagedCallersOnly(EntryPoint = "Script_Shutdown")]
         public static void Shutdown() { }
