@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "public/xgScriptModuleCoreCLR.h"
+#include "ScriptHostCoreCLR.h"
 
 namespace xg
 {
@@ -13,30 +14,13 @@ namespace xg
         Shutdown();
     }
 
-    bool xgScriptModuleCoreCLR::Load(const char* path)
+    bool xgScriptModuleCoreCLR::Load(const char* /*path*/)
     {
-        //
-        // Your host currently has no API for loading assemblies or resolving
-        // managed entrypoints. So for now, Load() simply marks the module valid.
-        //
-        // Once xgHostCoreCLR exposes:
-        //   - LoadAssembly(path)
-        //   - GetFunctionPointer(...)
-        //   - InitializeRuntime(configPath)
-        //
-        // …this function will bind Script_Init / Script_Update / Script_Shutdown.
-        //
-
-        if (!path || !path[0] || !_host)
-        {
-            _valid = false;
+        if (!_host)
             return false;
-        }
 
-        // Placeholder until host is implemented
-        _managedInit = nullptr;
-        _managedUpdate = nullptr;
-        _managedShutdown = nullptr;
+        if (!_host->GetEntryPoints(&_managedInit, &_managedUpdate, &_managedShutdown))
+            return false;
 
         _valid = true;
         return true;
@@ -46,23 +30,19 @@ namespace xg
     {
         if (_managedInit)
         {
-            using InitFunc = bool(*)(Engine*);
-            return ((InitFunc)_managedInit)(engine);
+            using InitFn = void(*)();
+            ((InitFn)_managedInit)();
+            return true;
         }
         return false;
-    }
-
-    bool xgScriptModuleCoreCLR::IsValid() const
-    {
-        return _valid;
     }
 
     void xgScriptModuleCoreCLR::Update(float dt)
     {
         if (_managedUpdate)
         {
-            using UpdateFunc = void(*)(float);
-            ((UpdateFunc)_managedUpdate)(dt);
+            using UpdateFn = void(*)(float);
+            ((UpdateFn)_managedUpdate)(dt);
         }
     }
 
@@ -70,10 +50,15 @@ namespace xg
     {
         if (_managedShutdown)
         {
-            using ShutdownFunc = void(*)();
-            ((ShutdownFunc)_managedShutdown)();
+            using ShutdownFn = void(*)();
+            ((ShutdownFn)_managedShutdown)();
         }
 
         _valid = false;
+    }
+
+    bool xgScriptModuleCoreCLR::IsValid() const
+    {
+        return _valid;
     }
 }

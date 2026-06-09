@@ -43,11 +43,12 @@ namespace xg
 
     bool Engine::Initialize(const EngineConfig& config)
     {
+        //TODO look for a better place for this!
+        ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
+
         if (config.RendererModule)
             return SetRendererModule(config.RendererModule);
 
-        //TODO look for a better place for this!
-        ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
 
         return true;
     }
@@ -112,7 +113,6 @@ namespace xg
         if (!host)
             return nullptr;
 
-        // If this is a new host, store it for destruction
         if (!hostOverride)
         {
             auto* hosts = static_cast<HostStorage*>(_hostStorage);
@@ -123,11 +123,20 @@ namespace xg
         if (!module || !module->IsValid())
             return nullptr;
 
+        // 🔹 Call Init here
+        if (!module->Init(this))
+        {
+            module->Shutdown();
+            delete module;
+            return nullptr;
+        }
+
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
         storage->Modules[id] = module;
 
         return host;
     }
+
 
     ScriptModule* Engine::GetScriptModule(const char* id)
     {
@@ -175,7 +184,10 @@ namespace xg
             {
                 ScriptModule* module = pair.second;
                 if (module && module->IsValid())
+                {
+					//module->Init(this);
                     module->Update(dt);
+                }
             }
 
             if (Renderer)
