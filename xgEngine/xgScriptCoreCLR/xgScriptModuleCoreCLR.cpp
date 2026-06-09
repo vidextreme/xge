@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "public/xgScriptModuleCoreCLR.h"
-#include "xgModules.h"
 
 namespace xg
 {

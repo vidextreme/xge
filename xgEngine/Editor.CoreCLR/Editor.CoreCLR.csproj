@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- This is the correct property -->
+    <OutputPath>..\..\gameroot\bin\</OutputPath>
+
+    <!-- Remove net10.0 folder -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Remove Debug/Release folder -->
+    <AppendConfigurationToOutputPath>false</AppendConfigurationToOutputPath>
+
+    <!-- Remove RID folder -->
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+</Project>
