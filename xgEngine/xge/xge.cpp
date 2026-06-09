@@ -1,3 +1,8 @@
+#include <map>
+#include <string>
+#include <memory>
+#include <unordered_map>
+#include <vector>
 #include "xgEngine.h"
 
 int main(int argc, char** argv)

@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "public/xgScriptModule.h"
 
-#define XG_STRINGIFY2(x) #x
-#define XG_STRINGIFY(x) XG_STRINGIFY2(x)
 
 XG_DEFINE_MODULE_LOADER(xg, ScriptCoreCLR);
 XG_IMPLEMENT_MODULE(xg, ScriptCoreCLR)

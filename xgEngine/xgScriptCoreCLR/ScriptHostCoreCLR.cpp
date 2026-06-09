@@ -1,8 +1,7 @@
 #include "pch.h"
 #include "ScriptHostCoreCLR.h"
 #include "public/xgScriptModuleCoreCLR.h"
-
-#include <windows.h>
+#include "xgModules.h"
 #include <filesystem>
 #include <string>
 
@@ -82,18 +81,18 @@ namespace xg
         std::string tpaList = BuildTpaList(runtimePath);
 
         std::string coreclrPath = runtimePath + "\\coreclr.dll";
-        HMODULE coreclr = LoadLibraryA(coreclrPath.c_str());
+        ModuleHandle coreclr = xg::LoadModule(coreclrPath.c_str());//LoadLibraryA(coreclrPath.c_str());
         if (!coreclr)
             return false;
 
         _coreclrLib = coreclr;
 
         _coreclrInitialize = (coreclr_initialize_fn)
-            GetProcAddress(coreclr, "coreclr_initialize");
+            GetSymbol(coreclr, "coreclr_initialize");
         _coreclrCreateDelegate = (coreclr_create_delegate_fn)
-            GetProcAddress(coreclr, "coreclr_create_delegate");
+            GetSymbol(coreclr, "coreclr_create_delegate");
         _coreclrShutdown = (coreclr_shutdown_fn)
-            GetProcAddress(coreclr, "coreclr_shutdown");
+            GetSymbol(coreclr, "coreclr_shutdown");
 
         if (!_coreclrInitialize || !_coreclrCreateDelegate || !_coreclrShutdown)
             return false;
@@ -186,7 +185,7 @@ namespace xg
 
         if (_coreclrLib)
         {
-            FreeLibrary((HMODULE)_coreclrLib);
+            UnloadModule(_coreclrLib);
             _coreclrLib = nullptr;
         }
 

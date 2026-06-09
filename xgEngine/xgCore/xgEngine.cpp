@@ -6,10 +6,6 @@
 #include "public/xgScriptHost.h"
 #include "public/xgScriptHost.h"
 
-#include <unordered_map>
-#include <string>
-#include <vector>
-
 namespace xg
 {
     // Internal-only storage (hidden behind void*)
