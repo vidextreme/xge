@@ -70,3 +70,14 @@
 
 #define XG_STRINGIFY2(x) #x
 #define XG_STRINGIFY(x) XG_STRINGIFY2(x)
+
+#define XG_ENABLE_FLAGS(E) \
+inline E operator|(E a, E b) { \
+    return static_cast<E>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); \
+} \
+inline E operator&(E a, E b) { \
+    return static_cast<E>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b)); \
+} \
+inline bool HasFlag(E value, E flag) { \
+    return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) == static_cast<uint8_t>(flag); \
+}

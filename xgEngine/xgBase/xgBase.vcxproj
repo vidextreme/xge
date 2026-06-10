@@ -88,6 +88,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgBase.h" />
     <ClInclude Include="public\xgPathUtils.h" />
+    <ClInclude Include="public\xgStream.h" />
     <ClInclude Include="public\xgWindow.h" />
   </ItemGroup>
   <ItemGroup>

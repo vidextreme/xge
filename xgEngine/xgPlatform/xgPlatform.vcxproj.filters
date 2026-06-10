@@ -27,6 +27,9 @@
     <ClInclude Include="WindowSDL.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="FileWin.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -36,6 +39,12 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="WindowFactory.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="FileWin.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="PlatformFactory.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

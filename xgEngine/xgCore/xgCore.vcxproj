@@ -95,6 +95,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgEngine.h" />
+    <ClInclude Include="public\xgJson.h" />
     <ClInclude Include="public\xgModules.h" />
     <ClInclude Include="public\xgRenderer.h" />
     <ClInclude Include="public\xgScriptHost.h" />
