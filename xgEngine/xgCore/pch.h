@@ -14,4 +14,8 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#ifdef annotate
+#undef annotate
+#endif
+
 #endif //PCH_H

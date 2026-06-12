@@ -81,3 +81,15 @@ inline E operator&(E a, E b) { \
 inline bool HasFlag(E value, E flag) { \
     return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) == static_cast<uint8_t>(flag); \
 }
+
+// Emits a comment Tree-sitter can detect
+#define XG_SERIALIZABLE() /* @xg:serializable */
+
+// Emits a comment with the field name
+#define XG_FIELD(...)    /* @xg:field __VA_ARGS__ */
+
+
+
+
+
+

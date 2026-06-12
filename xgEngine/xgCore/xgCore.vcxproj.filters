@@ -45,6 +45,15 @@
     <ClInclude Include="public\xgJson.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgReflection.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgJsonBackend.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgReflectionSerialization.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -60,6 +69,12 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgScriptAPI.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgJson.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgJsonBackend.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>
