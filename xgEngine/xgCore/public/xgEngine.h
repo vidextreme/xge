@@ -3,7 +3,7 @@
 #include "xgBase.h"
 #include "xgWindow.h"
 #include "xgRenderer.h"
-#include "../Generated/xgEngine.generated.h"
+#include "xgEngine.generated.h"
 
 namespace xg
 {

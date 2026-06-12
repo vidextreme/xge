@@ -44,18 +44,17 @@ namespace xg
     // ============================================================
     //
     template<typename T, typename MemberT>
-    inline MemberT& ResolveMember(T& obj, std::uintptr_t encodedPtr)
+    inline MemberT& ResolveMember(T& obj, std::uintptr_t offset)
     {
-        auto pm = reinterpret_cast<MemberT T::*>(encodedPtr);
-        return obj.*pm;
+        return *reinterpret_cast<MemberT*>(reinterpret_cast<char*>(&obj) + offset);
     }
 
     template<typename T, typename MemberT>
-    inline const MemberT& ResolveMember(const T& obj, std::uintptr_t encodedPtr)
+    inline const MemberT& ResolveMember(const T& obj, std::uintptr_t offset)
     {
-        auto pm = reinterpret_cast<MemberT T::*>(encodedPtr);
-        return obj.*pm;
+        return *reinterpret_cast<const MemberT*>(reinterpret_cast<const char*>(&obj) + offset);
     }
+
 
     //
     // ============================================================
@@ -67,11 +66,14 @@ namespace xg
     {
         using TI = TypeInfo<T>;
 
+        const RawFieldInfo* fields = TI::GetFields();
+        const int count = TI::GetFieldCount();
+
         out.BeginObject(TI::Name);
 
-        for (int i = 0; i < TI::FieldCount; ++i)
+        for (int i = 0; i < count; ++i)
         {
-            const RawFieldInfo& f = TI::Fields[i];
+            const RawFieldInfo& f = fields[i];
             const char* key = f.Key;
             const char* type = f.TypeName;
 
@@ -86,10 +88,13 @@ namespace xg
 
             else if (strcmp(type, "const char*") == 0)
                 out.WriteString(key, ResolveMember<T, const char*>(obj, f.MemberPtr));
+            else if (strcmp(type, "char*") == 0)
+                out.WriteString(key, ResolveMember<T, const char*>(obj, f.MemberPtr));
         }
 
         out.EndObject();
     }
+
 
     //
     // ============================================================
@@ -101,9 +106,12 @@ namespace xg
     {
         using TI = TypeInfo<T>;
 
-        for (int i = 0; i < TI::FieldCount; ++i)
+        const RawFieldInfo* fields = TI::GetFields();
+        const int count = TI::GetFieldCount();
+
+        for (int i = 0; i < count; ++i)
         {
-            const RawFieldInfo& f = TI::Fields[i];
+            const RawFieldInfo& f = fields[i];
             const char* key = f.Key;
             const char* type = f.TypeName;
 
@@ -118,6 +126,11 @@ namespace xg
 
             else if (strcmp(type, "const char*") == 0)
                 ResolveMember<T, const char*>(obj, f.MemberPtr) = in.ReadString(key);
+
+            else if (strcmp(type, "char*") == 0)
+                ResolveMember<T, const char*>(obj, f.MemberPtr) = in.ReadString(key);
+
         }
     }
+
 }

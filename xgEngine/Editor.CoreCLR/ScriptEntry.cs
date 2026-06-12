@@ -11,7 +11,7 @@ namespace xgEditor
             try
             {
                 //System.Diagnostics.Debugger.Launch();
-                Debugger.Break();
+                //Debugger.Break();
             }
             catch { }
 

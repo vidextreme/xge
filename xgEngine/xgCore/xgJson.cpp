@@ -101,4 +101,11 @@ namespace xg
         impl->Data[key] = value ? value : "";
     }
 
+    const char* Json::ToString() const
+    {
+        impl->TempString = impl->Data.dump(4); // pretty print
+        return impl->TempString.c_str();
+    }
+
+
 }

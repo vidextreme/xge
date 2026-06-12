@@ -9,6 +9,12 @@ class Program
     [System.Runtime.InteropServices.DllImport("tree-sitter-cpp")]
     public static extern IntPtr tree_sitter_cpp();
 
+    static bool IsGeneratedHeader(string path)
+    {
+        string file = Path.GetFileName(path);
+        return file.Contains(".generated.", StringComparison.OrdinalIgnoreCase);
+    }
+
     static void Main(string[] args)
     {
         Console.WriteLine("=== XG Reflection Generator ===");
@@ -39,7 +45,12 @@ class Program
         var headers = Directory.GetFiles(rootFolder, "*.h", SearchOption.AllDirectories);
 
         foreach (var header in headers)
+        {
+            if (IsGeneratedHeader(header))
+                continue;
+
             ProcessHeader(parser, header, destFolder);
+        }
 
         Console.WriteLine("=== DONE ===");
     }
@@ -55,10 +66,14 @@ class Program
             return;
 
         GenerateHeaderFile(headerPath, structs, destFolder);
+        GenerateCppFile(headerPath, structs, destFolder);
 
         Console.WriteLine($"[REFLECT] {headerPath}");
     }
 
+    // ============================================================
+    //  HEADER GENERATION (.generated.h)
+    // ============================================================
     static void GenerateHeaderFile(string originalHeaderPath, List<ReflectedStruct> structs, string destFolder)
     {
         Directory.CreateDirectory(destFolder);
@@ -84,7 +99,7 @@ class Program
             sb.AppendLine($"namespace {ns} {{ {keyword} {s.Name}; }}");
             sb.AppendLine();
 
-            // Specialization
+            // TypeInfo declaration (no member references!)
             sb.AppendLine($"namespace {ns} {{");
             sb.AppendLine($"// {keyword}: {s.Name}");
             sb.AppendLine("template<>");
@@ -92,38 +107,80 @@ class Program
             sb.AppendLine("{");
             sb.AppendLine($"    static constexpr const char* Name = \"{s.Name}\";");
             sb.AppendLine();
-            sb.AppendLine($"    static constexpr int FieldCount = {s.Fields.Count};");
-            sb.AppendLine();
-            sb.AppendLine("    static constexpr RawFieldInfo Fields[FieldCount] =");
-            sb.AppendLine("    {");
-
-            foreach (var f in s.Fields)
-            {
-                sb.AppendLine("        {");
-                sb.AppendLine($"            \"{f.Name}\",");
-                sb.AppendLine($"            \"{f.Name}\",");
-
-                // Pointer-to-member encoded as integer; works with forward declaration
-                sb.AppendLine($"            (std::uintptr_t)&{fullName}::{f.Name},");
-
-                sb.AppendLine($"            \"{f.Type}\"");
-                sb.AppendLine("        },");
-            }
-
-            sb.AppendLine("    };");
+            sb.AppendLine("    static const RawFieldInfo* GetFields();");
+            sb.AppendLine("    static int GetFieldCount();");
             sb.AppendLine("};");
             sb.AppendLine($"}} // namespace {ns}");
             sb.AppendLine();
         }
 
-        string output = sb.ToString();
-        output = output.Replace("\r\n", "\n").Replace("\r", "\n");
-        output = output.Replace("\n", "\r\n");
-        if (!output.EndsWith("\r\n"))
-            output += "\r\n";
-
-        File.WriteAllText(outputPath, output, new UTF8Encoding(false));
-
+        File.WriteAllText(outputPath, NormalizeNewlines(sb.ToString()), new UTF8Encoding(false));
         Console.WriteLine($"Generated: {outputPath}");
+    }
+
+    // ============================================================
+    //  CPP GENERATION (.generated.cpp)
+    // ============================================================
+    static void GenerateCppFile(string originalHeaderPath, List<ReflectedStruct> structs, string destFolder)
+    {
+        Directory.CreateDirectory(destFolder);
+
+        string fileName = Path.GetFileNameWithoutExtension(originalHeaderPath);
+        string outputPath = Path.Combine(destFolder, fileName + ".generated.cpp");
+
+        var sb = new StringBuilder();
+
+        sb.AppendLine("// AUTO-GENERATED. DO NOT EDIT.");
+        sb.AppendLine("#include \"pch.h\""); // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        sb.AppendLine($"#include \"{fileName}.h\"");
+        sb.AppendLine($"#include \"{fileName}.generated.h\"");
+        sb.AppendLine();
+
+        foreach (var s in structs)
+        {
+            string ns = string.IsNullOrEmpty(s.Namespace) ? "xg" : s.Namespace;
+
+            sb.AppendLine($"namespace {ns} {{");
+            sb.AppendLine();
+
+            // Field array
+            sb.AppendLine($"static const RawFieldInfo {s.Name}_Fields[] =");
+            sb.AppendLine("{");
+
+            foreach (var f in s.Fields)
+            {
+                sb.AppendLine("    {");
+                sb.AppendLine($"        \"{f.Name}\", \"{f.Name}\",");
+                sb.AppendLine($"        offsetof({s.Name}, {f.Name}),");
+                sb.AppendLine($"        \"{f.Type}\"");
+                sb.AppendLine("    },");
+            }
+
+            sb.AppendLine("};");
+            sb.AppendLine();
+
+            // TypeInfo functions
+            sb.AppendLine($"const RawFieldInfo* TypeInfo<{s.Name}>::GetFields() {{ return {s.Name}_Fields; }}");
+            sb.AppendLine($"int TypeInfo<{s.Name}>::GetFieldCount() {{ return sizeof({s.Name}_Fields) / sizeof(RawFieldInfo); }}");
+
+            sb.AppendLine();
+            sb.AppendLine($"}} // namespace {ns}");
+            sb.AppendLine();
+        }
+
+        File.WriteAllText(outputPath, NormalizeNewlines(sb.ToString()), new UTF8Encoding(false));
+        Console.WriteLine($"Generated: {outputPath}");
+    }
+
+    // ============================================================
+    //  UTIL
+    // ============================================================
+    static string NormalizeNewlines(string s)
+    {
+        s = s.Replace("\r\n", "\n").Replace("\r", "\n");
+        s = s.Replace("\n", "\r\n");
+        if (!s.EndsWith("\r\n"))
+            s += "\r\n";
+        return s;
     }
 }

@@ -58,7 +58,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;..\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -69,7 +69,7 @@
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
-      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(SolutionDir)Generated" "$(ProjectDir)."
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)Generated" "$(ProjectDir)."
 </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
@@ -84,7 +84,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;..\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -95,7 +95,7 @@
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
-      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(SolutionDir)Generated" "$(ProjectDir)."
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)Generated" "$(ProjectDir)."
 </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
