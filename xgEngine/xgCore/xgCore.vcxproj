@@ -58,7 +58,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;..\Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -68,6 +68,10 @@
       <AdditionalDependencies>xgBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
+    <PreBuildEvent>
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(SolutionDir)Generated" "$(ProjectDir)."
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -80,7 +84,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;..\Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -90,19 +94,28 @@
       <AdditionalDependencies>xgBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
+    <PreBuildEvent>
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(SolutionDir)Generated" "$(ProjectDir)."
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgEngine.h" />
     <ClInclude Include="public\xgJson.h" />
+    <ClInclude Include="public\xgJsonBackend.h" />
     <ClInclude Include="public\xgModules.h" />
+    <ClInclude Include="public\xgReflection.h" />
+    <ClInclude Include="public\xgReflectionSerialization.h" />
     <ClInclude Include="public\xgRenderer.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xgEngine.cpp" />
+    <ClCompile Include="xgJson.cpp" />
+    <ClCompile Include="xgJsonBackend.cpp" />
     <ClCompile Include="xgModules.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
