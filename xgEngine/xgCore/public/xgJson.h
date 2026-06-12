@@ -22,6 +22,7 @@ namespace xg
         void SetString(const char* key, const char* value);
 
         bool Has(const char* key) const;
+        const char* ToString() const;
 
     private:
         struct Impl;

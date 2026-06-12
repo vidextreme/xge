@@ -137,45 +137,65 @@ public static class StructExtractor
 
     private static ReflectedField? ExtractField(Node fieldDecl, Dictionary<string, string> meta)
     {
-        string type = "";
+        string baseType = "";
+        bool isConst = false;
+        int pointerCount = 0;
         string name = "";
 
-        foreach (var child in fieldDecl.Children)
+        void Scan(Node n)
         {
-            switch (child.Type)
+            string text = n.Text.Trim();
+
+            // Detect const ANYWHERE
+            if (text == "const")
+                isConst = true;
+
+            // Detect base type
+            if (n.Type == "primitive_type" ||
+                n.Type == "type_identifier" ||
+                n.Type == "qualified_identifier")
             {
-                case "primitive_type":
-                case "type_identifier":
-                case "qualified_identifier":
-                    type = child.Text.Trim();
-                    break;
-
-                case "pointer_declarator":
-                case "reference_declarator":
-                case "function_declarator":
-                    {
-                        var id = FindDescendantOfType(child, "field_identifier");
-                        if (id != null)
-                            name = id.Text.Trim();
-                        break;
-                    }
-
-                case "field_identifier":
-                    name = child.Text.Trim();
-                    break;
+                baseType = text;
             }
+
+            // Detect pointers
+            if (n.Type == "pointer_declarator")
+                pointerCount++;
+
+            // Detect field name
+            if (n.Type == "field_identifier")
+                name = text;
+
+            foreach (var c in n.Children)
+                Scan(c);
         }
 
-        if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(name))
+        Scan(fieldDecl);
+
+        if (string.IsNullOrEmpty(baseType) || string.IsNullOrEmpty(name))
             return null;
+
+        // Build final type
+        string finalType = "";
+        if (isConst)
+            finalType += "const ";
+
+        finalType += baseType;
+
+        for (int i = 0; i < pointerCount; i++)
+            finalType += "*";
 
         return new ReflectedField
         {
             Name = name,
-            Type = type,
+            Type = finalType,
             Meta = meta
         };
     }
+
+
+
+
 
     // ------------------------------------------------------------
     // Macro detection
