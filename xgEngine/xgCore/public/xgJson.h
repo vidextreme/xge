@@ -10,6 +10,7 @@ namespace xg
         ~Json();
 
         bool Load(Stream& stream);
+        bool Save(Stream& stream) const;
 
         // Accessors
         bool GetBool(const char* key, bool defaultValue = false) const;

@@ -5,21 +5,30 @@
 #include <vector>
 #include "xgJson.h"
 #include "xgJsonBackend.h"
-
+#include "xgStream.h"
 #include "xgEngine.h"
 
 int main(int argc, char** argv)
 {
     xg::EngineConfig config;
-    config.RendererModule = "xgRendererDX12.dll";
-
     xg::Json json;
-    xg::JsonSerializer ser(json);
-    xg::Serialize(ser, config);
+    auto file = xg::LoadFile(L"gameconfig.json", xg::FileAccessMode::Read);
+    if (!file)
+    {
+		//TODO: default config if file doesn't exist
+    }
+	json.Load(*file);
+	xg::JsonDeserializer deser(json);
+	xg::Deserialize(deser, config);
+    //xg::JsonSerializer ser(json);
+    //xg::Serialize(ser, config);
 
-    std::string out = json.ToString();
-    printf("Serialized JSON:\n%s\n", out.c_str());
-
+    //std::string out = json.ToString();
+	//auto file = xg::LoadFile(L"gameconfig.json", xg::FileAccessMode::Create | xg::FileAccessMode::Write);
+    //json.Save(*file);
+    //file->Close();
+    //printf("Serialized JSON:\n%s\n", out.c_str());
+    
     //std::string out = 
     xg::Engine engine;
     if (!engine.Initialize(config))
