@@ -15,7 +15,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="MacroExtractor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="ReflectedStuff.cs" />
     <Compile Include="StructExtractor.cs" />
