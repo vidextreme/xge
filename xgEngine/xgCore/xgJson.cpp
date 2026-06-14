@@ -44,6 +44,19 @@ namespace xg
         }
     }
 
+    bool Json::Save(Stream& stream) const
+    {
+        // Convert JSON to string
+        impl->TempString = impl->Data.dump(4);
+        const char* text = impl->TempString.c_str();
+        size_t len = impl->TempString.size();
+
+        // Write to stream
+        int written = stream.Write(text, (int)len);
+        return written == (int)len;
+    }
+
+
     bool Json::GetBool(const char* key, bool defaultValue) const
     {
         if (impl->Data.contains(key))
