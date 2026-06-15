@@ -1,5 +1,5 @@
 ![xfg xge](docs/xge-logo.png#gh-dark-mode-only)
-![xfg xge](Docs/xge-logo-white.png#gh-dark-mode-only#gh-light-mode-only)
+![xfg xge](docs/xge-logo-white.png#gh-dark-mode-only#gh-light-mode-only)
 
 # 🎮 XGE — Cross‑Game Engine
 
