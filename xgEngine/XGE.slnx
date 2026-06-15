@@ -1,0 +1,33 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/engine/">
+    <Project Path="xgBase/xgBase.vcxproj" Id="caa21a27-7e4b-45ca-8915-bf017af8f3af">
+      <BuildDependency Project="tools/xgReflectGen/xgReflectGen.csproj" />
+    </Project>
+    <Project Path="xgCore/xgCore.vcxproj" Id="eebfc737-b3c1-4075-b6f8-e3262dea651f">
+      <BuildDependency Project="xgBase/xgBase.vcxproj" />
+    </Project>
+    <Project Path="xge/xge.vcxproj" Id="595d3fa6-8693-4e85-897a-fa3f0ca16c6b">
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+      <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
+      <BuildDependency Project="xgRendererDX12/xgRendererDX12.vcxproj" />
+      <BuildDependency Project="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" />
+    </Project>
+    <Project Path="xgPlatform/xgPlatform.vcxproj" Id="e288c667-2735-4b5c-b72a-b21b2ae92e84" />
+    <Project Path="xgRendererDX12/xgRendererDX12.vcxproj" Id="39cadf1a-e87e-42ac-abf5-6807a839d54e">
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    </Project>
+    <Project Path="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" Id="0f12b426-13da-459a-961e-eff3a418ec39" />
+  </Folder>
+  <Folder Name="/script_modules/">
+    <Project Path="Editor.CoreCLR/Editor.CoreCLR.csproj" Id="e40dbddf-0bd5-4ed3-93e6-f7d0528a079b">
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    </Project>
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/xgReflectGen/xgReflectGen.csproj" />
+  </Folder>
+</Solution>

@@ -16,10 +16,13 @@ int main(int argc, char** argv)
     if (!file)
     {
 		//TODO: default config if file doesn't exist
+        return -1;
     }
 	json.Load(*file);
 	xg::JsonDeserializer deser(json);
 	xg::Deserialize(deser, config);
+	file->Close();
+
     //xg::JsonSerializer ser(json);
     //xg::Serialize(ser, config);
 
@@ -29,7 +32,6 @@ int main(int argc, char** argv)
     //file->Close();
     //printf("Serialized JSON:\n%s\n", out.c_str());
     
-    //std::string out = 
     xg::Engine engine;
     if (!engine.Initialize(config))
         return -1;

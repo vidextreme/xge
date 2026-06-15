@@ -68,6 +68,9 @@
       <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
       <ImportLibrary>$(SolutionDir)\lib\$(TargetName).lib</ImportLibrary>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /D "$(ProjectDir)..\3rdparty\SDL3\lib\x64\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -90,6 +93,9 @@
       <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
       <ImportLibrary>$(SolutionDir)\lib\$(TargetName).lib</ImportLibrary>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /D "$(ProjectDir)..\3rdparty\SDL3\lib\x64\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
