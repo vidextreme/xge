@@ -1,0 +1,11 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="AutoIncludeCppFiles" BeforeTargets="ClCompile">
+    <ItemGroup>
+      <!-- Dynamically discover the files -->
+      <ClCompile Include="Generated\**\*.generated.cpp">
+        <AutoGen>True</AutoGen>
+         <DesignTime>True</DesignTime>
+      </ClCompile>
+    </ItemGroup>
+  </Target>
+</Project>
