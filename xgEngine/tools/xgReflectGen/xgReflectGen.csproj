@@ -27,4 +27,8 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy /Y /D &quot;$(ProjectDir)..\..\3rdparty\TreeSitter\*.dll&quot; &quot;$(TargetDir)&quot;" />
+  </Target>
+
 </Project>
