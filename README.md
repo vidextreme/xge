@@ -1,4 +1,8 @@
+![xfg xge](docs/xge-logo.png#gh-dark-mode-only)
+![xfg xge](Docs/xge-logo-white.png#gh-dark-mode-only#gh-light-mode-only)
+
 # 🎮 XGE — Cross‑Game Engine
+
 A work‑in‑progress, modular C++20 engine focused on **foundational architecture**, **technical design**, and **clean systems engineering** rather than commercial features or production‑ready tooling.
 
 XGE is an exploration of modern engine architecture: reflection‑driven data, modular runtime systems, dual‑runtime scripting (CoreCLR + NativeAOT), and strict layering. The goal is to build a **solid, extensible foundation** that can grow into a full engine over time.
@@ -19,9 +23,12 @@ XGE is designed for both runtime execution and editor workflows, with determinis
 
 ## 🧭 Design Philosophy
 
-### Engine‑Agnostic Core
+### Platform‑Agnostic Core
 The engine core (`xgCore`) contains no platform code, no renderer code, and no scripting runtime.  
 It consumes abstract interfaces and streams, making it portable and testable.
+
+**xgCore** is isolated from OS APIs, graphics APIs, and scripting runtimes.
+All integration happens through dynamically loaded modules.
 
 ### Strict Layering
 ```
@@ -286,11 +293,11 @@ XGE/
 Example:
 
 ```cpp
+XG_SERIALIZABLE()
 struct EngineConfig
 {
-    XG_SERIALIZABLE()
 
-    XG_FIELD("RendererModule")
+    XG_FIELD()
     const char* RendererModule = nullptr;
 };
 ```
