@@ -23,6 +23,6 @@ namespace xg
         ~ScriptHostNative() override = default;
 
         // Load a native script module from the given path.
-        ScriptModule* LoadModule(const char* path) override;
+        ScriptModule* LoadModule(const char* id, const char* path) override;
     };
 }

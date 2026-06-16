@@ -1,20 +1,20 @@
 #include "pch.h"
-#include "public/xgScriptModuleCoreCLR.h"
+#include "ScriptModuleCoreCLR.h"
 #include "ScriptHostCoreCLR.h"
 
 namespace xg
 {
-    xgScriptModuleCoreCLR::xgScriptModuleCoreCLR(ScriptHostCoreCLR* host)
-        : ScriptModule("coreclr"), _host(host)
+    ScriptModuleCoreCLR::ScriptModuleCoreCLR(const char* id, ScriptHostCoreCLR* host)
+        : ScriptModule(id), _host(host)
     {
     }
 
-    xgScriptModuleCoreCLR::~xgScriptModuleCoreCLR()
+    ScriptModuleCoreCLR::~ScriptModuleCoreCLR()
     {
         Shutdown();
     }
 
-    bool xgScriptModuleCoreCLR::Load(const char* /*path*/)
+    bool ScriptModuleCoreCLR::Load(const char* /*path*/)
     {
         if (!_host)
             return false;
@@ -26,7 +26,7 @@ namespace xg
         return true;
     }
 
-    bool xgScriptModuleCoreCLR::Init(Engine* engine)
+    bool ScriptModuleCoreCLR::Init(ScriptEngine* engine)
     {
         if (_managedInit)
         {
@@ -37,7 +37,7 @@ namespace xg
         return false;
     }
 
-    void xgScriptModuleCoreCLR::Update(float dt)
+    void ScriptModuleCoreCLR::Update(float dt)
     {
         if (_managedUpdate)
         {
@@ -46,7 +46,7 @@ namespace xg
         }
     }
 
-    void xgScriptModuleCoreCLR::Shutdown()
+    void ScriptModuleCoreCLR::Shutdown()
     {
         if (_managedShutdown)
         {
@@ -57,7 +57,7 @@ namespace xg
         _valid = false;
     }
 
-    bool xgScriptModuleCoreCLR::IsValid() const
+    bool ScriptModuleCoreCLR::IsValid() const
     {
         return _valid;
     }

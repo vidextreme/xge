@@ -1,11 +1,14 @@
 #include "pch.h"
 #include "ScriptHostNative.h"
+#include "ScriptModuleNative.h"
 
 namespace xg
 {
-    using CreateScriptModuleFunc = ScriptModule * (*)();
+    using InitFunc = ScriptModuleNative::InitFunc;
+    using UpdateFunc = ScriptModuleNative::UpdateFunc;
+    using ShutdownFunc = ScriptModuleNative::ShutdownFunc;
 
-    ScriptModule* ScriptHostNative::LoadModule(const char* path)
+    ScriptModule* ScriptHostNative::LoadModule(const char* id, const char* path)
     {
         if (!path)
             return nullptr;
@@ -14,22 +17,25 @@ namespace xg
         if (!lib)
             return nullptr;
 
-        auto createModule =
-            (CreateScriptModuleFunc)xg::GetSymbol(lib, "CreateScriptModule");
+        auto initFn =
+            (InitFunc)xg::GetSymbol(lib, "ScriptModule_Init");
+        auto updateFn =
+            (UpdateFunc)xg::GetSymbol(lib, "ScriptModule_Update");
+        auto shutdownFn =
+            (ShutdownFunc)xg::GetSymbol(lib, "ScriptModule_Shutdown");
 
-        if (!createModule)
+        if (!initFn || !updateFn || !shutdownFn)
         {
             xg::UnloadModule(lib);
             return nullptr;
         }
 
-        ScriptModule* module = createModule();
-        if (!module || !module->IsValid())
-        {
-            if (module)
-                delete module;
+        ScriptModuleNative* module =
+            new ScriptModuleNative(id, lib, initFn, updateFn, shutdownFn);
 
-            xg::UnloadModule(lib);
+        if (!module->IsValid())
+        {
+            delete module;
             return nullptr;
         }
 

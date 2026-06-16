@@ -27,10 +27,10 @@
     <ClInclude Include="pch.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgScriptModuleCoreCLR.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="ScriptHostCoreCLR.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptModuleCoreCLR.h">
       <Filter>private\headers</Filter>
     </ClInclude>
   </ItemGroup>
@@ -38,13 +38,13 @@
     <ClCompile Include="pch.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgScriptModuleCoreCLR.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
     <ClCompile Include="ScriptCoreCLR.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="ScriptHostCoreCLR.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptModuleCoreCLR.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

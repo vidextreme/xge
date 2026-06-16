@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "xgModules.h"
 #include "ScriptHostCoreCLR.h"
-#include "public/xgScriptModuleCoreCLR.h"
+#include "ScriptModuleCoreCLR.h"
 
 // ⭐ REQUIRED — this is what you're missing
 //XG_IMPLEMENT_MODULE(xg, ScriptCoreCLR)
