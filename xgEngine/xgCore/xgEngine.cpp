@@ -115,7 +115,7 @@ namespace xg
             hosts->Hosts.push_back(host);
         }
 
-        ScriptModule* module = host->LoadModule(path);
+        ScriptModule* module = host->LoadModule(id, path);
         if (!module || !module->IsValid())
             return nullptr;
 

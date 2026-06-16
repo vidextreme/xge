@@ -88,8 +88,8 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="public\xgScriptModuleCoreCLR.h" />
     <ClInclude Include="ScriptHostCoreCLR.h" />
+    <ClInclude Include="ScriptModuleCoreCLR.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -98,7 +98,7 @@
     </ClCompile>
     <ClCompile Include="ScriptCoreCLR.cpp" />
     <ClCompile Include="ScriptHostCoreCLR.cpp" />
-    <ClCompile Include="xgScriptModuleCoreCLR.cpp" />
+    <ClCompile Include="ScriptModuleCoreCLR.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\xgBase\xgBase.vcxproj">

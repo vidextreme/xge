@@ -30,12 +30,21 @@
     <ClInclude Include="ScriptHostNative.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="ScriptModuleNative.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ScriptHostNative.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="ScriptHostNative.cpp">
+    <ClCompile Include="ScriptNative.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptModuleNative.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

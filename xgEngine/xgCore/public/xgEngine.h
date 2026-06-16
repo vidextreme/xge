@@ -38,12 +38,12 @@ namespace xg
         // Creates or reuses a ScriptHost based on the module path.
         // Returns the ScriptHost used (so caller can reuse it).
         //
-        virtual ScriptHost* AddScriptModule(const char* id,
+        ScriptHost* AddScriptModule(const char* id,
             const char* path,
             ScriptHost* hostOverride = nullptr) override;
 
-        virtual ScriptModule* GetScriptModule(const char* id) override;
-        virtual void RemoveScriptModule(const char* id) override;
+        ScriptModule* GetScriptModule(const char* id) override;
+        void RemoveScriptModule(const char* id) override;
 
         Renderer* Renderer = nullptr;
         std::unique_ptr<Window> MainWindow;

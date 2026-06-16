@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "ScriptHostCoreCLR.h"
-#include "public/xgScriptModuleCoreCLR.h"
+#include "ScriptModuleCoreCLR.h"
 #include "xgModules.h"
 #include <filesystem>
 #include <string>
@@ -48,7 +48,7 @@ namespace xg
         ShutdownRuntime();
     }
 
-    ScriptModule* ScriptHostCoreCLR::LoadModule(const char* path)
+    ScriptModule* ScriptHostCoreCLR::LoadModule(const char* id, const char* path)
     {
         // Working directory is gameroot/bin, path is likely "Editor.CoreCLR.dll"
         std::string dllPath = GetFullPath(path);   // ...\gameroot\bin\Editor.CoreCLR.dll
@@ -61,7 +61,7 @@ namespace xg
                 return nullptr;
         }
 
-        auto* module = new xgScriptModuleCoreCLR(this);
+        auto* module = new ScriptModuleCoreCLR(id, this);
         if (!module->Load(path))
         {
             delete module;

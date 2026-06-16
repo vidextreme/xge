@@ -5,14 +5,14 @@ namespace xg
 {
     class ScriptHostCoreCLR;
 
-    class xgScriptModuleCoreCLR : public ScriptModule
+    class ScriptModuleCoreCLR : public ScriptModule
     {
     public:
-        xgScriptModuleCoreCLR(ScriptHostCoreCLR* host);
-        ~xgScriptModuleCoreCLR() override;
+        ScriptModuleCoreCLR(const char* id, ScriptHostCoreCLR* host);
+        ~ScriptModuleCoreCLR() override;
 
         bool Load(const char* path);
-        bool Init(Engine* engine) override;
+        bool Init(ScriptEngine* engine) override;
         void Update(float dt) override;
         void Shutdown() override;
         bool IsValid() const override;

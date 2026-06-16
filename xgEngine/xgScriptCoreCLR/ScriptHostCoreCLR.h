@@ -9,7 +9,7 @@ namespace xg
         ScriptHostCoreCLR();
         ~ScriptHostCoreCLR() override;
 
-        ScriptModule* LoadModule(const char* path) override;
+        ScriptModule* LoadModule(const char* id, const char* path) override;
 
         bool GetEntryPoints(void** initFn, void** updateFn, void** shutdownFn);
 
