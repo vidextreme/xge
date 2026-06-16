@@ -15,12 +15,18 @@
       <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
       <BuildDependency Project="xgRendererDX12/xgRendererDX12.vcxproj" />
       <BuildDependency Project="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" />
+      <BuildDependency Project="xgScriptNative/xgScriptNative.vcxproj" />
     </Project>
     <Project Path="xgPlatform/xgPlatform.vcxproj" Id="e288c667-2735-4b5c-b72a-b21b2ae92e84" />
     <Project Path="xgRendererDX12/xgRendererDX12.vcxproj" Id="39cadf1a-e87e-42ac-abf5-6807a839d54e">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
     </Project>
+  </Folder>
+  <Folder Name="/engine/script_hosts/">
     <Project Path="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" Id="0f12b426-13da-459a-961e-eff3a418ec39" />
+    <Project Path="xgScriptNative/xgScriptNative.vcxproj" Id="0bb1267a-a6a3-4cba-947f-1ec1a8deb7b1">
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    </Project>
   </Folder>
   <Folder Name="/script_modules/">
     <Project Path="Editor.CoreCLR/Editor.CoreCLR.csproj" Id="e40dbddf-0bd5-4ed3-93e6-f7d0528a079b">

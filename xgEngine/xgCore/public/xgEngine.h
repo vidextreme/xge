@@ -3,6 +3,7 @@
 #include "xgBase.h"
 #include "xgWindow.h"
 #include "xgRenderer.h"
+#include "xgScriptEngine.h"
 #include "xgEngine.generated.h"
 
 namespace xg
@@ -19,7 +20,7 @@ namespace xg
 
 
 
-    class Engine
+    class Engine : public ScriptEngine
     {
     public:
         Engine();
@@ -37,12 +38,12 @@ namespace xg
         // Creates or reuses a ScriptHost based on the module path.
         // Returns the ScriptHost used (so caller can reuse it).
         //
-        ScriptHost* AddScriptModule(const char* id,
+        virtual ScriptHost* AddScriptModule(const char* id,
             const char* path,
-            ScriptHost* hostOverride = nullptr);
+            ScriptHost* hostOverride = nullptr) override;
 
-        ScriptModule* GetScriptModule(const char* id);
-        void RemoveScriptModule(const char* id);
+        virtual ScriptModule* GetScriptModule(const char* id) override;
+        virtual void RemoveScriptModule(const char* id) override;
 
         Renderer* Renderer = nullptr;
         std::unique_ptr<Window> MainWindow;

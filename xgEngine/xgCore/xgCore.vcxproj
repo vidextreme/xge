@@ -109,6 +109,7 @@
     <ClInclude Include="public\xgReflection.h" />
     <ClInclude Include="public\xgReflectionSerialization.h" />
     <ClInclude Include="public\xgRenderer.h" />
+    <ClInclude Include="public\xgScriptEngine.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
   </ItemGroup>
