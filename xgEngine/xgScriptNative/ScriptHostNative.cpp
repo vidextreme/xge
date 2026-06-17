@@ -7,6 +7,7 @@ namespace xg
     using InitFunc = ScriptModuleNative::InitFunc;
     using UpdateFunc = ScriptModuleNative::UpdateFunc;
     using ShutdownFunc = ScriptModuleNative::ShutdownFunc;
+	using ScriptModuleFunc = ScriptModuleNative::ScriptModuleFunc;
 
     ScriptModule* ScriptHostNative::LoadModule(const char* id, const char* path)
     {
@@ -17,22 +18,32 @@ namespace xg
         if (!lib)
             return nullptr;
 
-        auto initFn =
-            (InitFunc)xg::GetSymbol(lib, "ScriptModule_Init");
-        auto updateFn =
-            (UpdateFunc)xg::GetSymbol(lib, "ScriptModule_Update");
-        auto shutdownFn =
-            (ShutdownFunc)xg::GetSymbol(lib, "ScriptModule_Shutdown");
+        ScriptModule* module = nullptr;
+        auto moduleFn =
+			(ScriptModuleFunc)xg::GetSymbol(lib, "CreateScriptModule");
 
-        if (!initFn || !updateFn || !shutdownFn)
+        if (moduleFn)
         {
-            xg::UnloadModule(lib);
-            return nullptr;
+			module = moduleFn(id);
         }
+        else
+        {
+            auto initFn =
+                (InitFunc)xg::GetSymbol(lib, "ScriptModule_Init");
+            auto updateFn =
+                (UpdateFunc)xg::GetSymbol(lib, "ScriptModule_Update");
+            auto shutdownFn =
+                (ShutdownFunc)xg::GetSymbol(lib, "ScriptModule_Shutdown");
 
-        ScriptModuleNative* module =
-            new ScriptModuleNative(id, lib, initFn, updateFn, shutdownFn);
 
+            if (!initFn || !updateFn || !shutdownFn)
+            {
+                xg::UnloadModule(lib);
+                return nullptr;
+            }
+
+            module = new ScriptModuleNative(id, lib, initFn, updateFn, shutdownFn);
+        }
         if (!module->IsValid())
         {
             delete module;

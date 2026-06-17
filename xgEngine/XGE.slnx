@@ -12,6 +12,7 @@
     </Project>
     <Project Path="xge/xge.vcxproj" Id="595d3fa6-8693-4e85-897a-fa3f0ca16c6b">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
+      <BuildDependency Project="xgEditorKernel/xgEditorKernel.vcxproj" />
       <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
       <BuildDependency Project="xgRendererDX12/xgRendererDX12.vcxproj" />
       <BuildDependency Project="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" />
@@ -31,6 +32,10 @@
   <Folder Name="/script_modules/">
     <Project Path="Editor.CoreCLR/Editor.CoreCLR.csproj" Id="e40dbddf-0bd5-4ed3-93e6-f7d0528a079b">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    </Project>
+    <Project Path="xgEditorKernel/xgEditorKernel.vcxproj" Id="0231732b-4c48-4af7-ab6a-3ca3fb926ecb">
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+      <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
     </Project>
   </Folder>
   <Folder Name="/tools/">

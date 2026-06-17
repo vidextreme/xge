@@ -42,7 +42,7 @@ int main(int argc, char** argv)
     xg::ScriptHost* usedHost =
         engine.AddScriptModule(
             "editor",
-            "Editor.CoreCLR.dll");
+            "xgEditorKernel.dll");
 
     if (!usedHost)
     {

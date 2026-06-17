@@ -21,6 +21,7 @@ namespace xg
         using InitFunc = bool (*)(ScriptEngine*);
         using UpdateFunc = void (*)(float);
         using ShutdownFunc = void (*)();
+        using ScriptModuleFunc = ScriptModule * (*)(const char*);
 
         ScriptModuleNative(
             const char* id,
