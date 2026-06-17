@@ -41,6 +41,7 @@ namespace xg
     {
         //TODO look for a better place for this!
         ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
+		ScriptNativeDLL = "xgScriptNative.dll";
 
         if (config.RendererModule)
             return SetRendererModule(config.RendererModule);
@@ -81,6 +82,10 @@ namespace xg
             return CreateScriptHostCoreCLR(path.c_str());
         }
 
+        else //TODO temporary
+        {
+			return CreateScriptHostNative(path.c_str());
+        }
         /*if (ext == ".NativeAOT.dll")
             return new HostNativeAOT();
 
@@ -181,7 +186,6 @@ namespace xg
                 ScriptModule* module = pair.second;
                 if (module && module->IsValid())
                 {
-					//module->Init(this);
                     module->Update(dt);
                 }
             }

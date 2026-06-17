@@ -9,13 +9,6 @@ namespace xg
     //
     // ScriptHostNative
     //
-    // ScriptHost implementation for native (C++/DLL) script modules.
-    // Convention:
-    //   Each script DLL must export:
-    //
-    //       extern "C" __declspec(dllexport)
-    //       ScriptModule* CreateScriptModule();
-    //
     class ScriptHostNative : public ScriptHost
     {
     public:
