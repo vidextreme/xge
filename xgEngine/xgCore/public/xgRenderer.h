@@ -10,6 +10,7 @@ namespace xg {
     public:
         virtual ~Renderer() = default;
         virtual void Render() = 0;
+        virtual void* GetNativeHandle() const = 0;
     };
 
     XG_DECLARE_MODULE_FUNCTION(CreateRenderer, Renderer*, Window&);

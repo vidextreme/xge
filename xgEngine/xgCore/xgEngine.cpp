@@ -190,8 +190,8 @@ namespace xg
                 }
             }
 
-            if (Renderer)
-                Renderer->Render();
+            //if (Renderer)
+            //    Renderer->Render();
         }
     }
 

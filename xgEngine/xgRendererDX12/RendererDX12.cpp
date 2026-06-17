@@ -178,4 +178,8 @@ namespace xg {
         frameIndex = swapChain->GetCurrentBackBufferIndex();
     }
 
+    void* RendererDX12::GetNativeHandle() const {
+        return device;
+    }
+
 }
