@@ -14,6 +14,7 @@ namespace xg {
         void PollEvents() override;
 
         void* GetNativeHandle() const noexcept override;
+        void* GetPlatformWindow() const noexcept override;
 
         int GetWidth() const noexcept override { return width; }
         int GetHeight() const noexcept override { return height; }

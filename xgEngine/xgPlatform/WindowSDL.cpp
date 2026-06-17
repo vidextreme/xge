@@ -68,4 +68,8 @@ namespace xg {
 #endif
     }
 
+    void* WindowSDL::GetPlatformWindow() const noexcept {
+		return sdlWindow;
+    }
+
 } // namespace xg

@@ -11,7 +11,7 @@ namespace xg {
         ~RendererDX12() override;
 
         void Render() override;
-
+        void* GetNativeHandle() const override;
     private:
         void WaitForGPU();
         void CreateDeviceAndSwapChain(Window& window);

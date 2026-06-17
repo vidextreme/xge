@@ -13,6 +13,7 @@ namespace xg {
 
         // Native OS window handle (HWND on Windows, NSWindow* on macOS, etc.)
         virtual void* GetNativeHandle() const noexcept = 0;
+        virtual void* GetPlatformWindow() const noexcept = 0;
 
         // Dimensions
         virtual int GetWidth() const noexcept = 0;
