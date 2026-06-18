@@ -10,22 +10,26 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="platform\xgEventToSDL.h" />
+    <ClInclude Include="platform\xgSDLToEvent.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{eebfc737-b3c1-4075-b6f8-e3262dea651f}</ProjectGuid>
-    <RootNamespace>xgCore</RootNamespace>
+    <ProjectGuid>{f7226bfd-67ad-4c0f-adbb-a2f04c2a100a}</ProjectGuid>
+    <RootNamespace>xgUtility</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Utility</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Utility</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -44,34 +48,26 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)\lib</OutDir>
+    <PublicIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;..\3rdparty\SDL3\include</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)\lib</OutDir>
+    <PublicIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;..\3rdparty\SDL3\include</PublicIncludeDirectories>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>
+      </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <EnableUAC>false</EnableUAC>
-      <ImportLibrary>$(SolutionDir)\lib\$(TargetName).lib</ImportLibrary>
-      <AdditionalDependencies>xgBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
-    <PreBuildEvent>
-      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)Generated" "$(ProjectDir)."
-</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -79,58 +75,18 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>
+      </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <EnableUAC>false</EnableUAC>
-      <ImportLibrary>$(SolutionDir)\lib\$(TargetName).lib</ImportLibrary>
-      <AdditionalDependencies>xgBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
-    <PreBuildEvent>
-      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)Generated" "$(ProjectDir)."
-</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="framework.h" />
-    <ClInclude Include="pch.h" />
-    <ClInclude Include="public\xgEngine.h" />
-    <ClInclude Include="public\xgJson.h" />
-    <ClInclude Include="public\xgJsonBackend.h" />
-    <ClInclude Include="public\xgMemberCallback.h" />
-    <ClInclude Include="public\xgModules.h" />
-    <ClInclude Include="public\xgReflection.h" />
-    <ClInclude Include="public\xgReflectionSerialization.h" />
-    <ClInclude Include="public\xgRenderer.h" />
-    <ClInclude Include="public\xgScriptEngine.h" />
-    <ClInclude Include="public\xgScriptHost.h" />
-    <ClInclude Include="public\xgScriptModule.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="xgEngine.cpp" />
-    <ClCompile Include="xgJson.cpp" />
-    <ClCompile Include="xgJsonBackend.cpp" />
-    <ClCompile Include="xgModules.cpp" />
-    <ClCompile Include="pch.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="xgRendererAPI.cpp" />
-    <ClCompile Include="xgScriptAPI.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\xgBase\xgBase.vcxproj">
-      <Project>{caa21a27-7e4b-45ca-8915-bf017af8f3af}</Project>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -4,7 +4,6 @@
 #include "public/xgEngine.h"
 #include "public/xgScriptModule.h"
 #include "public/xgScriptHost.h"
-#include "public/xgScriptHost.h"
 
 namespace xg
 {
@@ -24,6 +23,12 @@ namespace xg
         MainWindow = NewWindow("xgEngine", 1280, 720);
         _moduleStorage = new ModuleStorage();
         _hostStorage = new HostStorage();
+
+        if (MainWindow)
+        {
+            MainWindow->SetEventQueue(&_queue);
+            MainWindow->SetEventDispatcher(&_dispatcher);
+        }
     }
 
     Engine::~Engine()
@@ -68,6 +73,16 @@ namespace xg
     bool IsCoreCLRModule(const char* path)
     {
         return std::string(path).find(".CoreCLR.") != std::string::npos;
+    }
+
+    EventDispatcher* Engine::GetDispatcher()
+    {
+        return &_dispatcher;
+    }
+
+    EventQueue* Engine::GetQueue()
+    {
+        return &_queue;
     }
 
     //

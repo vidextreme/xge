@@ -4,6 +4,8 @@
 
 namespace xg
 {
+    class EventDispatcher;
+	class EventQueue;
     //
     // ScriptEngine
     //
@@ -21,5 +23,8 @@ namespace xg
 
         virtual ScriptModule* GetScriptModule(const char* id) = 0;
         virtual void RemoveScriptModule(const char* id) = 0;
+
+        virtual EventDispatcher* GetDispatcher() = 0;
+        virtual EventQueue* GetQueue() = 0;
     };
 }

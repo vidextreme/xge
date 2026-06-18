@@ -1,63 +1,101 @@
 #include "pch.h"
 #include "WindowSDL.h"
+#include "xgEvent.h"
+#include "xgEventHelpers.h"
+
 #include <SDL3/SDL.h>
+#include "platform/xgSDLToEvent.h"
 
 namespace xg {
 
-    WindowSDL::WindowSDL(const char* title, int w, int h)
-        : width(w), height(h)
+
+    // ------------------------------------------------------------
+    // Constructor
+    // ------------------------------------------------------------
+    WindowSDL::WindowSDL(const char* title,
+        int w,
+        int h)
+        : _width(w)
+        , _height(h)
     {
         SDL_Init(SDL_INIT_VIDEO);
 
-        sdlWindow = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
+        _sdlWindow = SDL_CreateWindow(title, _width, _height, SDL_WINDOW_RESIZABLE);
     }
 
-    WindowSDL::~WindowSDL() {
-        if (sdlWindow) {
-            SDL_DestroyWindow(sdlWindow);
-            sdlWindow = nullptr;
+    // ------------------------------------------------------------
+    // Destructor
+    // ------------------------------------------------------------
+    WindowSDL::~WindowSDL()
+    {
+        if (_sdlWindow)
+        {
+            SDL_DestroyWindow(_sdlWindow);
+            _sdlWindow = nullptr;
         }
 
         SDL_Quit();
     }
 
-    void WindowSDL::PollEvents() {
-        SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-
-            switch (e.type) {
-
+    // ------------------------------------------------------------
+    // PollEvents
+    // ------------------------------------------------------------
+    void WindowSDL::PollEvents()
+    {
+        SDL_Event sdl;
+        while (SDL_PollEvent(&sdl))
+        {
+            // Update internal window state
+            switch (sdl.type)
+            {
             case SDL_EVENT_QUIT:
-                shouldClose = true;
+                _shouldClose = true;
                 break;
 
             case SDL_EVENT_WINDOW_RESIZED:
-                width = e.window.data1;
-                height = e.window.data2;
+                _width = sdl.window.data1;
+                _height = sdl.window.data2;
                 break;
 
             case SDL_EVENT_WINDOW_MINIMIZED:
-                minimized = true;
+                _minimized = true;
                 break;
 
             case SDL_EVENT_WINDOW_RESTORED:
-                minimized = false;
+                _minimized = false;
                 break;
 
             case SDL_EVENT_WINDOW_FOCUS_GAINED:
-                focused = true;
+                _focused = true;
                 break;
 
             case SDL_EVENT_WINDOW_FOCUS_LOST:
-                focused = false;
+                _focused = false;
                 break;
             }
+
+            // Convert SDL → xgEvent
+            xgEvent e = xg::FromSDL(sdl);
+            if (e.Type == xgEventType::None)
+                continue;
+
+            // 1. Push into queue
+            if (_queue)
+                _queue->Push(e);
+
+            // 2. Dispatch immediately
+            if (_dispatcher)
+                _dispatcher->Dispatch(e);
         }
     }
 
-    void* WindowSDL::GetNativeHandle() const noexcept {
+    // ------------------------------------------------------------
+    // Native handle (Win32 HWND)
+    // ------------------------------------------------------------
+    void* WindowSDL::GetNativeHandle() const noexcept
+    {
 #if XG_PLATFORM_WINDOWS
-        SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
+        SDL_PropertiesID props = SDL_GetWindowProperties(_sdlWindow);
         return SDL_GetPointerProperty(
             props,
             SDL_PROP_WINDOW_WIN32_HWND_POINTER,
@@ -68,8 +106,22 @@ namespace xg {
 #endif
     }
 
-    void* WindowSDL::GetPlatformWindow() const noexcept {
-		return sdlWindow;
+    // ------------------------------------------------------------
+    // Platform window pointer (SDL_Window*)
+    // ------------------------------------------------------------
+    void* WindowSDL::GetPlatformWindow() const noexcept
+    {
+        return _sdlWindow;
+    }
+
+    void WindowSDL::SetEventQueue(EventQueue* q)
+    {
+        _queue = q;
+    }
+
+    void WindowSDL::SetEventDispatcher(EventDispatcher* d)
+    {
+        _dispatcher = d;
     }
 
 } // namespace xg

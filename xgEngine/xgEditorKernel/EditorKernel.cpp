@@ -3,6 +3,8 @@
 #include "xgEngine.h"
 #include "xgScriptHost.h"
 #include "xgScriptModule.h"
+#include "xgMemberCallback.h"
+#include "platform/xgEventToSDL.h"
 
 // ImGui core
 #include "imgui.h"
@@ -17,6 +19,8 @@
 
 namespace xg
 {
+    static std::unique_ptr<xg::IEventCallback> s_EventCallbackStorage;
+
     EditorKernelModule::EditorKernelModule(const char* id)
         : ScriptModule(id)
     {
@@ -33,6 +37,14 @@ namespace xg
             return false;
 
         _engine = engine;
+
+        s_EventCallbackStorage = std::make_unique<
+            xg::MemberCallback<EditorKernelModule>
+        >(this, &EditorKernelModule::OnEvent);
+
+        _eventCallback = s_EventCallbackStorage.get();
+
+        engine->GetDispatcher()->AddListener(_eventCallback);
 
         InitImGui();
 
@@ -149,6 +161,15 @@ namespace xg
         }
 
         SDL_RenderPresent(sdlRenderer);
+    }
+    void EditorKernelModule::OnEvent(const xgEvent& e)
+    {
+        SDL_Window* window = static_cast<SDL_Window*>(
+            static_cast<Engine*>(_engine)->MainWindow->GetPlatformWindow()
+            );
+
+        SDL_Event sdl = xg::ToSDL(e, window);
+        ImGui_ImplSDL3_ProcessEvent(&sdl);
     }
 }
 
