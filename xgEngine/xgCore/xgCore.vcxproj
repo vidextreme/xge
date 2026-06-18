@@ -105,6 +105,7 @@
     <ClInclude Include="public\xgEngine.h" />
     <ClInclude Include="public\xgJson.h" />
     <ClInclude Include="public\xgJsonBackend.h" />
+    <ClInclude Include="public\xgMemberCallback.h" />
     <ClInclude Include="public\xgModules.h" />
     <ClInclude Include="public\xgReflection.h" />
     <ClInclude Include="public\xgReflectionSerialization.h" />

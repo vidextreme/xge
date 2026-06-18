@@ -4,6 +4,8 @@
 
 namespace xg {
 
+    class EventQueue;
+	class EventDispatcher;
     class Window {
     public:
         virtual ~Window() = default;
@@ -25,6 +27,9 @@ namespace xg {
 
         // Close request (e.g., user clicked X)
         virtual bool ShouldClose() const noexcept = 0;
+
+		virtual void SetEventQueue(EventQueue* q) = 0;
+		virtual void SetEventDispatcher(EventDispatcher* d) = 0;
     };
 
     // Factory implemented in xgPlatform

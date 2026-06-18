@@ -1,12 +1,13 @@
 #pragma once
 #include "xgScriptModule.h"
-
+#include "xgEvent.h"
 struct SDL_Renderer;   // forward declare, keep SDL out of the header
 struct SDL_Window;
 
 namespace xg
 {
     class ScriptEngine;
+    class IEventCallback;
 
     class EditorKernelModule : public ScriptModule
     {
@@ -24,6 +25,7 @@ namespace xg
         void ShutdownImGui();
         void BeginImGuiFrame();
         void EndImGuiFrame();
+        void OnEvent(const xgEvent& e);
 
     private:
         ScriptEngine* _engine = nullptr;
@@ -34,5 +36,6 @@ namespace xg
         void* _sdlRenderer = nullptr;
 
         bool _isValid = true;
+        IEventCallback* _eventCallback = nullptr;
     };
 }

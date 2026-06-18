@@ -5,6 +5,8 @@
 #include "xgRenderer.h"
 #include "xgScriptEngine.h"
 #include "xgEngine.generated.h"
+#include "xgEventQueue.h"
+#include "xgEventDispatcher.h"
 
 namespace xg
 {
@@ -48,6 +50,9 @@ namespace xg
         Renderer* Renderer = nullptr;
         std::unique_ptr<Window> MainWindow;
 
+        EventDispatcher* GetDispatcher() override;
+        EventQueue* GetQueue() override;
+
     private:
         ScriptHost* GetOrCreateHostFor(const std::string& path);
 
@@ -57,5 +62,8 @@ namespace xg
         // Opaque internal storage
         void* _moduleStorage = nullptr;
         void* _hostStorage = nullptr; // NEW: stores ScriptHost* for destruction
+
+        EventQueue _queue;          // value type
+        EventDispatcher _dispatcher; // value type
     };
 }

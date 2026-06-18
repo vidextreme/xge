@@ -58,6 +58,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>public</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -76,6 +77,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>public</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -87,6 +89,10 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgBase.h" />
+    <ClInclude Include="public\xgEvent.h" />
+    <ClInclude Include="public\xgEventDispatcher.h" />
+    <ClInclude Include="public\xgEventHelpers.h" />
+    <ClInclude Include="public\xgEventQueue.h" />
     <ClInclude Include="public\xgPathUtils.h" />
     <ClInclude Include="public\xgStream.h" />
     <ClInclude Include="public\xgWindow.h" />
@@ -96,6 +102,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="xgEventDispatcher.cpp" />
+    <ClCompile Include="xgEventQueue.cpp" />
     <ClCompile Include="xgPathUtils.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
