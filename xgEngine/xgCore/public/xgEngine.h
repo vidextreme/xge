@@ -7,6 +7,7 @@
 #include "xgEngine.generated.h"
 #include "xgEventQueue.h"
 #include "xgEventDispatcher.h"
+#include "xgLog.h"
 
 namespace xg
 {

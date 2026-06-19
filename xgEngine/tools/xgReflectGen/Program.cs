@@ -15,6 +15,44 @@ class Program
         return file.Contains(".generated.", StringComparison.OrdinalIgnoreCase);
     }
 
+    static void GenerateCSharpEnumFile(string headerPath, List<ReflectedEnum> enums, string destManaged)
+    {
+        Directory.CreateDirectory(destManaged);
+
+        string fileName = Path.GetFileNameWithoutExtension(headerPath);
+        string outputPath = Path.Combine(destManaged, fileName + ".generated.cs");
+
+        var sb = new StringBuilder();
+
+        sb.AppendLine("// AUTO-GENERATED. DO NOT EDIT.");
+        sb.AppendLine($"// Source: {Path.GetFileName(headerPath)}");
+        sb.AppendLine();
+
+        foreach (var e in enums)
+        {
+            sb.AppendLine($"namespace {e.Namespace}");
+            sb.AppendLine("{");
+            sb.AppendLine($"    public enum {e.Name} : {e.UnderlyingType}");
+            sb.AppendLine("    {");
+
+            foreach (var (name, value) in e.Values)
+            {
+                if (value != null)
+                    sb.AppendLine($"        {name} = {value},");
+                else
+                    sb.AppendLine($"        {name},");
+            }
+
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
+
+        File.WriteAllText(outputPath, NormalizeNewlines(sb.ToString()), new UTF8Encoding(false));
+        Console.WriteLine($"Generated C#: {outputPath}");
+    }
+
+
     static void Main(string[] args)
     {
         Console.WriteLine("=== XG Reflection Generator ===");
@@ -25,14 +63,23 @@ class Program
             return;
         }
 
-        string destFolder = Path.GetFullPath(args[0]);
-        string rootFolder = Path.GetFullPath(args[1]);
-
-        Directory.CreateDirectory(destFolder);
-
-        if (!Directory.Exists(rootFolder))
+        if (args.Length < 3)
         {
-            Console.WriteLine("ERROR: Root folder does not exist: " + rootFolder);
+            Console.WriteLine("Usage: xgReflectGen <SOURCE_FOLDER> <DEST_NATIVE> <DEST_MANAGED>");
+            return;
+        }
+
+        string sourceFolder = Path.GetFullPath(args[0]);
+        string destNative = Path.GetFullPath(args[1]);
+        string destManaged = Path.GetFullPath(args[2]);
+
+
+        Directory.CreateDirectory(destNative);
+        Directory.CreateDirectory(destManaged);
+
+        if (!Directory.Exists(sourceFolder))
+        {
+            Console.WriteLine("ERROR: source folder does not exist: " + sourceFolder);
             return;
         }
 
@@ -42,34 +89,45 @@ class Program
         var parser = new Parser();
         parser.Language = language;
 
-        var headers = Directory.GetFiles(rootFolder, "*.h", SearchOption.AllDirectories);
+        var headers = Directory.GetFiles(sourceFolder, "*.h", SearchOption.AllDirectories);
 
         foreach (var header in headers)
         {
             if (IsGeneratedHeader(header))
                 continue;
 
-            ProcessHeader(parser, header, destFolder);
+            ProcessHeader(parser, header, destNative, destManaged);
         }
 
         Console.WriteLine("=== DONE ===");
     }
 
-    static void ProcessHeader(Parser parser, string headerPath, string destFolder)
+    static void ProcessHeader(Parser parser, string headerPath, string destNative, string destManaged)
     {
         string code = File.ReadAllText(headerPath);
         var tree = parser.Parse(code);
         var root = tree.RootNode;
 
         var structs = StructExtractor.Extract(root);
-        if (structs.Count == 0)
+        var enums = EnumExtractor.Extract(root);
+
+        if (structs.Count == 0 && enums.Count == 0)
             return;
 
-        GenerateHeaderFile(headerPath, structs, destFolder);
-        GenerateCppFile(headerPath, structs, destFolder);
+        if (structs.Count > 0)
+        {
+            GenerateHeaderFile(headerPath, structs, destNative);
+            GenerateCppFile(headerPath, structs, destNative);
+        }
+
+        if (enums.Count > 0)
+        {
+            GenerateCSharpEnumFile(headerPath, enums, destManaged);
+        }
 
         Console.WriteLine($"[REFLECT] {headerPath}");
     }
+
 
     // ============================================================
     //  HEADER GENERATION (.generated.h)

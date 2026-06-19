@@ -20,4 +20,8 @@
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\xgCommon\xgCommon.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -14,6 +14,10 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
+#include <mutex>
+#include <chrono>
+#include <ctime>
 #ifdef annotate
 #undef annotate
 #endif
