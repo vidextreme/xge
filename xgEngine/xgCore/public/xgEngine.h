@@ -54,6 +54,8 @@ namespace xg
         EventDispatcher* GetDispatcher() override;
         EventQueue* GetQueue() override;
 
+        void AddLogCallback(LogCallback cb) override;
+        void RemoveLogCallback(LogCallback cb) override;
     private:
         ScriptHost* GetOrCreateHostFor(const std::string& path);
 

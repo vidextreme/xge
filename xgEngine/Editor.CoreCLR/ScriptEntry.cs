@@ -1,22 +1,20 @@
 ﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
+using xg;
 namespace xgEditor
 {
     public static class ScriptEntry
     {
-        [UnmanagedCallersOnly(EntryPoint = "Script_Init")]
-        public static void Init()
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        public static int Init(nint enginePtr)
         {
-            try
-            {
-                //System.Diagnostics.Debugger.Launch();
-                //Debugger.Break();
-            }
-            catch { }
+            ScriptEngine.Initialize(enginePtr);
 
-            Console.WriteLine("wow");
-            //return true;
+            // Example: register a managed log callback
+            ScriptEngine.AddLogCallback(OnLog);
+            
+            return 1;
         }
 
         [UnmanagedCallersOnly(EntryPoint = "Script_Update")]
@@ -26,6 +24,15 @@ namespace xgEditor
         }
 
         [UnmanagedCallersOnly(EntryPoint = "Script_Shutdown")]
-        public static void Shutdown() { }
+        public static void Shutdown() 
+        {
+
+        }
+
+        private static void OnLog(MessageType type, IntPtr msgPtr)
+        {
+            string msg = Marshal.PtrToStringAnsi(msgPtr) ?? string.Empty;
+            Console.WriteLine($"[{type}] {msg} waasdadsds");
+        }
     }
 }

@@ -18,6 +18,7 @@
 #include <mutex>
 #include <chrono>
 #include <ctime>
+#include <cstdarg>
 #ifdef annotate
 #undef annotate
 #endif

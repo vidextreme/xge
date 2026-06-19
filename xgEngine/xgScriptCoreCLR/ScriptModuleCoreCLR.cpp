@@ -30,9 +30,8 @@ namespace xg
     {
         if (_managedInit)
         {
-            using InitFn = void(*)();
-            ((InitFn)_managedInit)();
-            return true;
+            using InitFn = int(*)(ScriptEngine*);
+            return ((InitFn)_managedInit)(engine) != 0;
         }
         return false;
     }

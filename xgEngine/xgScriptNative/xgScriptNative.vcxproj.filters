@@ -33,9 +33,6 @@
     <ClInclude Include="ScriptModuleNative.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgLogBridge.h">
-      <Filter>public</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ScriptHostNative.cpp">

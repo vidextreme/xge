@@ -29,7 +29,7 @@
       </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ManagedLogBridge.cs" />
+    <Compile Include="ScriptEngine.cs" />
   </ItemGroup>
 
   <!-- Optional: keep folder visible in Solution Explorer -->
