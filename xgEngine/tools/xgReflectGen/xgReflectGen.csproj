@@ -15,8 +15,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="EnumExtractor.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="ReflectedStuff.cs" />
     <Compile Include="StructExtractor.cs" />
   </ItemGroup>
 

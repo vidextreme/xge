@@ -69,7 +69,7 @@
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
-      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)Generated" "$(ProjectDir)."
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)." "$(ProjectDir)Generated" "$(SolutionDir)xgCommon\Generated"
 </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
@@ -95,7 +95,7 @@
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
-      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)Generated" "$(ProjectDir)."
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)." "$(ProjectDir)Generated" "$(SolutionDir)xgCommon\Generated"
 </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
@@ -105,6 +105,7 @@
     <ClInclude Include="public\xgEngine.h" />
     <ClInclude Include="public\xgJson.h" />
     <ClInclude Include="public\xgJsonBackend.h" />
+    <ClInclude Include="public\xgLog.h" />
     <ClInclude Include="public\xgMemberCallback.h" />
     <ClInclude Include="public\xgModules.h" />
     <ClInclude Include="public\xgReflection.h" />

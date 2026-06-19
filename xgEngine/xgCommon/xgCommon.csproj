@@ -18,10 +18,23 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
   </PropertyGroup>
 
+  <!-- Auto-include generated enums -->
   <ItemGroup>
-    <ProjectReference Include="..\xgCommon\xgCommon.csproj" />
+      <Compile Include="Generated\*.generated.cs">
+          <Link>Generated\%(Filename)%(Extension)</Link>
+      </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ManagedLogBridge.cs" />
+  </ItemGroup>
+
+  <!-- Optional: keep folder visible in Solution Explorer -->
+  <ItemGroup>
+    <Folder Include="Generated\" />
   </ItemGroup>
 
 </Project>

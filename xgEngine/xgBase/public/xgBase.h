@@ -87,6 +87,7 @@ inline bool HasFlag(E value, E flag) { \
 
 // Emits a comment with the field name
 #define XG_FIELD(...)    /* @xg:field __VA_ARGS__ */
+#define XG_ENUM(...)    /* @xg:field __VA_ARGS__ */
 
 
 
