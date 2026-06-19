@@ -77,11 +77,11 @@ namespace xg
 
         // engineRoot = ...\gameroot
         std::string runtimePath = std::string(engineRoot) + "\\coreclr"; // ...\gameroot\coreclr
-        std::string scriptsPath = std::string(engineRoot) + "\\bin";    // ...\gameroot\bin
+        std::string scriptsPath = std::string(engineRoot) + "\\bin";     // ...\gameroot\bin
         std::string tpaList = BuildTpaList(runtimePath);
 
         std::string coreclrPath = runtimePath + "\\coreclr.dll";
-        ModuleHandle coreclr = xg::LoadModule(coreclrPath.c_str());//LoadLibraryA(coreclrPath.c_str());
+        ModuleHandle coreclr = xg::LoadModule(coreclrPath.c_str());
         if (!coreclr)
             return false;
 
@@ -126,23 +126,21 @@ namespace xg
 
         _hostHandle = hostHandle;
         _domainId = domainId;
-
-        if (!GetEntryPoints(&_init, &_update, &_shutdown))
-            return false;
-
         _initialized = true;
         return true;
     }
 
-    bool ScriptHostCoreCLR::GetEntryPoints(void** initFn, void** updateFn, void** shutdownFn)
+    bool ScriptHostCoreCLR::GetEntryPoints(
+        const char* assemblyName,
+        const char* typeName,
+        void** initFn,
+        void** updateFn,
+        void** shutdownFn)
     {
         if (!_coreclrCreateDelegate || !_hostHandle)
             return false;
 
         int hr = 0;
-
-        const char* assemblyName = "Editor.CoreCLR";
-        const char* typeName = "xgEditor.ScriptEntry";
 
         if (initFn)
         {

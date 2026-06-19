@@ -11,7 +11,13 @@ namespace xg
 
         ScriptModule* LoadModule(const char* id, const char* path) override;
 
-        bool GetEntryPoints(void** initFn, void** updateFn, void** shutdownFn);
+        // Multi‑module: resolve entry points for a specific assembly/type
+        bool GetEntryPoints(
+            const char* assemblyName,
+            const char* typeName,
+            void** initFn,
+            void** updateFn,
+            void** shutdownFn);
 
     private:
         bool InitializeRuntime(const char* engineRoot);
@@ -21,7 +27,7 @@ namespace xg
         void* _coreclrLib = nullptr;
         void* _hostHandle = nullptr;
         unsigned int _domainId = 0;
-        bool         _initialized = false;
+        bool _initialized = false;
 
         using coreclr_initialize_fn = int(*)(const char* exePath,
             const char* appDomainFriendlyName,
@@ -41,12 +47,8 @@ namespace xg
         using coreclr_shutdown_fn = int(*)(void* hostHandle,
             unsigned int domainId);
 
-        coreclr_initialize_fn       _coreclrInitialize = nullptr;
-        coreclr_create_delegate_fn  _coreclrCreateDelegate = nullptr;
-        coreclr_shutdown_fn         _coreclrShutdown = nullptr;
-
-        void* _init = nullptr;
-        void* _update = nullptr;
-        void* _shutdown = nullptr;
+        coreclr_initialize_fn      _coreclrInitialize = nullptr;
+        coreclr_create_delegate_fn _coreclrCreateDelegate = nullptr;
+        coreclr_shutdown_fn        _coreclrShutdown = nullptr;
     };
 }
