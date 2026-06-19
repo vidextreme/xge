@@ -91,7 +91,6 @@
     <ClInclude Include="framework.h" />
     <ClCompile Include="ScriptModuleNative.cpp" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="public\xgLogBridge.h" />
     <ClInclude Include="ScriptHostNative.h" />
     <ClInclude Include="ScriptModuleNative.h" />
   </ItemGroup>

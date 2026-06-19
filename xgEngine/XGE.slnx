@@ -12,6 +12,8 @@
       <BuildDependency Project="xgBase/xgBase.vcxproj" />
     </Project>
     <Project Path="xge/xge.vcxproj" Id="595d3fa6-8693-4e85-897a-fa3f0ca16c6b">
+      <BuildDependency Project="Editor.CoreCLR/Editor.CoreCLR.csproj" />
+      <BuildDependency Project="xgBase/xgBase.vcxproj" />
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
       <BuildDependency Project="xgEditorKernel/xgEditorKernel.vcxproj" />
       <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />

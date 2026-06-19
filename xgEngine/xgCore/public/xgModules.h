@@ -140,17 +140,17 @@ namespace NS { \
 #define XG_DEFINE_MODULE_LOADER(MODULE_PREFIX, MODULE_NAME) \
     static inline void Ensure##MODULE_NAME##Loaded() { \
         if ((MODULE_PREFIX::MODULE_NAME##DLL) == nullptr) { \
-            printf("ERROR: " #MODULE_NAME " DLL name is null. Engine must set it before use.\n"); \
+            xg::Log(xg::MessageType::Error," " #MODULE_NAME " DLL name is null. Engine must set it before use."); \
             return; \
         } \
         if ((MODULE_PREFIX::MODULE_NAME##Lib) == nullptr) { \
-            printf("Loading " #MODULE_NAME " DLL: %s\n", (MODULE_PREFIX::MODULE_NAME##DLL)); \
+            xg::Log(xg::MessageType::Info,"Loading " #MODULE_NAME " DLL: %s", (MODULE_PREFIX::MODULE_NAME##DLL)); \
             (MODULE_PREFIX::Load##MODULE_NAME##Lib)(); \
             if ((MODULE_PREFIX::MODULE_NAME##Lib) == nullptr) { \
-                printf("FAILED to load " #MODULE_NAME " DLL: %s\n", (MODULE_PREFIX::MODULE_NAME##DLL)); \
+                xg::Log(xg::MessageType::Error,"FAILED to load " #MODULE_NAME " DLL: %s", (MODULE_PREFIX::MODULE_NAME##DLL)); \
                 return; \
             } \
-            printf("SUCCESS: Loaded " #MODULE_NAME " DLL: %s\n", (MODULE_PREFIX::MODULE_NAME##DLL)); \
+            xg::Log(xg::MessageType::Success, "Loaded " #MODULE_NAME " DLL: %s", (MODULE_PREFIX::MODULE_NAME##DLL)); \
         } \
     }
 

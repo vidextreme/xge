@@ -119,6 +119,7 @@
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="xgJson.cpp" />
     <ClCompile Include="xgJsonBackend.cpp" />
+    <ClCompile Include="xgLog.cpp" />
     <ClCompile Include="xgModules.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

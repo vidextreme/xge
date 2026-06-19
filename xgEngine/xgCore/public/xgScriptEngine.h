@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xgScriptModule.h"
+#include "xgLog.h"
 
 namespace xg
 {
@@ -26,5 +27,8 @@ namespace xg
 
         virtual EventDispatcher* GetDispatcher() = 0;
         virtual EventQueue* GetQueue() = 0;
+
+        virtual void AddLogCallback(LogCallback cb) = 0;
+        virtual void RemoveLogCallback(LogCallback cb) = 0;
     };
 }

@@ -8,6 +8,7 @@ namespace xg
     enum class MessageType
     {
         Info,
+        Success,
         Warning,
         Critical,
         Error

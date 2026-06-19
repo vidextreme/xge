@@ -49,13 +49,15 @@ int main(int argc, char** argv)
     //
     xg::ScriptHost* usedHost =
         engine.AddScriptModule(
-            "editor",
+            "editor.kernel",
             "xgEditorKernel.dll");
 
     if (!usedHost)
     {
 		xg::Log(xg::MessageType::Error, "Failed to load Editor.CoreCLR.dll");
     }
+
+	xg::Log(xg::MessageType::Info, "Initialization complete. Entering main loop.");
 
     //
     // Run engine loop

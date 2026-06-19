@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "public/xgRenderer.h"
 #include "public/xgModules.h"
-
+#include "xgLog.h"
 //
 // Generate EnsureRendererLoaded() using the macro system
 //
