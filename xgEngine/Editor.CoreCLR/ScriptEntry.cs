@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using xg;
-namespace xgEditor
+namespace Editor.CoreCLR
 {
     public static class ScriptEntry
     {

@@ -1,11 +1,13 @@
 #include "pch.h"
 #include "ScriptModuleCoreCLR.h"
 #include "ScriptHostCoreCLR.h"
+#include <filesystem>
 
 namespace xg
 {
     ScriptModuleCoreCLR::ScriptModuleCoreCLR(const char* id, ScriptHostCoreCLR* host)
-        : ScriptModule(id), _host(host)
+        : ScriptModule(id)
+        , _host(host)
     {
     }
 
@@ -14,12 +16,21 @@ namespace xg
         Shutdown();
     }
 
-    bool ScriptModuleCoreCLR::Load(const char* /*path*/)
+    bool ScriptModuleCoreCLR::Load(const char* path)
     {
         if (!_host)
             return false;
 
-        if (!_host->GetEntryPoints(&_managedInit, &_managedUpdate, &_managedShutdown))
+        // Derive assembly + type name from the DLL path
+        std::string assemblyName = std::filesystem::path(path).stem().string();
+        std::string typeName = assemblyName + ".ScriptEntry";
+
+        if (!_host->GetEntryPoints(
+            assemblyName.c_str(),
+            typeName.c_str(),
+            &_managedInit,
+            &_managedUpdate,
+            &_managedShutdown))
             return false;
 
         _valid = true;
@@ -31,7 +42,8 @@ namespace xg
         if (_managedInit)
         {
             using InitFn = int(*)(ScriptEngine*);
-            return ((InitFn)_managedInit)(engine) != 0;
+            int result = ((InitFn)_managedInit)(engine);
+            return result != 0;
         }
         return false;
     }
