@@ -7,31 +7,29 @@ namespace xg
     class ScriptModule
     {
     public:
-        explicit ScriptModule(const char* id)
+        explicit ScriptModule(const char* id, ScriptHost* host, const char* group)
             : _id(id)
+            , _host(host)
+            , _group(group)
         {
         }
 
         virtual ~ScriptModule() = default;
 
         const char* GetId() const { return _id; }
+        ScriptHost* GetHost() const { return _host; }
+        const char* GetGroup() const { return _group; }
 
         virtual bool Init(ScriptEngine* engine) = 0;
         virtual void Update(float dt) = 0;
         virtual void Shutdown() = 0;
         virtual bool IsValid() const = 0;
 
+    protected:
+        ScriptHost* _host;
+
     private:
         const char* _id; // user-defined stable C-string (e.g., "editor", "game")
+        const char* _group;
     };
-
-    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostCoreCLR, ScriptHost*, const char*);
-    XG_API ScriptHost* CreateScriptHostCoreCLR(const char* path);
-
-
-    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostNative, ScriptHost*, const char*);
-    XG_API ScriptHost* CreateScriptHostNative(const char* path);
 }
-
-XG_DECLARE_MODULE(xg, ScriptCoreCLR)
-XG_DECLARE_MODULE(xg, ScriptNative)

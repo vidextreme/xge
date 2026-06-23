@@ -12,7 +12,7 @@ namespace xg
     class EditorKernelModule : public ScriptModule
     {
     public:
-        EditorKernelModule(const char* id);
+        EditorKernelModule(const char* id, ScriptHost* host, const char* group);
         virtual ~EditorKernelModule();
 
         bool Init(ScriptEngine* engine) override;
@@ -30,7 +30,6 @@ namespace xg
     private:
         ScriptEngine* _engine = nullptr;
         ScriptModule* _editorModule = nullptr;
-        void* _editorHost = nullptr;
 
         // Stored as void* to avoid SDL includes in the header
         void* _sdlRenderer = nullptr;

@@ -4,7 +4,7 @@
 
 namespace xg
 {
-    class ScriptEngine;
+    class ScriptHost; // forward declare
 
     //
     // ScriptModuleNative
@@ -21,10 +21,12 @@ namespace xg
         using InitFunc = bool (*)(ScriptEngine*);
         using UpdateFunc = void (*)(float);
         using ShutdownFunc = void (*)();
-        using ScriptModuleFunc = ScriptModule * (*)(const char*);
+        using ScriptModuleFunc = ScriptModule * (*)(const char*, ScriptHost*, const char*);
 
         ScriptModuleNative(
             const char* id,
+            ScriptHost* host,
+            const char* group,
             void* lib,
             InitFunc init,
             UpdateFunc update,
@@ -38,11 +40,14 @@ namespace xg
         bool IsValid() const override;
 
     private:
+        ScriptHost* _nativeHost = nullptr; // typed host reference
+
         void* _lib = nullptr;
         InitFunc     _init = nullptr;
         UpdateFunc   _update = nullptr;
         ShutdownFunc _shutdown = nullptr;
-        bool         _isValid = false;
-        bool         _initialized = false;
+
+        bool _isValid = false;
+        bool _initialized = false;
     };
 }

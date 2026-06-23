@@ -63,6 +63,12 @@
     <ClInclude Include="public\xgLog.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="ScriptTree.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DispatchSystem.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -87,6 +93,12 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgLog.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptTree.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="DispatchSystem.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

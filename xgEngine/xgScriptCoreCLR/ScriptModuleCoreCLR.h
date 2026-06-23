@@ -1,14 +1,15 @@
 #pragma once
 #include "xgScriptModule.h"
-
+#include "ScriptHostCoreCLR.h"
 namespace xg
 {
-    class ScriptHostCoreCLR;
-
     class ScriptModuleCoreCLR : public ScriptModule
     {
     public:
-        ScriptModuleCoreCLR(const char* id, ScriptHostCoreCLR* host);
+        ScriptModuleCoreCLR(const char* id,
+            ScriptHostCoreCLR* host,
+            const char* group);
+
         ~ScriptModuleCoreCLR() override;
 
         bool Load(const char* path);
@@ -18,7 +19,7 @@ namespace xg
         bool IsValid() const override;
 
     private:
-        ScriptHostCoreCLR* _host = nullptr;
+        ScriptHostCoreCLR* _coreclrHost = nullptr;   // typed host
 
         void* _managedInit = nullptr;
         void* _managedUpdate = nullptr;

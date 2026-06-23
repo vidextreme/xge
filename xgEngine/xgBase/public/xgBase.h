@@ -89,8 +89,32 @@ inline bool HasFlag(E value, E flag) { \
 #define XG_FIELD(...)    /* @xg:field __VA_ARGS__ */
 #define XG_ENUM(...)    /* @xg:field __VA_ARGS__ */
 
+//
+// Refcount interface (abstract)
+//
+#define XG_ABSTRACT_REFCOUNTED() \
+    virtual int32_t AddRef() = 0; \
+    virtual int32_t Release() = 0; \
+    virtual int32_t GetRefCount() const = 0;
 
+//
+// Refcount implementation (starts at 1)
+//
+#define XG_IMPL_REFCOUNTED() \
+    int32_t _refCount = 1; \
+    virtual int32_t AddRef() override { return ++_refCount; } \
+    virtual int32_t Release() override { \
+        int32_t r = --_refCount; \
+        if (r <= 0) { delete this; return 0; } \
+        return r; \
+    } \
+    virtual int32_t GetRefCount() const override { return _refCount; }
 
+#define XG_ADDREF(x) \
+    (x)->AddRef();
 
+#define XG_RELEASE_ONE(x) \
+    do { if (x) { (x)->Release(); } } while(0)
 
-
+#define XG_SAFE_RELEASE(x) \
+    do { if (x) { (x)->Release(); (x) = nullptr; } } while(0)
