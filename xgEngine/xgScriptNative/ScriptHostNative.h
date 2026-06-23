@@ -1,7 +1,6 @@
 #pragma once
 
 #include "xgScriptHost.h"
-#include "xgScriptModule.h"
 #include "xgModules.h"
 
 namespace xg

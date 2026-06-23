@@ -13,7 +13,7 @@ namespace Editor.CoreCLR
 
             // Example: register a managed log callback
             ScriptEngine.AddLogCallback(OnLog);
-            
+            Console.WriteLine("wow");
             return 1;
         }
 

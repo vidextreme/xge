@@ -50,7 +50,7 @@ int main(int argc, char** argv)
     xg::ScriptModule* module =
         engine.AddScriptModule(
             "editor.kernel",
-            "xgEditorKernel.dll", "engine me");
+            "xgEditorKernel.dll", nullptr, "engine me");
 
     if (!module)
     {

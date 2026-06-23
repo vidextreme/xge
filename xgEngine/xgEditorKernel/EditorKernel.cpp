@@ -330,7 +330,7 @@ namespace xg
 
         InitImGui();
         const char* group = GetGroup();
-        _editorModule = _engine->AddScriptModule("editor", "Editor.CoreCLR.dll", group);
+        _editorModule = _engine->AddScriptModule("editor", "Editor.CoreCLR.dll", this, group);
 
         return true;
     }

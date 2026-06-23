@@ -43,16 +43,16 @@ namespace xg
         ~ScriptTree();
 
         ScriptNode* AddModule(ScriptModule* module,
-            ThreadDomain domain,
-            ScriptModule* parent = nullptr);
+            ScriptModule* parent = nullptr,
+            ThreadDomain domain = ThreadDomain::MainThread);
 
         void RemoveModule(ScriptModule* module);
         void Update(float dt);
 
         void DebugPrint() const;
 
-    private:
         ScriptNode* FindNode(ScriptModule* module) const;
+    private:
         bool RemoveRecursive(ScriptNode* parent, ScriptModule* module);
         void DebugPrintNode(const ScriptNode* node, int depth) const;
 

@@ -20,6 +20,7 @@ namespace xg
 
         virtual ScriptModule* AddScriptModule(const char* id,
             const char* path,
+            ScriptModule* parent = nullptr, 
             const char* group = nullptr) = 0;
 
         virtual ScriptModule* GetScriptModule(const char* id) = 0;

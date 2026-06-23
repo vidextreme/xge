@@ -16,7 +16,8 @@ namespace xg
 
     struct HostEntry
     {
-        std::string Group;
+        std::string       Group;
+        ScriptBackendType Backend;
         ScriptHost* Host;
     };
 
@@ -57,8 +58,8 @@ namespace xg
     bool Engine::Initialize(const EngineConfig& config)
     {
         // TODO: look for a better place for this!
-        ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
-        ScriptNativeDLL = "xgScriptNative.dll";
+        xg::ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
+        xg::ScriptNativeDLL = "xgScriptNative.dll";
 
         if (config.RendererModule)
             return SetRendererModule(config.RendererModule);
@@ -86,6 +87,15 @@ namespace xg
         return std::string(path).find(".CoreCLR.") != std::string::npos;
     }
 
+    static ScriptBackendType DetectBackend(const char* path)
+    {
+        if (IsCoreCLRModule(path))
+            return ScriptBackendType::CoreCLR;
+
+        // TODO: refine as you add more backends
+        return ScriptBackendType::Native;
+    }
+
     const char* Engine::GetDefaultGroupFor(const char* path)
     {
         if (!path)
@@ -98,7 +108,8 @@ namespace xg
         return "native";
     }
 
-    ScriptHost* Engine::FindHostInGroup(const char* group)
+    ScriptHost* Engine::FindHostInGroupForBackend(const char* group,
+        ScriptBackendType backend)
     {
         if (!group)
             return nullptr;
@@ -106,60 +117,58 @@ namespace xg
         auto* hosts = static_cast<HostStorage*>(_hostStorage);
         for (auto& entry : hosts->Hosts)
         {
-            if (entry.Group == group)
+            if (entry.Group == group && entry.Backend == backend)
                 return entry.Host;
         }
         return nullptr;
     }
 
-    ScriptHost* Engine::CreateHostFor(const char* path)
+    ScriptHost* Engine::CreateHostFor(ScriptBackendType backend,
+        const char* path)
     {
         if (!path)
             return nullptr;
 
-        if (IsCoreCLRModule(path))
+        switch (backend)
         {
+        case ScriptBackendType::CoreCLR:
             return CreateScriptHostCoreCLR(path);
-        }
-        else
-        {
+
+        case ScriptBackendType::Native:
+        default:
             // TODO: temporary – native host for everything else
             return CreateScriptHostNative(path);
         }
-
-        // Future:
-        //  - NativeAOT
-        //  - Lua
-        //  - Python
-        //  etc.
     }
 
-    void Engine::RegisterHostInGroup(const char* group, ScriptHost* host)
+    void Engine::RegisterHostInGroup(const char* group,
+        ScriptBackendType backend,
+        ScriptHost* host)
     {
         auto* hosts = static_cast<HostStorage*>(_hostStorage);
         HostEntry entry;
         entry.Group = group ? group : "default";
+        entry.Backend = backend;
         entry.Host = host;
         hosts->Hosts.push_back(std::move(entry));
     }
 
-    //
-    // AddScriptModule(id, path, group)
-    //
     ScriptModule* Engine::AddScriptModule(const char* id,
         const char* path,
+        ScriptModule* parent,
         const char* group)
     {
         if (!id || !path)
             return nullptr;
 
         const char* resolvedGroup = group ? group : GetDefaultGroupFor(path);
+        ScriptBackendType backend = DetectBackend(path);
 
-        // 1. Find or create host for this group
-        ScriptHost* host = FindHostInGroup(resolvedGroup);
+        // 1. Find or create host for this group + backend
+        ScriptHost* host = FindHostInGroupForBackend(resolvedGroup, backend);
         if (!host)
         {
-            host = CreateHostFor(path);
+            host = CreateHostFor(backend, path);
             if (!host)
             {
                 xg::Log(xg::MessageType::Error,
@@ -169,11 +178,11 @@ namespace xg
             }
 
             host->AddRef();
-            RegisterHostInGroup(resolvedGroup, host);
+            RegisterHostInGroup(resolvedGroup, backend, host);
         }
 
         // 2. Load module through host
-        ScriptModule* module = host->LoadModule(id, path, group);
+        ScriptModule* module = host->LoadModule(id, path, resolvedGroup);
         if (!module || !module->IsValid())
         {
             xg::Log(xg::MessageType::Error,
@@ -186,24 +195,41 @@ namespace xg
             "Loaded script module: %s - %s (group: %s)",
             id, path, resolvedGroup);
 
-        // 3. Init module
+        // 3. Register module BEFORE Init so parent lookup works
+        auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
+        storage->Modules[id] = module;
+
+        // 4. Insert into ScriptTree BEFORE Init
+        ScriptNode* parentNode = nullptr;
+        if (parent)
+            parentNode = _scriptTree->FindNode(parent);
+
+        ScriptNode* node = _scriptTree->AddModule(module, parent, ThreadDomain::MainThread);
+
+        if (!node)
+        {
+            xg::Log(xg::MessageType::Error,
+                "ScriptTree failed to attach module: %s", id);
+            storage->Modules.erase(id);
+            delete module;
+            return nullptr;
+        }
+
+        // 5. Init module AFTER it is in the tree
         if (!module->Init(this))
         {
+            _scriptTree->RemoveModule(module);
+            storage->Modules.erase(id);
+
             module->Shutdown();
             delete module;
             return nullptr;
         }
 
-        // 4. Register module
-        auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
-        storage->Modules[id] = module;
-
-        // 5. Add to ScriptTree
-        _scriptTree->AddModule(module, ThreadDomain::MainThread);
-        _scriptTree->DebugPrint();
-
+        //_scriptTree->DebugPrint();
         return module;
     }
+
 
     ScriptModule* Engine::GetScriptModule(const char* id)
     {

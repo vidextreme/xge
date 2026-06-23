@@ -12,6 +12,10 @@ namespace xg
         std::vector<std::unique_ptr<ScriptNode>> list;
     };
 
+    // ------------------------------------------------------------
+    // ScriptNode
+    // ------------------------------------------------------------
+
     ScriptNode::ScriptNode(ScriptModule* module, ThreadDomain domain)
         : _module(module)
         , _domain(domain)
@@ -75,9 +79,10 @@ namespace xg
     }
 
     ScriptNode* ScriptTree::AddModule(ScriptModule* module,
-        ThreadDomain domain,
-        ScriptModule* parent)
+        ScriptModule* parent,
+        ThreadDomain domain)
     {
+        // CASE 1: No parent → create or reuse root
         if (!parent)
         {
             if (!_root)
@@ -85,13 +90,21 @@ namespace xg
                 _root = new ScriptNode(module, domain);
                 return _root;
             }
+
+            // If root exists but parent=null, attach under root
             parent = _root->GetModule();
         }
 
+        // CASE 2: Parent exists → find parent node
         ScriptNode* parentNode = FindNode(parent);
         if (!parentNode)
+        {
+            xg::Log(xg::MessageType::Error,
+                "ScriptTree::AddModule: parent module not found in tree");
             return nullptr;
+        }
 
+        // Attach child
         return parentNode->AddChild(new ScriptNode(module, domain));
     }
 
@@ -100,6 +113,7 @@ namespace xg
         if (!_root)
             return;
 
+        // Removing root
         if (_root->GetModule() == module)
         {
             delete _root;
@@ -166,20 +180,15 @@ namespace xg
         if (!node)
             return;
 
-        // Build indentation
         char indent[64];
         int count = depth * 2;
         if (count > 63) count = 63;
         memset(indent, ' ', count);
         indent[count] = '\0';
 
-        // Module ID
-        const ScriptModule* mod = node->GetModule();
-        const char* id = mod ? mod->GetId() : "<null>";
-
+        const char* id = node->GetModule() ? node->GetModule()->GetId() : "<null>";
         xg::Log(xg::MessageType::Info, "%s- %s", indent, id);
 
-        // Access children (legal now because ScriptTree is a friend)
         auto* children = static_cast<NodeChildren*>(node->_children);
         for (auto& c : children->list)
             DebugPrintNode(c.get(), depth + 1);
@@ -198,4 +207,3 @@ namespace xg
     }
 
 }
-
