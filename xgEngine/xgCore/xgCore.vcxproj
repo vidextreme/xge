@@ -100,6 +100,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="DispatchSystem.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgEngine.h" />
@@ -114,8 +115,10 @@
     <ClInclude Include="public\xgScriptEngine.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
+    <ClInclude Include="ScriptTree.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DispatchSystem.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="xgJson.cpp" />
     <ClCompile Include="xgJsonBackend.cpp" />
@@ -127,6 +130,7 @@
     </ClCompile>
     <ClCompile Include="xgRendererAPI.cpp" />
     <ClCompile Include="xgScriptAPI.cpp" />
+    <ClCompile Include="ScriptTree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\xgBase\xgBase.vcxproj">

@@ -10,7 +10,7 @@ namespace xg
     using ShutdownFunc = ScriptModuleNative::ShutdownFunc;
     using ScriptModuleFunc = ScriptModuleNative::ScriptModuleFunc;
 
-    ScriptModule* ScriptHostNative::LoadModule(const char* id, const char* path)
+    ScriptModule* ScriptHostNative::LoadModule(const char* id, const char* path, const char* group)
     {
         if (!path)
             return nullptr;
@@ -27,7 +27,7 @@ namespace xg
         if (moduleFn)
         {
             // Module is responsible for unloading lib
-            ScriptModule* module = moduleFn(id);
+            ScriptModule* module = moduleFn(id, this, group);
 
             if (!module || !module->IsValid())
             {
@@ -56,7 +56,7 @@ namespace xg
 
         // Create ScriptModuleNative wrapper
         ScriptModule* module =
-            new ScriptModuleNative(id, lib, initFn, updateFn, shutdownFn);
+            new ScriptModuleNative(id, this, group, lib, initFn, updateFn, shutdownFn);
 
         if (!module->IsValid())
         {
@@ -64,6 +64,8 @@ namespace xg
             xg::UnloadModule(lib);
             return nullptr;
         }
+
+        XG_ADDREF(this);
 
         return module;
     }

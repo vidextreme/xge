@@ -304,8 +304,8 @@ namespace xg
 
 
 
-    EditorKernelModule::EditorKernelModule(const char* id)
-        : ScriptModule(id)
+    EditorKernelModule::EditorKernelModule(const char* id, ScriptHost* host, const char* group)
+        : ScriptModule(id, host, group)
     {
     }
 
@@ -329,9 +329,8 @@ namespace xg
         engine->GetDispatcher()->AddListener(_eventCallback);
 
         InitImGui();
-
-        _editorHost = _engine->AddScriptModule("editor", "Editor.CoreCLR.dll");
-        _editorModule = _engine->GetScriptModule("editor");
+        const char* group = GetGroup();
+        _editorModule = _engine->AddScriptModule("editor", "Editor.CoreCLR.dll", group);
 
         return true;
     }
@@ -366,7 +365,6 @@ namespace xg
             _editorModule = nullptr;
         }
 
-        _editorHost = nullptr;
         _engine = nullptr;
         _isValid = false;
     }
@@ -469,7 +467,7 @@ namespace xg
 
 // Factory for ScriptHostNative (CreateScriptModule path)
 extern "C"
-XG_MODULE_EXPORT xg::ScriptModule* CreateScriptModule(const char* id)
+XG_MODULE_EXPORT xg::ScriptModule* CreateScriptModule(const char* id, xg::ScriptHost* host, const char* group)
 {
-    return new xg::EditorKernelModule(id);
+    return new xg::EditorKernelModule(id, host, group);
 }

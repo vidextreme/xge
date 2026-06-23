@@ -6,10 +6,11 @@ namespace xg
     class ScriptHostCoreCLR : public ScriptHost
     {
     public:
+        XG_IMPL_REFCOUNTED()
         ScriptHostCoreCLR();
         ~ScriptHostCoreCLR() override;
 
-        ScriptModule* LoadModule(const char* id, const char* path) override;
+        ScriptModule* LoadModule(const char* id, const char* path, const char* group) override;
 
         // Multi‑module: resolve entry points for a specific assembly/type
         bool GetEntryPoints(

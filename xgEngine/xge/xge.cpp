@@ -47,12 +47,12 @@ int main(int argc, char** argv)
     //
     // Load Editor.CoreCLR.dll using a CoreCLR host
     //
-    xg::ScriptHost* usedHost =
+    xg::ScriptModule* module =
         engine.AddScriptModule(
             "editor.kernel",
-            "xgEditorKernel.dll");
+            "xgEditorKernel.dll", "engine me");
 
-    if (!usedHost)
+    if (!module)
     {
 		xg::Log(xg::MessageType::Error, "Failed to load Editor.CoreCLR.dll");
     }
@@ -69,6 +69,6 @@ int main(int argc, char** argv)
     //
     engine.Shutdown();
 
-    delete usedHost;
+    delete module;
     return 0;
 }

@@ -1,28 +1,32 @@
 #include "pch.h"
 #include "ScriptModuleNative.h"
 #include "xgScriptEngine.h"
+#include "xgScriptHost.h"   // for ScriptHost base
+#include "xgModules.h"      // for UnloadModule
 
 namespace xg
 {
-
-        ScriptModuleNative::ScriptModuleNative(
-			const char* id,
-            void* lib,
-            InitFunc init,
-            UpdateFunc update,
-            ShutdownFunc shutdown)
-        : ScriptModule(id),
-            _lib(lib)
-            , _init(init)
-            , _update(update)
-            , _shutdown(shutdown)
-        {
-            _isValid =
-                (_lib != nullptr) &&
-                (_init != nullptr) &&
-                (_update != nullptr) &&
-                (_shutdown != nullptr);
-        }
+    ScriptModuleNative::ScriptModuleNative(
+        const char* id,
+        ScriptHost* host,
+        const char* group,
+        void* lib,
+        InitFunc init,
+        UpdateFunc update,
+        ShutdownFunc shutdown)
+        : ScriptModule(id, host, group)
+        , _nativeHost(host)   // typed reference
+        , _lib(lib)
+        , _init(init)
+        , _update(update)
+        , _shutdown(shutdown)
+    {
+        _isValid =
+            (_lib != nullptr) &&
+            (_init != nullptr) &&
+            (_update != nullptr) &&
+            (_shutdown != nullptr);
+    }
 
     ScriptModuleNative::~ScriptModuleNative()
     {

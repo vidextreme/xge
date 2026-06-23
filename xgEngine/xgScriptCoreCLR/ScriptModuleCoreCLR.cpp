@@ -5,9 +5,11 @@
 
 namespace xg
 {
-    ScriptModuleCoreCLR::ScriptModuleCoreCLR(const char* id, ScriptHostCoreCLR* host)
-        : ScriptModule(id)
-        , _host(host)
+    ScriptModuleCoreCLR::ScriptModuleCoreCLR(const char* id,
+        ScriptHostCoreCLR* host,
+        const char* group)
+        : ScriptModule(id, host, group)
+        , _coreclrHost(host)
     {
     }
 
@@ -18,20 +20,22 @@ namespace xg
 
     bool ScriptModuleCoreCLR::Load(const char* path)
     {
-        if (!_host)
+        if (!_coreclrHost)
             return false;
 
         // Derive assembly + type name from the DLL path
         std::string assemblyName = std::filesystem::path(path).stem().string();
         std::string typeName = assemblyName + ".ScriptEntry";
 
-        if (!_host->GetEntryPoints(
+        if (!_coreclrHost->GetEntryPoints(
             assemblyName.c_str(),
             typeName.c_str(),
             &_managedInit,
             &_managedUpdate,
             &_managedShutdown))
+        {
             return false;
+        }
 
         _valid = true;
         return true;

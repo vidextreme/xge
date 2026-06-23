@@ -48,7 +48,7 @@ namespace xg
         ShutdownRuntime();
     }
 
-    ScriptModule* ScriptHostCoreCLR::LoadModule(const char* id, const char* path)
+    ScriptModule* ScriptHostCoreCLR::LoadModule(const char* id, const char* path, const char* group)
     {
         // Working directory is gameroot/bin, path is likely "Editor.CoreCLR.dll"
         std::string dllPath = GetFullPath(path);   // ...\gameroot\bin\Editor.CoreCLR.dll
@@ -61,12 +61,13 @@ namespace xg
                 return nullptr;
         }
 
-        auto* module = new ScriptModuleCoreCLR(id, this);
+        auto* module = new ScriptModuleCoreCLR(id, this, group);
         if (!module->Load(path))
         {
             delete module;
             return nullptr;
         }
+        XG_ADDREF(this);
         return module;
     }
 

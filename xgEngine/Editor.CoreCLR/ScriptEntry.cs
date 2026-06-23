@@ -32,7 +32,7 @@ namespace Editor.CoreCLR
         private static void OnLog(MessageType type, IntPtr msgPtr)
         {
             string msg = Marshal.PtrToStringAnsi(msgPtr) ?? string.Empty;
-            Console.WriteLine($"[{type}] {msg} waasdadsds");
+           // Console.WriteLine($"[{type}] {msg} waasdadsds");
         }
     }
 }

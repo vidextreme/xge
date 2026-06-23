@@ -13,16 +13,30 @@ namespace xg
 {
     class ScriptModule;
     class ScriptHost;
+    class ScriptTree;
 
+    //
+    // EngineConfig (reflection-driven)
+    //
     XG_SERIALIZABLE()
-    struct EngineConfig
+        struct EngineConfig
     {
         XG_FIELD()
-        const char* RendererModule = nullptr;
+            const char* RendererModule = nullptr;
     };
 
 
-
+    //
+    // Engine
+    //
+    // Owns:
+    //  - Window
+    //  - Renderer
+    //  - ScriptHosts (grouped)
+    //  - ScriptModules
+    //  - ScriptTree
+    //  - EventQueue / EventDispatcher
+    //
     class Engine : public ScriptEngine
     {
     public:
@@ -38,12 +52,19 @@ namespace xg
         //
         // Script module management
         //
-        // Creates or reuses a ScriptHost based on the module path.
-        // Returns the ScriptHost used (so caller can reuse it).
+        // Automatically selects or creates a ScriptHost based on:
+        //   - file extension (backend)
+        //   - optional group name (for isolation)
         //
-        ScriptHost* AddScriptModule(const char* id,
+        // If group == nullptr:
+        //      modules are grouped by backend (e.g., "coreclr", "native")
+        //
+        // If group != nullptr:
+        //      modules are isolated into that group (e.g., "sandbox1")
+        //
+        ScriptModule* AddScriptModule(const char* id,
             const char* path,
-            ScriptHost* hostOverride = nullptr) override;
+            const char* group = nullptr) override;
 
         ScriptModule* GetScriptModule(const char* id) override;
         void RemoveScriptModule(const char* id) override;
@@ -51,22 +72,33 @@ namespace xg
         Renderer* Renderer = nullptr;
         std::unique_ptr<Window> MainWindow;
 
-        EventDispatcher* GetDispatcher() override;
-        EventQueue* GetQueue() override;
+        EventDispatcher* GetDispatcher() override { return &_dispatcher; }
+        EventQueue* GetQueue() override { return &_queue; }
 
         void AddLogCallback(LogCallback cb) override;
         void RemoveLogCallback(LogCallback cb) override;
+
     private:
-        ScriptHost* GetOrCreateHostFor(const std::string& path);
+        //
+        // Host selection helpers
+        //
+        const char* GetDefaultGroupFor(const char* path);
+        ScriptHost* FindHostInGroup(const char* group);
+        ScriptHost* CreateHostFor(const char* path);
+        void        RegisterHostInGroup(const char* group, ScriptHost* host);
 
     private:
         void* _rendererLib = nullptr;
 
-        // Opaque internal storage
+        // Opaque internal storage for modules
         void* _moduleStorage = nullptr;
-        void* _hostStorage = nullptr; // NEW: stores ScriptHost* for destruction
 
-        EventQueue _queue;          // value type
-        EventDispatcher _dispatcher; // value type
+        // Stores ScriptHost* entries (vector<HostEntry>)
+        void* _hostStorage = nullptr;
+
+        ScriptTree* _scriptTree = nullptr;
+
+        EventQueue      _queue;       // value type
+        EventDispatcher _dispatcher;  // value type
     };
 }

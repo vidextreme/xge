@@ -4,6 +4,7 @@
 #include "public/xgEngine.h"
 #include "public/xgScriptModule.h"
 #include "public/xgScriptHost.h"
+#include "ScriptTree.h"
 
 namespace xg
 {
@@ -13,9 +14,15 @@ namespace xg
         std::unordered_map<std::string, ScriptModule*> Modules;
     };
 
+    struct HostEntry
+    {
+        std::string Group;
+        ScriptHost* Host;
+    };
+
     struct HostStorage
     {
-        std::vector<ScriptHost*> Hosts;
+        std::vector<HostEntry> Hosts;
     };
 
     Engine::Engine()
@@ -23,6 +30,8 @@ namespace xg
         MainWindow = NewWindow("xgEngine", 1280, 720);
         _moduleStorage = new ModuleStorage();
         _hostStorage = new HostStorage();
+
+        _scriptTree = new ScriptTree();
 
         if (MainWindow)
         {
@@ -38,19 +47,21 @@ namespace xg
         delete static_cast<ModuleStorage*>(_moduleStorage);
         delete static_cast<HostStorage*>(_hostStorage);
 
+        delete _scriptTree;
+        _scriptTree = nullptr;
+
         _moduleStorage = nullptr;
         _hostStorage = nullptr;
     }
 
     bool Engine::Initialize(const EngineConfig& config)
     {
-        //TODO look for a better place for this!
+        // TODO: look for a better place for this!
         ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
-		ScriptNativeDLL = "xgScriptNative.dll";
+        ScriptNativeDLL = "xgScriptNative.dll";
 
         if (config.RendererModule)
             return SetRendererModule(config.RendererModule);
-
 
         return true;
     }
@@ -70,81 +81,112 @@ namespace xg
         return Renderer != nullptr;
     }
 
-    bool IsCoreCLRModule(const char* path)
+    static bool IsCoreCLRModule(const char* path)
     {
         return std::string(path).find(".CoreCLR.") != std::string::npos;
     }
 
-    EventDispatcher* Engine::GetDispatcher()
+    const char* Engine::GetDefaultGroupFor(const char* path)
     {
-        return &_dispatcher;
+        if (!path)
+            return "default";
+
+        if (IsCoreCLRModule(path))
+            return "coreclr";
+
+        // TODO: refine as you add more backends
+        return "native";
     }
 
-    EventQueue* Engine::GetQueue()
+    ScriptHost* Engine::FindHostInGroup(const char* group)
     {
-        return &_queue;
-    }
+        if (!group)
+            return nullptr;
 
-    //
-    // Backend selection logic
-    //
-    ScriptHost* Engine::GetOrCreateHostFor(const std::string& path)
-    {
-        std::string ext = xg::GetExtension(path.c_str());
-		
-        if (IsCoreCLRModule(path.c_str()))
+        auto* hosts = static_cast<HostStorage*>(_hostStorage);
+        for (auto& entry : hosts->Hosts)
         {
-            return CreateScriptHostCoreCLR(path.c_str());
+            if (entry.Group == group)
+                return entry.Host;
         }
-
-        else //TODO temporary
-        {
-			return CreateScriptHostNative(path.c_str());
-        }
-        /*if (ext == ".NativeAOT.dll")
-            return new HostNativeAOT();
-
-        if (ext == ".lua")
-            return new HostLua();
-
-        if (ext == ".py")
-            return new HostPython();*/
-
         return nullptr;
     }
 
+    ScriptHost* Engine::CreateHostFor(const char* path)
+    {
+        if (!path)
+            return nullptr;
+
+        if (IsCoreCLRModule(path))
+        {
+            return CreateScriptHostCoreCLR(path);
+        }
+        else
+        {
+            // TODO: temporary – native host for everything else
+            return CreateScriptHostNative(path);
+        }
+
+        // Future:
+        //  - NativeAOT
+        //  - Lua
+        //  - Python
+        //  etc.
+    }
+
+    void Engine::RegisterHostInGroup(const char* group, ScriptHost* host)
+    {
+        auto* hosts = static_cast<HostStorage*>(_hostStorage);
+        HostEntry entry;
+        entry.Group = group ? group : "default";
+        entry.Host = host;
+        hosts->Hosts.push_back(std::move(entry));
+    }
+
     //
-    // AddScriptModule(id, path, hostOverride)
+    // AddScriptModule(id, path, group)
     //
-    ScriptHost* Engine::AddScriptModule(const char* id,
+    ScriptModule* Engine::AddScriptModule(const char* id,
         const char* path,
-        ScriptHost* hostOverride)
+        const char* group)
     {
         if (!id || !path)
             return nullptr;
 
-        ScriptHost* host = hostOverride ? hostOverride
-            : GetOrCreateHostFor(path);
+        const char* resolvedGroup = group ? group : GetDefaultGroupFor(path);
 
+        // 1. Find or create host for this group
+        ScriptHost* host = FindHostInGroup(resolvedGroup);
         if (!host)
-            return nullptr;
-
-        if (!hostOverride)
         {
-            auto* hosts = static_cast<HostStorage*>(_hostStorage);
-            hosts->Hosts.push_back(host);
+            host = CreateHostFor(path);
+            if (!host)
+            {
+                xg::Log(xg::MessageType::Error,
+                    "Failed to create script host for module: %s - %s",
+                    id, path);
+                return nullptr;
+            }
+
+            host->AddRef();
+            RegisterHostInGroup(resolvedGroup, host);
         }
 
-        ScriptModule* module = host->LoadModule(id, path);
+        // 2. Load module through host
+        ScriptModule* module = host->LoadModule(id, path, group);
         if (!module || !module->IsValid())
         {
-			xg::Log(xg::MessageType::Error, "Failed to load script module: %s - %s", id, path);
+            xg::Log(xg::MessageType::Error,
+                "Failed to load script module: %s - %s",
+                id, path);
             return nullptr;
         }
 
-		xg::Log(xg::MessageType::Info, "Loaded script module: %s - %s", id, path);
+        xg::Log(xg::MessageType::Info,
+            "Loaded script module: %s - %s (group: %s)",
+            id, path, resolvedGroup);
 
-        // 🔹 Call Init here
+        // 3. Init module
         if (!module->Init(this))
         {
             module->Shutdown();
@@ -152,12 +194,16 @@ namespace xg
             return nullptr;
         }
 
+        // 4. Register module
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
         storage->Modules[id] = module;
 
-        return host;
-    }
+        // 5. Add to ScriptTree
+        _scriptTree->AddModule(module, ThreadDomain::MainThread);
+        _scriptTree->DebugPrint();
 
+        return module;
+    }
 
     ScriptModule* Engine::GetScriptModule(const char* id)
     {
@@ -183,6 +229,11 @@ namespace xg
             ScriptModule* module = it->second;
             if (module)
             {
+                _scriptTree->RemoveModule(module);
+
+                ScriptHost* host = module->GetHost();
+                XG_RELEASE_ONE(host);
+
                 module->Shutdown();
                 delete module;
             }
@@ -195,23 +246,14 @@ namespace xg
     {
         float dt = 0.016f;
 
-        auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
-
         while (!MainWindow->ShouldClose())
         {
             MainWindow->PollEvents();
 
-            for (auto& pair : storage->Modules)
-            {
-                ScriptModule* module = pair.second;
-                if (module && module->IsValid())
-                {
-                    module->Update(dt);
-                }
-            }
+            _scriptTree->Update(dt);
 
-            //if (Renderer)
-            //    Renderer->Render();
+            // if (Renderer)
+            //     Renderer->Render();
         }
     }
 
@@ -225,6 +267,9 @@ namespace xg
             ScriptModule* module = pair.second;
             if (module)
             {
+                ScriptHost* host = module->GetHost();
+                XG_RELEASE_ONE(host);
+
                 module->Shutdown();
                 delete module;
             }
@@ -234,9 +279,10 @@ namespace xg
 
         // Destroy hosts
         auto* hosts = static_cast<HostStorage*>(_hostStorage);
-        for (ScriptHost* host : hosts->Hosts)
-            delete host;
-
+        for (auto& entry : hosts->Hosts)
+        {
+            XG_SAFE_RELEASE(entry.Host);
+        }
         hosts->Hosts.clear();
 
         // Renderer cleanup

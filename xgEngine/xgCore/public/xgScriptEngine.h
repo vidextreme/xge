@@ -18,9 +18,9 @@ namespace xg
     public:
         virtual ~ScriptEngine() = default;
 
-        virtual ScriptHost* AddScriptModule(const char* id,
+        virtual ScriptModule* AddScriptModule(const char* id,
             const char* path,
-            ScriptHost* hostOverride = nullptr) = 0;
+            const char* group = nullptr) = 0;
 
         virtual ScriptModule* GetScriptModule(const char* id) = 0;
         virtual void RemoveScriptModule(const char* id) = 0;

@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "public/xgScriptModule.h"
+#include "public/xgScriptHost.h"
 #include "xgLog.h"
 
 XG_DEFINE_MODULE_LOADER(xg, ScriptCoreCLR);
