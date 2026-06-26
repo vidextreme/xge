@@ -3,11 +3,11 @@
 
 namespace xg
 {
-    class IEventCallback
+    class EventListener
     {
     public:
-        virtual ~IEventCallback() = default;
-        virtual void Invoke(const xgEvent& e) = 0;
+        virtual ~EventListener() = default;
+        virtual void OnEvent(const xgEvent& e) = 0;
     };
 
     class EventDispatcher
@@ -16,8 +16,8 @@ namespace xg
         EventDispatcher();
         ~EventDispatcher();
 
-        void AddListener(IEventCallback* cb);
-        void RemoveListener(IEventCallback* cb);
+        void AddListener(EventListener* listener);
+        void RemoveListener(EventListener* listener);
 
         void Dispatch(const xgEvent& e);
 

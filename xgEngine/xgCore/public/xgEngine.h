@@ -5,23 +5,16 @@
 #include "xgRenderer.h"
 #include "xgScriptEngine.h"
 #include "xgScriptHost.h"
-#include "xgEngine.generated.h"
 #include "xgEventQueue.h"
 #include "xgEventDispatcher.h"
 #include "xgLog.h"
+#include "xgEngineDef.h"
 
 namespace xg
 {
     class ScriptModule;
     class ScriptHost;
     class ScriptTree;
-
-    XG_SERIALIZABLE()
-        struct EngineConfig
-    {
-        XG_FIELD()
-            const char* RendererModule = nullptr;
-    };
 
     class Engine : public ScriptEngine
     {

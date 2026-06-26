@@ -7,40 +7,45 @@ namespace xg
 {
     struct EventDispatcher::Impl
     {
-        std::vector<IEventCallback*> Listeners;
+        std::vector<EventListener*> Listeners;
     };
 
     EventDispatcher::EventDispatcher()
         : Pimpl(new Impl())
-    {
-    }
+    {}
 
     EventDispatcher::~EventDispatcher()
     {
         delete Pimpl;
+        Pimpl = nullptr;
     }
 
-    void EventDispatcher::AddListener(IEventCallback* cb)
+    void EventDispatcher::AddListener(EventListener* listener)
     {
-        if (!cb)
+        if (!listener)
             return;
 
-        Pimpl->Listeners.push_back(cb);
+        auto& list = Pimpl->Listeners;
+        if (std::find(list.begin(), list.end(), listener) == list.end())
+            list.push_back(listener);
     }
 
-    void EventDispatcher::RemoveListener(IEventCallback* cb)
+    void EventDispatcher::RemoveListener(EventListener* listener)
     {
-        auto& vec = Pimpl->Listeners;
-        vec.erase(std::remove(vec.begin(), vec.end(), cb), vec.end());
+        if (!listener)
+            return;
+
+        auto& list = Pimpl->Listeners;
+        auto it = std::remove(list.begin(), list.end(), listener);
+        list.erase(it, list.end());
     }
 
     void EventDispatcher::Dispatch(const xgEvent& e)
     {
-        for (IEventCallback* cb : Pimpl->Listeners)
+        for (EventListener* listener : Pimpl->Listeners)
         {
-            if (cb)
-                cb->Invoke(e);
+            if (listener)
+                listener->OnEvent(e);
         }
     }
 }
-

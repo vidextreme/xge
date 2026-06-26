@@ -4,7 +4,9 @@
 #include "xgScriptHost.h"
 #include "xgScriptModule.h"
 #include "xgMemberCallback.h"
+#include "xgEventDispatcher.h"
 #include "platform/xgEventToSDL.h"
+#include "xgListenerBinding.h"
 
 // ImGui core
 #include "imgui.h"
@@ -19,7 +21,6 @@
 
 namespace xg
 {
-    static std::unique_ptr<xg::IEventCallback> s_EventCallbackStorage;
 
     void SetImGuiTheme_Blender2026()
     {
@@ -90,8 +91,8 @@ namespace xg
         style.ScrollbarRounding = 2.0f;
 
         style.WindowBorderSize = 0.5f;
-        style.FrameBorderSize = 0.3f;        
-        
+        style.FrameBorderSize = 0.3f;
+
         colors[ImGuiCol_Border] = ImVec4(0.2f, 0.2f, 0.2f, 1.00f);
         colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
     }
@@ -303,11 +304,15 @@ namespace xg
     }
 
 
+    //
+    // ------------------------------------------------------------
+    // EditorKernelModule
+    // ------------------------------------------------------------
+    //
 
     EditorKernelModule::EditorKernelModule(const char* id, ScriptHost* host, const char* group)
         : ScriptModule(id, host, group)
-    {
-    }
+    {}
 
     EditorKernelModule::~EditorKernelModule()
     {
@@ -321,44 +326,54 @@ namespace xg
 
         _engine = engine;
 
-        s_EventCallbackStorage = std::make_unique<
-            xg::MemberCallback<EditorKernelModule>
-        >(this, &EditorKernelModule::OnEvent);
+        //
+        // Create event listener (modernized)
+        //
+        _eventListener = std::make_unique<ListenerBinding<EditorKernelModule>>(
+            this,
+            &EditorKernelModule::OnEvent
+        );
 
-        _eventCallback = s_EventCallbackStorage.get();
-        engine->GetDispatcher()->AddListener(_eventCallback);
+        engine->GetDispatcher()->AddListener(_eventListener.get());
 
+        //
+        // ImGui setup
+        //
         InitImGui();
+
+        //
+        // Load managed editor module
+        //
         const char* group = GetGroup();
         _editorModule = _engine->AddScriptModule("editor", "Editor.CoreCLR.dll", this, group);
 
         return true;
     }
 
-    void EditorKernelModule::Update(float dt)
-    {
-        BeginImGuiFrame();
-
-        /*ImGui::Begin("Editor Kernel");
-        ImGui::Text("Native editor kernel running.");
-        ImGui::Text("dt: %.3f ms", dt * 1000.0f);
-        ImGui::End();*/
-
-        // Optional: show ImGui demo for testing
-        // ImGui::ShowDemoWindow();
-
-        DrawMainDockspace_BlenderLike();
-        DrawBlenderPanels();
-
-        
-
-        EndImGuiFrame();
-    }
-
     void EditorKernelModule::Shutdown()
     {
+        if (!_isValid)
+            return;
+
+        //
+        // Unregister event listener
+        //
+        if (_engine)
+        {
+            if (auto* dispatcher = _engine->GetDispatcher())
+                dispatcher->RemoveListener(_eventListener.get());
+        }
+
+        _eventListener.reset();
+
+        //
+        // Shutdown ImGui
+        //
         ShutdownImGui();
 
+        //
+        // Remove managed editor module
+        //
         if (_engine && _editorModule)
         {
             _engine->RemoveScriptModule("editor");
@@ -369,11 +384,26 @@ namespace xg
         _isValid = false;
     }
 
-
+    //
     // ------------------------------------------------------------
-    // ImGui init / shutdown (SDL3 + SDL_Renderer3, CPU path)
+    // Update
     // ------------------------------------------------------------
+    //
+    void EditorKernelModule::Update(float dt)
+    {
+        BeginImGuiFrame();
 
+        DrawMainDockspace_BlenderLike();
+        DrawBlenderPanels();
+
+        EndImGuiFrame();
+    }
+
+    //
+    // ------------------------------------------------------------
+    // ImGui Init / Shutdown
+    // ------------------------------------------------------------
+    //
     void EditorKernelModule::InitImGui()
     {
         IMGUI_CHECKVERSION();
@@ -383,7 +413,7 @@ namespace xg
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-        // 🟢 Load Blender-style font
+        // Fonts
         io.Fonts->AddFontFromFileTTF("../editor/fonts/DejaVuSans.ttf", 14.0f);
         io.Fonts->AddFontFromFileTTF("../editor/fonts/DejaVuSans.ttf", 13.0f);
         io.Fonts->AddFontFromFileTTF("../editor/fonts/DejaVuSans-Bold.ttf", 13.0f);
@@ -404,16 +434,15 @@ namespace xg
         SDL_Surface* icon = SDL_LoadBMP("../editor/xge-icon.bmp");
         SDL_SetWindowIcon(window, icon);
         SDL_DestroySurface(icon);
-
     }
 
     void EditorKernelModule::ShutdownImGui()
     {
+        ImGui_ImplSDLRenderer3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
+
         if (_sdlRenderer)
         {
-            ImGui_ImplSDLRenderer3_Shutdown();
-            ImGui_ImplSDL3_Shutdown();
-
             SDL_DestroyRenderer(static_cast<SDL_Renderer*>(_sdlRenderer));
             _sdlRenderer = nullptr;
         }
@@ -421,10 +450,11 @@ namespace xg
         ImGui::DestroyContext();
     }
 
+    //
     // ------------------------------------------------------------
     // Frame lifecycle
     // ------------------------------------------------------------
-
+    //
     void EditorKernelModule::BeginImGuiFrame()
     {
         ImGui_ImplSDLRenderer3_NewFrame();
@@ -454,6 +484,11 @@ namespace xg
         SDL_RenderPresent(sdlRenderer);
     }
 
+    //
+    // ------------------------------------------------------------
+    // Event Handling
+    // ------------------------------------------------------------
+    //
     void EditorKernelModule::OnEvent(const xgEvent& e)
     {
         SDL_Window* window = static_cast<SDL_Window*>(
@@ -465,7 +500,11 @@ namespace xg
     }
 }
 
-// Factory for ScriptHostNative (CreateScriptModule path)
+//
+// ------------------------------------------------------------
+// ScriptHostNative factory
+// ------------------------------------------------------------
+//
 extern "C"
 XG_MODULE_EXPORT xg::ScriptModule* CreateScriptModule(const char* id, xg::ScriptHost* host, const char* group)
 {

@@ -55,7 +55,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -76,7 +76,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

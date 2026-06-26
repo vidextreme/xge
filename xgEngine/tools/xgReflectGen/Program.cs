@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 using TreeSitter;
 
 class Program
@@ -76,6 +73,9 @@ class Program
 
         Directory.CreateDirectory(destNative);
         Directory.CreateDirectory(destManaged);
+
+        ClearGeneratedFiles(destNative);
+        ClearGeneratedFiles(destManaged);
 
         if (!Directory.Exists(sourceFolder))
         {
@@ -241,4 +241,29 @@ class Program
             s += "\r\n";
         return s;
     }
+
+    static void ClearGeneratedFiles(string folder)
+    {
+        if (!Directory.Exists(folder))
+            return;
+
+        foreach (var file in Directory.GetFiles(folder))
+        {
+            string name = Path.GetFileName(file);
+
+            if (name.Contains(".generated.", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    File.Delete(file);
+                    Console.WriteLine($"[CLEAN] Removed {file}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CLEAN] Failed to remove {file}: {ex.Message}");
+                }
+            }
+        }
+    }
+
 }

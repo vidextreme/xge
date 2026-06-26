@@ -1,30 +1,37 @@
 #pragma once
 #include "xgScriptModule.h"
 #include "xgEvent.h"
+
+#include <memory>   // allowed (non‑public header)
+
 struct SDL_Renderer;   // forward declare, keep SDL out of the header
 struct SDL_Window;
 
 namespace xg
 {
     class ScriptEngine;
-    class IEventCallback;
+    class EventListener;
 
     class EditorKernelModule : public ScriptModule
     {
     public:
         EditorKernelModule(const char* id, ScriptHost* host, const char* group);
-        virtual ~EditorKernelModule();
+        ~EditorKernelModule() override;
 
         bool Init(ScriptEngine* engine) override;
         void Update(float dt) override;
         void Shutdown() override;
-		bool IsValid() const override { return _isValid; }
+
+        bool IsValid() const override { return _isValid; }
+
     private:
         // ImGui lifecycle
         void InitImGui();
         void ShutdownImGui();
         void BeginImGuiFrame();
         void EndImGuiFrame();
+
+        // Platform event handler (called by EventDispatcher)
         void OnEvent(const xgEvent& e);
 
     private:
@@ -35,6 +42,8 @@ namespace xg
         void* _sdlRenderer = nullptr;
 
         bool _isValid = true;
-        IEventCallback* _eventCallback = nullptr;
+
+        // Modernized: EditorKernel owns its listener
+        std::unique_ptr<EventListener> _eventListener;
     };
 }
