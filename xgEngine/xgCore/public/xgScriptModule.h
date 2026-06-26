@@ -1,5 +1,6 @@
 #pragma once
 #include "xgModules.h"
+#include "xgEngineDef.h"
 namespace xg
 {
     class ScriptEngine;

@@ -69,6 +69,18 @@
     <ClInclude Include="DispatchSystem.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgEngineDef.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="CallbackDispatcher.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgCallback.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgListenerBinding.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

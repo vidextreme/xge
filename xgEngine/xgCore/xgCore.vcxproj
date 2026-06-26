@@ -58,7 +58,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated;public</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -84,7 +84,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\json;Generated;public</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -100,12 +100,16 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="DispatchSystem.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="public\xgCallback.h" />
     <ClInclude Include="public\xgEngine.h" />
+    <ClInclude Include="public\xgEngineDef.h" />
     <ClInclude Include="public\xgJson.h" />
     <ClInclude Include="public\xgJsonBackend.h" />
+    <ClInclude Include="public\xgListenerBinding.h" />
     <ClInclude Include="public\xgLog.h" />
     <ClInclude Include="public\xgMemberCallback.h" />
     <ClInclude Include="public\xgModules.h" />

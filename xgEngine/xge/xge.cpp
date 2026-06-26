@@ -68,7 +68,6 @@ int main(int argc, char** argv)
     // Shutdown
     //
     engine.Shutdown();
-
-    delete module;
+    
     return 0;
 }
