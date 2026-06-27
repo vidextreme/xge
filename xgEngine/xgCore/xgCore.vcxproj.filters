@@ -81,6 +81,24 @@
     <ClInclude Include="public\xgListenerBinding.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgMessageCodec.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgMessage.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="JsonMessageCodec.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgMemoryStream.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgTypeInfo.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgMessenger.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -111,6 +129,15 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="DispatchSystem.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="JsonMessageCodec.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgMemoryStream.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgMessenger.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

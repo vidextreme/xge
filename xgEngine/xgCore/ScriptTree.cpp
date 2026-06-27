@@ -205,4 +205,51 @@ namespace xg
 
         xg::Log(xg::MessageType::Info, "==================");
     }
+
+    ScriptModule* ScriptTree::FindModuleById(const char* id)
+    {
+        if (!_root)
+            return nullptr;
+
+        return FindModuleByIdRecursive(_root, id);
+    }
+
+    ScriptModule* ScriptTree::FindModuleByIdRecursive(ScriptNode* node, const char* id)
+    {
+        if (!node)
+            return nullptr;
+
+        ScriptModule* m = node->GetModule();
+        if (m && strcmp(m->GetId(), id) == 0)
+            return m;
+
+        for (auto& c : node->_children)
+        {
+            ScriptModule* found = FindModuleByIdRecursive(c.get(), id);
+            if (found)
+                return found;
+        }
+
+        return nullptr;
+    }
+
+    void ScriptTree::ForEachModule(const std::function<void(ScriptModule*)>& callback)
+    {
+        ForEachModuleRecursive(_root, callback);
+    }
+
+    void ScriptTree::ForEachModuleRecursive(ScriptNode* node,
+        const std::function<void(ScriptModule*)>& callback)
+    {
+        if (!node)
+            return;
+
+        if (node->GetModule())
+            callback(node->GetModule());
+
+        for (auto& c : node->_children)
+            ForEachModuleRecursive(c.get(), callback);
+    }
+
+
 }

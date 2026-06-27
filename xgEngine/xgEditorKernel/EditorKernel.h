@@ -33,7 +33,7 @@ namespace xg
 
         // Platform event handler (called by EventDispatcher)
         void OnEvent(const xgEvent& e);
-
+        void OnMessage(const ScriptMessage& msg) override;
     private:
         ScriptEngine* _engine = nullptr;
         ScriptModule* _editorModule = nullptr;

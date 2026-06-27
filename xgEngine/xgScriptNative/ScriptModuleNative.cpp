@@ -73,4 +73,6 @@ namespace xg
     {
         return _isValid;
     }
+    void ScriptModuleNative::OnMessage(const ScriptMessage& msg)
+    {}
 }

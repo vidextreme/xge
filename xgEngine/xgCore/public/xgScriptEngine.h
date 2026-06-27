@@ -7,6 +7,7 @@ namespace xg
 {
     class EventDispatcher;
 	class EventQueue;
+	class Messenger;
     //
     // ScriptEngine
     //
@@ -28,6 +29,8 @@ namespace xg
 
         virtual EventDispatcher* GetDispatcher() = 0;
         virtual EventQueue* GetQueue() = 0;
+
+        virtual Messenger* GetMessenger() = 0;
 
         virtual void AddLogCallback(LogCallback cb) = 0;
         virtual void RemoveLogCallback(LogCallback cb) = 0;

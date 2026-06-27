@@ -52,10 +52,10 @@ namespace xg
     // ------------------------------------------------------------
     // Memory Stream Interface
     // ------------------------------------------------------------
-    class MemoryStream : public Stream
+    class MemoryStreamBase : public Stream
     {
     public:
-        virtual ~MemoryStream() = default;
+        virtual ~MemoryStreamBase() = default;
 
         virtual void* Data() = 0;
         virtual const void* Data() const = 0;
@@ -82,4 +82,6 @@ namespace xg
     // ------------------------------------------------------------
     XG_API std::unique_ptr<File> LoadFile(const wchar_t* path, FileAccessMode mode);
     XG_API bool GetExeRootDirectory(wchar_t* output, const wchar_t* localizedPath);
+
+    XG_API std::unique_ptr<MemoryStreamBase> CreateMemoryStream(uint64_t capacity = 256);
 }

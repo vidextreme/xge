@@ -18,6 +18,7 @@ namespace xg
         void Shutdown() override;
         bool IsValid() const override;
 
+        void OnMessage(const ScriptMessage& msg) override;
     private:
         ScriptHostCoreCLR* _coreclrHost = nullptr;   // typed host
 
