@@ -498,6 +498,8 @@ namespace xg
         SDL_Event sdl = xg::ToSDL(e, window);
         ImGui_ImplSDL3_ProcessEvent(&sdl);
     }
+    void EditorKernelModule::OnMessage(const ScriptMessage& msg)
+    {}
 }
 
 //

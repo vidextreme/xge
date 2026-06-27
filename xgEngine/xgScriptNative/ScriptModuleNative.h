@@ -38,7 +38,7 @@ namespace xg
         void Update(float dt) override;
         void Shutdown() override;
         bool IsValid() const override;
-
+        void OnMessage(const ScriptMessage& msg) override;
     private:
         ScriptHost* _nativeHost = nullptr; // typed host reference
 

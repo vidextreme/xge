@@ -3,6 +3,7 @@
 #include <memory>
 #include "xgScriptModule.h"
 #include "xgCallback.h"
+#include <functional>
 
 namespace xg
 {
@@ -47,6 +48,14 @@ namespace xg
 
         ScriptNode* FindNode(ScriptModule* module) const;
         ScriptNode* FindNodeForCallback(Callback* cb) const;
+        ScriptModule* FindModuleById(const char* id);
+
+
+        void ForEachModule(const std::function<void(ScriptModule*)>& callback);
+        void ForEachModuleRecursive(ScriptNode* node,
+            const std::function<void(ScriptModule*)>& callback);
+
+        ScriptModule* FindModuleByIdRecursive(ScriptNode* node, const char* id);
 
         void Update(float dt);
         void UpdateDedicated(size_t lane, float dt);

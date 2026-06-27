@@ -4,6 +4,8 @@
 #include "public/xgEngine.h"
 #include "public/xgScriptModule.h"
 #include "public/xgScriptHost.h"
+#include "xgMessenger.h"
+#include "JsonMessageCodec.h"
 #include "ScriptTree.h"
 
 namespace xg
@@ -33,7 +35,8 @@ namespace xg
         _hostStorage = new HostStorage();
 
         _scriptTree = new ScriptTree();
-
+        _codec = new JsonMessageCodec();
+        _messenger = new Messenger(_scriptTree, _codec);
         if (MainWindow)
         {
             MainWindow->SetEventQueue(&_queue);
@@ -50,6 +53,12 @@ namespace xg
 
         delete _scriptTree;
         _scriptTree = nullptr;
+
+        delete _messenger;
+        delete _codec;
+        _messenger = nullptr;
+        _codec = nullptr;
+
 
         _moduleStorage = nullptr;
         _hostStorage = nullptr;

@@ -15,6 +15,8 @@ namespace xg
     class ScriptModule;
     class ScriptHost;
     class ScriptTree;
+	class MessageCodec;
+    class Messenger;
 
     class Engine : public ScriptEngine
     {
@@ -41,6 +43,7 @@ namespace xg
 
         EventDispatcher* GetDispatcher() override { return &_dispatcher; }
         EventQueue* GetQueue() override { return &_queue; }
+        Messenger* GetMessenger() override { return _messenger; }
 
         void AddLogCallback(LogCallback cb) override;
         void RemoveLogCallback(LogCallback cb) override;
@@ -68,5 +71,7 @@ namespace xg
 
         EventQueue      _queue;
         EventDispatcher _dispatcher;
+		Messenger* 	_messenger;
+        MessageCodec* _codec = nullptr;
     };
 }

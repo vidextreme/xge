@@ -103,6 +103,7 @@
     <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="DispatchSystem.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="JsonMessageCodec.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgCallback.h" />
     <ClInclude Include="public\xgEngine.h" />
@@ -112,6 +113,10 @@
     <ClInclude Include="public\xgListenerBinding.h" />
     <ClInclude Include="public\xgLog.h" />
     <ClInclude Include="public\xgMemberCallback.h" />
+    <ClInclude Include="public\xgMemoryStream.h" />
+    <ClInclude Include="public\xgMessage.h" />
+    <ClInclude Include="public\xgMessageCodec.h" />
+    <ClInclude Include="public\xgMessenger.h" />
     <ClInclude Include="public\xgModules.h" />
     <ClInclude Include="public\xgReflection.h" />
     <ClInclude Include="public\xgReflectionSerialization.h" />
@@ -119,14 +124,18 @@
     <ClInclude Include="public\xgScriptEngine.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
+    <ClInclude Include="public\xgTypeInfo.h" />
     <ClInclude Include="ScriptTree.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DispatchSystem.cpp" />
+    <ClCompile Include="JsonMessageCodec.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="xgJson.cpp" />
     <ClCompile Include="xgJsonBackend.cpp" />
     <ClCompile Include="xgLog.cpp" />
+    <ClCompile Include="xgMemoryStream.cpp" />
+    <ClCompile Include="xgMessenger.cpp" />
     <ClCompile Include="xgModules.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

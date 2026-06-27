@@ -76,4 +76,6 @@ namespace xg
     {
         return _valid;
     }
+    void ScriptModuleCoreCLR::OnMessage(const ScriptMessage& msg)
+    {}
 }

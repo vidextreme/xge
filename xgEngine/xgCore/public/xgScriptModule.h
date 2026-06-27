@@ -1,6 +1,7 @@
 #pragma once
 #include "xgModules.h"
 #include "xgEngineDef.h"
+#include "xgMessage.h"
 namespace xg
 {
     class ScriptEngine;
@@ -26,6 +27,7 @@ namespace xg
         virtual void Shutdown() = 0;
         virtual bool IsValid() const = 0;
 
+        virtual void OnMessage(const ScriptMessage& msg) = 0;
     protected:
         ScriptHost* _host;
 
