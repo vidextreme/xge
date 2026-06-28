@@ -66,10 +66,10 @@ namespace xg
     {
         using TI = TypeInfo<T>;
 
-        const RawFieldInfo* fields = TI::GetFields();
-        const int count = TI::GetFieldCount();
+        const RawFieldInfo* fields = TI::Fields();
+        const int count = TI::FieldCount();
 
-        out.BeginObject(TI::Name);
+        out.BeginObject(GetTypeInfo<T>()->Name);
 
         for (int i = 0; i < count; ++i)
         {
@@ -106,8 +106,8 @@ namespace xg
     {
         using TI = TypeInfo<T>;
 
-        const RawFieldInfo* fields = TI::GetFields();
-        const int count = TI::GetFieldCount();
+        const RawFieldInfo* fields = TI::Fields();
+        const int count = TI::FieldCount();
 
         for (int i = 0; i < count; ++i)
         {

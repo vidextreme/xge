@@ -1,6 +1,5 @@
 #pragma once
 
-#include "xgScriptModule.h"
 #include "xgLog.h"
 
 namespace xg
@@ -8,6 +7,7 @@ namespace xg
     class EventDispatcher;
 	class EventQueue;
 	class Messenger;
+	class ScriptModule;
     //
     // ScriptEngine
     //

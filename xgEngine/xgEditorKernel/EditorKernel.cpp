@@ -7,7 +7,8 @@
 #include "xgEventDispatcher.h"
 #include "platform/xgEventToSDL.h"
 #include "xgListenerBinding.h"
-
+#include "xgMessenger.h"
+#include "xgReflectionSerialization.h"
 // ImGui core
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -21,6 +22,216 @@
 
 namespace xg
 {
+
+    struct PlayerState
+    {
+        int health;
+        float x;
+        float y;
+    };
+
+    static void SetImGuiTheme_BlenderScreenshot()
+    {
+        ImGuiStyle& s = ImGui::GetStyle();
+        ImVec4* c = s.Colors;
+
+        //
+        // === CORE BACKGROUND COLORS ===
+        // Blender uses a charcoal gradient: #1E1E1E → #2A2A2A
+        //
+        c[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.0f);   // #1E1E1E
+        c[ImGuiCol_ChildBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.0f);   // #232323
+        c[ImGuiCol_PopupBg] = ImVec4(0.16f, 0.16f, 0.16f, 1.0f);   // #282828
+
+        //
+        // === BORDERS ===
+        // Blender uses extremely subtle borders (#1A1A1A)
+        //
+        c[ImGuiCol_Border] = ImVec4(0.10f, 0.10f, 0.10f, 1.0f);   // #1A1A1A
+        c[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f); // No shadow
+
+        s.WindowBorderSize = 1.0f;
+        s.ChildBorderSize = 1.0f;
+        s.PopupBorderSize = 1.0f;
+        s.FrameBorderSize = 1.0f;
+
+        //
+        // === FRAME BACKGROUNDS ===
+        // Blender uses slightly lighter gray for inputs (#2E2E2E)
+        //
+        c[ImGuiCol_FrameBg] = ImVec4(0.18f, 0.18f, 0.18f, 1.0f);   // #2E2E2E
+        c[ImGuiCol_FrameBgHovered] = ImVec4(0.22f, 0.22f, 0.22f, 1.0f);   // #383838
+        c[ImGuiCol_FrameBgActive] = ImVec4(0.26f, 0.26f, 0.26f, 1.0f);   // #424242
+
+        //
+        // === HEADERS ===
+        // Blender uses muted blue-gray (#3A3F4A)
+        //
+        c[ImGuiCol_Header] = ImVec4(0.23f, 0.25f, 0.30f, 1.0f);   // #3A3F4A
+        c[ImGuiCol_HeaderHovered] = ImVec4(0.28f, 0.30f, 0.36f, 1.0f);   // #485062
+        c[ImGuiCol_HeaderActive] = ImVec4(0.32f, 0.34f, 0.40f, 1.0f);   // #545A66
+
+        //
+        // === BUTTONS ===
+        // Blender uses the same blue-gray family
+        //
+        c[ImGuiCol_Button] = ImVec4(0.25f, 0.27f, 0.32f, 1.0f);   // #404552
+        c[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.32f, 0.38f, 1.0f);   // #4D5666
+        c[ImGuiCol_ButtonActive] = ImVec4(0.35f, 0.37f, 0.43f, 1.0f);   // #596273
+
+        //
+        // === TABS ===
+        // Blender tabs are extremely subtle
+        //
+        c[ImGuiCol_Tab] = ImVec4(0.20f, 0.20f, 0.22f, 1.0f);
+        c[ImGuiCol_TabHovered] = ImVec4(0.26f, 0.26f, 0.30f, 1.0f);
+        c[ImGuiCol_TabActive] = ImVec4(0.30f, 0.30f, 0.34f, 1.0f);
+        c[ImGuiCol_TabUnfocused] = ImVec4(0.16f, 0.16f, 0.18f, 1.0f);
+        c[ImGuiCol_TabUnfocusedActive] = ImVec4(0.22f, 0.22f, 0.26f, 1.0f);
+
+        //
+        // === TITLE BARS ===
+        //
+        c[ImGuiCol_TitleBg] = ImVec4(0.16f, 0.16f, 0.16f, 1.0f);
+        c[ImGuiCol_TitleBgActive] = ImVec4(0.22f, 0.22f, 0.22f, 1.0f);
+        c[ImGuiCol_TitleBgCollapsed] = ImVec4(0.10f, 0.10f, 0.10f, 1.0f);
+
+        //
+        // === SCROLLBARS ===
+        //
+        c[ImGuiCol_ScrollbarBg] = ImVec4(0.10f, 0.10f, 0.10f, 1.0f);
+        c[ImGuiCol_ScrollbarGrab] = ImVec4(0.30f, 0.30f, 0.30f, 1.0f);
+        c[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.35f, 0.35f, 0.35f, 1.0f);
+        c[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.40f, 0.40f, 0.40f, 1.0f);
+
+        //
+        // === TEXT ===
+        //
+        c[ImGuiCol_Text] = ImVec4(0.85f, 0.85f, 0.85f, 1.0f);   // Blender light gray text
+
+        //
+        // === ROUNDING & SPACING ===
+        //
+        s.WindowRounding = 4.0f;
+        s.ChildRounding = 3.0f;
+        s.FrameRounding = 3.0f;
+        s.PopupRounding = 4.0f;
+        s.ScrollbarRounding = 6.0f;
+        s.GrabRounding = 3.0f;
+
+        s.WindowPadding = ImVec2(8, 8);
+        s.FramePadding = ImVec2(6, 4);
+        s.ItemSpacing = ImVec2(8, 6);
+        s.ItemInnerSpacing = ImVec2(6, 4);
+
+        s.IndentSpacing = 20.0f;
+        s.ScrollbarSize = 14.0f;
+    }
+
+
+
+    static void SetImGuiTheme_UVEditor()
+    {
+        ImGuiStyle& s = ImGui::GetStyle();
+        ImVec4* c = s.Colors;
+
+        //
+        // Workspace: dark neutral gray
+        //
+        c[ImGuiCol_WindowBg] = ImVec4(0.125f, 0.125f, 0.125f, 1.0f);   // #202020
+        c[ImGuiCol_ChildBg] = ImVec4(0.110f, 0.110f, 0.110f, 1.0f);   // #1C1C1C
+        c[ImGuiCol_PopupBg] = ImVec4(0.145f, 0.145f, 0.145f, 1.0f);   // #252525
+
+        //
+        // Frames: slightly lighter gray
+        //
+        c[ImGuiCol_FrameBg] = ImVec4(0.180f, 0.180f, 0.180f, 1.0f);   // #2E2E2E
+        c[ImGuiCol_FrameBgHovered] = ImVec4(0.230f, 0.230f, 0.230f, 1.0f);   // #3B3B3B
+        c[ImGuiCol_FrameBgActive] = ImVec4(0.260f, 0.260f, 0.260f, 1.0f);   // #424242
+
+        //
+        // Headers: muted gray-blue (Blender-like)
+        //
+        c[ImGuiCol_Header] = ImVec4(0.220f, 0.260f, 0.320f, 1.0f);   // #384250
+        c[ImGuiCol_HeaderHovered] = ImVec4(0.300f, 0.340f, 0.400f, 1.0f);   // #4D5666
+        c[ImGuiCol_HeaderActive] = ImVec4(0.350f, 0.390f, 0.450f, 1.0f);   // #596273
+
+        //
+        // Buttons: subtle, low-saturation gray-blue
+        //
+        c[ImGuiCol_Button] = ImVec4(0.240f, 0.280f, 0.340f, 1.0f);   // #3D4756
+        c[ImGuiCol_ButtonHovered] = ImVec4(0.300f, 0.340f, 0.400f, 1.0f);   // #4D5666
+        c[ImGuiCol_ButtonActive] = ImVec4(0.350f, 0.390f, 0.450f, 1.0f);   // #596273
+
+        //
+        // Tabs: Blender-style muted tabs
+        //
+        c[ImGuiCol_Tab] = ImVec4(0.180f, 0.180f, 0.200f, 1.0f);
+        c[ImGuiCol_TabHovered] = ImVec4(0.260f, 0.260f, 0.300f, 1.0f);
+        c[ImGuiCol_TabActive] = ImVec4(0.300f, 0.300f, 0.340f, 1.0f);
+        c[ImGuiCol_TabUnfocused] = ImVec4(0.150f, 0.150f, 0.170f, 1.0f);
+        c[ImGuiCol_TabUnfocusedActive] = ImVec4(0.220f, 0.220f, 0.260f, 1.0f);
+
+        //
+        // Title bar: Blender uses slightly lighter gray
+        //
+        c[ImGuiCol_TitleBg] = ImVec4(0.160f, 0.160f, 0.160f, 1.0f);
+        c[ImGuiCol_TitleBgActive] = ImVec4(0.220f, 0.220f, 0.220f, 1.0f);
+        c[ImGuiCol_TitleBgCollapsed] = ImVec4(0.100f, 0.100f, 0.100f, 1.0f);
+
+        //
+        // Scrollbars: subtle
+        //
+        c[ImGuiCol_ScrollbarBg] = ImVec4(0.100f, 0.100f, 0.100f, 1.0f);
+        c[ImGuiCol_ScrollbarGrab] = ImVec4(0.300f, 0.300f, 0.300f, 1.0f);
+        c[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.350f, 0.350f, 0.350f, 1.0f);
+        c[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.400f, 0.400f, 0.400f, 1.0f);
+
+        //
+        // Checkboxes / radio buttons
+        //
+        c[ImGuiCol_CheckMark] = ImVec4(0.80f, 0.80f, 0.80f, 1.0f);
+
+        //
+        // Sliders / grabs
+        //
+        c[ImGuiCol_SliderGrab] = ImVec4(0.60f, 0.60f, 0.60f, 1.0f);
+        c[ImGuiCol_SliderGrabActive] = ImVec4(0.70f, 0.70f, 0.70f, 1.0f);
+
+        //
+        // Borders: Blender uses thin, soft borders
+        //
+        c[ImGuiCol_Border] = ImVec4(0.08f, 0.08f, 0.08f, 1.0f);
+        c[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f); // Blender has almost no shadow
+
+        //
+        // Rounding & border sizes (Blender-like)
+        //
+        s.WindowRounding = 4.0f;
+        s.ChildRounding = 3.0f;
+        s.FrameRounding = 3.0f;
+        s.PopupRounding = 4.0f;
+        s.ScrollbarRounding = 6.0f;
+        s.GrabRounding = 3.0f;
+
+        s.WindowBorderSize = 1.0f;
+        s.ChildBorderSize = 1.0f;
+        s.PopupBorderSize = 1.0f;
+        s.FrameBorderSize = 1.0f;
+
+        //
+        // Shadows: Blender uses extremely soft shadows
+        //
+        s.WindowPadding = ImVec2(8, 8);
+        s.FramePadding = ImVec2(6, 4);
+        s.ItemSpacing = ImVec2(8, 6);
+        s.ItemInnerSpacing = ImVec2(6, 4);
+
+        s.IndentSpacing = 20.0f;
+        s.ScrollbarSize = 14.0f;
+    }
+
+
 
     void SetImGuiTheme_Blender2026()
     {
@@ -347,6 +558,11 @@ namespace xg
         const char* group = GetGroup();
         _editorModule = _engine->AddScriptModule("editor", "Editor.CoreCLR.dll", this, group);
 
+        PlayerState state{ 100, 10.0f, 20.0f };
+
+        // Broadcast to all modules
+        Broadcast<PlayerState>(1001, state);
+
         return true;
     }
 
@@ -418,7 +634,9 @@ namespace xg
         io.Fonts->AddFontFromFileTTF("../editor/fonts/DejaVuSans.ttf", 13.0f);
         io.Fonts->AddFontFromFileTTF("../editor/fonts/DejaVuSans-Bold.ttf", 13.0f);
 
-        SetImGuiTheme_Blender2026();
+        //SetImGuiTheme_Blender2026();
+        //SetImGuiTheme_UVEditor();
+        SetImGuiTheme_BlenderScreenshot();
 
         auto* engine = static_cast<Engine*>(_engine);
         SDL_Window* window = static_cast<SDL_Window*>(engine->MainWindow->GetPlatformWindow());
@@ -499,7 +717,15 @@ namespace xg
         ImGui_ImplSDL3_ProcessEvent(&sdl);
     }
     void EditorKernelModule::OnMessage(const ScriptMessage& msg)
-    {}
+    {
+        if (msg.Type == 1001)
+        {
+            PlayerState state = Decode<PlayerState>(msg);
+
+            printf("[HUD] Player health = %d at (%.1f, %.1f)\n",
+                state.health, state.x, state.y);
+        }
+    }
 }
 
 //

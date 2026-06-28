@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "xgMessage.h"
 #include "JsonMessageCodec.h"
 
 namespace xg
