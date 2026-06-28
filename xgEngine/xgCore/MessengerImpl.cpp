@@ -1,18 +1,17 @@
 #include "pch.h"
-#include "xgMessenger.h"
+#include "MessengerImpl.h"
 #include "ScriptTree.h"
 #include "xgScriptModule.h"
 #include "xgMessageCodec.h"
-#include <cstring> // for strcmp
 
 namespace xg
 {
-    Messenger::Messenger(ScriptTree* tree, MessageCodec* codec)
+    MessengerImpl::MessengerImpl(ScriptTree* tree, MessageCodec* codec)
         : _tree(tree)
         , _codec(codec)
     {}
 
-    void Messenger::Send(const char* targetId,
+    void MessengerImpl::Send(const char* targetId,
         uint32_t typeId,
         const void* payload,
         const TypeInfoBase* type)
@@ -21,23 +20,23 @@ namespace xg
         Deliver(targetId, msg);
     }
 
-    void Messenger::Deliver(const char* targetId,
+    void MessengerImpl::Deliver(const char* targetId,
         const ScriptMessage& msg)
     {
-        ScriptModule* m = _tree->FindModuleById(targetId);
-        if (m)
-            m->OnMessage(msg);
+        ScriptModule* module = _tree->FindModuleById(targetId);
+        if (module)
+            module->OnMessage(msg);
     }
 
-    void Messenger::Broadcast(uint32_t typeId,
+    void MessengerImpl::Broadcast(uint32_t typeId,
         const void* payload,
         const TypeInfoBase* type)
     {
         ScriptMessage msg = _codec->Encode(typeId, payload, type);
 
-        _tree->ForEachModule([&](ScriptModule* m)
+        _tree->ForEachModule([&](ScriptModule* module)
             {
-                m->OnMessage(msg);
+                module->OnMessage(msg);
             });
     }
 }

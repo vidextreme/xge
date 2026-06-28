@@ -7,7 +7,7 @@
 #include "xgMessenger.h"
 #include "JsonMessageCodec.h"
 #include "ScriptTree.h"
-
+#include "MessengerImpl.h"
 namespace xg
 {
     // Internal-only storage (hidden behind void*)
@@ -36,7 +36,7 @@ namespace xg
 
         _scriptTree = new ScriptTree();
         _codec = new JsonMessageCodec();
-        _messenger = new Messenger(_scriptTree, _codec);
+        _messenger = new MessengerImpl (_scriptTree, _codec);
         if (MainWindow)
         {
             MainWindow->SetEventQueue(&_queue);
@@ -225,7 +225,7 @@ namespace xg
         }
 
         // 5. Init module AFTER it is in the tree
-        if (!module->Init(this))
+        if (!module->Initialize(this))
         {
             _scriptTree->RemoveModule(module);
             storage->Modules.erase(id);

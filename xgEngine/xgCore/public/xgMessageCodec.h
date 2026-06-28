@@ -2,11 +2,10 @@
 #include <cstdint>
 #include "xgStream.h"
 #include "xgReflection.h"
-#include "xgMessage.h" 
 #include "xgTypeInfo.h"
 namespace xg
 {
-
+	class ScriptMessage;
     //
     // MessageCodec
     //   Abstract backend for encoding/decoding ScriptMessage payloads.

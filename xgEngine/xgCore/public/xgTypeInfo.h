@@ -32,7 +32,7 @@ namespace xg
     private:
         TypeInfo()
         {
-            Name = T::StaticTypeName();
+            Name = XG_STRINGIFY(T);    // compile-time type name
             Size = sizeof(T);
 
             GetFields = []() { return Fields(); };
@@ -50,7 +50,9 @@ namespace xg
                     Deserialize<T>(d, typed);
                 };
         }
+
     };
+
 
     template<typename T>
     TypeInfo<T> TypeInfo<T>::Instance;
@@ -65,5 +67,11 @@ namespace xg
     int TypeInfo<T>::FieldCount()
     {
         return 0;
+    }
+
+    template<typename T>
+    inline const TypeInfoBase* GetTypeInfo()
+    {
+        return &TypeInfo<T>::Instance;
     }
 }

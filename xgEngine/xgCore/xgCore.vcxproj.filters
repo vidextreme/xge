@@ -99,6 +99,9 @@
     <ClInclude Include="public\xgMessenger.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="MessengerImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -137,7 +140,7 @@
     <ClCompile Include="xgMemoryStream.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgMessenger.cpp">
+    <ClCompile Include="MessengerImpl.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

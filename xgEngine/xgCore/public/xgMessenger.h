@@ -1,43 +1,30 @@
 #pragma once
 
-#include "xgBase.h"
-#include "xgMessage.h"
-#include "xgReflection.h"
+#include <cstdint>
 
 namespace xg
 {
-    class ScriptTree;
-    class ScriptModule;
+    struct ScriptMessage;
     class MessageCodec;
+    class TypeInfoBase;
 
-    //
-    // Messenger
-    //
-    // Public messaging subsystem used by ScriptModules.
-    // ScriptEngine exposes this via GetMessenger().
-    //
     class Messenger
     {
     public:
-        Messenger(ScriptTree* tree, MessageCodec* codec);
+        virtual ~Messenger() = default;
 
-        // Send a typed message to a specific module
-        void Send(const char* targetId,
+        virtual void Send(const char* targetId,
             uint32_t typeId,
             const void* payload,
-            const TypeInfoBase* type);
+            const TypeInfoBase* type) = 0;
 
-        // Deliver a fully encoded message (internal)
-        void Deliver(const char* targetId,
-            const ScriptMessage& msg);
+        virtual void Deliver(const char* targetId,
+            const ScriptMessage& msg) = 0;
 
-        // Broadcast to all modules
-        void Broadcast(uint32_t typeId,
+        virtual void Broadcast(uint32_t typeId,
             const void* payload,
-            const TypeInfoBase* type);
+            const TypeInfoBase* type) = 0;
 
-    private:
-        ScriptTree* _tree;
-        MessageCodec* _codec;
+        virtual MessageCodec* GetCodec() const = 0;
     };
 }

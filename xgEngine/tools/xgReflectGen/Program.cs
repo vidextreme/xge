@@ -70,7 +70,6 @@ class Program
         string destNative = Path.GetFullPath(args[1]);
         string destManaged = Path.GetFullPath(args[2]);
 
-
         Directory.CreateDirectory(destNative);
         Directory.CreateDirectory(destManaged);
 
@@ -157,7 +156,7 @@ class Program
             sb.AppendLine($"namespace {ns} {{ {keyword} {s.Name}; }}");
             sb.AppendLine();
 
-            // TypeInfo declaration (no member references!)
+            // TypeInfo declaration
             sb.AppendLine($"namespace {ns} {{");
             sb.AppendLine($"// {keyword}: {s.Name}");
             sb.AppendLine("template<>");
@@ -165,8 +164,8 @@ class Program
             sb.AppendLine("{");
             sb.AppendLine($"    static constexpr const char* Name = \"{s.Name}\";");
             sb.AppendLine();
-            sb.AppendLine("    static const RawFieldInfo* GetFields();");
-            sb.AppendLine("    static int GetFieldCount();");
+            sb.AppendLine("    static const RawFieldInfo* Fields();");
+            sb.AppendLine("    static int FieldCount();");
             sb.AppendLine("};");
             sb.AppendLine($"}} // namespace {ns}");
             sb.AppendLine();
@@ -189,7 +188,7 @@ class Program
         var sb = new StringBuilder();
 
         sb.AppendLine("// AUTO-GENERATED. DO NOT EDIT.");
-        sb.AppendLine("#include \"pch.h\""); // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        sb.AppendLine("#include \"pch.h\"");
         sb.AppendLine($"#include \"{fileName}.h\"");
         sb.AppendLine($"#include \"{fileName}.generated.h\"");
         sb.AppendLine();
@@ -217,9 +216,9 @@ class Program
             sb.AppendLine("};");
             sb.AppendLine();
 
-            // TypeInfo functions
-            sb.AppendLine($"const RawFieldInfo* TypeInfo<{s.Name}>::GetFields() {{ return {s.Name}_Fields; }}");
-            sb.AppendLine($"int TypeInfo<{s.Name}>::GetFieldCount() {{ return sizeof({s.Name}_Fields) / sizeof(RawFieldInfo); }}");
+            // TypeInfo functions (corrected)
+            sb.AppendLine($"const RawFieldInfo* TypeInfo<{s.Name}>::Fields() {{ return {s.Name}_Fields; }}");
+            sb.AppendLine($"int TypeInfo<{s.Name}>::FieldCount() {{ return sizeof({s.Name}_Fields) / sizeof(RawFieldInfo); }}");
 
             sb.AppendLine();
             sb.AppendLine($"}} // namespace {ns}");
