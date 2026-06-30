@@ -1,18 +1,19 @@
 #pragma once
 #include "xgBase.h"
+#include "xgTypeRegistry.h"
 #include "xgEngineDef.generated.h"
 
 namespace xg
 {
     XG_SERIALIZABLE()
-        struct EngineConfig
+    struct EngineConfig
     {
         XG_FIELD()
-            const char* RendererModule = nullptr;
+        const char* RendererModule = nullptr;
     };
 
     XG_ENUM(inherit = byte)
-        enum class ThreadDomain : uint8_t
+    enum class ThreadDomain : uint8_t
     {
         MainThread = 0,
         WorkerThread,

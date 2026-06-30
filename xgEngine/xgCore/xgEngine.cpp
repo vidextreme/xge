@@ -8,6 +8,7 @@
 #include "JsonMessageCodec.h"
 #include "ScriptTree.h"
 #include "MessengerImpl.h"
+#include "xgTypeRegistry.h"
 namespace xg
 {
     // Internal-only storage (hidden behind void*)
@@ -37,6 +38,10 @@ namespace xg
         _scriptTree = new ScriptTree();
         _codec = new JsonMessageCodec();
         _messenger = new MessengerImpl (_scriptTree, _codec);
+		_typeRegistry = CreateTypeRegistry();
+
+        RegisterTypes_xgEngineDef(_typeRegistry.get());
+
         if (MainWindow)
         {
             MainWindow->SetEventQueue(&_queue);

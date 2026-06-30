@@ -9,7 +9,7 @@
 #include "xgEventDispatcher.h"
 #include "xgLog.h"
 #include "xgEngineDef.h"
-
+#include "xgHandles.h"
 namespace xg
 {
     class ScriptModule;
@@ -44,6 +44,8 @@ namespace xg
         EventDispatcher* GetDispatcher() override { return &_dispatcher; }
         EventQueue* GetQueue() override { return &_queue; }
         Messenger* GetMessenger() override { return _messenger; }
+		TypeRegistry* GetTypeRegistry() override { return _typeRegistry.get(); }
+
 
         void AddLogCallback(LogCallback cb) override;
         void RemoveLogCallback(LogCallback cb) override;
@@ -73,5 +75,6 @@ namespace xg
         EventDispatcher _dispatcher;
 		Messenger* 	_messenger;
         MessageCodec* _codec = nullptr;
+		xgUnique<TypeRegistry> _typeRegistry;
     };
 }

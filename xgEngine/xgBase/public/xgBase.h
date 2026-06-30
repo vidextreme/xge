@@ -118,3 +118,5 @@ inline bool HasFlag(E value, E flag) { \
 
 #define XG_SAFE_RELEASE(x) \
     do { if (x) { (x)->Release(); (x) = nullptr; } } while(0)
+
+#define XG_MODULE_EXPORT extern "C" XG_API

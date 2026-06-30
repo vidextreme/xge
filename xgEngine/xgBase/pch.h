@@ -9,6 +9,8 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+#include <unordered_map>
+#include <vector>
 #include <string>
 
 #endif //PCH_H
