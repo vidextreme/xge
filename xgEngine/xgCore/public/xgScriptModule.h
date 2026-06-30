@@ -5,7 +5,7 @@
 #include "xgMessage.h"
 #include "xgScriptEngine.h"
 
-#include "xgReflection.h"
+#include "xgReflectionRegistry.h"
 namespace xg
 {
     class ScriptEngine;   // forward declare

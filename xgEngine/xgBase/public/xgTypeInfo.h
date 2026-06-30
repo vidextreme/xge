@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
-
+#include "xgBase.h"
 // Forward declarations to avoid circular include
 namespace xg
 {

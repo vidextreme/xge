@@ -12,6 +12,17 @@ namespace xg
     class ScriptEngine;
     class EventListener;
 
+    XG_SERIALIZABLE()
+        struct PlayerState
+    {
+        XG_FIELD()
+            int health;
+        XG_FIELD()
+            float x;
+        XG_FIELD()
+            float y;
+    };
+
     class EditorKernelModule : public ScriptModule
     {
     public:

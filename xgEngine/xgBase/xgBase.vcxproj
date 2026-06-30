@@ -94,7 +94,11 @@
     <ClInclude Include="public\xgEventHelpers.h" />
     <ClInclude Include="public\xgEventQueue.h" />
     <ClInclude Include="public\xgPathUtils.h" />
+    <ClInclude Include="public\xgReflection.h" />
+    <ClInclude Include="public\xgReflectionRegistry.h" />
+    <ClInclude Include="public\xgReflectionSerialization.h" />
     <ClInclude Include="public\xgStream.h" />
+    <ClInclude Include="public\xgTypeInfo.h" />
     <ClInclude Include="public\xgWindow.h" />
   </ItemGroup>
   <ItemGroup>
@@ -105,6 +109,7 @@
     <ClCompile Include="xgEventDispatcher.cpp" />
     <ClCompile Include="xgEventQueue.cpp" />
     <ClCompile Include="xgPathUtils.cpp" />
+    <ClCompile Include="xgReflectionRegistry.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

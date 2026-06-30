@@ -45,13 +45,7 @@
     <ClInclude Include="public\xgJson.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgReflection.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgJsonBackend.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgReflectionSerialization.h">
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="public\xgScriptEngine.h">
@@ -91,9 +85,6 @@
       <Filter>private\headers</Filter>
     </ClInclude>
     <ClInclude Include="public\xgMemoryStream.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgTypeInfo.h">
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="public\xgMessenger.h">
