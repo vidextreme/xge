@@ -119,13 +119,10 @@
     <ClInclude Include="public\xgMessageCodec.h" />
     <ClInclude Include="public\xgMessenger.h" />
     <ClInclude Include="public\xgModules.h" />
-    <ClInclude Include="public\xgReflection.h" />
-    <ClInclude Include="public\xgReflectionSerialization.h" />
     <ClInclude Include="public\xgRenderer.h" />
     <ClInclude Include="public\xgScriptEngine.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
-    <ClInclude Include="public\xgTypeInfo.h" />
     <ClInclude Include="ScriptTree.h" />
   </ItemGroup>
   <ItemGroup>

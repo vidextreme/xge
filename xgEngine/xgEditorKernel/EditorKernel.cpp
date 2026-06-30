@@ -12,6 +12,9 @@
 // ImGui core
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "xgEngineDef.h"
+#include "xgEngineDef.generated.h"
+//#include "xgReflectionRegistry.h"
 
 // ImGui backends (SDL3 + SDL_Renderer3)
 #include "backends/imgui_impl_sdl3.h"
@@ -22,13 +25,8 @@
 
 namespace xg
 {
-
-    struct PlayerState
-    {
-        int health;
-        float x;
-        float y;
-    };
+    //template<>
+    //TypeInfo<PlayerState> TypeInfo<PlayerState>::Instance;
 
     static void SetImGuiTheme_BlenderScreenshot()
     {
@@ -558,10 +556,12 @@ namespace xg
         const char* group = GetGroup();
         _editorModule = _engine->AddScriptModule("editor", "Editor.CoreCLR.dll", this, group);
 
+        //xg::TypeRegistry::Register(&xg::TypeInfo<PlayerState>::Instance);
+
         PlayerState state{ 100, 10.0f, 20.0f };
 
         // Broadcast to all modules
-        Broadcast<PlayerState>(1001, state);
+        //Broadcast<PlayerState>(1001, state);
 
         return true;
     }

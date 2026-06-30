@@ -56,25 +56,26 @@ class Program
 
         if (args.Length < 2)
         {
-            Console.WriteLine("Usage: xgReflectGen <DEST_FOLDER> <ROOT_FOLDER>");
-            return;
-        }
-
-        if (args.Length < 3)
-        {
-            Console.WriteLine("Usage: xgReflectGen <SOURCE_FOLDER> <DEST_NATIVE> <DEST_MANAGED>");
+            Console.WriteLine("Usage: xgReflectGen <SOURCE_FOLDER> <DEST_NATIVE> [DEST_MANAGED]");
             return;
         }
 
         string sourceFolder = Path.GetFullPath(args[0]);
         string destNative = Path.GetFullPath(args[1]);
-        string destManaged = Path.GetFullPath(args[2]);
 
         Directory.CreateDirectory(destNative);
-        Directory.CreateDirectory(destManaged);
-
         ClearGeneratedFiles(destNative);
-        ClearGeneratedFiles(destManaged);
+
+        // Managed generation is optional
+        bool generateManaged = args.Length >= 3;
+        string destManaged = null;
+
+        if (generateManaged)
+        {
+            destManaged = Path.GetFullPath(args[2]);
+            Directory.CreateDirectory(destManaged);
+            ClearGeneratedFiles(destManaged);
+        }
 
         if (!Directory.Exists(sourceFolder))
         {
@@ -95,13 +96,13 @@ class Program
             if (IsGeneratedHeader(header))
                 continue;
 
-            ProcessHeader(parser, header, destNative, destManaged);
+            ProcessHeader(parser, header, destNative, destManaged, generateManaged);
         }
 
         Console.WriteLine("=== DONE ===");
     }
 
-    static void ProcessHeader(Parser parser, string headerPath, string destNative, string destManaged)
+    static void ProcessHeader(Parser parser, string headerPath, string destNative, string destManaged, bool generateManaged)
     {
         string code = File.ReadAllText(headerPath);
         var tree = parser.Parse(code);
@@ -119,7 +120,7 @@ class Program
             GenerateCppFile(headerPath, structs, destNative);
         }
 
-        if (enums.Count > 0)
+        if (generateManaged && enums.Count > 0)
         {
             GenerateCSharpEnumFile(headerPath, enums, destManaged);
         }
@@ -150,23 +151,15 @@ class Program
         {
             string ns = string.IsNullOrEmpty(s.Namespace) ? "xg" : s.Namespace;
             string keyword = s.IsClass ? "class" : "struct";
-            string fullName = $"{ns}::{s.Name}";
 
             // Forward declaration
             sb.AppendLine($"namespace {ns} {{ {keyword} {s.Name}; }}");
             sb.AppendLine();
 
-            // TypeInfo declaration
+            // Function specializations (NOT struct specialization)
             sb.AppendLine($"namespace {ns} {{");
-            sb.AppendLine($"// {keyword}: {s.Name}");
-            sb.AppendLine("template<>");
-            sb.AppendLine($"struct TypeInfo<{fullName}>");
-            sb.AppendLine("{");
-            sb.AppendLine($"    static constexpr const char* Name = \"{s.Name}\";");
-            sb.AppendLine();
-            sb.AppendLine("    static const RawFieldInfo* Fields();");
-            sb.AppendLine("    static int FieldCount();");
-            sb.AppendLine("};");
+            sb.AppendLine($"    template<> const RawFieldInfo* TypeInfo<{s.Name}>::Fields();");
+            sb.AppendLine($"    template<> int TypeInfo<{s.Name}>::FieldCount();");
             sb.AppendLine($"}} // namespace {ns}");
             sb.AppendLine();
         }
@@ -216,7 +209,7 @@ class Program
             sb.AppendLine("};");
             sb.AppendLine();
 
-            // TypeInfo functions (corrected)
+            // Function specializations
             sb.AppendLine($"const RawFieldInfo* TypeInfo<{s.Name}>::Fields() {{ return {s.Name}_Fields; }}");
             sb.AppendLine($"int TypeInfo<{s.Name}>::FieldCount() {{ return sizeof({s.Name}_Fields) / sizeof(RawFieldInfo); }}");
 
@@ -264,5 +257,4 @@ class Program
             }
         }
     }
-
 }
