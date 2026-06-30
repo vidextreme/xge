@@ -8,6 +8,7 @@ namespace xg
 	class EventQueue;
 	class Messenger;
 	class ScriptModule;
+	class TypeRegistry;
     //
     // ScriptEngine
     //
@@ -31,6 +32,7 @@ namespace xg
         virtual EventQueue* GetQueue() = 0;
 
         virtual Messenger* GetMessenger() = 0;
+        virtual TypeRegistry* GetTypeRegistry() = 0;
 
         virtual void AddLogCallback(LogCallback cb) = 0;
         virtual void RemoveLogCallback(LogCallback cb) = 0;

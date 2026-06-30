@@ -50,13 +50,16 @@
     <ClInclude Include="public\xgReflection.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgReflectionRegistry.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgReflectionSerialization.h">
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="public\xgTypeInfo.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgTypeRegistry.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgHandles.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>
@@ -73,7 +76,7 @@
     <ClCompile Include="xgEventDispatcher.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgReflectionRegistry.cpp">
+    <ClCompile Include="xgTypeRegistry.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

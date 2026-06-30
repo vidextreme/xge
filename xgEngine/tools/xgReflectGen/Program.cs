@@ -144,7 +144,7 @@ class Program
         sb.AppendLine("#pragma once");
         sb.AppendLine("// AUTO-GENERATED. DO NOT EDIT.");
         sb.AppendLine();
-        sb.AppendLine("#include \"xgReflection.h\"");
+        sb.AppendLine("#include \"xgTypeRegistry.h\"");
         sb.AppendLine();
 
         foreach (var s in structs)
@@ -153,16 +153,14 @@ class Program
             string keyword = s.IsClass ? "class" : "struct";
 
             // Forward declaration
-            sb.AppendLine($"namespace {ns} {{ {keyword} {s.Name}; }}");
-            sb.AppendLine();
-
-            // Function specializations (NOT struct specialization)
-            sb.AppendLine($"namespace {ns} {{");
-            sb.AppendLine($"    template<> const RawFieldInfo* TypeInfo<{s.Name}>::Fields();");
-            sb.AppendLine($"    template<> int TypeInfo<{s.Name}>::FieldCount();");
-            sb.AppendLine($"}} // namespace {ns}");
+            sb.AppendLine($"namespace {ns} {{ {keyword} {s.Name};");
+            sb.AppendLine($"    XG_MODULE_EXPORT XG_REGISTER_TYPE_DEF({s.Name});");
+            sb.AppendLine("}");
             sb.AppendLine();
         }
+
+        sb.AppendLine($"XG_MODULE_EXPORT XG_REGISTER_FILE_TYPES({fileName});");
+        sb.AppendLine();
 
         File.WriteAllText(outputPath, NormalizeNewlines(sb.ToString()), new UTF8Encoding(false));
         Console.WriteLine($"Generated: {outputPath}");
@@ -193,30 +191,55 @@ class Program
             sb.AppendLine($"namespace {ns} {{");
             sb.AppendLine();
 
-            // Field array
-            sb.AppendLine($"static const RawFieldInfo {s.Name}_Fields[] =");
+            // Field array (TypeRegistry-compatible)
+            sb.AppendLine($"static const FieldSchema {s.Name}_Fields[] =");
             sb.AppendLine("{");
 
             foreach (var f in s.Fields)
             {
                 sb.AppendLine("    {");
-                sb.AppendLine($"        \"{f.Name}\", \"{f.Name}\",");
+                sb.AppendLine($"        \"{f.Name}\",");
+                sb.AppendLine($"        \"{f.Type}\",");
                 sb.AppendLine($"        offsetof({s.Name}, {f.Name}),");
-                sb.AppendLine($"        \"{f.Type}\"");
+                sb.AppendLine($"        sizeof({f.Type}),");
+                sb.AppendLine($"        alignof({f.Type}),");
+                sb.AppendLine("        { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }\r\n");
                 sb.AppendLine("    },");
             }
 
             sb.AppendLine("};");
             sb.AppendLine();
 
-            // Function specializations
-            sb.AppendLine($"const RawFieldInfo* TypeInfo<{s.Name}>::Fields() {{ return {s.Name}_Fields; }}");
-            sb.AppendLine($"int TypeInfo<{s.Name}>::FieldCount() {{ return sizeof({s.Name}_Fields) / sizeof(RawFieldInfo); }}");
+            // TypeSchema
+            sb.AppendLine($"static const TypeSchema {s.Name}_Schema =");
+            sb.AppendLine("{");
+            sb.AppendLine($"    \"{s.Name}\",");
+            sb.AppendLine("    1,"); // version (default)
+            sb.AppendLine("    false,"); // NativeLayout (set to true via attribute in future)
+            sb.AppendLine($"    {s.Name}_Fields,");
+            sb.AppendLine($"    {s.Fields.Count},");
+            sb.AppendLine($"    sizeof({s.Name}),");
+            sb.AppendLine($"    alignof({s.Name})");
+            sb.AppendLine("};");
+            sb.AppendLine();
 
+            // Registration
+            sb.AppendLine($"XG_REGISTER_TYPE({s.Name}_Schema);");
             sb.AppendLine();
             sb.AppendLine($"}} // namespace {ns}");
             sb.AppendLine();
         }
+
+        sb.AppendLine($"XG_REGISTER_FILE_TYPES({fileName})");
+        sb.AppendLine("{");
+
+        foreach (var s in structs)
+        {
+            sb.AppendLine($"    registry->Register(&{s.Namespace}::{s.Name}_Schema);");
+        }
+
+        sb.AppendLine("}");
+
 
         File.WriteAllText(outputPath, NormalizeNewlines(sb.ToString()), new UTF8Encoding(false));
         Console.WriteLine($"Generated: {outputPath}");
