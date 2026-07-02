@@ -1,30 +1,17 @@
 #pragma once
-
-#include <cstdint>
+#include "xgRoute.h"
 
 namespace xg
 {
     struct ScriptMessage;
-    class MessageCodec;
-    class TypeInfoBase;
+    class ScriptModule;
 
     class Messenger
     {
     public:
         virtual ~Messenger() = default;
 
-        virtual void Send(const char* targetId,
-            uint32_t typeId,
-            const void* payload,
-            const TypeInfoBase* type) = 0;
-
-        virtual void Deliver(const char* targetId,
-            const ScriptMessage& msg) = 0;
-
-        virtual void Broadcast(uint32_t typeId,
-            const void* payload,
-            const TypeInfoBase* type) = 0;
-
-        virtual MessageCodec* GetCodec() const = 0;
+        virtual void Send(const ScriptMessage& msg, const Route& route) = 0;
+        virtual void SendToAll(const ScriptMessage& msg) = 0;
     };
 }

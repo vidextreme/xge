@@ -3,11 +3,12 @@
 
 namespace xg
 {
+    class ScriptEngine;
     class ScriptHostCoreCLR : public ScriptHost
     {
     public:
         XG_IMPL_REFCOUNTED()
-        ScriptHostCoreCLR();
+        ScriptHostCoreCLR(ScriptEngine* engine);
         ~ScriptHostCoreCLR() override;
 
         ScriptModule* LoadModule(const char* id, const char* path, const char* group) override;
@@ -19,12 +20,23 @@ namespace xg
             void** initFn,
             void** updateFn,
             void** shutdownFn);
+        ScriptEngine* GetEngine() const override;
+        CodecRegistry* GetCodecRegistry() const override;
+        PayloadMode GetPayloadMode() const override;
 
+        bool Encode(const void* object,
+            const TypeSchema* schema,
+            ScriptMessage& outMessage) override;
+        
+        virtual bool Decode(const ScriptMessage& message,
+            const TypeSchema* schema,
+            void* outObject) override;
     private:
         bool InitializeRuntime(const char* engineRoot);
         void ShutdownRuntime();
 
     private:
+        ScriptEngine* _engine = nullptr;
         void* _coreclrLib = nullptr;
         void* _hostHandle = nullptr;
         unsigned int _domainId = 0;

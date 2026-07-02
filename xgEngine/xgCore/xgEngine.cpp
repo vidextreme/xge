@@ -5,10 +5,12 @@
 #include "public/xgScriptModule.h"
 #include "public/xgScriptHost.h"
 #include "xgMessenger.h"
-#include "JsonMessageCodec.h"
+
 #include "ScriptTree.h"
-#include "MessengerImpl.h"
+
 #include "xgTypeRegistry.h"
+#include "xgCodecRegistry.h"
+
 namespace xg
 {
     // Internal-only storage (hidden behind void*)
@@ -36,9 +38,12 @@ namespace xg
         _hostStorage = new HostStorage();
 
         _scriptTree = new ScriptTree();
-        _codec = new JsonMessageCodec();
-        _messenger = new MessengerImpl (_scriptTree, _codec);
+        //_codec = new JsonMessageCodec();
+        //_messenger = new MessengerImpl (_scriptTree, _codec);
 		_typeRegistry = CreateTypeRegistry();
+
+		_nativeCodecRegistry = new CodecRegistry();
+		_coreclrCodecRegistry = new CodecRegistry();
 
         RegisterTypes_xgEngineDef(_typeRegistry.get());
 
@@ -60,9 +65,9 @@ namespace xg
         _scriptTree = nullptr;
 
         delete _messenger;
-        delete _codec;
+        //delete _codec;
         _messenger = nullptr;
-        _codec = nullptr;
+        //_codec = nullptr;
 
 
         _moduleStorage = nullptr;
@@ -146,12 +151,12 @@ namespace xg
         switch (backend)
         {
         case ScriptBackendType::CoreCLR:
-            return CreateScriptHostCoreCLR(path);
+            return CreateScriptHostCoreCLR(this, path);
 
         case ScriptBackendType::Native:
         default:
             // TODO: temporary – native host for everything else
-            return CreateScriptHostNative(path);
+            return CreateScriptHostNative(this, path);
         }
     }
 
@@ -343,6 +348,20 @@ namespace xg
     void Engine::RemoveLogCallback(LogCallback cb)
     {
         xg::RemoveLogCallback(cb);
+    }
+
+    CodecRegistry* Engine::GetCodecRegistry(ScriptBackendType backendType) const
+    {
+        switch (backendType)
+        {
+        case xg::ScriptBackendType::CoreCLR:
+            return _coreclrCodecRegistry;
+        case xg::ScriptBackendType::Native:
+			return _nativeCodecRegistry;
+        default:
+            break;
+        }
+        return nullptr;
     }
 
 }

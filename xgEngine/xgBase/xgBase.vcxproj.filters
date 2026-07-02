@@ -47,19 +47,31 @@
     <ClInclude Include="public\xgEventDispatcher.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgReflection.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgReflectionSerialization.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgTypeInfo.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgTypeRegistry.h">
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="public\xgHandles.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgCodecRegistry.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgScriptMessage.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgJson.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgCodecJson.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgMemoryStream.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgCodecBinary.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgRoute.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>
@@ -77,6 +89,24 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgTypeRegistry.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgCodecRegistry.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgJson.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgCodecJson.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgMemoryStream.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgCodecBinary.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgRoute.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

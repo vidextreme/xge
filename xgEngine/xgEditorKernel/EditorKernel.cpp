@@ -8,7 +8,7 @@
 #include "platform/xgEventToSDL.h"
 #include "xgListenerBinding.h"
 #include "xgMessenger.h"
-#include "xgReflectionSerialization.h"
+
 // ImGui core
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -718,13 +718,13 @@ namespace xg
     }
     void EditorKernelModule::OnMessage(const ScriptMessage& msg)
     {
-        if (msg.Type == 1001)
+     /*   if (msg.Type == 1001)
         {
             PlayerState state = Decode<PlayerState>(msg);
 
             printf("[HUD] Player health = %d at (%.1f, %.1f)\n",
                 state.health, state.x, state.y);
-        }
+        }*/
     }
 }
 

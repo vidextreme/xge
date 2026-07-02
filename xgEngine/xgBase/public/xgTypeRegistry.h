@@ -13,6 +13,15 @@ namespace xg
         uint32_t Alignment;
         const char* Attributes[8]; // fixed-size, STL-free
     };
+   
+    enum class FieldType : uint8_t
+    {
+        Bool,
+        Int32,
+        UInt32,
+        Float,
+        String,
+    };
 
     struct TypeSchema
     {

@@ -42,12 +42,6 @@
     <ClInclude Include="public\xgScriptHost.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgJson.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgJsonBackend.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgScriptEngine.h">
       <Filter>public</Filter>
     </ClInclude>
@@ -75,18 +69,6 @@
     <ClInclude Include="public\xgListenerBinding.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgMessageCodec.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgMessage.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="JsonMessageCodec.h">
-      <Filter>private\headers</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgMemoryStream.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgMessenger.h">
       <Filter>public</Filter>
     </ClInclude>
@@ -110,12 +92,6 @@
     <ClCompile Include="xgScriptAPI.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgJson.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgJsonBackend.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
     <ClCompile Include="xgLog.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
@@ -123,12 +99,6 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="DispatchSystem.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="JsonMessageCodec.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgMemoryStream.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="MessengerImpl.cpp">

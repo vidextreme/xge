@@ -2,13 +2,31 @@
 #include "ScriptHostNative.h"
 #include "ScriptModuleNative.h"
 #include "xgModules.h"
-
+#include "xgCodecRegistry.h"
+#include "xgCodecJson.h"
+#include "xgCodecBinary.h"
 namespace xg
 {
     using InitFunc = ScriptModuleNative::InitFunc;
     using UpdateFunc = ScriptModuleNative::UpdateFunc;
     using ShutdownFunc = ScriptModuleNative::ShutdownFunc;
     using ScriptModuleFunc = ScriptModuleNative::ScriptModuleFunc;
+
+    ScriptHostNative::ScriptHostNative(ScriptEngine* engine) 
+        : _engine(engine)
+    {
+        // Get the shared registry for the Native backend
+        CodecRegistry* registry =
+            _engine->GetCodecRegistry(ScriptBackendType::Native);
+
+        // Register generic JSON codec
+        registry->RegisterEncoder("*", PayloadMode::JSON, Encode_JSON_Generic);
+        registry->RegisterDecoder("*", PayloadMode::JSON, Decode_JSON_Generic);
+
+        // Register generic binary codec
+        registry->RegisterEncoder("*", PayloadMode::BINARY, Encode_Binary_Generic);
+        registry->RegisterDecoder("*", PayloadMode::BINARY, Decode_Binary_Generic);
+    }
 
     ScriptModule* ScriptHostNative::LoadModule(const char* id, const char* path, const char* group)
     {
@@ -68,5 +86,42 @@ namespace xg
         XG_ADDREF(this);
 
         return module;
+    }
+
+    ScriptEngine* ScriptHostNative::GetEngine() const
+    {
+        return _engine;
+    }
+    CodecRegistry* ScriptHostNative::GetCodecRegistry() const
+    {
+        return _engine->GetCodecRegistry(ScriptBackendType::Native);
+    }
+    PayloadMode ScriptHostNative::GetPayloadMode() const
+    {
+		return _engine->GetPayloadMode();
+    }
+    bool ScriptHostNative::Encode(const void* object, const TypeSchema* schema, ScriptMessage& outMessage)
+    {
+        // 1. Ask engine for universal payload mode (JSON or BINARY)
+        PayloadMode mode = _engine->GetPayloadMode();
+
+        // 2. Get the Native backend codec registry
+        CodecRegistry* registry =
+            _engine->GetCodecRegistry(ScriptBackendType::Native);
+
+        // 3. Find encoder for this type + mode
+        EncoderFn encoder = registry->GetEncoder(schema->Name, mode);
+        if (!encoder)
+            return false;
+
+        // 4. Perform encoding
+        outMessage.TypeName = schema->Name;
+        outMessage.Mode = mode;
+
+        return encoder(object, schema, outMessage);
+    }
+    bool ScriptHostNative::Decode(const ScriptMessage& message, const TypeSchema* schema, void* outObject)
+    {
+        return false;
     }
 }

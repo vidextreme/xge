@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <memory>
+#include "xgHandles.h"
 namespace xg
 {
     // ------------------------------------------------------------
@@ -83,5 +84,5 @@ namespace xg
     XG_API std::unique_ptr<File> LoadFile(const wchar_t* path, FileAccessMode mode);
     XG_API bool GetExeRootDirectory(wchar_t* output, const wchar_t* localizedPath);
 
-    XG_API std::unique_ptr<MemoryStreamBase> CreateMemoryStream(uint64_t capacity = 256);
+    XG_API xg::xgUnique<MemoryStreamBase> CreateMemoryStream(uint64_t capacity = 256);
 }

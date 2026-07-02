@@ -10,20 +10,20 @@ XG_IMPLEMENT_MODULE(xg, ScriptNative)
 
 namespace xg
 {
-    ScriptHost* CreateScriptHostCoreCLR(const char* path)
+    ScriptHost* CreateScriptHostCoreCLR(ScriptEngine* engine, const char* path)
     {
         EnsureScriptCoreCLRLoaded();
 
         XG_MODULE_PROCEDURE(xg, ScriptCoreCLR, CreateScriptHostCoreCLR);
-        return XG_MODULE_CALL(CreateScriptHostCoreCLR)(path);
+        return XG_MODULE_CALL(CreateScriptHostCoreCLR)(engine, path);
     }
 
-    ScriptHost* CreateScriptHostNative(const char* path)
+    ScriptHost* CreateScriptHostNative(ScriptEngine* engine, const char* path)
     {
         EnsureScriptNativeLoaded();
 
         XG_MODULE_PROCEDURE(xg, ScriptNative, CreateScriptHostNative);
-        return XG_MODULE_CALL(CreateScriptHostNative)(path);
+        return XG_MODULE_CALL(CreateScriptHostNative)(engine, path);
     }
 }
 

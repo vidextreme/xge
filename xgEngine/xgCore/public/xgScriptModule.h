@@ -2,9 +2,8 @@
 
 #include "xgModules.h"
 #include "xgEngineDef.h"
-#include "xgMessage.h"
 #include "xgScriptEngine.h"
-
+#include "xgScriptMessage.h"
 
 namespace xg
 {
@@ -39,7 +38,7 @@ namespace xg
 
         virtual void OnMessage(const ScriptMessage& msg) = 0;
 
-        template<typename T>
+        /*template<typename T>
         void Send(const char* targetId, uint32_t typeId, const T& payload)
         {
             if (!_engine)
@@ -76,7 +75,7 @@ namespace xg
         bool DecodeInto(const ScriptMessage& msg, T& outObj)
         {
             return msg.DecodeInto<T>(outObj, _engine->GetMessenger()->GetCodec());
-        }
+        }*/
 
 
     protected:

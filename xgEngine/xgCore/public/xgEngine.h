@@ -17,7 +17,7 @@ namespace xg
     class ScriptTree;
 	class MessageCodec;
     class Messenger;
-
+	class CodecRegistry;
     class Engine : public ScriptEngine
     {
     public:
@@ -50,6 +50,8 @@ namespace xg
         void AddLogCallback(LogCallback cb) override;
         void RemoveLogCallback(LogCallback cb) override;
 
+		CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const override;
+		PayloadMode GetPayloadMode() const override { return PayloadMode::JSON; }
     private:
         const char* GetDefaultGroupFor(const char* path);
 
@@ -74,7 +76,10 @@ namespace xg
         EventQueue      _queue;
         EventDispatcher _dispatcher;
 		Messenger* 	_messenger;
-        MessageCodec* _codec = nullptr;
+        //MessageCodec* _codec = nullptr;
 		xgUnique<TypeRegistry> _typeRegistry;
+
+		CodecRegistry* _nativeCodecRegistry = nullptr;
+        CodecRegistry* _coreclrCodecRegistry = nullptr;
     };
 }

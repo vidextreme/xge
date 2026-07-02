@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "xgCodecRegistry.h"
 #include "ScriptHostCoreCLR.h"
 #include "ScriptModuleCoreCLR.h"
 #include "xgModules.h"
@@ -39,8 +40,19 @@ namespace
 
 namespace xg
 {
-    ScriptHostCoreCLR::ScriptHostCoreCLR()
+    ScriptHostCoreCLR::ScriptHostCoreCLR(ScriptEngine* engine)
+        : _engine(engine)
     {
+        // Get the shared registry for the CoreCLR backend
+        CodecRegistry* registry =
+            _engine->GetCodecRegistry(ScriptBackendType::CoreCLR);
+
+        // Register managed codecs
+        /*registry->RegisterEncoder("EngineConfig", PayloadMode::JSON, Encode_EngineConfig_Managed_JSON);
+        registry->RegisterDecoder("EngineConfig", PayloadMode::JSON, Decode_EngineConfig_Managed_JSON);
+
+        registry->RegisterEncoder("EngineConfig", PayloadMode::BINARY, Encode_EngineConfig_Managed_Binary);
+        registry->RegisterDecoder("EngineConfig", PayloadMode::BINARY, Decode_EngineConfig_Managed_Binary);*/
     }
 
     ScriptHostCoreCLR::~ScriptHostCoreCLR()
@@ -171,6 +183,31 @@ namespace xg
         }
 
         return true;
+    }
+
+    ScriptEngine* ScriptHostCoreCLR::GetEngine() const
+    {
+        return _engine;
+    }
+
+    CodecRegistry* ScriptHostCoreCLR::GetCodecRegistry() const
+    {
+        return _engine->GetCodecRegistry(ScriptBackendType::CoreCLR);
+    }
+
+    PayloadMode ScriptHostCoreCLR::GetPayloadMode() const
+    {
+        return _engine->GetPayloadMode();
+    }
+
+    bool ScriptHostCoreCLR::Encode(const void* object, const TypeSchema* schema, ScriptMessage& outMessage)
+    {
+        return false;
+    }
+
+    bool ScriptHostCoreCLR::Decode(const ScriptMessage& message, const TypeSchema* schema, void* outObject)
+    {
+        return false;
     }
 
     void ScriptHostCoreCLR::ShutdownRuntime()

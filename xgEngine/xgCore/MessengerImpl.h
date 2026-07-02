@@ -1,5 +1,4 @@
 #pragma once
-
 #include "xgMessenger.h"
 
 namespace xg
@@ -9,24 +8,18 @@ namespace xg
     class MessengerImpl : public Messenger
     {
     public:
-        MessengerImpl(ScriptTree* tree, MessageCodec* codec);
+        explicit MessengerImpl(ScriptTree* tree);
 
-        void Send(const char* targetId,
-            uint32_t typeId,
-            const void* payload,
-            const TypeInfoBase* type) override;
-
-        void Deliver(const char* targetId,
-            const ScriptMessage& msg) override;
-
-        void Broadcast(uint32_t typeId,
-            const void* payload,
-            const TypeInfoBase* type) override;
-
-        MessageCodec* GetCodec() const override { return _codec; }
+        void Send(const ScriptMessage& msg, const Route& route) override;
+        void SendToAll(const ScriptMessage& msg) override;
 
     private:
         ScriptTree* _tree;
-        MessageCodec* _codec;
+
+        void RouteDirect(const ScriptMessage& msg, const Route& route);
+        void RouteChildren(const ScriptMessage& msg, const Route& route);
+        void RouteParents(const ScriptMessage& msg, const Route& route);
+        void RouteSiblings(const ScriptMessage& msg, const Route& route);
+        void RouteFiltered(const ScriptMessage& msg, const Route& route);
     };
 }
