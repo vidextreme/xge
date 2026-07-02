@@ -251,5 +251,19 @@ namespace xg
             ForEachModuleRecursive(c.get(), callback);
     }
 
+    void ScriptTree::ForEachSibling(ScriptNode* node,
+        const std::function<void(ScriptModule*)>& fn)
+    {
+        if (!node || !node->_parent)
+            return;
+
+        ScriptNode* parent = node->_parent;
+
+        for (auto& child : parent->_children)
+        {
+            if (child.get() != node)
+                fn(child->GetModule());
+        }
+    }
 
 }

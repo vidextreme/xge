@@ -55,6 +55,9 @@ namespace xg
         void ForEachModuleRecursive(ScriptNode* node,
             const std::function<void(ScriptModule*)>& callback);
 
+        void ForEachSibling(ScriptNode* node,
+            const std::function<void(ScriptModule*)>& fn);
+
         ScriptModule* FindModuleByIdRecursive(ScriptNode* node, const char* id);
 
         void Update(float dt);

@@ -10,6 +10,7 @@ namespace xg
     public:
         MemoryStream();
         explicit MemoryStream(size_t capacity);
+        MemoryStream(void* existingBuffer, size_t size);
         ~MemoryStream() override;
 
         // Stream interface

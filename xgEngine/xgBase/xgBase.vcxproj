@@ -53,12 +53,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_LIB;XG_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>public;Generated;..\3rdparty\json</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -72,12 +72,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;XG_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>public;Generated;..\3rdparty\json</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -89,16 +89,20 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgBase.h" />
+    <ClInclude Include="public\xgCodecJson.h" />
+    <ClInclude Include="public\xgCodecBinary.h" />
+    <ClInclude Include="public\xgCodecRegistry.h" />
     <ClInclude Include="public\xgEvent.h" />
     <ClInclude Include="public\xgEventDispatcher.h" />
     <ClInclude Include="public\xgEventHelpers.h" />
     <ClInclude Include="public\xgEventQueue.h" />
     <ClInclude Include="public\xgHandles.h" />
+    <ClInclude Include="public\xgJson.h" />
+    <ClInclude Include="public\xgMemoryStream.h" />
     <ClInclude Include="public\xgPathUtils.h" />
-    <ClInclude Include="public\xgReflection.h" />
-    <ClInclude Include="public\xgReflectionSerialization.h" />
+    <ClInclude Include="public\xgRoute.h" />
+    <ClInclude Include="public\xgScriptMessage.h" />
     <ClInclude Include="public\xgStream.h" />
-    <ClInclude Include="public\xgTypeInfo.h" />
     <ClInclude Include="public\xgTypeRegistry.h" />
     <ClInclude Include="public\xgWindow.h" />
   </ItemGroup>
@@ -107,9 +111,15 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="xgCodecJson.cpp" />
+    <ClCompile Include="xgCodecBinary.cpp" />
+    <ClCompile Include="xgCodecRegistry.cpp" />
     <ClCompile Include="xgEventDispatcher.cpp" />
     <ClCompile Include="xgEventQueue.cpp" />
+    <ClCompile Include="xgJson.cpp" />
+    <ClCompile Include="xgMemoryStream.cpp" />
     <ClCompile Include="xgPathUtils.cpp" />
+    <ClCompile Include="xgRoute.cpp" />
     <ClCompile Include="xgTypeRegistry.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

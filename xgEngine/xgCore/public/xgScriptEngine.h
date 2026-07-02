@@ -1,7 +1,8 @@
 #pragma once
 
 #include "xgLog.h"
-
+#include "xgScriptHost.h"
+#include "xgScriptMessage.h"
 namespace xg
 {
     class EventDispatcher;
@@ -9,6 +10,18 @@ namespace xg
 	class Messenger;
 	class ScriptModule;
 	class TypeRegistry;
+    class CodecRegistry;
+
+    XG_ENUM(inherit = byte)
+        enum class ScriptBackendType : uint8_t
+    {
+        CoreCLR,
+        Native,
+        //Squirrel, //very very soon!
+        //Lua,
+        //Python,
+        //JavaScript,
+    };
     //
     // ScriptEngine
     //
@@ -36,5 +49,8 @@ namespace xg
 
         virtual void AddLogCallback(LogCallback cb) = 0;
         virtual void RemoveLogCallback(LogCallback cb) = 0;
+
+        virtual CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const = 0;
+        virtual PayloadMode GetPayloadMode() const = 0;
     };
 }

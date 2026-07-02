@@ -18,6 +18,15 @@ namespace xg
         }
     }
 
+    MemoryStream::MemoryStream(void* existingBuffer, size_t size)
+    {
+        _data = reinterpret_cast<uint8_t*>(existingBuffer);
+        _size = size;
+        _capacity = size;
+        _pos = 0;
+    }
+
+
     MemoryStream::~MemoryStream()
     {
         if (_data)
@@ -125,9 +134,13 @@ namespace xg
             _pos = _size;
     }
 
-    // Factory helper
-    std::unique_ptr<MemoryStreamBase> CreateMemoryStream(uint64_t capacity)
+    static void DeleteMemoryStream(void* ptr)
     {
-        return std::make_unique<MemoryStream>(capacity);
+        delete static_cast<MemoryStream*>(ptr);
+    }
+    // Factory helper
+    xg::xgUnique<MemoryStreamBase> CreateMemoryStream(uint64_t capacity)
+    {
+        return xgUnique<MemoryStreamBase>(xgUniqueHandle{new MemoryStream(capacity), &DeleteMemoryStream });
     }
 }

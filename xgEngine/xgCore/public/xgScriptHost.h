@@ -1,19 +1,12 @@
 #pragma once
 
 #include "xgScriptModule.h"
-
+#include "xgScriptMessage.h"
 namespace xg
 {
-	XG_ENUM(inherit = byte)
-    enum class ScriptBackendType : uint8_t
-    {
-        CoreCLR,
-        Native,
-		//Squirrel, //very very soon!
-        //Lua,
-        //Python,
-        //JavaScript,
-	};
+	class ScriptEngine;
+	class CodecRegistry;
+    class ScriptModule;
 
     //
     // ScriptHost
@@ -35,14 +28,37 @@ namespace xg
         virtual ScriptModule* LoadModule(const char* id,
             const char* path,
             const char* group) = 0;
+
+		virtual ScriptEngine* GetEngine() const = 0;
+
+        //
+        // Encode a native struct into a ScriptMessage payload.
+        // Host decides which codec to use based on engine payload mode.
+        //
+        virtual bool Encode(const void* object,
+            const TypeSchema* schema,
+            ScriptMessage& outMessage) = 0;
+
+        //
+        // Decode a ScriptMessage payload into a native struct.
+        //
+        virtual bool Decode(const ScriptMessage& message,
+            const TypeSchema* schema,
+            void* outObject) = 0;
+
+        //
+        // Host-specific codec registry (JSON/BINARY).
+        //
+        virtual CodecRegistry* GetCodecRegistry() const = 0;
+		virtual PayloadMode GetPayloadMode() const = 0;
     };
 
-    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostCoreCLR, ScriptHost*, const char*);
-    XG_API ScriptHost* CreateScriptHostCoreCLR(const char* path);
+    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostCoreCLR, ScriptHost*, ScriptEngine*, const char*);
+    XG_API ScriptHost* CreateScriptHostCoreCLR(ScriptEngine* engine, const char* path);
 
 
-    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostNative, ScriptHost*, const char*);
-    XG_API ScriptHost* CreateScriptHostNative(const char* path);
+    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostNative, ScriptHost*, ScriptEngine*, const char*);
+    XG_API ScriptHost* CreateScriptHostNative(ScriptEngine* engine, const char* path);
 }
 
 XG_DECLARE_MODULE(xg, ScriptCoreCLR)

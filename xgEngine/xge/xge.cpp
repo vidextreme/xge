@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include "xgJson.h"
-#include "xgJsonBackend.h"
+
 #include "xgStream.h"
 #include "xgEngine.h"
 
@@ -17,19 +17,20 @@ int main(int argc, char** argv)
 {
 	xg::AddLogCallback(_LogMsg);
     xg::EngineConfig config;
-    xg::Json json;
-	xg::Log(xg::MessageType::Info, "Loading gameconfig.json");
-    auto file = xg::LoadFile(L"gameconfig.json", xg::FileAccessMode::Read);
-    if (!file)
-    {
-		//TODO: default config if file doesn't exist
-		xg::Log(xg::MessageType::Error, "gameconfig.json not found, using default config");
-        return -1;
-    }
-	json.Load(*file);
-	xg::JsonDeserializer deser(json);
-	xg::Deserialize(deser, config);
-	file->Close();
+	config.RendererModule = "xgRendererDX12.dll";
+ //   xg::Json json;
+	//xg::Log(xg::MessageType::Info, "Loading gameconfig.json");
+ //   auto file = xg::LoadFile(L"gameconfig.json", xg::FileAccessMode::Read);
+ //   if (!file)
+ //   {
+	//	//TODO: default config if file doesn't exist
+	//	xg::Log(xg::MessageType::Error, "gameconfig.json not found, using default config");
+ //       return -1;
+ //   }
+	//json.Load(*file);
+	//xg::JsonDeserializer deser(json);
+	//xg::Deserialize(deser, config);
+	//file->Close();
 
     //xg::JsonSerializer ser(json);
     //xg::Serialize(ser, config);
