@@ -421,7 +421,7 @@ public:
 
 # 📂 Repository Structure
 
-"
+```
 XGE/
 ├── docs/                     # Documentation, diagrams, design notes
 ├── gameroot/                 # Runtime deployment root
@@ -445,7 +445,7 @@ XGE/
 │   ├── xgUtility/            # Utility layer (platform helpers, etc.)
 │   │   └── platform/
 │   └── xge/                  # Engine executable (launcher)
-"
+```
 
 ---
 
