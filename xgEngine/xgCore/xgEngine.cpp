@@ -4,7 +4,7 @@
 #include "public/xgEngine.h"
 #include "public/xgScriptModule.h"
 #include "public/xgScriptHost.h"
-#include "xgMessenger.h"
+#include "MessengerImpl.h"
 
 #include "ScriptTree.h"
 
@@ -39,7 +39,7 @@ namespace xg
 
         _scriptTree = new ScriptTree();
         //_codec = new JsonMessageCodec();
-        //_messenger = new MessengerImpl (_scriptTree, _codec);
+        _messenger = new MessengerImpl(_scriptTree);
 		_typeRegistry = CreateTypeRegistry();
 
 		_nativeCodecRegistry = new CodecRegistry();

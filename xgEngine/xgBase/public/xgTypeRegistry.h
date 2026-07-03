@@ -2,20 +2,12 @@
 #include "xgHandles.h"
 #include <cstdint>
 #include <memory>
+
 namespace xg
 {
-    struct FieldSchema
+    enum class ValueType : uint8_t
     {
-        const char* Name;
-        const char* TypeString;
-        uint32_t Offset;
-        uint32_t Size;
-        uint32_t Alignment;
-        const char* Attributes[8]; // fixed-size, STL-free
-    };
-   
-    enum class FieldType : uint8_t
-    {
+        None,
         Bool,
         Int32,
         UInt32,
@@ -23,14 +15,25 @@ namespace xg
         String,
     };
 
+    struct FieldSchema
+    {
+        const char* Name;
+        const char* TypeString;   // "Int32", "InventoryItem", etc.
+        ValueType   ValueKind;    // primitive kind, or ValueType::None for user-defined
+        uint32_t    Offset;
+        uint32_t    Size;
+        uint32_t    Alignment;
+        const char* Attributes[8]; // fixed-size, STL-free
+    };
+
     struct TypeSchema
     {
         const char* Name;
-        uint32_t Version;
-        bool NativeLayout;
+        uint32_t    Version;
+        bool        NativeLayout;
 
         const FieldSchema* Fields;
-        uint32_t FieldCount;
+        uint32_t           FieldCount;
 
         uint32_t Size;
         uint32_t Alignment;
@@ -41,16 +44,11 @@ namespace xg
     public:
         virtual ~TypeRegistry() = default;
 
-        // Register a type schema (called by generated code)
         virtual bool Register(const TypeSchema* schema) = 0;
 
-        // Lookup by type name
         virtual const TypeSchema* Get(const char* typeName) const = 0;
-
-        // Optional: lookup by ID
         virtual const TypeSchema* Get(uint32_t typeId) const = 0;
 
-        // Enumerate all types
         virtual uint32_t GetTypeCount() const = 0;
         virtual const TypeSchema* GetTypeByIndex(uint32_t index) const = 0;
     };

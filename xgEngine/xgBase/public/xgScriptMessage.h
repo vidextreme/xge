@@ -19,6 +19,5 @@ namespace xg
         const char* TypeName;   // e.g. "EngineConfig", "PlayerState"
         const void* Payload;    // raw bytes (JSON UTF-8 or binary blob)
         int PayloadSize;        // size of Payload in bytes
-        PayloadMode Mode;       // JSON or BINARY
     };
 }

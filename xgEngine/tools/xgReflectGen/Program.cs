@@ -197,13 +197,24 @@ class Program
 
             foreach (var f in s.Fields)
             {
+                string valueKind = f.Type switch
+                {
+                    "bool" => "ValueType::Bool",
+                    "int32_t" => "ValueType::Int32",
+                    "uint32_t" => "ValueType::UInt32",
+                    "float" => "ValueType::Float",
+                    "const char*" => "ValueType::String",
+                    _ => "ValueType::None"
+                };
+
                 sb.AppendLine("    {");
                 sb.AppendLine($"        \"{f.Name}\",");
                 sb.AppendLine($"        \"{f.Type}\",");
+                sb.AppendLine($"        {valueKind},");   // ← NEW FIELD
                 sb.AppendLine($"        offsetof({s.Name}, {f.Name}),");
                 sb.AppendLine($"        sizeof({f.Type}),");
                 sb.AppendLine($"        alignof({f.Type}),");
-                sb.AppendLine("        { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }\r\n");
+                sb.AppendLine("        { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }");
                 sb.AppendLine("    },");
             }
 

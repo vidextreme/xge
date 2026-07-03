@@ -12,6 +12,22 @@ namespace xg
     using ShutdownFunc = ScriptModuleNative::ShutdownFunc;
     using ScriptModuleFunc = ScriptModuleNative::ScriptModuleFunc;
 
+    bool DummyEncoder(const void* src,
+        const xg::TypeSchema* schema,
+        xg::ScriptMessage& msg)
+    {
+        // Should never be called for dynamic types
+        return false;
+    }
+
+    bool DummyDecoder(const xg::ScriptMessage& msg,
+        const xg::TypeSchema* schema,
+        void* dst)
+    {
+        // Should never be called for dynamic types
+        return false;
+    }
+
     ScriptHostNative::ScriptHostNative(ScriptEngine* engine) 
         : _engine(engine)
     {
@@ -19,13 +35,19 @@ namespace xg
         CodecRegistry* registry =
             _engine->GetCodecRegistry(ScriptBackendType::Native);
 
-        // Register generic JSON codec
-        registry->RegisterEncoder("*", PayloadMode::JSON, Encode_JSON_Generic);
-        registry->RegisterDecoder("*", PayloadMode::JSON, Decode_JSON_Generic);
-
-        // Register generic binary codec
-        registry->RegisterEncoder("*", PayloadMode::BINARY, Encode_Binary_Generic);
-        registry->RegisterDecoder("*", PayloadMode::BINARY, Decode_Binary_Generic);
+        PayloadMode mode = _engine->GetPayloadMode();
+        if (mode == PayloadMode::JSON)
+        {
+            // Register generic JSON codec
+            registry->RegisterEncoder("*", Encode_JSON_Generic);
+            registry->RegisterDecoder("*", Decode_JSON_Generic);
+		}
+        else if (mode == PayloadMode::BINARY)
+        {
+            // Register generic binary codec
+            registry->RegisterEncoder("*", Encode_Binary_Generic);
+            registry->RegisterDecoder("*", Decode_Binary_Generic);
+        }
     }
 
     ScriptModule* ScriptHostNative::LoadModule(const char* id, const char* path, const char* group)
@@ -102,21 +124,17 @@ namespace xg
     }
     bool ScriptHostNative::Encode(const void* object, const TypeSchema* schema, ScriptMessage& outMessage)
     {
-        // 1. Ask engine for universal payload mode (JSON or BINARY)
-        PayloadMode mode = _engine->GetPayloadMode();
-
         // 2. Get the Native backend codec registry
         CodecRegistry* registry =
             _engine->GetCodecRegistry(ScriptBackendType::Native);
 
         // 3. Find encoder for this type + mode
-        EncoderFn encoder = registry->GetEncoder(schema->Name, mode);
+        EncoderFn encoder = registry->GetEncoder(schema->Name);
         if (!encoder)
             return false;
 
         // 4. Perform encoding
         outMessage.TypeName = schema->Name;
-        outMessage.Mode = mode;
 
         return encoder(object, schema, outMessage);
     }
