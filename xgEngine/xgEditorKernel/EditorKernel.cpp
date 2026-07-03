@@ -8,6 +8,8 @@
 #include "platform/xgEventToSDL.h"
 #include "xgListenerBinding.h"
 #include "xgMessenger.h"
+#include "xgRoute.h"
+#include "xgCodecRegistry.h"
 
 // ImGui core
 #include "imgui.h"
@@ -528,6 +530,24 @@ namespace xg
         Shutdown();
     }
 
+    static const xg::FieldSchema TestFields[] =
+    {
+        { "Health", "Int32", xg::ValueType::Int32, 0, sizeof(int32_t), alignof(int32_t), {nullptr} },
+        { "Name",   "String", xg::ValueType::String, 0, sizeof(const char*), alignof(const char*), {nullptr} }
+    };
+
+    static const xg::TypeSchema TestSchema =
+    {
+        "TestType",
+        1,
+        false,              // IMPORTANT: dynamic layout
+        TestFields,
+        2,
+        0,
+        0
+    };
+
+
     bool EditorKernelModule::Init(ScriptEngine* engine)
     {
         if (!engine)
@@ -558,11 +578,53 @@ namespace xg
 
         //xg::TypeRegistry::Register(&xg::TypeInfo<PlayerState>::Instance);
 
+        CodecRegistry* registry = _host->GetCodecRegistry();
+
+        // Register generic JSON codec
+        //registry
+
         PlayerState state{ 100, 10.0f, 20.0f };
 
         // Broadcast to all modules
-        //Broadcast<PlayerState>(1001, state);
+        //const TypeSchema* schema =
+            //engine->GetTypeRegistry()->Get("*");
 
+
+
+
+        /*ScriptMessage msg{};
+        registry->Encode("PlayerState", PayloadMode::JSON, &state, schema, msg);
+
+        printf("Encoded JSON: %s\n", msg.Payload);
+
+        PlayerState dst{};
+        registry->Decode("PlayerState", PayloadMode::JSON, msg, schema, &dst);*/
+
+        xg::DynamicObject obj(&TestSchema);
+
+        obj.FindField("Health")->Value.Int32Value = 150;
+        obj.FindField("Name")->Value.StringValue = "John";
+        
+
+        xg::ScriptMessage msg;
+        msg.Payload = nullptr;
+        msg.PayloadSize = 0;
+
+        bool ok = registry->Encode("TestType", &obj, &TestSchema, msg);
+
+        if (!ok)
+            printf("Encode failed\n");
+        else
+        {
+            printf("Encoded JSON (%d bytes):\n", msg.PayloadSize);
+            fwrite(msg.Payload, 1, msg.PayloadSize, stdout);
+            printf("\n");
+        }
+
+        
+
+
+        _engine->GetMessenger()->SendToAll(msg);
         return true;
     }
 
@@ -717,14 +779,19 @@ namespace xg
         ImGui_ImplSDL3_ProcessEvent(&sdl);
     }
     void EditorKernelModule::OnMessage(const ScriptMessage& msg)
-    {
-     /*   if (msg.Type == 1001)
-        {
-            PlayerState state = Decode<PlayerState>(msg);
+    {    
+		xg::CodecRegistry* codecs = _host->GetCodecRegistry();
+        xg::DynamicObject obj2(&TestSchema);
 
-            printf("[HUD] Player health = %d at (%.1f, %.1f)\n",
-                state.health, state.x, state.y);
-        }*/
+        bool ok2 = codecs->Decode("TestType", msg, &TestSchema, &obj2);
+
+        if (!ok2)
+            printf("Decode failed\n");
+        else
+        {
+            printf("Decoded Health = %d\n", obj2.FindField("Health")->Value.Int32Value);
+            printf("Decoded Name   = %s\n", obj2.FindField("Name")->Value.StringValue);
+        }
     }
 }
 

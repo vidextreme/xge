@@ -61,7 +61,6 @@ namespace xg
         }
 
         out.TypeName = schema->Name;
-        out.Mode = PayloadMode::JSON;
         out.PayloadSize = static_cast<int>(jsonText.size());
 
         char* buffer = new char[out.PayloadSize];

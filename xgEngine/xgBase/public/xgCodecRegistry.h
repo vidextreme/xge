@@ -1,26 +1,38 @@
 #pragma once
+#include <cstdint>
 #include "xgTypeRegistry.h"
 #include "xgScriptMessage.h"
-#include <cstdint>
+#include "xgDynamicObject.h"
 
 namespace xg
 {
     //
-    // Encoder/Decoder function signatures
+    // Encoder / Decoder function signatures
     //
-    using EncoderFn = bool(*)(const void* object,
+    using EncoderFn = bool(*)(const void* src,
         const TypeSchema* schema,
         ScriptMessage& outMessage);
 
     using DecoderFn = bool(*)(const ScriptMessage& message,
         const TypeSchema* schema,
-        void* outObject);
+        void* dst);
+
+    //
+    // Pair of encoder/decoder for a given type
+    //
+    struct CodecPair
+    {
+        EncoderFn Encoder = nullptr;
+        DecoderFn Decoder = nullptr;
+    };
 
     //
     // CodecRegistry
     //
-    // Stores encoder/decoder functions for each type + payload mode.
-    // Each ScriptHost owns its own registry.
+    // - Registers encoders/decoders for native types
+    // - Provides dynamic encode/decode for DynamicObject
+    // - Selects encoder/decoder based on typeName
+    // - No PayloadMode branching (global mode only)
     //
     class CodecRegistry
     {
@@ -29,33 +41,45 @@ namespace xg
         ~CodecRegistry();
 
         //
-        // Register encoder/decoder for a given type + payload mode
+        // Register native encoders/decoders
         //
         void RegisterEncoder(const char* typeName,
-            PayloadMode mode,
             EncoderFn fn);
 
         void RegisterDecoder(const char* typeName,
-            PayloadMode mode,
             DecoderFn fn);
 
         //
-        // Lookup encoder/decoder
+        // Lookup
         //
-        EncoderFn GetEncoder(const char* typeName,
-            PayloadMode mode) const;
+        EncoderFn GetEncoder(const char* typeName) const;
+        DecoderFn GetDecoder(const char* typeName) const;
 
-        DecoderFn GetDecoder(const char* typeName,
-            PayloadMode mode) const;
+        //
+        // Public encode/decode entry points
+        //
+        bool Encode(const char* typeName,
+            const void* src,
+            const TypeSchema* schema,
+            ScriptMessage& outMessage) const;
+
+        bool Decode(const char* typeName,
+            const ScriptMessage& message,
+            const TypeSchema* schema,
+            void* dst) const;
 
     private:
-        struct CodecPair
-        {
-            EncoderFn Encoder = nullptr;
-            DecoderFn Decoder = nullptr;
-        };
-
         struct Impl;
-        Impl* _impl = nullptr;
+        Impl* _impl;
+
+        //
+        // Dynamic encode/decode (JSON only)
+        //
+        bool EncodeDynamic(const DynamicObject& obj,
+            ScriptMessage& outMessage) const;
+
+        bool DecodeDynamic(const ScriptMessage& message,
+            const TypeSchema* schema,
+            DynamicObject& outObj) const;
     };
 }

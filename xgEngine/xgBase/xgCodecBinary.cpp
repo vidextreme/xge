@@ -49,7 +49,6 @@ namespace xg
         }
 
         out.TypeName = schema->Name;
-        out.Mode = PayloadMode::BINARY;
         out.PayloadSize = ms.Size();
 
         char* buffer = new char[out.PayloadSize];

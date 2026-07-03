@@ -92,6 +92,7 @@
     <ClInclude Include="public\xgCodecJson.h" />
     <ClInclude Include="public\xgCodecBinary.h" />
     <ClInclude Include="public\xgCodecRegistry.h" />
+    <ClInclude Include="public\xgDynamicObject.h" />
     <ClInclude Include="public\xgEvent.h" />
     <ClInclude Include="public\xgEventDispatcher.h" />
     <ClInclude Include="public\xgEventHelpers.h" />
@@ -114,6 +115,7 @@
     <ClCompile Include="xgCodecJson.cpp" />
     <ClCompile Include="xgCodecBinary.cpp" />
     <ClCompile Include="xgCodecRegistry.cpp" />
+    <ClCompile Include="xgDynamicObject.cpp" />
     <ClCompile Include="xgEventDispatcher.cpp" />
     <ClCompile Include="xgEventQueue.cpp" />
     <ClCompile Include="xgJson.cpp" />

@@ -76,7 +76,6 @@ namespace xg
         EventQueue      _queue;
         EventDispatcher _dispatcher;
 		Messenger* 	_messenger;
-        //MessageCodec* _codec = nullptr;
 		xgUnique<TypeRegistry> _typeRegistry;
 
 		CodecRegistry* _nativeCodecRegistry = nullptr;

@@ -61,6 +61,8 @@ namespace xg
         virtual void* Data() = 0;
         virtual const void* Data() const = 0;
         virtual int Size() const = 0;
+        virtual void Clear() = 0;
+        virtual void Resize(size_t newSize) = 0;
     };
 
     // ------------------------------------------------------------

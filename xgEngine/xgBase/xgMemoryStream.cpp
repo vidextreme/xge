@@ -4,34 +4,50 @@
 
 namespace xg
 {
+    // ------------------------------------------------------------
+    // Constructors / Destructor
+    // ------------------------------------------------------------
+
     MemoryStream::MemoryStream()
-        : _data(nullptr), _size(0), _capacity(0), _pos(0)
+        : _data(nullptr)
+        , _size(0)
+        , _capacity(0)
+        , _pos(0)
+        , _ownsData(false)
     {}
 
     MemoryStream::MemoryStream(size_t capacity)
-        : _data(nullptr), _size(0), _capacity(0), _pos(0)
+        : _data(nullptr)
+        , _size(0)
+        , _capacity(0)
+        , _pos(0)
+        , _ownsData(false)
     {
         if (capacity > 0)
         {
             _data = (uint8_t*)malloc(capacity);
             _capacity = capacity;
+            _ownsData = true;
         }
     }
 
     MemoryStream::MemoryStream(void* existingBuffer, size_t size)
-    {
-        _data = reinterpret_cast<uint8_t*>(existingBuffer);
-        _size = size;
-        _capacity = size;
-        _pos = 0;
-    }
-
+        : _data(reinterpret_cast<uint8_t*>(existingBuffer))
+        , _size(size)
+        , _capacity(size)
+        , _pos(0)
+        , _ownsData(false) // external buffer — DO NOT free
+    {}
 
     MemoryStream::~MemoryStream()
     {
-        if (_data)
+        if (_ownsData && _data)
             free(_data);
     }
+
+    // ------------------------------------------------------------
+    // Internal capacity management
+    // ------------------------------------------------------------
 
     void MemoryStream::EnsureCapacity(size_t required)
     {
@@ -47,10 +63,17 @@ namespace xg
         if (_data && _size > 0)
             memcpy(newData, _data, _size);
 
-        free(_data);
+        if (_ownsData)
+            free(_data);
+
         _data = newData;
         _capacity = newCap;
+        _ownsData = true;
     }
+
+    // ------------------------------------------------------------
+    // Read / Write
+    // ------------------------------------------------------------
 
     int MemoryStream::Read(void* buffer, int size)
     {
@@ -79,6 +102,10 @@ namespace xg
         return size;
     }
 
+    // ------------------------------------------------------------
+    // Seeking
+    // ------------------------------------------------------------
+
     bool MemoryStream::Seek(long offset, FileOrigin origin)
     {
         size_t newPos = 0;
@@ -105,6 +132,10 @@ namespace xg
         return true;
     }
 
+    // ------------------------------------------------------------
+    // Status
+    // ------------------------------------------------------------
+
     bool MemoryStream::Eof() const
     {
         return _pos >= _size;
@@ -120,6 +151,10 @@ namespace xg
         return (long)_pos;
     }
 
+    // ------------------------------------------------------------
+    // Buffer management
+    // ------------------------------------------------------------
+
     void MemoryStream::Clear()
     {
         _size = 0;
@@ -130,17 +165,48 @@ namespace xg
     {
         EnsureCapacity(newSize);
         _size = newSize;
+
         if (_pos > _size)
             _pos = _size;
     }
+
+    // ------------------------------------------------------------
+    // Data access
+    // ------------------------------------------------------------
+
+    void* MemoryStream::Data()
+    {
+        return _data;
+    }
+
+    const void* MemoryStream::Data() const
+    {
+        return _data;
+    }
+
+    int MemoryStream::Size() const
+    {
+        return (int)_size;
+    }
+
+    void* MemoryStream::GetBuffer()
+    {
+        return _data;
+    }
+
+    // ------------------------------------------------------------
+    // Factory
+    // ------------------------------------------------------------
 
     static void DeleteMemoryStream(void* ptr)
     {
         delete static_cast<MemoryStream*>(ptr);
     }
-    // Factory helper
-    xg::xgUnique<MemoryStreamBase> CreateMemoryStream(uint64_t capacity)
+
+    xgUnique<MemoryStreamBase> CreateMemoryStream(uint64_t capacity)
     {
-        return xgUnique<MemoryStreamBase>(xgUniqueHandle{new MemoryStream(capacity), &DeleteMemoryStream });
+        return xgUnique<MemoryStreamBase>(
+            xgUniqueHandle{ new MemoryStream((size_t)capacity), &DeleteMemoryStream }
+        );
     }
 }
