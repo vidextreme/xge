@@ -264,7 +264,7 @@ This allows:
 
 All message encoding flows through two entry points:
 
-"cpp
+```cpp
 bool Encode(const char* typeName,
             const void* src,
             const TypeSchema* schema,
@@ -274,7 +274,7 @@ bool Decode(const char* typeName,
             const ScriptMessage& message,
             const TypeSchema* schema,
             void* dst) const;
-"
+```
 
 These functions:
 
