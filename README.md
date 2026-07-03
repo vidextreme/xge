@@ -15,6 +15,7 @@ The project emphasizes:
 - editor integration  
 - clean, STL‑free public API surfaces  
 
+
 ---
 
 # 🔗 Quick Jump
@@ -48,6 +49,8 @@ XGE is built to support:
 - editor/runtime separation  
 - deterministic data pipelines  
 - future network replication  
+- future visual scripting  
+- future hot‑reload workflows  
 
 ---
 
@@ -63,7 +66,7 @@ Tree‑sitter generates metadata used for:
 - JSON serialization  
 - editor property panels  
 - network replication (future)  
-- deterministic data pipelines
+- deterministic data pipelines  
 
 ### **Modularity First**
 Everything is a module:
@@ -81,12 +84,12 @@ Swap renderer or scripting backend without recompiling the engine.
 # 🏛️ Architecture
 
 ```
-xgBase        → Public interfaces, POD types, reflection metadata  
-xgPlatform    → Platform backends (Win32, SDL, etc.)  
-xgCore        → Engine runtime (world, systems, update loop)  
+xgBase        → Base types, macros, platform detection  
+xgPlatform    → Platform backends (Win32, SDL)  
+xgCore        → Engine runtime  
 Renderers     → DX12, Vulkan (modules)  
 Script Hosts  → CoreCLR, NativeAOT (modules)  
-Editor        → Managed editor runtime (CoreCLR)  
+Editor        → Native editor kernel + managed editor runtime  
 ```
 
 ---
@@ -126,106 +129,206 @@ Editor        → Managed editor runtime (CoreCLR)
 
 # 🧩 Current Work‑In‑Progress (Core Architecture Initiative)
 
-## 🌿 Dispatch, Flow & Affinity System
+## 🌿 HSM — Hierarchical Script Modules
 
-A new system enabling ScriptModules to define **their own internal execution flow** using a simple, intuitive API.
+XGE’s runtime is built around **HSM (Hierarchical Script Modules)** — a structured tree of ScriptModules that defines ownership, routing scope, and execution domains.
 
-Each ScriptModule becomes a **self‑contained mini‑runtime** with:
-- steps (phases)  
-- ordering rules  
-- parallel execution  
-- thread affinity hints  
-- internal transitions  
-- message routing  
+The system consists of:
 
-The engine handles:
-- thread creation  
-- dispatch queues  
-- cross‑thread safety  
-- deterministic ordering  
-- flow execution  
-- message delivery  
+- ~~ScriptTree — hierarchical tree of ScriptModules (HSM)~~ **(DONE)**
+- ~~Messenger — message routing backbone~~ **(DONE)**
+- ~~Route Traversal — parent/child/sibling routing rules~~ **(DONE)**
+- ~~Codec Registry — dynamic message encoding/decoding~~ **(DONE)**
+- Dispatch Groups — thread‑affinity execution domains **(IN PROGRESS)**
 
-### ✨ High‑Level Flow Definition (User‑Facing API)
 
-```cpp
-void MyModule::DefineFlow(FlowBuilder& flow)
-{
-    flow.Step("Sense").Do(&MyModule::Sense);
-    flow.Step("Think").Do(&MyModule::Think);
-    flow.Step("Plan").Do(&MyModule::Plan);
-    flow.Step("Act").Do(&MyModule::Act);
+Together, these form XGE’s core runtime architecture.
 
-    flow.Order("Sense", "Think");
-    flow.Order("Think", "Plan");
-    flow.Order("Plan", "Act");
+---
 
-    flow.RunOn("Sense", Thread::Worker);
-    flow.RunOn("Think", Thread::Worker);
-    flow.RunOn("Plan", Thread::Pinned(0));
-    flow.RunOn("Act", Thread::Main);
-}
-```
+## 🌳 ScriptTree — Hierarchical Script Modules (HSM) **(DONE)**
 
-### 🧵 Thread Affinity (High‑Level)
+ScriptTree stores every ScriptModule in a strict hierarchy:
 
-- Thread::Main  
-- Thread::Worker  
-- Thread::Pinned(N)  
-- Thread::Dedicated  
+- parent → child relationships  
+- sibling traversal  
+- domain grouping (Main, Worker, Pinned, Dedicated)  
+- deterministic update order  
+- scoped message routing  
 
-### 🔄 Internal Messaging & Transitions (TBD)
+Each ScriptModule is a node in the tree, enabling:
 
-```cpp
-flow.OnMessage<EnemySpotted>()
-    .From("Sense")
-    .To("Think");
-```
-
-```cpp
-flow.Transition("Plan", "Act").AsImmediate();
-```
-
-### 🌳 Hierarchical Script Modules (HSM)
-
-Integrates with:
-- parent/child relationships  
-- scoped communication  
-- optional affinity inheritance  
+- hierarchical updates  
+- scoped messaging  
+- clean separation of systems  
 - future hot‑reload boundaries  
 
-### 🏷️ Attribute‑Based Grouping
+---
 
-#### C# Example
-```csharp
-using xg.Dispatch;
+## 📡 Messenger — Central Message Router **(DONE)**
 
-public class AIModule : ScriptModule
-{
-    [Dispatch("Sense")]
-    public void ScanProximity()
-    {
-        // Gameplay logic
-    }
-}
-```
+Messenger delivers `ScriptMessage` objects across the ScriptTree using explicit `Route` objects.  
+Routing is deterministic and handled by ScriptTree; encoding/decoding is handled by the Codec Registry.
 
-#### C++ Example
+### C++ Example — Sending Messages
+
+Messages are delivered by constructing a `Route` and passing it to `Messenger::Send`.
 
 ```cpp
-#include "xgDispatchAttributes.h"
-#include "xgScriptModule.h"
+ScriptMessage msg{ PlayerDamaged{ .Amount = 10 } };
 
-class PlayerModule : public xg::ScriptModule
-{
-public:
-    XG_Dispatch("Gameplay")
-    void UpdateGameplay(float dt)
-    {
-        // Gameplay logic
-    }
-};
+// Direct message to a specific ScriptModule
+Messenger->Send(msg, Route::Direct("Player"));
+
+// Broadcast to all children of a ScriptModule
+Messenger->Send(msg, Route::ChildrenOf("UIRoot"));
+
+// Bubble upward to parents
+Messenger->Send(msg, Route::ParentOf("Inventory"));
+
+// Send to siblings
+Messenger->Send(msg, Route::SiblingsOf("EnemyAI"));
+
+// Filtered routing (predicate receives ScriptModule*)
+Messenger->Send(msg, Route::Filtered([](ScriptModule* m) {
+    return m->GetId() == "HUD";
+}));
+
+// Global broadcast
+Messenger->SendToAll(msg);
 ```
+
+
+---
+
+## 🛣️ Route Traversal — How Messages Move Through the Tree **(DONE)**
+
+Messages can be routed using simple rules:
+
+- ToParent — bubble upward  
+- ToChildren — broadcast downward  
+- ToSiblings — lateral routing  
+- ToDomain — cross‑thread dispatch  
+- ToSpecificNode — direct targeting  
+
+Example:
+
+```cpp
+Messenger->Send(msg, Route::ToParent);
+Messenger->Broadcast(msg, Route::ToChildren);
+Messenger->Send(msg, Route::ToDomain(Thread::Worker));
+```
+
+---
+
+## 🔐 Codec Registry — Dynamic Message Encoding **(DONE)**
+
+The CodecRegistry is responsible for encoding and decoding all `ScriptMessage` payloads.  
+It supports both **native C++ types** and **dynamic types** (`DynamicObject`), using reflection metadata (`TypeSchema`) generated by the TypeRegistry.
+
+CodecRegistry provides:
+
+- native encoders/decoders (registered per typeName)
+- dynamic JSON encode/decode for `DynamicObject`
+- lookup of encoder/decoder functions
+- unified public `Encode` / `Decode` entry points
+- integration with Messenger and ScriptTree
+
+### Native Type Encoding
+
+Native types register their encoder/decoder functions:
+
+```cpp
+registry.RegisterEncoder("PlayerDamaged", Encode_PlayerDamaged);
+registry.RegisterDecoder("PlayerDamaged", Decode_PlayerDamaged);
+```
+
+When Messenger delivers a message, CodecRegistry selects the correct encoder based on the message’s `typeName`.
+
+### Dynamic Type Encoding
+
+Dynamic types (`DynamicObject`) do not register encoders.  
+CodecRegistry automatically falls back to JSON‑based dynamic encoding:
+
+- `EncodeDynamic(obj, outMessage)`
+- `DecodeDynamic(message, schema, outObj)`
+
+This allows:
+
+- editor inspection
+- flexible message formats
+- runtime‑generated message types
+- future network serialization
+
+### Public Encode/Decode API
+
+All message encoding flows through two entry points:
+
+"cpp
+bool Encode(const char* typeName,
+            const void* src,
+            const TypeSchema* schema,
+            ScriptMessage& outMessage) const;
+
+bool Decode(const char* typeName,
+            const ScriptMessage& message,
+            const TypeSchema* schema,
+            void* dst) const;
+"
+
+These functions:
+
+- select native or dynamic codec
+- serialize the payload into `ScriptMessage`
+- deserialize payload into native struct or `DynamicObject`
+
+### Integration with Messenger
+
+Messenger does not serialize messages itself.  
+Instead, before delivery:
+
+1. Messenger calls `CodecRegistry::Encode`
+2. ScriptTree routes the encoded message
+3. Receiving ScriptModule calls `CodecRegistry::Decode`
+4. The decoded object is passed to the handler method
+
+This ensures:
+
+- consistent message formats
+- reflection‑driven serialization
+- safe cross‑module communication
+- future network replication compatibility
+
+
+
+## 🧵 Dispatch Groups — Thread Affinity **(IN PROGRESS)**
+
+Dispatch groups define execution domains:
+
+- Input  
+- Gameplay  
+- Animation  
+- RenderPrep  
+- Async  
+- Custom  
+
+Modules declare dispatch groups via attributes (C#) or macros (C++).  
+The engine handles scheduling and thread affinity.
+
+---
+
+## Summary
+
+The HSM + ScriptTree + Messenger + Route Traversal + Codec Registry + Dispatch Groups form XGE’s core runtime architecture.
+
+They provide:
+
+- deterministic module updates  
+- safe multi‑threaded messaging  
+- structured message encoding  
+- hierarchical routing  
+- clean separation of systems  
+- future‑proof foundations for AI, gameplay, editor tooling, and networking  
 
 ---
 
@@ -317,7 +420,8 @@ public:
 ---
 
 # 📂 Repository Structure
-```
+
+"
 XGE/
 ├── docs/                     # Documentation, diagrams, design notes
 ├── gameroot/                 # Runtime deployment root
@@ -341,8 +445,7 @@ XGE/
 │   ├── xgUtility/            # Utility layer (platform helpers, etc.)
 │   │   └── platform/
 │   └── xge/                  # Engine executable (launcher)
-```
-
+"
 
 ---
 
@@ -398,15 +501,13 @@ struct EngineConfig {
 # 🛣️ Roadmap
 
 ## High Priority
-- Dispatch, Flow & Affinity system  
-- HSM  
-- thread affinity  
-- attribute scheduling  
-- messaging layer  
+- Dispatch Groups  
+- HSM tooling  
+- messaging inspector  
 - editor integration  
+- hot reload boundaries  
 
 ## Mid‑Term
-- hot reload  
 - scene graph  
 - component system  
 - property inspector  
