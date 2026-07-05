@@ -1,5 +1,5 @@
 #pragma once
-#include "xgBase.h"
+#include "xgHandles.h"
 #include "xgModules.h"
 
 namespace xg {
@@ -16,7 +16,9 @@ namespace xg {
     XG_DECLARE_MODULE_FUNCTION(CreateRenderer, Renderer*, Window&);
     XG_DECLARE_MODULE_FUNCTION(DestroyRenderer, void, Renderer*);
 
-    XG_API Renderer* CreateRenderer(Window& window);
+	XG_DECLARE_UNIQUE(Renderer)
+
+    XG_API RendererUnique CreateRenderer(Window& window);
     XG_API void      DestroyRenderer(Renderer* renderer);
 
 }

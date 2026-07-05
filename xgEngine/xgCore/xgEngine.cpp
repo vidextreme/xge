@@ -88,17 +88,13 @@ namespace xg
 
     bool Engine::SetRendererModule(const char* path)
     {
-        if (Renderer)
-        {
-            DestroyRenderer(Renderer);
-            Renderer = nullptr;
-        }
+        Renderer.reset();
 
         xg::RendererDLL = path;
         xg::RendererLib = nullptr;
 
         Renderer = CreateRenderer(*MainWindow);
-        return Renderer != nullptr;
+        return Renderer.valid();
     }
 
     static bool IsCoreCLRModule(const char* path)
@@ -331,11 +327,7 @@ namespace xg
         hosts->Hosts.clear();
 
         // Renderer cleanup
-        if (Renderer)
-        {
-            DestroyRenderer(Renderer);
-            Renderer = nullptr;
-        }
+        Renderer.reset();        
 
         xg::RendererLib = nullptr;
     }

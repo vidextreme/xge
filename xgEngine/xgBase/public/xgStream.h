@@ -1,9 +1,7 @@
 #pragma once
-#include "xgBase.h"
+#include "xgHandles.h"
 #include <cstdint>
 #include <cstddef>
-#include <memory>
-#include "xgHandles.h"
 namespace xg
 {
     // ------------------------------------------------------------
@@ -65,6 +63,8 @@ namespace xg
         virtual void Resize(size_t newSize) = 0;
     };
 
+    XG_DECLARE_UNIQUE(MemoryStreamBase)
+
     // ------------------------------------------------------------
     // File Stream Interface
     // ------------------------------------------------------------
@@ -80,11 +80,13 @@ namespace xg
         virtual void* GetHandle() = 0;
     };
 
+    XG_DECLARE_UNIQUE(File)
+
     // ------------------------------------------------------------
     // Factory Functions
     // ------------------------------------------------------------
-    XG_API std::unique_ptr<File> LoadFile(const wchar_t* path, FileAccessMode mode);
+    XG_API FileUnique LoadFile(const wchar_t* path, FileAccessMode mode);
     XG_API bool GetExeRootDirectory(wchar_t* output, const wchar_t* localizedPath);
 
-    XG_API xg::xgUnique<MemoryStreamBase> CreateMemoryStream(uint64_t capacity = 256);
+    XG_API MemoryStreamBaseUnique CreateMemoryStream(uint64_t capacity = 256);
 }
