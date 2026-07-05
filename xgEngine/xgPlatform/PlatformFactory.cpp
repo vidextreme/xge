@@ -3,12 +3,20 @@
 
 namespace xg
 {
-    std::unique_ptr<File> LoadFile(const wchar_t* path, FileAccessMode mode)
+    XG_DECLARE_UNIQUE_TYPE(FileWin)
+    FileUnique LoadFile(const wchar_t* path, FileAccessMode mode)
     {
-        auto file = std::make_unique<FileWin>(path);
-        if (file->Open(mode))
-            return file;
+        // Create raw object
+        auto* raw = new FileWin(path);
 
-        return nullptr;
+        // Try opening
+        if (!raw->Open(mode))
+        {
+            delete raw;
+            return FileUnique(XG_EMPTY_UNIQUE_HANDLE());
+        }
+
+        // Wrap into ABI-stable unique handle
+        return FileUnique(MakeFileWinUniqueHandle(raw));
     }
 }

@@ -202,11 +202,11 @@ namespace xg
     {
         delete static_cast<MemoryStream*>(ptr);
     }
-
-    xgUnique<MemoryStreamBase> CreateMemoryStream(uint64_t capacity)
+    XG_DECLARE_UNIQUE_TYPE(MemoryStream)
+    MemoryStreamBaseUnique CreateMemoryStream(uint64_t capacity)
     {
-        return xgUnique<MemoryStreamBase>(
-            xgUniqueHandle{ new MemoryStream((size_t)capacity), &DeleteMemoryStream }
+        return MemoryStreamBaseUnique(
+            xgUniqueHandle{ MakeMemoryStreamUniqueHandle(new MemoryStream()) }
         );
     }
 }

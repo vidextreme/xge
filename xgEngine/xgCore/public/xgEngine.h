@@ -1,6 +1,6 @@
 #pragma once
 
-#include "xgBase.h"
+#include "xgHandles.h"
 #include "xgWindow.h"
 #include "xgRenderer.h"
 #include "xgScriptEngine.h"
@@ -9,7 +9,6 @@
 #include "xgEventDispatcher.h"
 #include "xgLog.h"
 #include "xgEngineDef.h"
-#include "xgHandles.h"
 namespace xg
 {
     class ScriptModule;
@@ -38,8 +37,8 @@ namespace xg
         ScriptModule* GetScriptModule(const char* id) override;
         void RemoveScriptModule(const char* id) override;
 
-        Renderer* Renderer = nullptr;
-        std::unique_ptr<Window> MainWindow;
+        RendererUnique Renderer;
+        WindowUnique MainWindow;
 
         EventDispatcher* GetDispatcher() override { return &_dispatcher; }
         EventQueue* GetQueue() override { return &_queue; }

@@ -1,6 +1,5 @@
 #pragma once
-#include "xgBase.h"
-#include <memory>
+#include "xgHandles.h"
 
 namespace xg {
 
@@ -33,6 +32,7 @@ namespace xg {
     };
 
     // Factory implemented in xgPlatform
-    XG_API std::unique_ptr<Window> NewWindow(const char* title, int width, int height);
+    XG_DECLARE_UNIQUE(Window)
+    XG_API WindowUnique NewWindow(const char* title, int width, int height);
 
 } // namespace xg

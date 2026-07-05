@@ -3,8 +3,9 @@
 
 namespace xg {
 
-    XG_API std::unique_ptr<Window> NewWindow(const char* title, int width, int height) {
-        return std::make_unique<WindowSDL>(title, width, height);
+    XG_DECLARE_UNIQUE_TYPE(WindowSDL)
+    XG_API WindowUnique NewWindow(const char* title, int width, int height) {
+        return WindowUnique(MakeWindowSDLUniqueHandle(new WindowSDL(title, width, height)));
     }
 
 } // namespace xg

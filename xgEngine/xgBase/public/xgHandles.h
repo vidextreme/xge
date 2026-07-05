@@ -80,6 +80,8 @@ namespace xg
                 _handle.ptr = nullptr;
             }
         }
+        XG_FORCEINLINE bool valid() const { return _handle.ptr != nullptr; }
+        XG_FORCEINLINE explicit operator bool() const { return valid(); }
 
     private:
         xgUniqueHandle _handle;
@@ -156,6 +158,9 @@ namespace xg
             }
         }
 
+        XG_FORCEINLINE bool valid() const { return _handle.ptr != nullptr; }
+        XG_FORCEINLINE explicit operator bool() const { return valid(); }
+
     private:
         xgRefHandle _handle;
     };
@@ -228,10 +233,17 @@ namespace xg
 
     //
     // ------------------------------------------------------------
-    // TYPE-SAFE WRAPPER MACROS
+    // EMPTY HANDLE HELPERS
     // ------------------------------------------------------------
-    //
+#define XG_EMPTY_UNIQUE_HANDLE() xg::xgUniqueHandle{ nullptr, nullptr }
+#define XG_EMPTY_REF_HANDLE()    xg::xgRefHandle{ nullptr, nullptr, nullptr }
+#define XG_EMPTY_WEAK_HANDLE()   xg::xgWeakHandle{ nullptr, nullptr, nullptr }
 
+
+//
+// ------------------------------------------------------------
+// TYPE-SAFE WRAPPER SHORTCUTS
+// ------------------------------------------------------------
 #define XG_DECLARE_UNIQUE(T) using T##Unique = ::xg::xgUnique<T>;
 #define XG_DECLARE_REF(T)    using T##Ref    = ::xg::xgRef<T>;
 #define XG_DECLARE_WEAK(T)   using T##Weak   = ::xg::xgWeak<T>;
@@ -239,42 +251,74 @@ namespace xg
 
 //
 // ------------------------------------------------------------
-// REFCOUNTED CLASS SUPPORT MACRO
+// UNIQUE HANDLE TYPE DECLARATION
 // ------------------------------------------------------------
-//
+#define XG_DECLARE_UNIQUE_TYPE(T)                                      \
+    extern "C" XG_MODULE_EXPORT void T##Destroy(void* p)               \
+    { if (p) delete static_cast<T*>(p); }                              \
+                                                                       \
+    XG_FORCEINLINE xg::xgUniqueHandle Make##T##UniqueHandle(T* p)      \
+    {                                                                  \
+        return p ? xg::xgUniqueHandle{ p, &T##Destroy }                \
+                 : XG_EMPTY_UNIQUE_HANDLE();                           \
+    }                                                                  \
+                                                                       \
+    using T##Unique = xg::xgUnique<T>;
 
-#define XG_DECLARE_REFCOUNTED_TYPE(T)                                      \
-    XG_MODULE_EXPORT void T##AddRef(void* p)                               \
-    { if (p) static_cast<T*>(p)->AddRef(); }                               \
-                                                                           \
-    XG_MODULE_EXPORT void T##Release(void* p)                              \
-    { if (p) static_cast<T*>(p)->Release(); }                              \
-                                                                           \
-    XG_FORCEINLINE xg::xgRefHandle Make##T##RefHandle(T* p)                \
-    {                                                                      \
-        if (!p) return xg::xgRefHandle{nullptr, nullptr, nullptr};         \
-        return xg::xgRefHandle{ p, &T##AddRef, &T##Release };              \
-    }                                                                      \
-                                                                           \
+
+//
+// ------------------------------------------------------------
+// REFCOUNTED HANDLE TYPE DECLARATION
+// ------------------------------------------------------------
+#define XG_DECLARE_REFCOUNTED_TYPE(T)                                  \
+    extern "C" XG_MODULE_EXPORT void T##AddRef(void* p)                \
+    { if (p) static_cast<T*>(p)->AddRef(); }                           \
+                                                                       \
+    extern "C" XG_MODULE_EXPORT void T##Release(void* p)               \
+    { if (p) static_cast<T*>(p)->Release(); }                          \
+                                                                       \
+    XG_FORCEINLINE xg::xgRefHandle Make##T##RefHandle(T* p)            \
+    {                                                                  \
+        return p ? xg::xgRefHandle{ p, &T##AddRef, &T##Release }       \
+                 : XG_EMPTY_REF_HANDLE();                              \
+    }                                                                  \
+                                                                       \
     using T##Ref = xg::xgRef<T>;
 
 
 //
 // ------------------------------------------------------------
-// STL-FREE FACTORY WRAPPER MACROS (0–4 parameters)
+// STL-FREE FACTORY WRAPPERS (0–4 parameters)
 // ------------------------------------------------------------
-//
+#define XG_WRAP_UNIQUE_FACTORY0(T, fn) \
+    T##Unique Create##T() { return T##Unique(fn()); }
 
-#define XG_WRAP_UNIQUE_FACTORY0(T, fn) T##Unique Create##T() { return T##Unique(fn()); }
-#define XG_WRAP_UNIQUE_FACTORY1(T, fn, A1) T##Unique Create##T(A1 a1) { return T##Unique(fn(a1)); }
-#define XG_WRAP_UNIQUE_FACTORY2(T, fn, A1, A2) T##Unique Create##T(A1 a1, A2 a2) { return T##Unique(fn(a1, a2)); }
-#define XG_WRAP_UNIQUE_FACTORY3(T, fn, A1, A2, A3) T##Unique Create##T(A1 a1, A2 a2, A3 a3) { return T##Unique(fn(a1, a2, a3)); }
-#define XG_WRAP_UNIQUE_FACTORY4(T, fn, A1, A2, A3, A4) T##Unique Create##T(A1 a1, A2 a2, A3 a3, A4 a4) { return T##Unique(fn(a1, a2, a3, a4)); }
+#define XG_WRAP_UNIQUE_FACTORY1(T, fn, A1) \
+    T##Unique Create##T(A1 a1) { return T##Unique(fn(a1)); }
 
-#define XG_WRAP_REF_FACTORY0(T, fn) T##Ref Load##T() { return T##Ref(fn()); }
-#define XG_WRAP_REF_FACTORY1(T, fn, A1) T##Ref Load##T(A1 a1) { return T##Ref(fn(a1)); }
-#define XG_WRAP_REF_FACTORY2(T, fn, A1, A2) T##Ref Load##T(A1 a1, A2 a2) { return T##Ref(fn(a1, a2)); }
-#define XG_WRAP_REF_FACTORY3(T, fn, A1, A2, A3) T##Ref Load##T(A1 a1, A2 a2, A3 a3) { return T##Ref(fn(a1, a2, a3)); }
-#define XG_WRAP_REF_FACTORY4(T, fn, A1, A2, A3, A4) T##Ref Load##T(A1 a1, A2 a2, A3 a3, A4 a4) { return T##Ref(fn(a1, a2, a3, a4)); }
+#define XG_WRAP_UNIQUE_FACTORY2(T, fn, A1, A2) \
+    T##Unique Create##T(A1 a1, A2 a2) { return T##Unique(fn(a1, a2)); }
 
-} // namespace xg
+#define XG_WRAP_UNIQUE_FACTORY3(T, fn, A1, A2, A3) \
+    T##Unique Create##T(A1 a1, A2 a2, A3 a3) { return T##Unique(fn(a1, a2, a3)); }
+
+#define XG_WRAP_UNIQUE_FACTORY4(T, fn, A1, A2, A3, A4) \
+    T##Unique Create##T(A1 a1, A2 a2, A3 a3, A4 a4) { return T##Unique(fn(a1, a2, a3, a4)); }
+
+
+#define XG_WRAP_REF_FACTORY0(T, fn) \
+    T##Ref Load##T() { return T##Ref(fn()); }
+
+#define XG_WRAP_REF_FACTORY1(T, fn, A1) \
+    T##Ref Load##T(A1 a1) { return T##Ref(fn(a1)); }
+
+#define XG_WRAP_REF_FACTORY2(T, fn, A1, A2) \
+    T##Ref Load##T(A1 a1, A2 a2) { return T##Ref(fn(a1, a2)); }
+
+#define XG_WRAP_REF_FACTORY3(T, fn, A1, A2, A3) \
+    T##Ref Load##T(A1 a1, A2 a2, A3 a3) { return T##Ref(fn(a1, a2, a3)); }
+
+#define XG_WRAP_REF_FACTORY4(T, fn, A1, A2, A3, A4) \
+    T##Ref Load##T(A1 a1, A2 a2, A3 a3, A4 a4) { return T##Ref(fn(a1, a2, a3, a4)); }
+
+}//namespace xg
