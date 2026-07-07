@@ -58,13 +58,13 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgUtility;Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>SDL3.lib;xgBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
@@ -82,13 +82,13 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgUtility;Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>SDL3.lib;xgBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
@@ -142,6 +142,17 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\xgBase\xgBase.vcxproj">
+      <Project>{caa21a27-7e4b-45ca-8915-bf017af8f3af}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\xgEditorKit\xgEditorKit.vcxproj">
+      <Project>{892b1e84-d1ce-4bda-b38b-0e7ed2cf0788}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\xgSharedKit\xgSharedKit.vcxproj">
+      <Project>{ff6863ef-79f9-4b98-ab14-b0a5453c5c1a}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
