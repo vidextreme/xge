@@ -1,40 +1,53 @@
 #include "pch.h"
-#include "xgCodecRegistry.h"
 #include "ScriptHostCoreCLR.h"
 #include "ScriptModuleCoreCLR.h"
+#include "xgScriptEngine.h"
+#include "xgCodecRegistry.h"
 #include "xgModules.h"
-#include <filesystem>
+
 #include <string>
+#include <filesystem>
+#include <windows.h>
 
 namespace
 {
-    std::string DirOf(const std::string& p)
-    {
-        size_t pos = p.find_last_of("/\\");
-        return (pos == std::string::npos) ? "." : p.substr(0, pos);
-    }
-
-    std::string BuildTpaList(const std::string& runtimePath)
-    {
-        std::string tpa;
-        for (auto& file : std::filesystem::recursive_directory_iterator(runtimePath))
-        {
-            if (file.path().extension() == ".dll")
-            {
-                tpa += file.path().string();
-                tpa += ';';
-            }
-        }
-        return tpa;
-    }
-
     std::string GetFullPath(const char* path)
     {
         char buffer[MAX_PATH];
         DWORD len = GetFullPathNameA(path, MAX_PATH, buffer, nullptr);
-        if (len == 0 || len >= MAX_PATH)
-            return std::string(path);
-        return std::string(buffer);
+        return (len == 0 || len >= MAX_PATH) ? std::string(path) : std::string(buffer);
+    }
+
+    std::wstring ToWide(const std::string& s)
+    {
+        if (s.empty())
+            return std::wstring();
+
+        int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+        if (len <= 0)
+            return std::wstring();
+
+        std::wstring w(len - 1, L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], len);
+        return w;
+    }
+
+    LONG CALLBACK CoreClrVectoredHandler(PEXCEPTION_POINTERS ep)
+    {
+        wchar_t buf[256];
+        swprintf_s(buf, L"[VEH] CLR exception code=0x%08X\n", ep->ExceptionRecord->ExceptionCode);
+        OutputDebugStringW(buf);
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+
+    // coreclr_delegates.h uses char_t; on Windows that’s wchar_t/unsigned short.
+    const char_t* ToCharT(const std::wstring& w)
+    {
+#if defined(_WIN32)
+        return reinterpret_cast<const char_t*>(w.c_str());
+#else
+        return reinterpret_cast<const char_t*>(w.c_str());
+#endif
     }
 }
 
@@ -42,30 +55,81 @@ namespace xg
 {
     ScriptHostCoreCLR::ScriptHostCoreCLR(ScriptEngine* engine)
         : _engine(engine)
-    {
-        // Get the shared registry for the CoreCLR backend
-        CodecRegistry* registry =
-            _engine->GetCodecRegistry(ScriptBackendType::CoreCLR);
-
-        // Register managed codecs
-        /*registry->RegisterEncoder("EngineConfig", PayloadMode::JSON, Encode_EngineConfig_Managed_JSON);
-        registry->RegisterDecoder("EngineConfig", PayloadMode::JSON, Decode_EngineConfig_Managed_JSON);
-
-        registry->RegisterEncoder("EngineConfig", PayloadMode::BINARY, Encode_EngineConfig_Managed_Binary);
-        registry->RegisterDecoder("EngineConfig", PayloadMode::BINARY, Decode_EngineConfig_Managed_Binary);*/
-    }
+    {}
 
     ScriptHostCoreCLR::~ScriptHostCoreCLR()
     {
         ShutdownRuntime();
     }
 
-    ScriptModule* ScriptHostCoreCLR::LoadModule(const char* id, const char* path, const char* group)
+    bool ScriptHostCoreCLR::InitializeRuntime(const char* engineRoot)
     {
-        // Working directory is gameroot/bin, path is likely "Editor.CoreCLR.dll"
-        std::string dllPath = GetFullPath(path);   // ...\gameroot\bin\Editor.CoreCLR.dll
-        std::string binDir = DirOf(dllPath);      // ...\gameroot\bin
-        std::string rootDir = DirOf(binDir);       // ...\gameroot
+        std::string root(engineRoot ? engineRoot : "");
+        std::string hostfxrPath = root + "\\coreclr\\host\\fxr\\10.0.8\\hostfxr.dll";
+        std::string runtimeCfg = root + "\\bin\\xgEditor.CoreCLR.runtimeconfig.json";
+
+        _hostfxrLib = xg::LoadModule(hostfxrPath.c_str());
+        if (!_hostfxrLib)
+        {
+            //OutputDebugStringA("Failed to load hostfxr.dll\n");
+            xg::Log(MessageType::Error, "Failed to load hostfxe.dll [%s]", hostfxrPath.c_str());
+            return false;
+        }
+
+        _hostfxrInitializeForRuntimeConfig =
+            (hostfxr_initialize_for_runtime_config_fn)xg::GetSymbol(_hostfxrLib, "hostfxr_initialize_for_runtime_config");
+        _hostfxrGetRuntimeDelegate =
+            (hostfxr_get_runtime_delegate_fn)xg::GetSymbol(_hostfxrLib, "hostfxr_get_runtime_delegate");
+        _hostfxrClose =
+            (hostfxr_close_fn)xg::GetSymbol(_hostfxrLib, "hostfxr_close");
+
+        if (!_hostfxrInitializeForRuntimeConfig ||
+            !_hostfxrGetRuntimeDelegate ||
+            !_hostfxrClose)
+        {
+            OutputDebugStringA("Failed to resolve hostfxr exports\n");
+            return false;
+        }
+
+        std::wstring runtimeCfgW = ToWide(runtimeCfg);
+        hostfxr_handle ctx = nullptr;
+
+        int rc = _hostfxrInitializeForRuntimeConfig(runtimeCfgW.c_str(), nullptr, &ctx);
+        wchar_t buf[256];
+        swprintf_s(buf, L"hostfxr_initialize_for_runtime_config rc=0x%08X ctx=%p\n", rc, ctx);
+        OutputDebugStringW(buf);
+
+        if (rc != 0 || ctx == nullptr)
+            return false;
+
+        _fxrHandle = ctx;
+
+        void* loadFn = nullptr;
+
+        rc = _hostfxrGetRuntimeDelegate(
+            _fxrHandle,
+            hdt_load_assembly_and_get_function_pointer,
+            &loadFn);
+
+        swprintf_s(buf, L"hostfxr_get_runtime_delegate rc=0x%08X ptr=%p\n", rc, loadFn);
+        OutputDebugStringW(buf);
+
+        if (rc != 0 || loadFn == nullptr)
+            return false;
+
+        _loadAssemblyAndGetFn = (load_assembly_and_get_function_pointer_fn)loadFn;
+        _initialized = true;
+        return true;
+    }
+
+    ScriptModule* ScriptHostCoreCLR::LoadModule(const char* id,
+        const char* path,
+        const char* group)
+    {
+        std::string dllPath = GetFullPath(path);
+        std::filesystem::path dll(dllPath);
+        std::string binDir = dll.parent_path().string();
+        std::string rootDir = std::filesystem::path(binDir).parent_path().string();
 
         if (!_initialized)
         {
@@ -79,108 +143,72 @@ namespace xg
             delete module;
             return nullptr;
         }
+
         XG_ADDREF(this);
         return module;
     }
 
-    bool ScriptHostCoreCLR::InitializeRuntime(const char* engineRoot)
-    {
-        if (_initialized)
-            return true;
-
-        // engineRoot = ...\gameroot
-        std::string runtimePath = std::string(engineRoot) + "\\coreclr"; // ...\gameroot\coreclr
-        std::string scriptsPath = std::string(engineRoot) + "\\bin";     // ...\gameroot\bin
-        std::string tpaList = BuildTpaList(runtimePath);
-
-        std::string coreclrPath = runtimePath + "\\coreclr.dll";
-        ModuleHandle coreclr = xg::LoadModule(coreclrPath.c_str());
-        if (!coreclr)
-            return false;
-
-        _coreclrLib = coreclr;
-
-        _coreclrInitialize = (coreclr_initialize_fn)
-            GetSymbol(coreclr, "coreclr_initialize");
-        _coreclrCreateDelegate = (coreclr_create_delegate_fn)
-            GetSymbol(coreclr, "coreclr_create_delegate");
-        _coreclrShutdown = (coreclr_shutdown_fn)
-            GetSymbol(coreclr, "coreclr_shutdown");
-
-        if (!_coreclrInitialize || !_coreclrCreateDelegate || !_coreclrShutdown)
-            return false;
-
-        const char* propertyKeys[] = {
-            "TRUSTED_PLATFORM_ASSEMBLIES",
-            "APP_PATHS",
-            "APP_NI_PATHS"
-        };
-
-        const char* propertyValues[] = {
-            tpaList.c_str(),
-            scriptsPath.c_str(),
-            scriptsPath.c_str()
-        };
-
-        void* hostHandle = nullptr;
-        unsigned int domainId = 0;
-
-        int hr = _coreclrInitialize(
-            engineRoot,          // base path
-            "xgEngineDomain",
-            3,
-            propertyKeys,
-            propertyValues,
-            &hostHandle,
-            &domainId);
-
-        if (hr < 0)
-            return false;
-
-        _hostHandle = hostHandle;
-        _domainId = domainId;
-        _initialized = true;
-        return true;
-    }
-
-    bool ScriptHostCoreCLR::GetEntryPoints(
-        const char* assemblyName,
+    bool ScriptHostCoreCLR::GetEntryPoints(const char* assemblyName,
         const char* typeName,
         void** initFn,
         void** updateFn,
         void** shutdownFn)
     {
-        if (!_coreclrCreateDelegate || !_hostHandle)
+        if (!_initialized || !_loadAssemblyAndGetFn)
             return false;
 
-        int hr = 0;
+        std::string asmPath = GetFullPath(assemblyName) + ".dll";
+        std::wstring asmPathW = ToWide(asmPath);
+        //std::wstring typeNameW = ToWide(typeName ? typeName : "");
 
-        if (initFn)
-        {
-            hr = _coreclrCreateDelegate(
-                _hostHandle, _domainId,
-                assemblyName, typeName, "Init",
-                initFn);
-            if (hr < 0) return false;
-        }
+        OutputDebugStringA(("Resolved ASM path: " + asmPath + "\n").c_str());
+        OutputDebugStringA(("Resolved TYPE name: " + std::string(typeName ? typeName : "") + "\n").c_str());
 
-        if (updateFn)
-        {
-            hr = _coreclrCreateDelegate(
-                _hostHandle, _domainId,
-                assemblyName, typeName, "Update",
-                updateFn);
-            if (hr < 0) return false;
-        }
+        const char_t* asmPathT = ToCharT(asmPathW);
+        //const char_t* typeNameT = ToCharT(typeNameW);
 
-        if (shutdownFn)
-        {
-            hr = _coreclrCreateDelegate(
-                _hostHandle, _domainId,
-                assemblyName, typeName, "Shutdown",
-                shutdownFn);
-            if (hr < 0) return false;
-        }
+        std::wstring typeNameW = ToWide("xgEditor.CoreCLR.ScriptEntry, xgEditor.CoreCLR");
+        const char_t* typeNameT = ToCharT(typeNameW);
+
+
+        auto resolve = [&](const wchar_t* methodW, void** outPtr)
+            {
+                if (!outPtr)
+                    return true;
+
+                std::wstring methodWide(methodW);
+                const char_t* methodT = ToCharT(methodWide);
+
+                void* raw = nullptr;
+                int rc = -1;
+
+                PVOID veh = AddVectoredExceptionHandler(1, CoreClrVectoredHandler);
+
+                rc = _loadAssemblyAndGetFn(
+                    asmPathT,
+                    typeNameT,
+                    methodT,
+                    UNMANAGEDCALLERSONLY_METHOD, // matches [UnmanagedCallersOnly]
+                    nullptr,
+                    &raw);
+
+                if (veh)
+                    RemoveVectoredExceptionHandler(veh);
+
+                wchar_t buf[256];
+                swprintf_s(buf, L"load_assembly_and_get_function_pointer %s rc=0x%08X ptr=%p\n", methodW, rc, raw);
+                OutputDebugStringW(buf);
+
+                if (rc != 0 || raw == nullptr)
+                    return false;
+
+                *outPtr = raw;
+                return true;
+            };
+
+        if (!resolve(L"Init", initFn)) return false;
+        if (!resolve(L"Update", updateFn)) return false;
+        if (!resolve(L"Shutdown", shutdownFn)) return false;
 
         return true;
     }
@@ -200,34 +228,38 @@ namespace xg
         return _engine->GetPayloadMode();
     }
 
-    bool ScriptHostCoreCLR::Encode(const void* object, const TypeSchema* schema, ScriptMessage& outMessage)
+    bool ScriptHostCoreCLR::Encode(const void*,
+        const TypeSchema*,
+        ScriptMessage&)
     {
         return false;
     }
 
-    bool ScriptHostCoreCLR::Decode(const ScriptMessage& message, const TypeSchema* schema, void* outObject)
+    bool ScriptHostCoreCLR::Decode(const ScriptMessage&,
+        const TypeSchema*,
+        void*)
     {
         return false;
     }
 
     void ScriptHostCoreCLR::ShutdownRuntime()
     {
-        if (_coreclrShutdown && _hostHandle)
+        if (_fxrHandle && _hostfxrClose)
         {
-            _coreclrShutdown(_hostHandle, _domainId);
-            _hostHandle = nullptr;
-            _domainId = 0;
+            _hostfxrClose(_fxrHandle);
+            _fxrHandle = nullptr;
         }
 
-        if (_coreclrLib)
+        if (_hostfxrLib)
         {
-            UnloadModule(_coreclrLib);
-            _coreclrLib = nullptr;
+            xg::UnloadModule(_hostfxrLib);
+            _hostfxrLib = nullptr;
         }
 
-        _coreclrInitialize = nullptr;
-        _coreclrCreateDelegate = nullptr;
-        _coreclrShutdown = nullptr;
+        _hostfxrInitializeForRuntimeConfig = nullptr;
+        _hostfxrGetRuntimeDelegate = nullptr;
+        _hostfxrClose = nullptr;
+        _loadAssemblyAndGetFn = nullptr;
         _initialized = false;
     }
 }

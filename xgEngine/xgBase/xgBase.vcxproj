@@ -65,6 +65,9 @@
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PreBuildEvent>
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)." "$(ProjectDir)Generated" "$(SolutionDir)xgSharedKit.Managed\Generated"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -84,6 +87,9 @@
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PreBuildEvent>
+      <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)." "$(ProjectDir)Generated" "$(SolutionDir)xgSharedKit.Managed\Generated"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
@@ -99,6 +105,7 @@
     <ClInclude Include="public\xgEventQueue.h" />
     <ClInclude Include="public\xgHandles.h" />
     <ClInclude Include="public\xgJson.h" />
+    <ClInclude Include="public\xgLog.h" />
     <ClInclude Include="public\xgMemoryStream.h" />
     <ClInclude Include="public\xgPathUtils.h" />
     <ClInclude Include="public\xgRoute.h" />
@@ -119,6 +126,7 @@
     <ClCompile Include="xgEventDispatcher.cpp" />
     <ClCompile Include="xgEventQueue.cpp" />
     <ClCompile Include="xgJson.cpp" />
+    <ClCompile Include="xgLog.cpp" />
     <ClCompile Include="xgMemoryStream.cpp" />
     <ClCompile Include="xgPathUtils.cpp" />
     <ClCompile Include="xgRoute.cpp" />

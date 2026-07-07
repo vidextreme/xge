@@ -6,7 +6,7 @@ namespace xgEditor.CoreCLR
 {
     public static class ScriptEntry
     {
-        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        [UnmanagedCallersOnly(EntryPoint = "Script_Init", CallConvs = new[] { typeof(CallConvCdecl) })]
         public static int Init(nint enginePtr)
         {
             ScriptEngine.Initialize(enginePtr);
