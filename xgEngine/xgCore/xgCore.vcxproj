@@ -109,7 +109,6 @@
     <ClInclude Include="public\xgEngine.h" />
     <ClInclude Include="public\xgEngineDef.h" />
     <ClInclude Include="public\xgListenerBinding.h" />
-    <ClInclude Include="public\xgLog.h" />
     <ClInclude Include="public\xgMemberCallback.h" />
     <ClInclude Include="public\xgMessenger.h" />
     <ClInclude Include="public\xgModules.h" />
@@ -123,7 +122,6 @@
     <ClCompile Include="DispatchSystem.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="xgEngine.cpp" />
-    <ClCompile Include="xgLog.cpp" />
     <ClCompile Include="xgModules.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

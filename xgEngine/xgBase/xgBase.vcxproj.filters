@@ -77,6 +77,9 @@
     <ClInclude Include="public\xgDynamicObject.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgLog.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -113,6 +116,9 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgDynamicObject.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgLog.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>
