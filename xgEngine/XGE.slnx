@@ -7,12 +7,10 @@
     <Project Path="xgBase/xgBase.vcxproj" Id="caa21a27-7e4b-45ca-8915-bf017af8f3af">
       <BuildDependency Project="tools/xgReflectGen/xgReflectGen.csproj" />
     </Project>
-    <Project Path="xgCommon/xgCommon.csproj" Id="72826a27-103a-41da-8ffb-0f8092768014" />
     <Project Path="xgCore/xgCore.vcxproj" Id="eebfc737-b3c1-4075-b6f8-e3262dea651f">
       <BuildDependency Project="xgBase/xgBase.vcxproj" />
     </Project>
     <Project Path="xge/xge.vcxproj" Id="595d3fa6-8693-4e85-897a-fa3f0ca16c6b">
-      <BuildDependency Project="Editor.CoreCLR/Editor.CoreCLR.csproj" />
       <BuildDependency Project="xgBase/xgBase.vcxproj" />
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
       <BuildDependency Project="xgEditorKernel/xgEditorKernel.vcxproj" />
@@ -27,23 +25,24 @@
     </Project>
     <Project Path="xgUtility/xgUtility.vcxproj" Id="f7226bfd-67ad-4c0f-adbb-a2f04c2a100a" />
   </Folder>
+  <Folder Name="/engine/kits/">
+    <Project Path="xgEditorKit/xgEditorKit.vcxproj" Id="892b1e84-d1ce-4bda-b38b-0e7ed2cf0788" />
+    <Project Path="xgSharedKit.Managed/xgSharedKit.Managed.csproj" />
+    <Project Path="xgSharedKit/xgSharedKit.vcxproj" Id="ff6863ef-79f9-4b98-ab14-b0a5453c5c1a" />
+  </Folder>
   <Folder Name="/engine/script_hosts/">
-    <Project Path="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" Id="0f12b426-13da-459a-961e-eff3a418ec39">
-      <BuildDependency Project="xgCommon/xgCommon.csproj" />
-    </Project>
+    <Project Path="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" Id="0f12b426-13da-459a-961e-eff3a418ec39" />
     <Project Path="xgScriptNative/xgScriptNative.vcxproj" Id="0bb1267a-a6a3-4cba-947f-1ec1a8deb7b1">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
     </Project>
   </Folder>
   <Folder Name="/script_modules/">
-    <Project Path="Editor.CoreCLR/Editor.CoreCLR.csproj" Id="e40dbddf-0bd5-4ed3-93e6-f7d0528a079b">
-      <BuildDependency Project="xgCore/xgCore.vcxproj" />
-      <BuildDependency Project="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" />
-    </Project>
+    <Project Path="xgEditor.CoreCLR/xgEditor.CoreCLR.csproj" />
     <Project Path="xgEditorKernel/xgEditorKernel.vcxproj" Id="0231732b-4c48-4af7-ab6a-3ca3fb926ecb">
-      <BuildDependency Project="xgCommon/xgCommon.csproj" />
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
+      <BuildDependency Project="xgEditorKit/xgEditorKit.vcxproj" />
       <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
+      <BuildDependency Project="xgSharedKit/xgSharedKit.vcxproj" />
     </Project>
   </Folder>
   <Folder Name="/tools/">

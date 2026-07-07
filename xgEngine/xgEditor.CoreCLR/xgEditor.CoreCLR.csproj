@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\xgCommon\xgCommon.csproj" />
+    <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
   </ItemGroup>
 
 </Project>
