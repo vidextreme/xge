@@ -20,7 +20,17 @@ namespace xg
 
         void OnMessage(const ScriptMessage& msg) override;
     private:
+        bool LoadEntryPoints(const char* assemblyName,
+            const char* typeName,
+            const wchar_t* entryPointName,
+            void** func);
         ScriptHostCoreCLR* _coreclrHost = nullptr;   // typed host
+
+        // hostfxr runtime context
+        hostfxr_handle _fxrHandle = nullptr;
+
+        // load_assembly_and_get_function_pointer delegate (stdcall, char_t*)
+        load_assembly_and_get_function_pointer_fn _loadAssemblyAndGetFn = nullptr;
 
         void* _managedInit = nullptr;
         void* _managedUpdate = nullptr;

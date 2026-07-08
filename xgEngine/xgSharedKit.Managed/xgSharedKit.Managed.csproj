@@ -34,7 +34,17 @@
 
   <!-- Optional: keep folder visible in Solution Explorer -->
   <ItemGroup>
-    <Folder Include="Generated\" />
+    <Folder Include="Generated\">
+      <ExcludeFromClean>true</ExcludeFromClean>
+    </Folder>
   </ItemGroup>
+
+  <Target Name="CleanGeneratedFiles" BeforeTargets="CoreClean">
+    <ItemGroup>
+      <FilesToClean Include="Generated\*.generated.cs" />
+    </ItemGroup>
+    <Delete Files="@(FilesToClean)" ContinueOnError="true" />
+    <Message Text="XGE: Deleted generated files before CoreClean." Importance="high" />
+  </Target>
 
 </Project>
