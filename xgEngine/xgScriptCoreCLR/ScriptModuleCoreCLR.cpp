@@ -123,9 +123,9 @@ namespace xg
 
         std::string typeName = assemblyName + ".ScriptEntry";
 
-        if(!LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Init", &_managedInit)
-            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Update", &_managedUpdate)
-            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Shutdown", &_managedShutdown))
+        if(!LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Init", (void**)& _managedInit)
+            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Update", (void**)& _managedUpdate)
+            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Shutdown", (void**)& _managedShutdown))
         {
             return false;
         }

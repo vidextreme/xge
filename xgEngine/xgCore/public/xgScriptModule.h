@@ -10,6 +10,11 @@ namespace xg
     class ScriptEngine;   // forward declare
     class ScriptHost;
 
+	//standard function pointers for ScriptModule entry points
+    using InitFunc = bool (*)(ScriptEngine*);
+    using UpdateFunc = void (*)(float);
+    using ShutdownFunc = void (*)();
+
     class ScriptModule
     {
     public:
