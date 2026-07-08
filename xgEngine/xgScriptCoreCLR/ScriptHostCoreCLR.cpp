@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <windows.h>
 
+#define XG_CORECLR_HOSTFXR_PATH "\\coreclr\\host\\fxr\\10.0.8\\hostfxr.dll"
+
 namespace
 {
     std::string GetFullPath(const char* path)
@@ -31,17 +33,6 @@ namespace
         MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], len);
         return w;
     }
-
-    LONG CALLBACK CoreClrVectoredHandler(PEXCEPTION_POINTERS ep)
-    {
-        wchar_t buf[256];
-        swprintf_s(buf, L"[VEH] CLR exception code=0x%08X\n", ep->ExceptionRecord->ExceptionCode);
-        OutputDebugStringW(buf);
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-
-    // coreclr_delegates.h uses char_t; on Windows that’s wchar_t/unsigned short.
-
 }
 
 namespace xg
@@ -63,7 +54,7 @@ namespace xg
         hostfxr_close_fn& close)
     {
         std::string root(engineRoot ? engineRoot : "");
-        std::string hostfxrPath = root + "\\coreclr\\host\\fxr\\10.0.8\\hostfxr.dll";
+        std::string hostfxrPath = root + XG_CORECLR_HOSTFXR_PATH;
 
         hostfxrLib = xg::LoadModule(hostfxrPath.c_str());
         if (!hostfxrLib)
