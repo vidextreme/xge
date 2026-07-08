@@ -6,6 +6,9 @@
 #include "xgCodecRegistry.h"
 #include "xgCodecJson.h"
 #include "xgCodecBinary.h"
+
+#define XG_SCRIPTENTRY_TYPE "ScriptEntry"
+
 namespace xg
 {
     std::string GetFullPath(const char* path)
@@ -99,12 +102,15 @@ namespace xg
         std::string runtimeCfg = assemblyName + ".runtimeconfig.json";
         hostfxr_handle ctx = nullptr;
 		std::wstring runtimeCfgW = ToWide(runtimeCfg);
-        int rc = _coreclrHost->GetInitializeRuntimeConfigFunc()(runtimeCfgW.c_str(), nullptr, &ctx);
         xg::Log(MessageType::Info, "hostfxr Initialize for runtime config [%s]", runtimeCfg.c_str());
 
+        int rc = _coreclrHost->GetInitializeRuntimeConfigFunc()(runtimeCfgW.c_str(), nullptr, &ctx);
 
         if (rc != 0 || ctx == nullptr)
+        {
+			xg::Log(MessageType::Error, "hostfxr Initialize failed with error code: %d", rc);
             return false;
+        }
 
         _fxrHandle = ctx;
 
@@ -117,11 +123,14 @@ namespace xg
         
 
         if (rc != 0 || loadFn == nullptr)
+        {
+			xg::Log(MessageType::Error, "hostfxr GetRuntimeDelegate failed with error code: %d", rc);
             return false;
+        }
 
         _loadAssemblyAndGetFn = (load_assembly_and_get_function_pointer_fn)loadFn;
 
-        std::string typeName = assemblyName + ".ScriptEntry";
+        std::string typeName = assemblyName + "." + XG_SCRIPTENTRY_TYPE;
 
         if(!LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Init", (void**)& _managedInit)
             || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Update", (void**)& _managedUpdate)
@@ -129,15 +138,6 @@ namespace xg
         {
             return false;
         }
-        /*if (!_coreclrHost->GetEntryPoints(
-            assemblyName.c_str(),
-            typeName.c_str(),
-            &_managedInit,
-            &_managedUpdate,
-            &_managedShutdown))
-        {
-            return false;
-        }*/
 
         _valid = true;
         return true;
@@ -216,50 +216,38 @@ namespace xg
     }
     bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* typeName, const wchar_t* entryPointName, void** func)
     {
+        if (!func)return true;
+
         if (!_loadAssemblyAndGetFn)
             return false;
 
+		std::string assemblyNameStr(assemblyName);
         std::string asmPath = GetFullPath(assemblyName) + ".dll";
         std::wstring asmPathW = ToWide(asmPath);
 
-        //OutputDebugStringA(("Resolved ASM path: " + asmPath + "\n").c_str());
-        //OutputDebugStringA(("Resolved TYPE name: " + std::string(typeName ? typeName : "") + "\n").c_str());
+        const char_t* asmPathT = ToCharT(asmPathW);               
+        std::wstring typeNameW = ToWide(std::format("{}.{}, {}", assemblyNameStr, XG_SCRIPTENTRY_TYPE, assemblyNameStr));
 
-        const char_t* asmPathT = ToCharT(asmPathW);
-
-        std::wstring typeNameW = ToWide("xgEditor.CoreCLR.ScriptEntry, xgEditor.CoreCLR");
         const char_t* typeNameT = ToCharT(typeNameW);
 
+        std::wstring methodWide(entryPointName);
+        const char_t* methodT = ToCharT(methodWide);
 
-        auto resolve = [&](const wchar_t* methodW, void** outPtr)
-            {
-                if (!outPtr)
-                    return true;
+        int rc = -1;
 
-                std::wstring methodWide(methodW);
-                const char_t* methodT = ToCharT(methodWide);
+        rc = _loadAssemblyAndGetFn(
+            asmPathT,
+            typeNameT,
+            methodT,
+            UNMANAGEDCALLERSONLY_METHOD,
+            nullptr,
+            func);
 
-                void* raw = nullptr;
-                int rc = -1;
-
-                rc = _loadAssemblyAndGetFn(
-                    asmPathT,
-                    typeNameT,
-                    methodT,
-                    UNMANAGEDCALLERSONLY_METHOD, // matches [UnmanagedCallersOnly]
-                    nullptr,
-                    &raw);
-
-                //wchar_t buf[256];
-                //swprintf_s(buf, L"load_assembly_and_get_function_pointer %s rc=0x%08X ptr=%p\n", methodW, rc, raw);
-                //OutputDebugStringW(buf);
-
-                if (rc != 0 || raw == nullptr)
-                    return false;
-
-                *outPtr = raw;
-                return true;
-            };
-        return resolve(entryPointName, func);
+        if (rc != 0 || func == nullptr)
+        {
+			xg::Log(MessageType::Error, "Failed to load entry point '%ls' from assembly '%s'. Error code: %d", entryPointName, asmPath.c_str(), rc);
+            return false;
+        }
+        return true;
     }
 }

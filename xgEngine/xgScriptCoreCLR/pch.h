@@ -14,6 +14,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <format>
 
 #include "hostfxr.h"
 #include "coreclr_delegates.h"

@@ -24,7 +24,8 @@ namespace xg
             const char* typeName,
             const wchar_t* entryPointName,
             void** func);
-        ScriptHostCoreCLR* _coreclrHost = nullptr;   // typed host
+
+        ScriptHostCoreCLR* _coreclrHost = nullptr;
 
         // hostfxr runtime context
         hostfxr_handle _fxrHandle = nullptr;
