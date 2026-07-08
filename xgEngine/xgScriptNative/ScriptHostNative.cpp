@@ -7,9 +7,6 @@
 #include "xgCodecBinary.h"
 namespace xg
 {
-    using InitFunc = ScriptModuleNative::InitFunc;
-    using UpdateFunc = ScriptModuleNative::UpdateFunc;
-    using ShutdownFunc = ScriptModuleNative::ShutdownFunc;
     using ScriptModuleFunc = ScriptModuleNative::ScriptModuleFunc;
 
     bool DummyEncoder(const void* src,

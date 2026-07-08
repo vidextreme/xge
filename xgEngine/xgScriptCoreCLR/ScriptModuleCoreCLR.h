@@ -32,9 +32,9 @@ namespace xg
         // load_assembly_and_get_function_pointer delegate (stdcall, char_t*)
         load_assembly_and_get_function_pointer_fn _loadAssemblyAndGetFn = nullptr;
 
-        void* _managedInit = nullptr;
-        void* _managedUpdate = nullptr;
-        void* _managedShutdown = nullptr;
+        InitFunc _managedInit = nullptr;
+        UpdateFunc _managedUpdate = nullptr;
+        ShutdownFunc _managedShutdown = nullptr;
 
         bool _valid = false;
     };

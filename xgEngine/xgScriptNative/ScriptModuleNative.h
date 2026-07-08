@@ -18,9 +18,6 @@ namespace xg
     class ScriptModuleNative : public ScriptModule
     {
     public:
-        using InitFunc = bool (*)(ScriptEngine*);
-        using UpdateFunc = void (*)(float);
-        using ShutdownFunc = void (*)();
         using ScriptModuleFunc = ScriptModule * (*)(const char*, ScriptHost*, const char*);
 
         ScriptModuleNative(
