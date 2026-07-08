@@ -64,7 +64,7 @@ class Program
         string destNative = Path.GetFullPath(args[1]);
 
         Directory.CreateDirectory(destNative);
-        ClearGeneratedFiles(destNative);
+        //ClearGeneratedFiles(destNative);
 
         // Managed generation is optional
         bool generateManaged = args.Length >= 3;
@@ -74,7 +74,7 @@ class Program
         {
             destManaged = Path.GetFullPath(args[2]);
             Directory.CreateDirectory(destManaged);
-            ClearGeneratedFiles(destManaged);
+            //ClearGeneratedFiles(destManaged);
         }
 
         if (!Directory.Exists(sourceFolder))

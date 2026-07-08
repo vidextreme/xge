@@ -14,4 +14,8 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
+#include "hostfxr.h"
+#include "coreclr_delegates.h"
+
 #endif //PCH_H

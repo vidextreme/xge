@@ -41,14 +41,7 @@ namespace
     }
 
     // coreclr_delegates.h uses char_t; on Windows that’s wchar_t/unsigned short.
-    const char_t* ToCharT(const std::wstring& w)
-    {
-#if defined(_WIN32)
-        return reinterpret_cast<const char_t*>(w.c_str());
-#else
-        return reinterpret_cast<const char_t*>(w.c_str());
-#endif
-    }
+
 }
 
 namespace xg
@@ -62,62 +55,42 @@ namespace xg
         ShutdownRuntime();
     }
 
-    bool ScriptHostCoreCLR::InitializeRuntime(const char* engineRoot)
+
+    bool LoadAndResolveHostfxrExports(const char* engineRoot, 
+		ModuleHandle& hostfxrLib,
+        hostfxr_initialize_for_runtime_config_fn& initForConfig, 
+        hostfxr_get_runtime_delegate_fn& getRuntimeDelegate,
+        hostfxr_close_fn& close)
     {
         std::string root(engineRoot ? engineRoot : "");
         std::string hostfxrPath = root + "\\coreclr\\host\\fxr\\10.0.8\\hostfxr.dll";
-        std::string runtimeCfg = root + "\\bin\\xgEditor.CoreCLR.runtimeconfig.json";
 
-        _hostfxrLib = xg::LoadModule(hostfxrPath.c_str());
-        if (!_hostfxrLib)
+        hostfxrLib = xg::LoadModule(hostfxrPath.c_str());
+        if (!hostfxrLib)
         {
-            //OutputDebugStringA("Failed to load hostfxr.dll\n");
             xg::Log(MessageType::Error, "Failed to load hostfxe.dll [%s]", hostfxrPath.c_str());
             return false;
         }
 
-        _hostfxrInitializeForRuntimeConfig =
-            (hostfxr_initialize_for_runtime_config_fn)xg::GetSymbol(_hostfxrLib, "hostfxr_initialize_for_runtime_config");
-        _hostfxrGetRuntimeDelegate =
-            (hostfxr_get_runtime_delegate_fn)xg::GetSymbol(_hostfxrLib, "hostfxr_get_runtime_delegate");
-        _hostfxrClose =
-            (hostfxr_close_fn)xg::GetSymbol(_hostfxrLib, "hostfxr_close");
+        initForConfig = (hostfxr_initialize_for_runtime_config_fn)xg::GetSymbol(hostfxrLib, "hostfxr_initialize_for_runtime_config");
+        getRuntimeDelegate = (hostfxr_get_runtime_delegate_fn)xg::GetSymbol(hostfxrLib, "hostfxr_get_runtime_delegate");
+        close = (hostfxr_close_fn)xg::GetSymbol(hostfxrLib, "hostfxr_close");
 
-        if (!_hostfxrInitializeForRuntimeConfig ||
-            !_hostfxrGetRuntimeDelegate ||
-            !_hostfxrClose)
+        if (!initForConfig ||
+            !getRuntimeDelegate ||
+            !close)
         {
-            OutputDebugStringA("Failed to resolve hostfxr exports\n");
+            xg::Log(MessageType::Error, "Failed to resolve hostfxr exports.");
             return false;
         }
+    }
 
-        std::wstring runtimeCfgW = ToWide(runtimeCfg);
-        hostfxr_handle ctx = nullptr;
+    bool ScriptHostCoreCLR::InitializeRuntime(const char* engineRoot)
+    {
+		bool result = LoadAndResolveHostfxrExports(engineRoot, _hostfxrLib, _hostfxrInitializeForRuntimeConfig, _hostfxrGetRuntimeDelegate, _hostfxrClose);
+		if (!result)
+			return false;
 
-        int rc = _hostfxrInitializeForRuntimeConfig(runtimeCfgW.c_str(), nullptr, &ctx);
-        wchar_t buf[256];
-        swprintf_s(buf, L"hostfxr_initialize_for_runtime_config rc=0x%08X ctx=%p\n", rc, ctx);
-        OutputDebugStringW(buf);
-
-        if (rc != 0 || ctx == nullptr)
-            return false;
-
-        _fxrHandle = ctx;
-
-        void* loadFn = nullptr;
-
-        rc = _hostfxrGetRuntimeDelegate(
-            _fxrHandle,
-            hdt_load_assembly_and_get_function_pointer,
-            &loadFn);
-
-        swprintf_s(buf, L"hostfxr_get_runtime_delegate rc=0x%08X ptr=%p\n", rc, loadFn);
-        OutputDebugStringW(buf);
-
-        if (rc != 0 || loadFn == nullptr)
-            return false;
-
-        _loadAssemblyAndGetFn = (load_assembly_and_get_function_pointer_fn)loadFn;
         _initialized = true;
         return true;
     }
@@ -146,72 +119,7 @@ namespace xg
 
         XG_ADDREF(this);
         return module;
-    }
-
-    bool ScriptHostCoreCLR::GetEntryPoints(const char* assemblyName,
-        const char* typeName,
-        void** initFn,
-        void** updateFn,
-        void** shutdownFn)
-    {
-        if (!_initialized || !_loadAssemblyAndGetFn)
-            return false;
-
-        std::string asmPath = GetFullPath(assemblyName) + ".dll";
-        std::wstring asmPathW = ToWide(asmPath);
-        //std::wstring typeNameW = ToWide(typeName ? typeName : "");
-
-        OutputDebugStringA(("Resolved ASM path: " + asmPath + "\n").c_str());
-        OutputDebugStringA(("Resolved TYPE name: " + std::string(typeName ? typeName : "") + "\n").c_str());
-
-        const char_t* asmPathT = ToCharT(asmPathW);
-        //const char_t* typeNameT = ToCharT(typeNameW);
-
-        std::wstring typeNameW = ToWide("xgEditor.CoreCLR.ScriptEntry, xgEditor.CoreCLR");
-        const char_t* typeNameT = ToCharT(typeNameW);
-
-
-        auto resolve = [&](const wchar_t* methodW, void** outPtr)
-            {
-                if (!outPtr)
-                    return true;
-
-                std::wstring methodWide(methodW);
-                const char_t* methodT = ToCharT(methodWide);
-
-                void* raw = nullptr;
-                int rc = -1;
-
-                PVOID veh = AddVectoredExceptionHandler(1, CoreClrVectoredHandler);
-
-                rc = _loadAssemblyAndGetFn(
-                    asmPathT,
-                    typeNameT,
-                    methodT,
-                    UNMANAGEDCALLERSONLY_METHOD, // matches [UnmanagedCallersOnly]
-                    nullptr,
-                    &raw);
-
-                if (veh)
-                    RemoveVectoredExceptionHandler(veh);
-
-                wchar_t buf[256];
-                swprintf_s(buf, L"load_assembly_and_get_function_pointer %s rc=0x%08X ptr=%p\n", methodW, rc, raw);
-                OutputDebugStringW(buf);
-
-                if (rc != 0 || raw == nullptr)
-                    return false;
-
-                *outPtr = raw;
-                return true;
-            };
-
-        if (!resolve(L"Init", initFn)) return false;
-        if (!resolve(L"Update", updateFn)) return false;
-        if (!resolve(L"Shutdown", shutdownFn)) return false;
-
-        return true;
-    }
+    }    
 
     ScriptEngine* ScriptHostCoreCLR::GetEngine() const
     {
@@ -244,11 +152,7 @@ namespace xg
 
     void ScriptHostCoreCLR::ShutdownRuntime()
     {
-        if (_fxrHandle && _hostfxrClose)
-        {
-            _hostfxrClose(_fxrHandle);
-            _fxrHandle = nullptr;
-        }
+       
 
         if (_hostfxrLib)
         {
@@ -259,7 +163,6 @@ namespace xg
         _hostfxrInitializeForRuntimeConfig = nullptr;
         _hostfxrGetRuntimeDelegate = nullptr;
         _hostfxrClose = nullptr;
-        _loadAssemblyAndGetFn = nullptr;
         _initialized = false;
     }
 }

@@ -27,7 +27,10 @@
   </Folder>
   <Folder Name="/engine/kits/">
     <Project Path="xgEditorKit/xgEditorKit.vcxproj" Id="892b1e84-d1ce-4bda-b38b-0e7ed2cf0788" />
-    <Project Path="xgSharedKit.Managed/xgSharedKit.Managed.csproj" />
+    <Project Path="xgSharedKit.Managed/xgSharedKit.Managed.csproj">
+      <BuildDependency Project="xgBase/xgBase.vcxproj" />
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    </Project>
     <Project Path="xgSharedKit/xgSharedKit.vcxproj" Id="ff6863ef-79f9-4b98-ab14-b0a5453c5c1a" />
   </Folder>
   <Folder Name="/engine/script_hosts/">
