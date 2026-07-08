@@ -1,0 +1,23 @@
+<Project>
+  <!-- Hook exclusively into the master solution-wide Clean target wrapper -->
+  <!-- Using a condition guarantees it runs exactly ONCE on the very first project, preventing parallel race conditions -->
+  <Target Name="GlobalEngineWorkspaceClean" 
+          BeforeTargets="BeforeClean;Clean;CoreClean;CppClean;BeforeCppClean"
+          Condition="'$(XgeWorkspaceCleanExecuted)' != 'true'">
+    
+    <PropertyGroup>
+      <EngineWorkspaceRoot>$(MSBuildThisFileDirectory)</EngineWorkspaceRoot>
+      <!-- Toggle a global environment macro flag to block other parallel threads from running this script again -->
+      <XgeWorkspaceCleanExecuted>true</XgeWorkspaceCleanExecuted>
+    </PropertyGroup>
+
+    <Message Text="XGE Master Engine Sweep --&gt; Scanning workspace tree: '$(EngineWorkspaceRoot)'" 
+             Importance="high" />
+
+    <!-- POWERSHELL SWEEP: Swapped outer string wrappers to single quotes to prevent text evaluation mangling. 
+         Added -ErrorAction SilentlyContinue to Remove-Item to silently handle rapid file mutations. -->
+    <Exec Command="powershell.exe -NoProfile -Command &quot;Get-ChildItem -Path '$(EngineWorkspaceRoot)' -Recurse -Filter '*.generated.*' -ErrorAction SilentlyContinue | Where-Object { %24_.DirectoryName -match '\\Generated%24' } | ForEach-Object { Write-Output ('XGE GLOBAL WIPE --&gt; DELETED: ' + %24_.Directory.Parent.Name + '\Generated\' + %24_.Name); Remove-Item %24_.FullName -Force -ErrorAction SilentlyContinue }&quot;"
+          ContinueOnError="true" />
+             
+  </Target>
+</Project>
