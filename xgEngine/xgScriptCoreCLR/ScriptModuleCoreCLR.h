@@ -7,6 +7,7 @@ namespace xg
     {
     public:
         ScriptModuleCoreCLR(const char* id,
+            uint32_t moduleID,
             ScriptHostCoreCLR* host,
             const char* group);
 
@@ -36,6 +37,8 @@ namespace xg
         InitFunc _managedInit = nullptr;
         UpdateFunc _managedUpdate = nullptr;
         ShutdownFunc _managedShutdown = nullptr;
+        OnMessageFunc _managedOnMessageMethod = nullptr;
+
 
         bool _valid = false;
     };

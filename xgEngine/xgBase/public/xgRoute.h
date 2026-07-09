@@ -1,10 +1,12 @@
 #pragma once
 #include <cstdint>
+#include "xgBase.h"
 
 namespace xg
 {
     class ScriptModule;
 
+    XG_ENUM(inherit=byte)
     enum class RouteType : uint8_t
     {
         Direct,

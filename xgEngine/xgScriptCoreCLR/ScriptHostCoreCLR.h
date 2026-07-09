@@ -21,6 +21,7 @@ namespace xg
         ~ScriptHostCoreCLR() override;
 
         ScriptModule* LoadModule(const char* id,
+            uint32_t moduleID,
             const char* path,
             const char* group) override;
 
@@ -39,6 +40,7 @@ namespace xg
 		InitializeRuntimeConfigFunc GetInitializeRuntimeConfigFunc() const { return _hostfxrInitializeForRuntimeConfig; }
 		RuntimeDelegateFunc GetRuntimeDelegateFunc() const { return _hostfxrGetRuntimeDelegate; }
 		CloseFunc GetCloseFunc() const { return _hostfxrClose; }
+        void DispatchMessageToManaged(const ScriptMessage& msg);
     private:
         bool InitializeRuntime(const char* engineRoot);
         void ShutdownRuntime();

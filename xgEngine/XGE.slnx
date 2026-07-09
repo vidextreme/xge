@@ -40,7 +40,9 @@
     </Project>
   </Folder>
   <Folder Name="/script_modules/">
-    <Project Path="xgEditor.CoreCLR/xgEditor.CoreCLR.csproj" />
+    <Project Path="xgEditor.CoreCLR/xgEditor.CoreCLR.csproj">
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    </Project>
     <Project Path="xgEditorKernel/xgEditorKernel.vcxproj" Id="0231732b-4c48-4af7-ab6a-3ca3fb926ecb">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
       <BuildDependency Project="xgEditorKit/xgEditorKit.vcxproj" />

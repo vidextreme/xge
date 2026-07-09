@@ -8,13 +8,14 @@ namespace xg
 {
     ScriptModuleNative::ScriptModuleNative(
         const char* id,
+        uint32_t moduleID,
         ScriptHost* host,
         const char* group,
         void* lib,
         InitFunc init,
         UpdateFunc update,
         ShutdownFunc shutdown)
-        : ScriptModule(id, host, group)
+        : ScriptModule(id, moduleID, host, group)
         , _nativeHost(host)   // typed reference
         , _lib(lib)
         , _init(init)
@@ -45,7 +46,7 @@ namespace xg
         if (!_isValid || !_init || _initialized)
             return false;
 
-        if (!_init(engine))
+        if (!_init(engine, GetModuleId()))
         {
             _isValid = false;
             return false;

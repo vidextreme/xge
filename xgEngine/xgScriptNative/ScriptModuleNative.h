@@ -18,10 +18,11 @@ namespace xg
     class ScriptModuleNative : public ScriptModule
     {
     public:
-        using ScriptModuleFunc = ScriptModule * (*)(const char*, ScriptHost*, const char*);
+        using ScriptModuleFunc = ScriptModule * (*)(const char*, int, ScriptHost*, const char*);
 
         ScriptModuleNative(
             const char* id,
+            uint32_t moduleID,
             ScriptHost* host,
             const char* group,
             void* lib,

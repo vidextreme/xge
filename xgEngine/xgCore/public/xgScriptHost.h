@@ -26,6 +26,7 @@ namespace xg
         // Load a script module from the given path and return a ScriptModule instance.
         // The engine will store and later destroy the returned ScriptModule.
         virtual ScriptModule* LoadModule(const char* id,
+            uint32_t moduleID,
             const char* path,
             const char* group) = 0;
 
