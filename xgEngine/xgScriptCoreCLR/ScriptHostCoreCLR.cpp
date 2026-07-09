@@ -7,7 +7,7 @@
 
 #include <string>
 #include <filesystem>
-#include <windows.h>
+
 
 #define XG_CORECLR_HOSTFXR_PATH "\\coreclr\\host\\fxr\\10.0.8\\hostfxr.dll"
 
@@ -87,6 +87,7 @@ namespace xg
     }
 
     ScriptModule* ScriptHostCoreCLR::LoadModule(const char* id,
+        uint32_t moduleID,
         const char* path,
         const char* group)
     {
@@ -101,7 +102,7 @@ namespace xg
                 return nullptr;
         }
 
-        auto* module = new ScriptModuleCoreCLR(id, this, group);
+        auto* module = new ScriptModuleCoreCLR(id, moduleID, this, group);
         if (!module->Load(path))
         {
             delete module;
@@ -156,4 +157,5 @@ namespace xg
         _hostfxrClose = nullptr;
         _initialized = false;
     }
+
 }

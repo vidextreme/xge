@@ -19,6 +19,7 @@
 
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 
   </PropertyGroup>
 
@@ -29,7 +30,10 @@
       </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ScriptEngine.cs" />
+    <Compile Include="MessageCodec.cs" />
+    <Compile Include="ScriptMessageInterop.cs" />
+    <Compile Include="ScriptMessageParser.cs" />
+    <Compile Include="ScriptRuntime.cs" />
   </ItemGroup>
 
   <!-- Optional: keep folder visible in Solution Explorer -->

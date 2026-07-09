@@ -65,6 +65,7 @@ namespace xg
             ScriptHost* host);
 
     private:
+        uint32_t _nextModuleId = 0;
         void* _rendererLib = nullptr;
 
         void* _moduleStorage = nullptr;

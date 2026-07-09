@@ -7,6 +7,7 @@
 #include "xgCodecJson.h"
 #include "xgCodecBinary.h"
 
+
 #define XG_SCRIPTENTRY_TYPE "ScriptEntry"
 
 namespace xg
@@ -63,9 +64,10 @@ namespace xg
 
 
     ScriptModuleCoreCLR::ScriptModuleCoreCLR(const char* id,
+        uint32_t moduleID,
         ScriptHostCoreCLR* host,
         const char* group)
-        : ScriptModule(id, host, group)
+        : ScriptModule(id, moduleID, host, group)
         , _coreclrHost(host)
     {
     }
@@ -134,7 +136,8 @@ namespace xg
 
         if(!LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Init", (void**)& _managedInit)
             || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Update", (void**)& _managedUpdate)
-            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Shutdown", (void**)& _managedShutdown))
+            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Shutdown", (void**)& _managedShutdown)
+            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"OnMessage", (void**)&_managedOnMessageMethod))
         {
             return false;
         }
@@ -147,8 +150,7 @@ namespace xg
     {
         if (_managedInit)
         {
-            using InitFn = int(*)(ScriptEngine*);
-            int result = ((InitFn)_managedInit)(engine);
+            int result = _managedInit(engine, GetModuleId());
             CodecRegistry* registry =
                 _engine->GetCodecRegistry(ScriptBackendType::CoreCLR);
             PayloadMode mode = _engine->GetPayloadMode();
@@ -173,8 +175,7 @@ namespace xg
     {
         if (_managedUpdate)
         {
-            using UpdateFn = void(*)(float);
-            ((UpdateFn)_managedUpdate)(dt);
+            _managedUpdate(dt);
         }
     }
 
@@ -182,8 +183,7 @@ namespace xg
     {
         if (_managedShutdown)
         {
-            using ShutdownFn = void(*)();
-            ((ShutdownFn)_managedShutdown)();
+            _managedShutdown();
         }
 
         if (_fxrHandle )
@@ -199,7 +199,7 @@ namespace xg
     {
         return _valid;
     }
-    void ScriptModuleCoreCLR::OnMessage(const ScriptMessage& msg)
+    /*void ScriptModuleCoreCLR::OnMessage(const ScriptMessage& msg)
     {
         xg::CodecRegistry* codecs = _host->GetCodecRegistry();
         xg::DynamicObject obj2(&TestSchema);
@@ -213,6 +213,25 @@ namespace xg
             printf("Decoded Health = %d\n", obj2.FindField("Health")->Value.Int32Value);
             printf("Decoded Name   = %s\n", obj2.FindField("Name")->Value.StringValue);
         }
+    }*/
+    void ScriptModuleCoreCLR::OnMessage(const ScriptMessage& msg)
+    {
+        if (!_managedOnMessageMethod)
+            return;
+
+        auto func = reinterpret_cast<OnMessageFunc>(_managedOnMessageMethod);
+
+        void* payloadCopy = nullptr;
+        if (msg.Payload && msg.PayloadSize > 0)
+        {
+            payloadCopy = XG_MANAGED_ALLOC(msg.PayloadSize);
+            memcpy(payloadCopy, msg.Payload, msg.PayloadSize);
+        }
+
+        func(msg.TypeName, payloadCopy, msg.PayloadSize);
+
+        if (payloadCopy)
+            XG_MANAGED_FREE(payloadCopy);
     }
     bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* typeName, const wchar_t* entryPointName, void** func)
     {

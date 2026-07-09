@@ -50,5 +50,8 @@
     <ClCompile Include="xgLogBridge.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
+    <ClCompile Include="xgScriptMessageBridge.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

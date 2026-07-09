@@ -47,7 +47,7 @@ namespace xg
         }
     }
 
-    ScriptModule* ScriptHostNative::LoadModule(const char* id, const char* path, const char* group)
+    ScriptModule* ScriptHostNative::LoadModule(const char* id, uint32_t moduleID, const char* path, const char* group)
     {
         if (!path)
             return nullptr;
@@ -64,7 +64,7 @@ namespace xg
         if (moduleFn)
         {
             // Module is responsible for unloading lib
-            ScriptModule* module = moduleFn(id, this, group);
+            ScriptModule* module = moduleFn(id, moduleID, this, group);
 
             if (!module || !module->IsValid())
             {
@@ -93,7 +93,7 @@ namespace xg
 
         // Create ScriptModuleNative wrapper
         ScriptModule* module =
-            new ScriptModuleNative(id, this, group, lib, initFn, updateFn, shutdownFn);
+            new ScriptModuleNative(id, moduleID, this, group, lib, initFn, updateFn, shutdownFn);
 
         if (!module->IsValid())
         {

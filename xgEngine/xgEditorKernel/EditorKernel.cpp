@@ -521,8 +521,8 @@ namespace xg
     // ------------------------------------------------------------
     //
 
-    EditorKernelModule::EditorKernelModule(const char* id, ScriptHost* host, const char* group)
-        : ScriptModule(id, host, group)
+    EditorKernelModule::EditorKernelModule(const char* id, int moduleID, ScriptHost* host, const char* group)
+        : ScriptModule(id, moduleID, host, group)
     {}
 
     EditorKernelModule::~EditorKernelModule()
@@ -609,7 +609,7 @@ namespace xg
         xg::ScriptMessage msg;
         msg.Payload = nullptr;
         msg.PayloadSize = 0;
-
+        msg.SourceID = GetModuleId();
         bool ok = registry->Encode("TestType", &obj, &TestSchema, msg);
 
         if (!ok)
@@ -801,7 +801,7 @@ namespace xg
 // ------------------------------------------------------------
 //
 extern "C"
-XG_MODULE_EXPORT xg::ScriptModule* CreateScriptModule(const char* id, xg::ScriptHost* host, const char* group)
+XG_MODULE_EXPORT xg::ScriptModule* CreateScriptModule(const char* id, int moduleID, xg::ScriptHost* host, const char* group)
 {
-    return new xg::EditorKernelModule(id, host, group);
+    return new xg::EditorKernelModule(id, moduleID, host, group);
 }

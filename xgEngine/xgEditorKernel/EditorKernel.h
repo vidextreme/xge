@@ -26,7 +26,7 @@ namespace xg
     class EditorKernelModule : public ScriptModule
     {
     public:
-        EditorKernelModule(const char* id, ScriptHost* host, const char* group);
+        EditorKernelModule(const char* id, int moduleID, ScriptHost* host, const char* group);
         ~EditorKernelModule() override;
 
         bool Init(ScriptEngine* engine) override;

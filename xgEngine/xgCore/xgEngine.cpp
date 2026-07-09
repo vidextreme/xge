@@ -196,8 +196,10 @@ namespace xg
             RegisterHostInGroup(resolvedGroup, backend, host);
         }
 
+        
         // 2. Load module through host
-        ScriptModule* module = host->LoadModule(id, path, resolvedGroup);
+        uint32_t newModuleID = ++_nextModuleId;
+        ScriptModule* module = host->LoadModule(id, newModuleID, path, resolvedGroup);
         if (!module || !module->IsValid())
         {
             xg::Log(xg::MessageType::Error,

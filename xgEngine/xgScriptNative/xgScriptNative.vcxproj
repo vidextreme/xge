@@ -88,6 +88,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="xgLogBridge.cpp" />
+    <ClCompile Include="xgScriptMessageBridge.cpp" />
     <ClInclude Include="framework.h" />
     <ClCompile Include="ScriptModuleNative.cpp" />
     <ClInclude Include="pch.h" />

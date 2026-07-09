@@ -1,5 +1,9 @@
 #pragma once
 
+namespace xg
+{
+    constexpr uint32_t UnassignedID = 0;
+}
 //
 // Platform detection
 //
@@ -230,3 +234,13 @@ namespace NS { \
     }
 
 #define XG_MODULE_EXPORT extern "C" XG_API
+
+#if XG_PLATFORM_WINDOWS
+#include <combaseapi.h>
+#define XG_MANAGED_ALLOC(size) CoTaskMemAlloc(size)
+#define XG_MANAGED_FREE(ptr)   CoTaskMemFree(ptr)
+#else
+#include <cstdlib>
+#define XG_MANAGED_ALLOC(size) malloc(size)
+#define XG_MANAGED_FREE(ptr)   free(ptr)
+#endif
