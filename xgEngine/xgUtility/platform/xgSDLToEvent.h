@@ -1,3 +1,5 @@
+// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include <SDL3/SDL.h>
 #include <cstring>

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
 // pch.cpp: source file corresponding to the pre-compiled header
 
 #include "pch.h"
