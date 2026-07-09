@@ -1,3 +1,5 @@
+// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
 // xgSharedKit.cpp : Defines the functions for the static library.
 //
 

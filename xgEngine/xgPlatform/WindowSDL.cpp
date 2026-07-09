@@ -1,3 +1,5 @@
+// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
 #include "WindowSDL.h"
 #include "xgEvent.h"

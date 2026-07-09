@@ -1,3 +1,5 @@
+// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgCallback.h"
 #include "xgScriptModule.h"
