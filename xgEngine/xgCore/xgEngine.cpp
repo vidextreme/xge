@@ -9,6 +9,7 @@
 #include "MessengerImpl.h"
 
 #include "ScriptTree.h"
+#include "ScriptHostNull.h"
 
 #include "xgTypeRegistry.h"
 #include "xgCodecRegistry.h"
@@ -106,9 +107,12 @@ namespace xg
 
     static ScriptBackendType DetectBackend(const char* path)
     {
+        if(path == nullptr)
+			return ScriptBackendType::Null;
+
         if (IsCoreCLRModule(path))
             return ScriptBackendType::CoreCLR;
-
+        
         // TODO: refine as you add more backends
         return ScriptBackendType::Native;
     }
@@ -144,7 +148,7 @@ namespace xg
         const char* path)
     {
         if (!path)
-            return nullptr;
+            return new ScriptHostNull(this);
 
         switch (backend)
         {
@@ -153,8 +157,8 @@ namespace xg
 
         case ScriptBackendType::Native:
         default:
-            // TODO: temporary – native host for everything else
             return CreateScriptHostNative(this, path);
+			//TODO
         }
     }
 
@@ -175,7 +179,7 @@ namespace xg
         ScriptModule* parent,
         const char* group)
     {
-        if (!id || !path)
+        if (!id)
             return nullptr;
 
         const char* resolvedGroup = group ? group : GetDefaultGroupFor(path);

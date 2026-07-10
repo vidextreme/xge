@@ -17,6 +17,7 @@ namespace xg
     XG_ENUM(inherit = byte)
         enum class ScriptBackendType : uint8_t
     {
+        Null,
         CoreCLR,
         Native,
         //Squirrel, //very very soon!
