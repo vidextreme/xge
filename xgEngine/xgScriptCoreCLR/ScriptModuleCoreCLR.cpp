@@ -201,27 +201,10 @@ namespace xg
     {
         return _valid;
     }
-    /*void ScriptModuleCoreCLR::OnMessage(const ScriptMessage& msg)
-    {
-        xg::CodecRegistry* codecs = _host->GetCodecRegistry();
-        xg::DynamicObject obj2(&TestSchema);
-
-        bool ok2 = codecs->Decode("TestType", msg, &TestSchema, &obj2);
-
-        if (!ok2)
-            printf("Decode failed\n");
-        else
-        {
-            printf("Decoded Health = %d\n", obj2.FindField("Health")->Value.Int32Value);
-            printf("Decoded Name   = %s\n", obj2.FindField("Name")->Value.StringValue);
-        }
-    }*/
     void ScriptModuleCoreCLR::OnMessage(const ScriptMessage& msg)
     {
         if (!_managedOnMessageMethod)
             return;
-
-        auto func = reinterpret_cast<OnMessageFunc>(_managedOnMessageMethod);
 
         void* payloadCopy = nullptr;
         if (msg.Payload && msg.PayloadSize > 0)
@@ -230,7 +213,7 @@ namespace xg
             memcpy(payloadCopy, msg.Payload, msg.PayloadSize);
         }
 
-        func(msg.TypeName, payloadCopy, msg.PayloadSize);
+        _managedOnMessageMethod(msg.TypeName, payloadCopy, msg.PayloadSize);
 
         if (payloadCopy)
             XG_MANAGED_FREE(payloadCopy);

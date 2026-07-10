@@ -40,6 +40,7 @@
     </Project>
   </Folder>
   <Folder Name="/script_modules/">
+    <Project Path="GameDemoModule/GameDemoModule.csproj" Id="0a5a82db-c581-40df-a5da-4e7635daec06" />
     <Project Path="xgEditor.CoreCLR/xgEditor.CoreCLR.csproj">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
     </Project>

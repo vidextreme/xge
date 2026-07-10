@@ -81,11 +81,13 @@ namespace xg
 
         // Fallback: legacy C ABI triple-function module
         InitFunc initFn = reinterpret_cast<InitFunc>(
-            xg::GetSymbol(lib, "ScriptModule_Init"));
+            xg::GetSymbol(lib, "xg:Init"));
         UpdateFunc updateFn = reinterpret_cast<UpdateFunc>(
-            xg::GetSymbol(lib, "ScriptModule_Update"));
+            xg::GetSymbol(lib, "xg:Update"));
         ShutdownFunc shutdownFn = reinterpret_cast<ShutdownFunc>(
-            xg::GetSymbol(lib, "ScriptModule_Shutdown"));
+            xg::GetSymbol(lib, "xg:Shutdown"));
+        OnMessageFunc onMessageFn = reinterpret_cast<OnMessageFunc>(
+            xg::GetSymbol(lib, "xg:OnMessage"));
 
         if (!initFn || !updateFn || !shutdownFn)
         {
@@ -95,7 +97,7 @@ namespace xg
 
         // Create ScriptModuleNative wrapper
         ScriptModule* module =
-            new ScriptModuleNative(id, moduleID, this, group, lib, initFn, updateFn, shutdownFn);
+            new ScriptModuleNative(id, moduleID, this, group, lib, initFn, updateFn, shutdownFn, onMessageFn);
 
         if (!module->IsValid())
         {
