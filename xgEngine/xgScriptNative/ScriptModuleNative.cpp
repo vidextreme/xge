@@ -16,19 +16,22 @@ namespace xg
         void* lib,
         InitFunc init,
         UpdateFunc update,
-        ShutdownFunc shutdown)
+        ShutdownFunc shutdown,
+        OnMessageFunc onMessage)
         : ScriptModule(id, moduleID, host, group)
         , _nativeHost(host)   // typed reference
         , _lib(lib)
         , _init(init)
         , _update(update)
         , _shutdown(shutdown)
+        , _onMessage(onMessage)
     {
         _isValid =
             (_lib != nullptr) &&
             (_init != nullptr) &&
             (_update != nullptr) &&
             (_shutdown != nullptr);
+		    //_onMessage is optional, so we don't check it for validity
     }
 
     ScriptModuleNative::~ScriptModuleNative()
@@ -77,5 +80,20 @@ namespace xg
         return _isValid;
     }
     void ScriptModuleNative::OnMessage(const ScriptMessage& msg)
-    {}
+    {
+        if (!_onMessage)
+            return;
+
+        void* payloadCopy = nullptr;
+        if (msg.Payload && msg.PayloadSize > 0)
+        {
+            payloadCopy = XG_MANAGED_ALLOC(msg.PayloadSize);
+            memcpy(payloadCopy, msg.Payload, msg.PayloadSize);
+        }
+
+        _onMessage(msg.TypeName, payloadCopy, msg.PayloadSize);
+
+        if (payloadCopy)
+            XG_MANAGED_FREE(payloadCopy);
+    }
 }

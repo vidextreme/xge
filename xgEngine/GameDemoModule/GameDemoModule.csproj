@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Publish directly into gameroot/bin -->
+    <PublishDir>..\..\gameroot\bin\</PublishDir>
+
+    <!-- Flatten output folders -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendConfigurationToOutputPath>false</AppendConfigurationToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- NativeAOT -->
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- Debug build: keep symbols, allow breakpoints -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <StripSymbols>false</StripSymbols>
+    <DebuggerSupport>true</DebuggerSupport>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+  </PropertyGroup>
+
+  <!-- Release build: strip symbols, optimize fully -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <StripSymbols>true</StripSymbols>
+    <DebuggerSupport>false</DebuggerSupport>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
+  </ItemGroup>
+
+  <!-- Publish Debug NativeAOT -->
+  <Target Name="BuildNativeAOT_Debug"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Debug'
+                     and '$(PublishProtocol)' == ''
+                     and '$(_IsPublishing)' != 'true'">
+    <Exec Command="dotnet publish -c Debug -r win-x64" />
+  </Target>
+
+  <!-- Safe, non-recursive NativeAOT publish -->
+  <Target Name="BuildNativeAOT"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release'
+                     and '$(PublishProtocol)' == ''
+                     and '$(_IsPublishing)' != 'true'">
+    <Exec Command="dotnet publish -c Release -r win-x64" />
+  </Target>
+
+</Project>

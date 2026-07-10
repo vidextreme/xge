@@ -30,7 +30,8 @@ namespace xg
             void* lib,
             InitFunc init,
             UpdateFunc update,
-            ShutdownFunc shutdown);
+            ShutdownFunc shutdown,
+            OnMessageFunc onMessage);
 
         ~ScriptModuleNative() override;
 
@@ -46,6 +47,7 @@ namespace xg
         InitFunc     _init = nullptr;
         UpdateFunc   _update = nullptr;
         ShutdownFunc _shutdown = nullptr;
+		OnMessageFunc _onMessage = nullptr;
 
         bool _isValid = false;
         bool _initialized = false;

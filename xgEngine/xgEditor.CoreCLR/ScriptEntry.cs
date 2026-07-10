@@ -10,7 +10,7 @@ namespace xgEditor.CoreCLR
 {
     public static unsafe class ScriptEntry
     {
-        [UnmanagedCallersOnly(EntryPoint = "Script_Init", CallConvs = new[] { typeof(CallConvCdecl) })]
+        [UnmanagedCallersOnly]
         public static int Init(nint enginePtr, uint moduleID)
         {
             ScriptRuntime.Initialize(enginePtr, moduleID);
@@ -21,13 +21,13 @@ namespace xgEditor.CoreCLR
             return 1;
         }
 
-        [UnmanagedCallersOnly(EntryPoint = "Script_Update")]
+        [UnmanagedCallersOnly]
         public static void Update(float dt) 
         {
             
         }
 
-        [UnmanagedCallersOnly(EntryPoint = "Script_Shutdown")]
+        [UnmanagedCallersOnly]
         public static void Shutdown() 
         {
 
