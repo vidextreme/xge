@@ -576,8 +576,9 @@ namespace xg
         // Load managed editor module
         //
         const char* group = GetGroup();
-        //_editorModule = _engine->AddScriptModule("editor", "xgEditor.CoreCLR.dll", this, group);
-        _editorModule = _engine->AddScriptModule("editor", "GameDemoModule.dll", this, group);
+        auto root = _engine->AddScriptModule("root", nullptr, this, group);
+        _editorModule = _engine->AddScriptModule("editor", "xgEditor.CoreCLR.dll", root, group);
+        _editorModule = _engine->AddScriptModule("game_demo", "GameDemoModule.dll", root, group);
 
         //xg::TypeRegistry::Register(&xg::TypeInfo<PlayerState>::Instance);
 

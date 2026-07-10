@@ -72,6 +72,12 @@
     <ClInclude Include="MessengerImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="ScriptHostNull.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptModuleNull.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -96,6 +102,12 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="MessengerImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptHostNull.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptModuleNull.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>
