@@ -7,7 +7,7 @@ namespace xg {
 
     class EventQueue;
 	class EventDispatcher;
-    class Window {
+    XG_API class Window {
     public:
         virtual ~Window() = default;
 

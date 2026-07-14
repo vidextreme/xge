@@ -8,24 +8,18 @@ namespace xg
     class EventQueue
     {
     public:
-        EventQueue();
-        ~EventQueue();
+        virtual ~EventQueue() = default;
 
         // Push an event into the queue
-        void Push(const xgEvent& e);
+        virtual void Push(const xgEvent& e) = 0;
 
         // Get number of events currently stored
-        int Count() const;
+        virtual int Count() const = 0;
 
         // Get pointer to contiguous array of events
-        const xgEvent* Data() const;
+        virtual const xgEvent* Data() const = 0;
 
         // Clear all events
-        void Clear();
-
-    private:
-        // Opaque pointer to internal implementation
-        struct Impl;
-        Impl* Pimpl;
+        virtual void Clear() = 0;
     };
 }

@@ -80,18 +80,21 @@
     <ClInclude Include="public\xgLog.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgSceneNodeEngine.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgSceneNode.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgSceneGraph.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgPathUtils.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgEventQueue.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgEventDispatcher.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgTypeRegistry.cpp">

@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgEvent.h"
-
+#include "xgBase.h"
 namespace xg
 {
     class EventListener
@@ -15,16 +15,11 @@ namespace xg
     class EventDispatcher
     {
     public:
-        EventDispatcher();
-        ~EventDispatcher();
+        virtual ~EventDispatcher() = default;
 
-        void AddListener(EventListener* listener);
-        void RemoveListener(EventListener* listener);
+        virtual void AddListener(EventListener* listener) = 0;
+        virtual void RemoveListener(EventListener* listener) = 0;
 
-        void Dispatch(const xgEvent& e);
-
-    private:
-        struct Impl;
-        Impl* Pimpl;
+        virtual void Dispatch(const xgEvent& e) = 0;
     };
 }

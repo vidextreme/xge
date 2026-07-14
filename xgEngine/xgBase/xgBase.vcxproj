@@ -109,6 +109,9 @@
     <ClInclude Include="public\xgMemoryStream.h" />
     <ClInclude Include="public\xgPathUtils.h" />
     <ClInclude Include="public\xgRoute.h" />
+    <ClInclude Include="public\xgSceneGraph.h" />
+    <ClInclude Include="public\xgSceneNode.h" />
+    <ClInclude Include="public\xgSceneNodeEngine.h" />
     <ClInclude Include="public\xgScriptMessage.h" />
     <ClInclude Include="public\xgStream.h" />
     <ClInclude Include="public\xgTypeRegistry.h" />
@@ -123,8 +126,6 @@
     <ClCompile Include="xgCodecBinary.cpp" />
     <ClCompile Include="xgCodecRegistry.cpp" />
     <ClCompile Include="xgDynamicObject.cpp" />
-    <ClCompile Include="xgEventDispatcher.cpp" />
-    <ClCompile Include="xgEventQueue.cpp" />
     <ClCompile Include="xgJson.cpp" />
     <ClCompile Include="xgLog.cpp" />
     <ClCompile Include="xgMemoryStream.cpp" />
