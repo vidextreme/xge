@@ -125,6 +125,9 @@ inline bool HasFlag(E value, E flag) { \
 #define XG_SAFE_RELEASE(x) \
     do { if (x) { (x)->Release(); (x) = nullptr; } } while(0)
 
+#define XG_DELETE(x) \
+    if (x) { delete x; x = nullptr; }
+
 //
 // MODULE DECLARATION MACROS
 //

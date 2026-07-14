@@ -44,6 +44,7 @@ int main(int argc, char** argv)
     //printf("Serialized JSON:\n%s\n", out.c_str());
     
     xg::Engine engine;
+	engine.MainWindow = xg::NewWindow("xgEngine", 1280, 720);
     if (!engine.Initialize(config))
         return -1;
 

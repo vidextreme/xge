@@ -1,25 +1,28 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
-#include "xgEvent.h"
+#include "xgEventQueue.h"
 
 namespace xg
 {
-    class EventQueue
+	class EventQueueImpl : public EventQueue
     {
     public:
-        virtual ~EventQueue() = default;
+        EventQueueImpl();
+        ~EventQueueImpl();
 
         // Push an event into the queue
-        virtual void Push(const xgEvent& e) = 0;
+        void Push(const xgEvent& e);
 
         // Get number of events currently stored
-        virtual int Count() const = 0;
+        int Count() const;
 
         // Get pointer to contiguous array of events
-        virtual const xgEvent* Data() const = 0;
+        const xgEvent* Data() const;
 
         // Clear all events
-        virtual void Clear() = 0;
+        void Clear();
+    private:
+        std::vector<xgEvent> Events;
     };
 }

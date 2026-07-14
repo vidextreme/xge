@@ -14,6 +14,9 @@
 #include "xgTypeRegistry.h"
 #include "xgCodecRegistry.h"
 
+#include "EventDispatcherImpl.h"
+#include "EventQueueImpl.h"
+
 namespace xg
 {
     // Internal-only storage (hidden behind void*)
@@ -35,8 +38,9 @@ namespace xg
     };
 
     Engine::Engine()
+		: _dispatcher(new EventDispatcherImpl())
     {
-        MainWindow = NewWindow("xgEngine", 1280, 720);
+        //MainWindow = NewWindow("xgEngine", 1280, 720);
         _moduleStorage = new ModuleStorage();
         _hostStorage = new HostStorage();
 
@@ -45,6 +49,8 @@ namespace xg
         _messenger = new MessengerImpl(_scriptTree);
 		_typeRegistry = CreateTypeRegistry();
 
+		_queue = new EventQueueImpl();
+
 		_nativeCodecRegistry = new CodecRegistry();
 		_coreclrCodecRegistry = new CodecRegistry();
 
@@ -52,8 +58,8 @@ namespace xg
 
         if (MainWindow)
         {
-            MainWindow->SetEventQueue(&_queue);
-            MainWindow->SetEventDispatcher(&_dispatcher);
+            MainWindow->SetEventQueue(_queue);
+            MainWindow->SetEventDispatcher(_dispatcher);
         }
     }
 
@@ -64,14 +70,10 @@ namespace xg
         delete static_cast<ModuleStorage*>(_moduleStorage);
         delete static_cast<HostStorage*>(_hostStorage);
 
-        delete _scriptTree;
-        _scriptTree = nullptr;
-
-        delete _messenger;
-        //delete _codec;
-        _messenger = nullptr;
-        //_codec = nullptr;
-
+        XG_DELETE(_scriptTree)
+        XG_DELETE(_messenger)
+        XG_DELETE(_dispatcher)
+        XG_DELETE(_queue)
 
         _moduleStorage = nullptr;
         _hostStorage = nullptr;

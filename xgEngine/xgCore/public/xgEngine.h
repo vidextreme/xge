@@ -19,7 +19,7 @@ namespace xg
 	class MessageCodec;
     class Messenger;
 	class CodecRegistry;
-    class Engine : public ScriptEngine
+    class XG_API Engine : public ScriptEngine
     {
     public:
         Engine();
@@ -42,8 +42,8 @@ namespace xg
         RendererUnique Renderer;
         WindowUnique MainWindow;
 
-        EventDispatcher* GetDispatcher() override { return &_dispatcher; }
-        EventQueue* GetQueue() override { return &_queue; }
+        EventDispatcher* GetDispatcher() override { return _dispatcher; }
+        EventQueue* GetQueue() override { return _queue; }
         Messenger* GetMessenger() override { return _messenger; }
 		TypeRegistry* GetTypeRegistry() override { return _typeRegistry.get(); }
 
@@ -75,8 +75,8 @@ namespace xg
 
         ScriptTree* _scriptTree = nullptr;
 
-        EventQueue      _queue;
-        EventDispatcher _dispatcher;
+        EventQueue*      _queue;
+        EventDispatcher* _dispatcher;
 		Messenger* 	_messenger;
 		xgUnique<TypeRegistry> _typeRegistry;
 
