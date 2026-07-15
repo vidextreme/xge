@@ -39,49 +39,43 @@ namespace xg
     class CodecRegistry
     {
     public:
-        CodecRegistry();
-        ~CodecRegistry();
+        virtual ~CodecRegistry() = default;
 
         //
         // Register native encoders/decoders
         //
-        void RegisterEncoder(const char* typeName,
-            EncoderFn fn);
+        virtual void RegisterEncoder(const char* typeName,
+            EncoderFn fn) = 0;
 
-        void RegisterDecoder(const char* typeName,
-            DecoderFn fn);
+        virtual void RegisterDecoder(const char* typeName,
+            DecoderFn fn) = 0;
 
         //
         // Lookup
         //
-        EncoderFn GetEncoder(const char* typeName) const;
-        DecoderFn GetDecoder(const char* typeName) const;
+        virtual EncoderFn GetEncoder(const char* typeName) const = 0;
+        virtual DecoderFn GetDecoder(const char* typeName) const = 0;
 
         //
         // Public encode/decode entry points
         //
-        bool Encode(const char* typeName,
+        virtual bool Encode(const char* typeName,
             const void* src,
             const TypeSchema* schema,
-            ScriptMessage& outMessage) const;
+            ScriptMessage& outMessage) const = 0;
 
-        bool Decode(const char* typeName,
+        virtual bool Decode(const char* typeName,
             const ScriptMessage& message,
             const TypeSchema* schema,
-            void* dst) const;
+            void* dst) const = 0;
 
-    private:
-        struct Impl;
-        Impl* _impl;
+    protected:    
+        
+        virtual bool EncodeDynamic(const DynamicObject& obj,
+            ScriptMessage& outMessage) const = 0;
 
-        //
-        // Dynamic encode/decode (JSON only)
-        //
-        bool EncodeDynamic(const DynamicObject& obj,
-            ScriptMessage& outMessage) const;
-
-        bool DecodeDynamic(const ScriptMessage& message,
+        virtual bool DecodeDynamic(const ScriptMessage& message,
             const TypeSchema* schema,
-            DynamicObject& outObj) const;
+            DynamicObject& outObj) const = 0;
     };
 }

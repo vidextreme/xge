@@ -59,6 +59,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;Generated;public</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -85,6 +86,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;Generated;public</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -101,7 +103,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CallbackDispatcher.h" />
+    <ClInclude Include="CodecRegistryImpl.h" />
     <ClInclude Include="DispatchSystem.h" />
+    <ClInclude Include="DynamicObjectImpl.h" />
     <ClInclude Include="EventDispatcherImpl.h" />
     <ClInclude Include="EventQueueImpl.h" />
     <ClInclude Include="framework.h" />
@@ -127,6 +131,8 @@
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="ScriptHostNull.cpp" />
     <ClCompile Include="ScriptModuleNull.cpp" />
+    <ClCompile Include="CodecRegistryImpl.cpp" />
+    <ClCompile Include="DynamicObjectImpl.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="EventDispatcherImpl.cpp" />
     <ClCompile Include="EventQueueImpl.cpp" />

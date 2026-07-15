@@ -32,23 +32,21 @@ namespace xg
     class DynamicObject
     {
     public:
-        explicit DynamicObject(const TypeSchema* schema);
-        ~DynamicObject();
+        virtual ~DynamicObject() = default;
 
-        const TypeSchema* GetSchema() const { return _schema; }
-        uint32_t GetFieldCount() const { return _fieldCount; }
+        virtual const TypeSchema* GetSchema() const = 0;
+        virtual uint32_t GetFieldCount() const = 0;
 
-        DynamicField* GetFieldByIndex(uint32_t index);
-        const DynamicField* GetFieldByIndex(uint32_t index) const;
+        virtual DynamicField* GetFieldByIndex(uint32_t index) = 0;
+        virtual const DynamicField* GetFieldByIndex(uint32_t index) const = 0;
 
-        DynamicField* FindField(const char* name);
-        const DynamicField* FindField(const char* name) const;
+        virtual DynamicField* FindField(const char* name) = 0;
+        virtual const DynamicField* FindField(const char* name) const = 0;
 
-    private:
-        const TypeSchema* _schema = nullptr;
-        DynamicField* _fields = nullptr;
-        uint32_t          _fieldCount = 0;
+    protected:
 
         static DynamicValue MakeDefaultValue(const FieldSchema& fs);
     };
+
+    XG_DECLARE_UNIQUE(DynamicObject)
 }

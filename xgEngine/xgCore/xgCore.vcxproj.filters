@@ -84,6 +84,12 @@
     <ClInclude Include="EventQueueImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="CodecRegistryImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DynamicObjectImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -120,6 +126,12 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="EventQueueImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="CodecRegistryImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="DynamicObjectImpl.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

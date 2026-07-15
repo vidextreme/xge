@@ -53,10 +53,10 @@ namespace xg
     // ------------------------------------------------------------
     // Memory Stream Interface
     // ------------------------------------------------------------
-    class MemoryStreamBase : public Stream
+    class MemoryStream : public Stream
     {
     public:
-        virtual ~MemoryStreamBase() = default;
+        virtual ~MemoryStream() = default;
 
         virtual void* Data() = 0;
         virtual const void* Data() const = 0;
@@ -65,7 +65,7 @@ namespace xg
         virtual void Resize(size_t newSize) = 0;
     };
 
-    XG_DECLARE_UNIQUE(MemoryStreamBase)
+    XG_DECLARE_UNIQUE(MemoryStream)
 
     // ------------------------------------------------------------
     // File Stream Interface
@@ -90,5 +90,6 @@ namespace xg
     XG_API FileUnique LoadFile(const wchar_t* path, FileAccessMode mode);
     XG_API bool GetExeRootDirectory(wchar_t* output, const wchar_t* localizedPath);
 
-    XG_API MemoryStreamBaseUnique CreateMemoryStream(uint64_t capacity = 256);
+    XG_API MemoryStreamUnique CreateMemoryStream(uint64_t capacity = 256);
+    XG_API MemoryStreamUnique CreateMemoryStream(void* existingBuffer, size_t size);
 }

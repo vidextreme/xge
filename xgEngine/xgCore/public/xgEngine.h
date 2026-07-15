@@ -53,6 +53,7 @@ namespace xg
 
 		CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const override;
 		PayloadMode GetPayloadMode() const override { return PayloadMode::JSON; }
+        DynamicObjectUnique CreateDynamic(const TypeSchema* schema) override;
     private:
         const char* GetDefaultGroupFor(const char* path);
 

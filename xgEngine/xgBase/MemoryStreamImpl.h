@@ -7,13 +7,13 @@
 
 namespace xg
 {
-    class MemoryStream : public MemoryStreamBase
+    class MemoryStreamImpl : public MemoryStream
     {
     public:
-        MemoryStream();                         // empty, no buffer
-        explicit MemoryStream(size_t capacity); // allocates buffer
-        MemoryStream(void* existingBuffer, size_t size); // external view
-        ~MemoryStream() override;
+        MemoryStreamImpl();                         // empty, no buffer
+        explicit MemoryStreamImpl(size_t capacity); // allocates buffer
+        MemoryStreamImpl(void* existingBuffer, size_t size); // external view
+        ~MemoryStreamImpl() override;
 
         int  Read(void* buffer, int size) override;
         int  Write(const void* buffer, int size) override;
