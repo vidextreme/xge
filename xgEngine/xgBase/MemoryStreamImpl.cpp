@@ -1,8 +1,8 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
-#include "xgMemoryStream.h"
-#include <cstring> // memcpy
+#include "MemoryStreamImpl.h"
+
 
 namespace xg
 {
@@ -10,7 +10,7 @@ namespace xg
     // Constructors / Destructor
     // ------------------------------------------------------------
 
-    MemoryStream::MemoryStream()
+    MemoryStreamImpl::MemoryStreamImpl()
         : _data(nullptr)
         , _size(0)
         , _capacity(0)
@@ -18,7 +18,7 @@ namespace xg
         , _ownsData(false)
     {}
 
-    MemoryStream::MemoryStream(size_t capacity)
+    MemoryStreamImpl::MemoryStreamImpl(size_t capacity)
         : _data(nullptr)
         , _size(0)
         , _capacity(0)
@@ -33,7 +33,7 @@ namespace xg
         }
     }
 
-    MemoryStream::MemoryStream(void* existingBuffer, size_t size)
+    MemoryStreamImpl::MemoryStreamImpl(void* existingBuffer, size_t size)
         : _data(reinterpret_cast<uint8_t*>(existingBuffer))
         , _size(size)
         , _capacity(size)
@@ -41,7 +41,7 @@ namespace xg
         , _ownsData(false) // external buffer — DO NOT free
     {}
 
-    MemoryStream::~MemoryStream()
+    MemoryStreamImpl::~MemoryStreamImpl()
     {
         if (_ownsData && _data)
             free(_data);
@@ -51,7 +51,7 @@ namespace xg
     // Internal capacity management
     // ------------------------------------------------------------
 
-    void MemoryStream::EnsureCapacity(size_t required)
+    void MemoryStreamImpl::EnsureCapacity(size_t required)
     {
         if (required <= _capacity)
             return;
@@ -77,7 +77,7 @@ namespace xg
     // Read / Write
     // ------------------------------------------------------------
 
-    int MemoryStream::Read(void* buffer, int size)
+    int MemoryStreamImpl::Read(void* buffer, int size)
     {
         if (_pos >= _size)
             return 0;
@@ -90,7 +90,7 @@ namespace xg
         return (int)toRead;
     }
 
-    int MemoryStream::Write(const void* buffer, int size)
+    int MemoryStreamImpl::Write(const void* buffer, int size)
     {
         size_t endPos = _pos + size;
         EnsureCapacity(endPos);
@@ -108,7 +108,7 @@ namespace xg
     // Seeking
     // ------------------------------------------------------------
 
-    bool MemoryStream::Seek(long offset, FileOrigin origin)
+    bool MemoryStreamImpl::Seek(long offset, FileOrigin origin)
     {
         size_t newPos = 0;
 
@@ -138,17 +138,17 @@ namespace xg
     // Status
     // ------------------------------------------------------------
 
-    bool MemoryStream::Eof() const
+    bool MemoryStreamImpl::Eof() const
     {
         return _pos >= _size;
     }
 
-    long MemoryStream::Length() const
+    long MemoryStreamImpl::Length() const
     {
         return (long)_size;
     }
 
-    long MemoryStream::Position() const
+    long MemoryStreamImpl::Position() const
     {
         return (long)_pos;
     }
@@ -157,13 +157,13 @@ namespace xg
     // Buffer management
     // ------------------------------------------------------------
 
-    void MemoryStream::Clear()
+    void MemoryStreamImpl::Clear()
     {
         _size = 0;
         _pos = 0;
     }
 
-    void MemoryStream::Resize(size_t newSize)
+    void MemoryStreamImpl::Resize(size_t newSize)
     {
         EnsureCapacity(newSize);
         _size = newSize;
@@ -176,22 +176,22 @@ namespace xg
     // Data access
     // ------------------------------------------------------------
 
-    void* MemoryStream::Data()
+    void* MemoryStreamImpl::Data()
     {
         return _data;
     }
 
-    const void* MemoryStream::Data() const
+    const void* MemoryStreamImpl::Data() const
     {
         return _data;
     }
 
-    int MemoryStream::Size() const
+    int MemoryStreamImpl::Size() const
     {
         return (int)_size;
     }
 
-    void* MemoryStream::GetBuffer()
+    void* MemoryStreamImpl::GetBuffer()
     {
         return _data;
     }
@@ -200,15 +200,19 @@ namespace xg
     // Factory
     // ------------------------------------------------------------
 
-    static void DeleteMemoryStream(void* ptr)
+
+    XG_DECLARE_UNIQUE_TYPE(MemoryStreamImpl)
+    MemoryStreamUnique CreateMemoryStream(uint64_t capacity)
     {
-        delete static_cast<MemoryStream*>(ptr);
+        return MemoryStreamUnique(
+            xgUniqueHandle{ MakeMemoryStreamImplUniqueHandle(new MemoryStreamImpl(capacity)) }
+        );
     }
-    XG_DECLARE_UNIQUE_TYPE(MemoryStream)
-    MemoryStreamBaseUnique CreateMemoryStream(uint64_t capacity)
+
+    MemoryStreamUnique CreateMemoryStream(void* existingBuffer, size_t size)
     {
-        return MemoryStreamBaseUnique(
-            xgUniqueHandle{ MakeMemoryStreamUniqueHandle(new MemoryStream()) }
+        return MemoryStreamUnique(
+            xgUniqueHandle{ MakeMemoryStreamImplUniqueHandle(new MemoryStreamImpl(existingBuffer, size)) }
         );
     }
 }

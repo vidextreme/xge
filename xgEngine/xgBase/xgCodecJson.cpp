@@ -8,7 +8,7 @@
 #include "xgStream.h"
 #include <string>
 #include <cstring>
-#include "xgMemoryStream.h"
+#include "xgStream.h"
 #include <string>
 #include <cstring>
 
@@ -55,8 +55,7 @@ namespace xg
 
         std::string jsonText;
         {
-            auto ms = CreateMemoryStream(256);
-            MemoryStreamBase* stream = ms.get();
+            auto stream = CreateMemoryStream(256);
             json.Save(*stream);
             jsonText.assign(reinterpret_cast<const char*>(stream->GetBuffer()),
                 stream->Size());
@@ -77,9 +76,9 @@ namespace xg
         const TypeSchema* schema,
         void* outObject)
     {
-        MemoryStream ms(const_cast<void*>(msg.Payload), msg.PayloadSize);
+        auto ms = CreateMemoryStream(const_cast<void*>(msg.Payload), msg.PayloadSize);
         Json json;
-        if (!json.Load(ms))
+        if (!json.Load(*ms))
             return false;
 
         uint8_t* base = reinterpret_cast<uint8_t*>(outObject);

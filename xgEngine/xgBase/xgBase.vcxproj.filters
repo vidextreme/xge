@@ -17,12 +17,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="framework.h">
-      <Filter>private</Filter>
-    </ClInclude>
-    <ClInclude Include="pch.h">
-      <Filter>private</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgBase.h">
       <Filter>public</Filter>
     </ClInclude>
@@ -65,9 +59,6 @@
     <ClInclude Include="public\xgCodecJson.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgMemoryStream.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgCodecBinary.h">
       <Filter>public</Filter>
     </ClInclude>
@@ -89,6 +80,15 @@
     <ClInclude Include="public\xgSceneGraph.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="MemoryStreamImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -100,16 +100,13 @@
     <ClCompile Include="xgTypeRegistry.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgCodecRegistry.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
     <ClCompile Include="xgJson.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgCodecJson.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgMemoryStream.cpp">
+    <ClCompile Include="MemoryStreamImpl.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgCodecBinary.cpp">
@@ -118,10 +115,10 @@
     <ClCompile Include="xgRoute.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgDynamicObject.cpp">
+    <ClCompile Include="xgLog.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgLog.cpp">
+    <ClCompile Include="xgDynamicObject.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

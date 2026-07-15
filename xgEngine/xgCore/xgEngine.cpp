@@ -16,6 +16,8 @@
 
 #include "EventDispatcherImpl.h"
 #include "EventQueueImpl.h"
+#include "CodecRegistryImpl.h"
+#include "DynamicObjectImpl.h"
 
 namespace xg
 {
@@ -51,8 +53,8 @@ namespace xg
 
 		_queue = new EventQueueImpl();
 
-		_nativeCodecRegistry = new CodecRegistry();
-		_coreclrCodecRegistry = new CodecRegistry();
+		_nativeCodecRegistry = new CodecRegistryImpl();
+		_coreclrCodecRegistry = new CodecRegistryImpl();
 
         RegisterTypes_xgEngineDef(_typeRegistry.get());
 
@@ -74,6 +76,8 @@ namespace xg
         XG_DELETE(_messenger)
         XG_DELETE(_dispatcher)
         XG_DELETE(_queue)
+		XG_DELETE(_nativeCodecRegistry)
+		XG_DELETE(_coreclrCodecRegistry)
 
         _moduleStorage = nullptr;
         _hostStorage = nullptr;
@@ -364,6 +368,14 @@ namespace xg
             break;
         }
         return nullptr;
+    }
+
+    XG_DECLARE_UNIQUE_TYPE(DynamicObjectImpl)
+    DynamicObjectUnique Engine::CreateDynamic(const TypeSchema* schema)
+    {
+        return DynamicObjectUnique(
+            xgUniqueHandle{ MakeDynamicObjectImplUniqueHandle(new DynamicObjectImpl(schema)) }
+        );
     }
 
 }

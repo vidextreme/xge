@@ -59,6 +59,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>public;Generated;..\3rdparty\json</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -81,6 +82,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>public;Generated;..\3rdparty\json</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -93,6 +95,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClInclude Include="MemoryStreamImpl.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgBase.h" />
     <ClInclude Include="public\xgCodecJson.h" />
@@ -106,7 +109,6 @@
     <ClInclude Include="public\xgHandles.h" />
     <ClInclude Include="public\xgJson.h" />
     <ClInclude Include="public\xgLog.h" />
-    <ClInclude Include="public\xgMemoryStream.h" />
     <ClInclude Include="public\xgPathUtils.h" />
     <ClInclude Include="public\xgRoute.h" />
     <ClInclude Include="public\xgSceneGraph.h" />
@@ -124,11 +126,10 @@
     </ClCompile>
     <ClCompile Include="xgCodecJson.cpp" />
     <ClCompile Include="xgCodecBinary.cpp" />
-    <ClCompile Include="xgCodecRegistry.cpp" />
     <ClCompile Include="xgDynamicObject.cpp" />
     <ClCompile Include="xgJson.cpp" />
     <ClCompile Include="xgLog.cpp" />
-    <ClCompile Include="xgMemoryStream.cpp" />
+    <ClCompile Include="MemoryStreamImpl.cpp" />
     <ClCompile Include="xgPathUtils.cpp" />
     <ClCompile Include="xgRoute.cpp" />
     <ClCompile Include="xgTypeRegistry.cpp" />

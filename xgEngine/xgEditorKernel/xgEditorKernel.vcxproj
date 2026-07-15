@@ -59,6 +59,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -83,6 +84,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

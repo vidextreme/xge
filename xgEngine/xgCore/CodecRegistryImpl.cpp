@@ -1,74 +1,65 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
-#include "xgCodecRegistry.h"
+#include "CodecRegistryImpl.h"
 #include "xgTypeRegistry.h"
 #include "xgDynamicObject.h"
 #include "xgScriptMessage.h"
 #include "xgJson.h"
-#include "xgMemoryStream.h"
-#include <unordered_map>
-#include <string>
+#include "xgStream.h"
 
 namespace xg
 {
-    struct CodecRegistry::Impl
-    {
-        std::unordered_map<std::string, CodecPair> Codecs;
-    };
-
     static std::string MakeKey(const char* typeName)
     {
         return std::string(typeName);
     }
 
-    CodecRegistry::CodecRegistry()
-        : _impl(new Impl())
+    CodecRegistryImpl::CodecRegistryImpl()
     {}
 
-    CodecRegistry::~CodecRegistry()
+    CodecRegistryImpl::~CodecRegistryImpl()
     {
-        delete _impl;
-        _impl = nullptr;
+
     }
 
-    void CodecRegistry::RegisterEncoder(const char* typeName,
+    void CodecRegistryImpl::RegisterEncoder(const char* typeName,
         EncoderFn fn)
     {
         auto key = MakeKey(typeName);
-        _impl->Codecs[key].Encoder = fn;
+        Codecs[key].Encoder = fn;
     }
 
-    void CodecRegistry::RegisterDecoder(const char* typeName,
+    void CodecRegistryImpl::RegisterDecoder(const char* typeName,
         DecoderFn fn)
     {
         auto key = MakeKey(typeName);
-        _impl->Codecs[key].Decoder = fn;
+        Codecs[key].Decoder = fn;
     }
 
-    EncoderFn CodecRegistry::GetEncoder(const char* typeName) const
+    EncoderFn CodecRegistryImpl::GetEncoder(const char* typeName) const
     {
         auto keyExact = MakeKey(typeName);
-        auto itExact = _impl->Codecs.find(keyExact);
-        if (itExact != _impl->Codecs.end() && itExact->second.Encoder)
+        auto itExact = Codecs.find(keyExact);
+        if (itExact != Codecs.end() && itExact->second.Encoder)
             return itExact->second.Encoder;
 
-        auto itWildcard = _impl->Codecs.find("*");
-        if (itWildcard != _impl->Codecs.end())
+        auto itWildcard = Codecs.find("*");
+        if (itWildcard != Codecs.end())
             return itWildcard->second.Encoder;
 
         return nullptr;
     }
 
-    DecoderFn CodecRegistry::GetDecoder(const char* typeName) const
+    DecoderFn CodecRegistryImpl::GetDecoder(const char* typeName) const
     {
         auto keyExact = MakeKey(typeName);
-        auto itExact = _impl->Codecs.find(keyExact);
-        if (itExact != _impl->Codecs.end() && itExact->second.Decoder)
+        auto itExact = Codecs.find(keyExact);
+        if (itExact != Codecs.end() && itExact->second.Decoder)
             return itExact->second.Decoder;
 
-        auto itWildcard = _impl->Codecs.find("*");
-        if (itWildcard != _impl->Codecs.end())
+        auto itWildcard = Codecs.find("*");
+        if (itWildcard != Codecs.end())
             return itWildcard->second.Decoder;
 
         return nullptr;
@@ -77,7 +68,7 @@ namespace xg
     // ============================================================
     //  DYNAMIC ENCODE (JSON only)
     // ============================================================
-    bool CodecRegistry::EncodeDynamic(const DynamicObject& obj,
+    bool CodecRegistryImpl::EncodeDynamic(const DynamicObject& obj,
         ScriptMessage& outMessage) const
     {
         const TypeSchema* schema = obj.GetSchema();
@@ -129,13 +120,13 @@ namespace xg
     // ============================================================
     //  DYNAMIC DECODE (JSON only)
     // ============================================================
-    bool CodecRegistry::DecodeDynamic(const ScriptMessage& msg,
+    bool CodecRegistryImpl::DecodeDynamic(const ScriptMessage& msg,
         const TypeSchema* schema,
         DynamicObject& outObj) const
     {
-        MemoryStream ms(const_cast<void*>(msg.Payload), msg.PayloadSize);
+        auto ms = CreateMemoryStream(const_cast<void*>(msg.Payload), msg.PayloadSize);
         Json json;
-        if (!json.Load(ms))
+        if (!json.Load(*ms))
             return false;
 
         for (uint32_t i = 0; i < schema->FieldCount; ++i)
@@ -177,7 +168,7 @@ namespace xg
     // ============================================================
     //  PUBLIC ENCODE / DECODE
     // ============================================================
-    bool CodecRegistry::Encode(const char* typeName,
+    bool CodecRegistryImpl::Encode(const char* typeName,
         const void* src,
         const TypeSchema* schema,
         ScriptMessage& outMessage) const
@@ -196,7 +187,7 @@ namespace xg
         return fn(src, schema, outMessage);
     }
 
-    bool CodecRegistry::Decode(const char* typeName,
+    bool CodecRegistryImpl::Decode(const char* typeName,
         const ScriptMessage& message,
         const TypeSchema* schema,
         void* dst) const

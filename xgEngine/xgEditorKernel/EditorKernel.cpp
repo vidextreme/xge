@@ -604,17 +604,17 @@ namespace xg
         PlayerState dst{};
         registry->Decode("PlayerState", PayloadMode::JSON, msg, schema, &dst);*/
 
-        xg::DynamicObject obj(&TestSchema);
+        auto obj = _engine->CreateDynamic(&TestSchema);
 
-        obj.FindField("Health")->Value.Int32Value = 150;
-        obj.FindField("Name")->Value.StringValue = "John";
+        obj->FindField("Health")->Value.Int32Value = 150;
+        obj->FindField("Name")->Value.StringValue = "John";
         
 
         xg::ScriptMessage msg;
         msg.Payload = nullptr;
         msg.PayloadSize = 0;
         msg.SourceID = GetModuleId();
-        bool ok = registry->Encode("TestType", &obj, &TestSchema, msg);
+        bool ok = registry->Encode("TestType", obj.get(), &TestSchema, msg);
 
         if (!ok)
             printf("Encode failed\n");
@@ -626,7 +626,7 @@ namespace xg
         }
 
         
-
+		//TODO release dynamic object
 
         _engine->GetMessenger()->SendToAll(msg);
         return true;
@@ -785,7 +785,7 @@ namespace xg
     void EditorKernelModule::OnMessage(const ScriptMessage& msg)
     {    
 		xg::CodecRegistry* codecs = _host->GetCodecRegistry();
-        xg::DynamicObject obj2(&TestSchema);
+        auto obj2 = _engine->CreateDynamic(&TestSchema);
 
         bool ok2 = codecs->Decode("TestType", msg, &TestSchema, &obj2);
 
@@ -793,8 +793,8 @@ namespace xg
             printf("Decode failed\n");
         else
         {
-            printf("Decoded Health = %d\n", obj2.FindField("Health")->Value.Int32Value);
-            printf("Decoded Name   = %s\n", obj2.FindField("Name")->Value.StringValue);
+            printf("Decoded Health = %d\n", obj2->FindField("Health")->Value.Int32Value);
+            printf("Decoded Name   = %s\n", obj2->FindField("Name")->Value.StringValue);
         }
     }
 }

@@ -19,4 +19,5 @@
 #include <mutex>
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #endif //PCH_H

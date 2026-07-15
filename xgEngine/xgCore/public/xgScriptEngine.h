@@ -5,6 +5,7 @@
 #include "xgLog.h"
 #include "xgScriptHost.h"
 #include "xgScriptMessage.h"
+#include "xgDynamicObject.h"
 namespace xg
 {
     class EventDispatcher;
@@ -13,6 +14,8 @@ namespace xg
 	class ScriptModule;
 	class TypeRegistry;
     class CodecRegistry;
+	class DynamicObject;
+	class TypeSchema;
 
     XG_ENUM(inherit = byte)
         enum class ScriptBackendType : uint8_t
@@ -55,5 +58,6 @@ namespace xg
 
         virtual CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const = 0;
         virtual PayloadMode GetPayloadMode() const = 0;
+        virtual DynamicObjectUnique CreateDynamic(const TypeSchema* schema) = 0;
     };
 }
