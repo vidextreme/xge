@@ -5,8 +5,7 @@
 #include "ScriptModuleNative.h"
 #include "xgModules.h"
 #include "xgCodecRegistry.h"
-#include "xgCodecJson.h"
-#include "xgCodecBinary.h"
+
 namespace xg
 {
     using ScriptModuleFunc = ScriptModuleNative::ScriptModuleFunc;
@@ -30,23 +29,6 @@ namespace xg
     ScriptHostNative::ScriptHostNative(ScriptEngine* engine) 
         : _engine(engine)
     {
-        // Get the shared registry for the Native backend
-        CodecRegistry* registry =
-            _engine->GetCodecRegistry(ScriptBackendType::Native);
-
-        PayloadMode mode = _engine->GetPayloadMode();
-        if (mode == PayloadMode::JSON)
-        {
-            // Register generic JSON codec
-            registry->RegisterEncoder("*", Encode_JSON_Generic);
-            registry->RegisterDecoder("*", Decode_JSON_Generic);
-		}
-        else if (mode == PayloadMode::BINARY)
-        {
-            // Register generic binary codec
-            registry->RegisterEncoder("*", Encode_Binary_Generic);
-            registry->RegisterDecoder("*", Decode_Binary_Generic);
-        }
     }
 
     ScriptModule* ScriptHostNative::LoadModule(const char* id, uint32_t moduleID, const char* path, const char* group)

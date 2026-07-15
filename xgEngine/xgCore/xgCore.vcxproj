@@ -125,6 +125,8 @@
     <ClInclude Include="ScriptHostNull.h" />
     <ClInclude Include="ScriptModuleNull.h" />
     <ClInclude Include="ScriptTree.h" />
+    <ClInclude Include="CodecBinary.h" />
+    <ClInclude Include="CodecJson.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DispatchSystem.cpp" />
@@ -133,6 +135,8 @@
     <ClCompile Include="ScriptModuleNull.cpp" />
     <ClCompile Include="CodecRegistryImpl.cpp" />
     <ClCompile Include="DynamicObjectImpl.cpp" />
+    <ClCompile Include="CodecBinary.cpp" />
+    <ClCompile Include="CodecJson.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="EventDispatcherImpl.cpp" />
     <ClCompile Include="EventQueueImpl.cpp" />

@@ -54,8 +54,8 @@ namespace xg
         virtual uint32_t GetTypeCount() const = 0;
         virtual const TypeSchema* GetTypeByIndex(uint32_t index) const = 0;
     };
-
-    XG_API xgUnique<TypeRegistry> CreateTypeRegistry();
+    XG_DECLARE_UNIQUE(TypeRegistry)
+    XG_API TypeRegistryUnique CreateTypeRegistry();
 }
 
 #define XG_REGISTER_TYPE_DEF(TypeName) \

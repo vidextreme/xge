@@ -56,12 +56,6 @@
     <ClInclude Include="public\xgJson.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgCodecJson.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgCodecBinary.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgRoute.h">
       <Filter>public</Filter>
     </ClInclude>
@@ -103,13 +97,7 @@
     <ClCompile Include="xgJson.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgCodecJson.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
     <ClCompile Include="MemoryStreamImpl.cpp">
-      <Filter>private\source</Filter>
-    </ClCompile>
-    <ClCompile Include="xgCodecBinary.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgRoute.cpp">

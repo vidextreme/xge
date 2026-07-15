@@ -90,6 +90,12 @@
     <ClInclude Include="DynamicObjectImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="CodecBinary.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="CodecJson.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -132,6 +138,12 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="DynamicObjectImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="CodecBinary.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="CodecJson.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>
