@@ -1,86 +1,69 @@
-// Copyright (c) 2026 John David Uy
-// Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
-
-#include "xgCodecJSON.h"
-#include "xgJson.h"
+#include "CodecBinary.h"
 #include "xgTypeRegistry.h"
 #include "xgStream.h"
-#include <string>
 #include <cstring>
 #include "xgStream.h"
-#include <string>
-#include <cstring>
-
+#include "xgScriptMessage.h"
 namespace xg
 {
-    bool Encode_JSON_Generic(const void* object,
+    bool Encode_Binary_Generic(const void* object,
         const TypeSchema* schema,
         ScriptMessage& out)
     {
-        Json json;
+        auto ms = CreateMemoryStream(256);
+        const uint8_t* base = reinterpret_cast<const uint8_t*>(object);
 
         for (int i = 0; i < schema->FieldCount; ++i)
         {
             const FieldSchema& field = schema->Fields[i];
-            const uint8_t* base = reinterpret_cast<const uint8_t*>(object);
             const void* fieldPtr = base + field.Offset;
             const char* type = field.TypeString;
 
             if (strcmp(type, "bool") == 0)
             {
-                json.SetBool(field.Name, *reinterpret_cast<const bool*>(fieldPtr));
+                ms->Write(fieldPtr, sizeof(bool));
             }
             else if (strcmp(type, "int") == 0 ||
                 strcmp(type, "int32_t") == 0)
             {
-                json.SetInt(field.Name, *reinterpret_cast<const int32_t*>(fieldPtr));
+                ms->Write(fieldPtr, sizeof(int32_t));
             }
             else if (strcmp(type, "uint32_t") == 0 ||
                 strcmp(type, "unsigned int") == 0)
             {
-                uint32_t v = *reinterpret_cast<const uint32_t*>(fieldPtr);
-                json.SetInt(field.Name, static_cast<int>(v));
+                ms->Write(fieldPtr, sizeof(uint32_t));
             }
             else if (strcmp(type, "float") == 0)
             {
-                json.SetFloat(field.Name, *reinterpret_cast<const float*>(fieldPtr));
+                ms->Write(fieldPtr, sizeof(float));
             }
             else if (strcmp(type, "const char*") == 0 ||
                 strcmp(type, "char*") == 0)
             {
-                json.SetString(field.Name, reinterpret_cast<const char*>(fieldPtr));
+                const char* s = reinterpret_cast<const char*>(fieldPtr);
+                uint32_t len = static_cast<uint32_t>(strlen(s));
+                ms->Write(&len, sizeof(uint32_t));
+                ms->Write(s, len);
             }
         }
 
-        std::string jsonText;
-        {
-            auto stream = CreateMemoryStream(256);
-            json.Save(*stream);
-            jsonText.assign(reinterpret_cast<const char*>(stream->GetBuffer()),
-                stream->Size());
-        }
-
         out.TypeName = schema->Name;
-        out.PayloadSize = static_cast<int>(jsonText.size());
+        out.PayloadSize = ms->Size();
 
         char* buffer = new char[out.PayloadSize];
-        memcpy(buffer, jsonText.data(), out.PayloadSize);
+        memcpy(buffer, ms->GetBuffer(), out.PayloadSize);
         out.Payload = buffer;
 
         return true;
     }
 
 
-    bool Decode_JSON_Generic(const ScriptMessage& msg,
+    bool Decode_Binary_Generic(const ScriptMessage& msg,
         const TypeSchema* schema,
         void* outObject)
     {
         auto ms = CreateMemoryStream(const_cast<void*>(msg.Payload), msg.PayloadSize);
-        Json json;
-        if (!json.Load(*ms))
-            return false;
-
         uint8_t* base = reinterpret_cast<uint8_t*>(outObject);
 
         for (int i = 0; i < schema->FieldCount; ++i)
@@ -91,35 +74,34 @@ namespace xg
 
             if (strcmp(type, "bool") == 0)
             {
-                *reinterpret_cast<bool*>(fieldPtr) =
-                    json.GetBool(field.Name, false);
+                ms->Read(fieldPtr, sizeof(bool));
             }
             else if (strcmp(type, "int") == 0 ||
                 strcmp(type, "int32_t") == 0)
             {
-                *reinterpret_cast<int32_t*>(fieldPtr) =
-                    json.GetInt(field.Name, 0);
+                ms->Read(fieldPtr, sizeof(int32_t));
             }
             else if (strcmp(type, "uint32_t") == 0 ||
                 strcmp(type, "unsigned int") == 0)
             {
-                int v = json.GetInt(field.Name, 0);
-                *reinterpret_cast<uint32_t*>(fieldPtr) =
-                    static_cast<uint32_t>(v);
+                ms->Read(fieldPtr, sizeof(uint32_t));
             }
             else if (strcmp(type, "float") == 0)
             {
-                *reinterpret_cast<float*>(fieldPtr) =
-                    json.GetFloat(field.Name, 0.0f);
+                ms->Read(fieldPtr, sizeof(float));
             }
             else if (strcmp(type, "const char*") == 0 ||
                 strcmp(type, "char*") == 0)
             {
-                const char* s = json.GetString(field.Name, "");
-                size_t len = strlen(s);
+                uint32_t len = 0;
+                ms->Read(&len, sizeof(uint32_t));
+
                 size_t copyLen = (len < field.Size - 1) ? len : (field.Size - 1);
-                memcpy(fieldPtr, s, copyLen);
+                ms->Read(fieldPtr, copyLen);
                 reinterpret_cast<char*>(fieldPtr)[copyLen] = '\0';
+
+                if (len > copyLen)
+                    ms->Seek(len - copyLen, FileOrigin::Current);
             }
         }
 

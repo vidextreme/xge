@@ -19,6 +19,9 @@
 #include "CodecRegistryImpl.h"
 #include "DynamicObjectImpl.h"
 
+#include "CodecJson.h"
+#include "CodecBinary.h"
+
 namespace xg
 {
     // Internal-only storage (hidden behind void*)
@@ -88,6 +91,21 @@ namespace xg
         // TODO: look for a better place for this!
         xg::ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
         xg::ScriptNativeDLL = "xgScriptNative.dll";
+
+        CodecRegistry* registry = GetCodecRegistry(ScriptBackendType::CoreCLR);
+        PayloadMode mode = GetPayloadMode();
+        if (mode == PayloadMode::JSON)
+        {
+            // Register generic JSON codec
+            registry->RegisterEncoder("*", Encode_JSON_Generic);
+            registry->RegisterDecoder("*", Decode_JSON_Generic);
+        }
+        else if (mode == PayloadMode::BINARY)
+        {
+            // Register generic binary codec
+            registry->RegisterEncoder("*", Encode_Binary_Generic);
+            registry->RegisterDecoder("*", Decode_Binary_Generic);
+        }
 
         if (config.RendererModule)
             return SetRendererModule(config.RendererModule);

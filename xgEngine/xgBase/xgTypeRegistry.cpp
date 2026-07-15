@@ -49,12 +49,9 @@ namespace xg
         std::unordered_map<std::string, const TypeSchema*> _typesByName;
     };
 
-	static void DeleteTypeRegistry(void* ptr)
-	{
-		delete static_cast<TypeRegistryImpl*>(ptr);
-	}
-    xgUnique<TypeRegistry> CreateTypeRegistry()
+    XG_DECLARE_UNIQUE_TYPE(TypeRegistryImpl)
+    TypeRegistryUnique CreateTypeRegistry()
     {
-        return xgUnique<TypeRegistry>(xgUniqueHandle{new TypeRegistryImpl(), &DeleteTypeRegistry});
+        return TypeRegistryUnique(MakeTypeRegistryImplUniqueHandle(new TypeRegistryImpl()));
     }
 }

@@ -6,8 +6,7 @@
 #include <filesystem>
 #include "xgDynamicObject.h"
 #include "xgCodecRegistry.h"
-#include "xgCodecJson.h"
-#include "xgCodecBinary.h"
+
 
 
 #define XG_SCRIPTENTRY_TYPE "ScriptEntry"
@@ -153,21 +152,7 @@ namespace xg
         if (_managedInit)
         {
             int result = _managedInit(engine, GetModuleId());
-            CodecRegistry* registry =
-                _engine->GetCodecRegistry(ScriptBackendType::CoreCLR);
-            PayloadMode mode = _engine->GetPayloadMode();
-            if (mode == PayloadMode::JSON)
-            {
-                // Register generic JSON codec
-                registry->RegisterEncoder("*", Encode_JSON_Generic);
-                registry->RegisterDecoder("*", Decode_JSON_Generic);
-            }
-            else if (mode == PayloadMode::BINARY)
-            {
-                // Register generic binary codec
-                registry->RegisterEncoder("*", Encode_Binary_Generic);
-                registry->RegisterDecoder("*", Decode_Binary_Generic);
-            }
+            
             return result != 0;
         }
         return false;

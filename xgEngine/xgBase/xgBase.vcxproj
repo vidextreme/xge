@@ -98,8 +98,6 @@
     <ClInclude Include="MemoryStreamImpl.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgBase.h" />
-    <ClInclude Include="public\xgCodecJson.h" />
-    <ClInclude Include="public\xgCodecBinary.h" />
     <ClInclude Include="public\xgCodecRegistry.h" />
     <ClInclude Include="public\xgDynamicObject.h" />
     <ClInclude Include="public\xgEvent.h" />
@@ -124,8 +122,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="xgCodecJson.cpp" />
-    <ClCompile Include="xgCodecBinary.cpp" />
     <ClCompile Include="xgDynamicObject.cpp" />
     <ClCompile Include="xgJson.cpp" />
     <ClCompile Include="xgLog.cpp" />
