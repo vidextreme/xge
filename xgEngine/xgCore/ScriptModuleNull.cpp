@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
 #include "ScriptModuleNull.h"
-
+#include "xgSceneGraph.h"
 namespace xg
 {
     ScriptModuleNull::ScriptModuleNull(const char* id,
@@ -44,5 +44,9 @@ namespace xg
     {
         // No-op: logic module does not decode or process payloads by default.
         // Add routing or handling logic here if desired.
+    }
+    SceneGraph* ScriptModuleNull::GetSceneGraph()
+    {
+        return _engine->GetSystem<SceneGraph>(this);
     }
 }

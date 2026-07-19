@@ -1,12 +1,12 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
+#include "xgSceneGraph.h"
 #include "ScriptModuleCoreCLR.h"
 #include "ScriptHostCoreCLR.h"
 #include <filesystem>
 #include "xgDynamicObject.h"
 #include "xgCodecRegistry.h"
-
 
 
 #define XG_SCRIPTENTRY_TYPE "ScriptEntry"
@@ -203,6 +203,12 @@ namespace xg
         if (payloadCopy)
             XG_MANAGED_FREE(payloadCopy);
     }
+    
+    SceneGraph* ScriptModuleCoreCLR::GetSceneGraph()
+    {
+        return _engine->GetSystem<SceneGraph>(this);
+    }
+
     bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* typeName, const wchar_t* entryPointName, void** func)
     {
         if (!func)return true;

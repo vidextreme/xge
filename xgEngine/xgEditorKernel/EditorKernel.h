@@ -37,6 +37,7 @@ namespace xg
 
         bool IsValid() const override { return _isValid; }
 
+        SceneGraph* GetSceneGraph() override;
     private:
         // ImGui lifecycle
         void InitImGui();

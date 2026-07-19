@@ -1,10 +1,11 @@
 #pragma once
 #include "xgSceneNode.h"
-
+#include "xgSystem.h"
 namespace xg
 {
-    class SceneGraph
+    class SceneGraph : public System
     {
+        XG_DECLARE_BASE_SYSTEM(SceneGraph)
     public:
         virtual ~SceneGraph() = default;
 

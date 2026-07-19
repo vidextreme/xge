@@ -22,6 +22,7 @@ namespace xg
         bool IsValid() const override;
 
         void OnMessage(const ScriptMessage& msg) override;
+        SceneGraph* GetSceneGraph() override;
     private:
         bool LoadEntryPoints(const char* assemblyName,
             const char* typeName,

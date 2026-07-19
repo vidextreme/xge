@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "xgBase.h"
 
 namespace xg
 {

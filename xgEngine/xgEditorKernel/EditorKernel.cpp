@@ -12,6 +12,7 @@
 #include "xgMessenger.h"
 #include "xgRoute.h"
 #include "xgCodecRegistry.h"
+#include "xgSceneGraph.h"
 
 // ImGui core
 #include "imgui.h"
@@ -679,6 +680,11 @@ namespace xg
         DrawBlenderPanels();
 
         EndImGuiFrame();
+    }
+
+    SceneGraph* EditorKernelModule::GetSceneGraph()
+    {
+        return _engine->GetSystem<SceneGraph>(this);
     }
 
     //
