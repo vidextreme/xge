@@ -110,10 +110,12 @@
     <ClInclude Include="public\xgPathUtils.h" />
     <ClInclude Include="public\xgRoute.h" />
     <ClInclude Include="public\xgSceneGraph.h" />
+    <ClInclude Include="public\xgSceneGraphRegistry.h" />
     <ClInclude Include="public\xgSceneNode.h" />
     <ClInclude Include="public\xgSceneNodeEngine.h" />
     <ClInclude Include="public\xgScriptMessage.h" />
     <ClInclude Include="public\xgStream.h" />
+    <ClInclude Include="public\xgSystem.h" />
     <ClInclude Include="public\xgTypeRegistry.h" />
     <ClInclude Include="public\xgWindow.h" />
   </ItemGroup>

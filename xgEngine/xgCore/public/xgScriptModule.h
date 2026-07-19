@@ -51,6 +51,7 @@ namespace xg
     protected:
         ScriptHost* _host;
         ScriptEngine* _engine = nullptr;
+        
         uint32_t _moduleId = 0;
     private:
         const char* _id;

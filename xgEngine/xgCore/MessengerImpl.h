@@ -8,7 +8,8 @@ namespace xg
     class ScriptTree;
 
     class MessengerImpl : public Messenger
-    {
+    {        
+        XG_DECLARE_SYSTEM(MessengerImpl, Messenger)
     public:
         explicit MessengerImpl(ScriptTree* tree);
 

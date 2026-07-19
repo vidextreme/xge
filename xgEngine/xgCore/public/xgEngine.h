@@ -19,6 +19,8 @@ namespace xg
 	class MessageCodec;
     class Messenger;
 	class CodecRegistry;
+    class ScriptNode;
+    class System;
     class XG_API Engine : public ScriptEngine
     {
     public:
@@ -44,7 +46,6 @@ namespace xg
 
         EventDispatcher* GetDispatcher() override { return _dispatcher; }
         EventQueue* GetQueue() override { return _queue; }
-        Messenger* GetMessenger() override { return _messenger; }
 		TypeRegistry* GetTypeRegistry() override { return _typeRegistry.get(); }
 
 
@@ -54,6 +55,9 @@ namespace xg
 		CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const override;
 		PayloadMode GetPayloadMode() const override { return PayloadMode::JSON; }
         DynamicObjectUnique CreateDynamic(const TypeSchema* schema) override;
+
+
+
     private:
         const char* GetDefaultGroupFor(const char* path);
 
@@ -67,7 +71,13 @@ namespace xg
             ScriptBackendType backend,
             ScriptHost* host);
 
+	protected:
+		System* GetSystemImpl(TypeID id, ScriptModule* module) override;
+		System* GetSystemImpl(TypeID id, const char* moduleID) override;
+		void RegisterSystemImpl(ScriptModule* module, TypeID id, System* system) override;
     private:
+        std::unordered_map<TypeID, System*> _systems;
+
         uint32_t _nextModuleId = 0;
         void* _rendererLib = nullptr;
 
@@ -75,10 +85,10 @@ namespace xg
         void* _hostStorage = nullptr;
 
         ScriptTree* _scriptTree = nullptr;
-
+		ScriptModule* _rootModule = nullptr;
+		ScriptNode* _rootNode = nullptr;
         EventQueue*      _queue;
         EventDispatcher* _dispatcher;
-		Messenger* 	_messenger;
 		xgUnique<TypeRegistry> _typeRegistry;
 
 		CodecRegistry* _nativeCodecRegistry = nullptr;

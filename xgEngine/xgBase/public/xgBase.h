@@ -249,3 +249,29 @@ namespace NS { \
 #define XG_MANAGED_ALLOC(size) malloc(size)
 #define XG_MANAGED_FREE(ptr)   free(ptr)
 #endif
+
+
+using TypeID = std::uint64_t;
+
+// FNV-1a constexpr hash
+constexpr std::uint64_t fnv1a(const char* str) {
+    std::uint64_t hash = 1469598103934665603ull;
+    while (*str) {
+        hash ^= static_cast<std::uint64_t>(*str++);
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
+#define XG_DECLARE_SYSTEM(Type, Parent)                     \
+public:\
+    static constexpr const char* TypeName = #Type;          \
+    static constexpr const char* ParentTypeName = #Parent;  \
+    static constexpr TypeID SuperTypeID = fnv1a(#Parent);
+
+
+#define XG_DECLARE_BASE_SYSTEM(Type)                     \
+public:\
+    static constexpr const char* TypeName = #Type;          \
+    static constexpr TypeID SuperTypeID = fnv1a(#Type);
+

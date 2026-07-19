@@ -5,7 +5,7 @@
 #include "xgLog.h"
 #include "xgMemberCallback.h"
 #include <cstring>
-
+#include "xgSystem.h"
 namespace xg
 {
     ScriptNode::ScriptNode(ScriptModule* module, ThreadDomain domain)
@@ -36,6 +36,29 @@ namespace xg
 
         for (auto& c : _children)
             c->Update(dt);
+    }
+
+    void ScriptNode::ShutdownSystem(TypeID typeID)
+    {
+        auto it = _systems.find(typeID);
+        if (it != _systems.end())
+        {
+            auto* system = it->second;
+            system->Shutdown();
+            delete system;
+            _systems.erase(it);
+        }
+    }
+
+    void ScriptNode::ShutdownAllSystems()
+    {
+        for (auto& pair : _systems)
+        {
+            System* system = pair.second;
+			system->Shutdown();
+            XG_DELETE(system);
+        }
+        _systems.clear();
     }
 
     ScriptTree::ScriptTree() : _root(nullptr) {}
@@ -109,13 +132,18 @@ namespace xg
     bool ScriptTree::RemoveRecursive(ScriptNode* parent, ScriptModule* module)
     {
         auto& children = parent->_children;
-
+        parent->ShutdownAllSystems();
         for (size_t i = 0; i < children.size(); ++i)
         {
             ScriptNode* child = children[i].get();
 
             if (child->GetModule() == module)
             {
+                child->ShutdownAllSystems();
+
+                for (auto& gc : child->_children)
+                    gc->ShutdownAllSystems();
+
                 children.erase(children.begin() + i);
                 return true;
             }
@@ -154,6 +182,7 @@ namespace xg
         auto* mc = static_cast<MemberCallbackBase*>(cb);
         return FindNode(mc->GetOwnerModule());
     }
+
 
     void ScriptTree::Update(float dt)
     {

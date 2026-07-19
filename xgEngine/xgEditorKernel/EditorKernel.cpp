@@ -576,7 +576,7 @@ namespace xg
         // Load managed editor module
         //
         const char* group = GetGroup();
-        auto root = _engine->AddScriptModule("root", nullptr, this, group);
+        auto root = _engine->AddScriptModule("editor_root", nullptr, this, group);
         _editorModule = _engine->AddScriptModule("editor", "xgEditor.CoreCLR.dll", root, group);
         _editorModule = _engine->AddScriptModule("game_demo", "GameDemoModule.dll", root, group);
 
@@ -628,7 +628,7 @@ namespace xg
         
 		//TODO release dynamic object
 
-        _engine->GetMessenger()->SendToAll(msg);
+        _engine->GetSystem<Messenger>(this)->SendToAll(msg);
         return true;
     }
 
