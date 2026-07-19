@@ -6,9 +6,10 @@
 #include "xgScriptModule.h"
 #include "xgCallback.h"
 #include <functional>
-
+#include "xgBase.h"
 namespace xg
 {
+    class System;
     class ScriptNode
     {
     public:
@@ -26,12 +27,49 @@ namespace xg
         ScriptNode* AddChild(ScriptNode* child);
         void        Update(float dt);
 
+        
+        void RegisterSystem(TypeID typeID, System* system)
+        {
+            _systems[typeID] = system;
+        }
+
+        void ShutdownSystem(TypeID typeID);
+       
+
+
+		System* GetSystem(TypeID typeID)
+		{
+			auto it = _systems.find(typeID);
+			if (it != _systems.end())
+				return static_cast<System*>(it->second);
+			if (_parent)
+				return _parent->GetSystem(typeID);
+			return nullptr;
+		}
+
+        template<typename T>
+        T* GetSystem()
+        {
+            auto typeID = T::SuperTypeID;
+            auto system = GetSystem(typeID);
+            if (typeID != nullptr)
+                return static_cast<T*>(system);
+
+            if (_parent)
+                return _parent->GetSystem(typeID);
+
+            return nullptr;
+        }
+
+        void ShutdownAllSystems();
     private:
         ScriptModule* _module;
         ThreadDomain  _domain;
         uint16_t      _laneIndex;
         ScriptNode* _parent;
         std::vector<std::unique_ptr<ScriptNode>> _children;
+
+        std::unordered_map<TypeID, System*> _systems;
 
         friend class ScriptTree;
     };
@@ -77,4 +115,5 @@ namespace xg
         std::vector<std::vector<ScriptNode*>> _dedicatedNodes;
         std::vector<std::vector<ScriptNode*>> _pinnedNodes;
     };
+
 }

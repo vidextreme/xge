@@ -122,6 +122,7 @@
     <ClInclude Include="public\xgScriptEngine.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
+    <ClInclude Include="SceneGraphRegistryImpl.h" />
     <ClInclude Include="ScriptHostNull.h" />
     <ClInclude Include="ScriptModuleNull.h" />
     <ClInclude Include="ScriptTree.h" />
@@ -131,6 +132,7 @@
   <ItemGroup>
     <ClCompile Include="DispatchSystem.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
+    <ClCompile Include="SceneGraphRegistryImpl.cpp" />
     <ClCompile Include="ScriptHostNull.cpp" />
     <ClCompile Include="ScriptModuleNull.cpp" />
     <ClCompile Include="CodecRegistryImpl.cpp" />

@@ -23,7 +23,7 @@
 #include "CodecBinary.h"
 
 namespace xg
-{
+{    
     // Internal-only storage (hidden behind void*)
     struct ModuleStorage
     {
@@ -51,7 +51,11 @@ namespace xg
 
         _scriptTree = new ScriptTree();
         //_codec = new JsonMessageCodec();
-        _messenger = new MessengerImpl(_scriptTree);
+        //_messenger = new MessengerImpl(_scriptTree);
+        _rootModule = AddScriptModule("root", nullptr, nullptr, "core");
+		_rootNode = _scriptTree->FindNode(_rootModule);
+        auto ha = MessengerImpl::SuperTypeID;
+		RegisterSystem(_rootModule, new MessengerImpl(_scriptTree));
 		_typeRegistry = CreateTypeRegistry();
 
 		_queue = new EventQueueImpl();
@@ -76,7 +80,7 @@ namespace xg
         delete static_cast<HostStorage*>(_hostStorage);
 
         XG_DELETE(_scriptTree)
-        XG_DELETE(_messenger)
+        //XG_DELETE(_messenger)
         XG_DELETE(_dispatcher)
         XG_DELETE(_queue)
 		XG_DELETE(_nativeCodecRegistry)
@@ -198,6 +202,44 @@ namespace xg
         hosts->Hosts.push_back(std::move(entry));
     }
 
+    System* Engine::GetSystemImpl(TypeID id, ScriptModule* module)
+    {
+        if (module == nullptr)
+            return _rootNode->GetSystem(id);
+
+        System* system = nullptr;
+        ScriptNode* node = _scriptTree->FindNode(module);
+        if (node)
+        {
+            system = node->GetSystem(id);
+            if(system == nullptr)
+                system = node->GetParent()->GetSystem(id);
+        }
+        return system;
+    }
+
+    System* Engine::GetSystemImpl(TypeID id, const char* moduleID)
+    {
+		ScriptModule* module = GetScriptModule(moduleID);       
+
+        return GetSystemImpl(id, module);
+    }
+
+    void Engine::RegisterSystemImpl(ScriptModule* module, TypeID id, System* system)
+    {
+        if (module == nullptr)
+        {
+            _rootNode->RegisterSystem(id, system);
+            return;
+        }
+
+        ScriptNode* node = _scriptTree->FindNode(module);
+        if (node)
+        {
+            node->RegisterSystem(id, system);
+        }
+    }
+
     ScriptModule* Engine::AddScriptModule(const char* id,
         const char* path,
         ScriptModule* parent,
@@ -205,6 +247,9 @@ namespace xg
     {
         if (!id)
             return nullptr;
+
+        if(parent == nullptr)
+			parent = _rootModule;
 
         const char* resolvedGroup = group ? group : GetDefaultGroupFor(path);
         ScriptBackendType backend = DetectBackend(path);
@@ -347,7 +392,7 @@ namespace xg
                 delete module;
             }
         }
-
+		
         storage->Modules.clear();
 
         // Destroy hosts
@@ -387,6 +432,9 @@ namespace xg
         }
         return nullptr;
     }
+
+
+
 
     XG_DECLARE_UNIQUE_TYPE(DynamicObjectImpl)
     DynamicObjectUnique Engine::CreateDynamic(const TypeSchema* schema)

@@ -16,7 +16,7 @@ XG_MODULE_EXPORT void XGSendMessageToEngine(
     msg.TypeName = typeName;
     msg.Payload = payload;
     msg.PayloadSize = payloadSize;
-    engine->GetMessenger()->SendToAll(msg);
+    engine->GetSystem<xg::Messenger>()->SendToAll(msg);
 }
 
 XG_MODULE_EXPORT void XGSendMessageToEngine_Route(
@@ -33,7 +33,8 @@ XG_MODULE_EXPORT void XGSendMessageToEngine_Route(
     msg.Payload = payload;
     msg.PayloadSize = payloadSize;
 
-    engine->GetMessenger()->Send(msg, route);
+    //engine->GetMessenger()->Send(msg, route);
+    engine->GetSystem<xg::Messenger>(route.Id)->SendToAll(msg);
 }
 
 XG_MODULE_EXPORT

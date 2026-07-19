@@ -83,6 +83,12 @@
     <ClInclude Include="pch.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgSceneGraphRegistry.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgSystem.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

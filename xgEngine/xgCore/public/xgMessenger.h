@@ -2,14 +2,15 @@
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgRoute.h"
-
+#include "xgSystem.h"
 namespace xg
 {
     struct ScriptMessage;
     class ScriptModule;
 
-    class Messenger
-    {
+	class Messenger : public System
+    {        
+        XG_DECLARE_BASE_SYSTEM(Messenger)
     public:
         virtual ~Messenger() = default;
 
