@@ -11,7 +11,7 @@ namespace xg
 {
     class ScriptEngine;   // forward declare
     class ScriptHost;
-
+	class SceneGraph;
 	//standard function pointers for ScriptModule entry points
     using InitFunc = bool (*)(ScriptEngine*, uint32_t);
     using UpdateFunc = void (*)(float);
@@ -46,7 +46,7 @@ namespace xg
         virtual bool IsValid() const = 0;
 
         virtual void OnMessage(const ScriptMessage& msg) = 0;       
-
+        virtual SceneGraph* GetSceneGraph() = 0;
 
     protected:
         ScriptHost* _host;

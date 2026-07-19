@@ -19,6 +19,7 @@ namespace xg
 	class DynamicObject;
 	class TypeSchema;
     class System;
+	class SceneGraph;
     XG_ENUM(inherit = byte)
         enum class ScriptBackendType : uint8_t
     {

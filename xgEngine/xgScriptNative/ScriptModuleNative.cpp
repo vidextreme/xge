@@ -1,6 +1,7 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
+#include "xgSceneGraph.h"
 #include "ScriptModuleNative.h"
 #include "xgScriptEngine.h"
 #include "xgScriptHost.h"   // for ScriptHost base
@@ -95,5 +96,9 @@ namespace xg
 
         if (payloadCopy)
             XG_MANAGED_FREE(payloadCopy);
+    }
+    SceneGraph* ScriptModuleNative::GetSceneGraph()
+    {
+        return _engine->GetSystem<SceneGraph>(this);
     }
 }

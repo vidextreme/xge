@@ -21,7 +21,7 @@ namespace xg
         bool IsValid() const override;
 
         void OnMessage(const ScriptMessage& msg) override;
-
+        SceneGraph* GetSceneGraph() override;
     private:
         bool _isValid = true;
     };
