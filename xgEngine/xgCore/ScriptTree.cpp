@@ -38,6 +38,13 @@ namespace xg
             c->Update(dt);
     }
 
+    void ScriptNode::RegisterSystem(TypeID typeID, System* system)
+    {
+        xg::Log(xg::MessageType::Info, "Registering system %llu for module %s",
+            typeID, _module ? _module->GetId() : "<null>");
+        _systems[typeID] = system;
+    }
+
     void ScriptNode::ShutdownSystem(TypeID typeID)
     {
         auto it = _systems.find(typeID);

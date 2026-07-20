@@ -96,7 +96,13 @@
     <ClInclude Include="CodecJson.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="SceneGraphRegistryImpl.h">
+    <ClInclude Include="TreeSceneGraph.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ActorRegistryImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneGraphFactoryImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
   </ItemGroup>
@@ -149,7 +155,13 @@
     <ClCompile Include="CodecJson.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="SceneGraphRegistryImpl.cpp">
+    <ClCompile Include="TreeSceneGraph.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ActorRegistryImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneGraphFactoryImpl.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

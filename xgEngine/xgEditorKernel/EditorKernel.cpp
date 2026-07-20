@@ -13,6 +13,8 @@
 #include "xgRoute.h"
 #include "xgCodecRegistry.h"
 #include "xgSceneGraph.h"
+#include "xgSceneGraphFactory.h"
+#include "xgActorRegistry.h"
 
 // ImGui core
 #include "imgui.h"
@@ -573,6 +575,10 @@ namespace xg
         //
         InitImGui();
 
+		auto sceneGraphFactory = engine->GetSystem<SceneGraphFactory>(this);
+		auto actorRegistry = engine->GetSystem<ActorRegistry>(this);
+        auto sceneGraph = sceneGraphFactory->Create("tree", *actorRegistry);
+		engine->RegisterSystem<SceneGraph>(nullptr, sceneGraph);
         //
         // Load managed editor module
         //

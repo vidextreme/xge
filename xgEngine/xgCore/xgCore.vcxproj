@@ -102,6 +102,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ActorRegistryImpl.h" />
     <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="CodecRegistryImpl.h" />
     <ClInclude Include="DispatchSystem.h" />
@@ -122,23 +123,26 @@
     <ClInclude Include="public\xgScriptEngine.h" />
     <ClInclude Include="public\xgScriptHost.h" />
     <ClInclude Include="public\xgScriptModule.h" />
-    <ClInclude Include="SceneGraphRegistryImpl.h" />
+    <ClInclude Include="SceneGraphFactoryImpl.h" />
     <ClInclude Include="ScriptHostNull.h" />
     <ClInclude Include="ScriptModuleNull.h" />
     <ClInclude Include="ScriptTree.h" />
     <ClInclude Include="CodecBinary.h" />
     <ClInclude Include="CodecJson.h" />
+    <ClInclude Include="TreeSceneGraph.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ActorRegistryImpl.cpp" />
     <ClCompile Include="DispatchSystem.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
-    <ClCompile Include="SceneGraphRegistryImpl.cpp" />
+    <ClCompile Include="SceneGraphFactoryImpl.cpp" />
     <ClCompile Include="ScriptHostNull.cpp" />
     <ClCompile Include="ScriptModuleNull.cpp" />
     <ClCompile Include="CodecRegistryImpl.cpp" />
     <ClCompile Include="DynamicObjectImpl.cpp" />
     <ClCompile Include="CodecBinary.cpp" />
     <ClCompile Include="CodecJson.cpp" />
+    <ClCompile Include="TreeSceneGraph.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="EventDispatcherImpl.cpp" />
     <ClCompile Include="EventQueueImpl.cpp" />

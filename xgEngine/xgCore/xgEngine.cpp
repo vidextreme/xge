@@ -18,6 +18,10 @@
 #include "EventQueueImpl.h"
 #include "CodecRegistryImpl.h"
 #include "DynamicObjectImpl.h"
+#include "ActorRegistryImpl.h"
+#include "SceneGraphFactoryImpl.h"
+
+#include "TreeSceneGraph.h"
 
 #include "CodecJson.h"
 #include "CodecBinary.h"
@@ -54,8 +58,19 @@ namespace xg
         //_messenger = new MessengerImpl(_scriptTree);
         _rootModule = AddScriptModule("root", nullptr, nullptr, "core");
 		_rootNode = _scriptTree->FindNode(_rootModule);
-        auto ha = MessengerImpl::SuperTypeID;
+        //auto ha = MessengerImpl::SuperTypeID;
 		RegisterSystem(_rootModule, new MessengerImpl(_scriptTree));
+        RegisterSystem(_rootModule, new ActorRegistryImpl());
+		auto sceneGraphFactory = new SceneGraphFactoryImpl();
+        RegisterSystem(_rootModule, sceneGraphFactory);
+
+        sceneGraphFactory->RegisterType("tree",
+            [](ActorRegistry& reg) -> SceneGraph*
+            {
+                return new TreeSceneGraph(reg);
+            });
+
+
 		_typeRegistry = CreateTypeRegistry();
 
 		_queue = new EventQueueImpl();

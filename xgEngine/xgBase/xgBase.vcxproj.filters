@@ -89,6 +89,12 @@
     <ClInclude Include="public\xgSystem.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgActorRegistry.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgSceneGraphFactory.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
