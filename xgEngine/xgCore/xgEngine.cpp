@@ -47,7 +47,6 @@ namespace xg
     };
 
     Engine::Engine()
-		: _dispatcher(new EventDispatcherImpl())
     {
         //MainWindow = NewWindow("xgEngine", 1280, 720);
         _moduleStorage = new ModuleStorage();
@@ -61,8 +60,15 @@ namespace xg
         //auto ha = MessengerImpl::SuperTypeID;
 		RegisterSystem(_rootModule, new MessengerImpl(_scriptTree));
         RegisterSystem(_rootModule, new ActorRegistryImpl());
+        
+        auto eventDispatcher = new EventDispatcherImpl();
+        RegisterSystem(_rootModule, eventDispatcher);
+
 		auto sceneGraphFactory = new SceneGraphFactoryImpl();
         RegisterSystem(_rootModule, sceneGraphFactory);
+
+		auto queue = new EventQueueImpl();
+        RegisterSystem(_rootModule, queue);
 
         sceneGraphFactory->RegisterType("tree",
             [](ActorRegistry& reg) -> SceneGraph*
@@ -73,8 +79,6 @@ namespace xg
 
 		_typeRegistry = CreateTypeRegistry();
 
-		_queue = new EventQueueImpl();
-
 		_nativeCodecRegistry = new CodecRegistryImpl();
 		_coreclrCodecRegistry = new CodecRegistryImpl();
 
@@ -82,8 +86,8 @@ namespace xg
 
         if (MainWindow)
         {
-            MainWindow->SetEventQueue(_queue);
-            MainWindow->SetEventDispatcher(_dispatcher);
+            MainWindow->SetEventQueue(queue);
+            MainWindow->SetEventDispatcher(eventDispatcher);
         }
     }
 
@@ -95,9 +99,6 @@ namespace xg
         delete static_cast<HostStorage*>(_hostStorage);
 
         XG_DELETE(_scriptTree)
-        //XG_DELETE(_messenger)
-        XG_DELETE(_dispatcher)
-        XG_DELETE(_queue)
 		XG_DELETE(_nativeCodecRegistry)
 		XG_DELETE(_coreclrCodecRegistry)
 

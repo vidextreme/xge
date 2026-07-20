@@ -568,7 +568,7 @@ namespace xg
             &EditorKernelModule::OnEvent
         );
 
-        engine->GetDispatcher()->AddListener(_eventListener.get());
+        engine->GetSystem<EventDispatcher>()->AddListener(_eventListener.get());
 
         //
         // ImGui setup
@@ -649,7 +649,7 @@ namespace xg
         //
         if (_engine)
         {
-            if (auto* dispatcher = _engine->GetDispatcher())
+            if (auto dispatcher = _engine->GetSystem<EventDispatcher>())
                 dispatcher->RemoveListener(_eventListener.get());
         }
 

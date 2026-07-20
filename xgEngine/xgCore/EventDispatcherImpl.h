@@ -7,6 +7,7 @@ namespace xg
 {
 	class EventDispatcherImpl : public EventDispatcher
     {
+		XG_DECLARE_SYSTEM(EventDispatcherImpl, EventDispatcher)
     public:
         EventDispatcherImpl();
         ~EventDispatcherImpl();
