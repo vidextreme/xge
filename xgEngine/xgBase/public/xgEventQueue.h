@@ -1,12 +1,14 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
+#include "xgBase.h"
+#include "xgSystem.h"
 #include "xgEvent.h"
-
 namespace xg
 {
-    class EventQueue
+    class EventQueue : public System
     {
+        XG_DECLARE_BASE_SYSTEM(EventQueue)
     public:
         virtual ~EventQueue() = default;
 

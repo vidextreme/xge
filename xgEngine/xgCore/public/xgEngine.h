@@ -44,8 +44,6 @@ namespace xg
         RendererUnique Renderer;
         WindowUnique MainWindow;
 
-        EventDispatcher* GetDispatcher() override { return _dispatcher; }
-        EventQueue* GetQueue() override { return _queue; }
 		TypeRegistry* GetTypeRegistry() override { return _typeRegistry.get(); }
 
 
@@ -87,8 +85,6 @@ namespace xg
         ScriptTree* _scriptTree = nullptr;
 		ScriptModule* _rootModule = nullptr;
 		ScriptNode* _rootNode = nullptr;
-        EventQueue*      _queue;
-        EventDispatcher* _dispatcher;
 		xgUnique<TypeRegistry> _typeRegistry;
 
 		CodecRegistry* _nativeCodecRegistry = nullptr;

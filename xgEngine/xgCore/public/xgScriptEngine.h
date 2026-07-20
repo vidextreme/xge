@@ -52,9 +52,6 @@ namespace xg
         virtual ScriptModule* GetScriptModule(const char* id) = 0;
         virtual void RemoveScriptModule(const char* id) = 0;
 
-        virtual EventDispatcher* GetDispatcher() = 0;
-        virtual EventQueue* GetQueue() = 0;
-
         virtual TypeRegistry* GetTypeRegistry() = 0;
 
         virtual void AddLogCallback(LogCallback cb) = 0;

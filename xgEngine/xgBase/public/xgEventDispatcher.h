@@ -3,6 +3,7 @@
 #pragma once
 #include "xgEvent.h"
 #include "xgBase.h"
+#include "xgSystem.h"
 namespace xg
 {
     class EventListener
@@ -12,8 +13,9 @@ namespace xg
         virtual void OnEvent(const xgEvent& e) = 0;
     };
 
-    class EventDispatcher
+	class EventDispatcher : public System
     {
+        XG_DECLARE_BASE_SYSTEM(EventDispatcher)
     public:
         virtual ~EventDispatcher() = default;
 
