@@ -28,10 +28,7 @@ namespace xg
         void        Update(float dt);
 
         
-        void RegisterSystem(TypeID typeID, System* system)
-        {
-            _systems[typeID] = system;
-        }
+        void RegisterSystem(TypeID typeID, System* system);
 
         void ShutdownSystem(TypeID typeID);
        

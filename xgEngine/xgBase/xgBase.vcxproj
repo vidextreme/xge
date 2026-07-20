@@ -97,6 +97,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="MemoryStreamImpl.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="public\xgActorRegistry.h" />
     <ClInclude Include="public\xgBase.h" />
     <ClInclude Include="public\xgCodecRegistry.h" />
     <ClInclude Include="public\xgDynamicObject.h" />
@@ -110,6 +111,7 @@
     <ClInclude Include="public\xgPathUtils.h" />
     <ClInclude Include="public\xgRoute.h" />
     <ClInclude Include="public\xgSceneGraph.h" />
+    <ClInclude Include="public\xgSceneGraphFactory.h" />
     <ClInclude Include="public\xgSceneGraphRegistry.h" />
     <ClInclude Include="public\xgSceneNode.h" />
     <ClInclude Include="public\xgSceneNodeEngine.h" />
