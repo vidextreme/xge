@@ -9,6 +9,19 @@
 #ifndef PCH_H
 #define PCH_H
 
+#include <cstdint>
+#include <map>
+#include <string>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+#include <algorithm>
+#include <mutex>
+#include <chrono>
+#include <ctime>
+#include <cstdarg>
+#include <queue>
+#include <functional>
 // add headers that you want to pre-compile here
 #include "framework.h"
 

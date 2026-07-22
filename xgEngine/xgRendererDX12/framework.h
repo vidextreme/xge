@@ -10,8 +10,8 @@
 #include <wrl/client.h>
 
 // Public xgBase headers
-#include "public/xgHandles.h"
-#include "public/xgWindow.h"
-#include "public/xgRenderer.h"
-#include "public/xgBase.h"
-#include "public/xgSystem.h"
+#include "xgHandles.h"
+#include "xgWindow.h"
+#include "xgRenderer.h"
+#include "xgBase.h"
+#include "xgSystem.h"
