@@ -9,8 +9,6 @@
 #ifndef PCH_H
 #define PCH_H
 
-// add headers that you want to pre-compile here
-#include "framework.h"
 
 // Common STL headers used throughout xgScriptCoreCLR
 #include <map>
@@ -19,5 +17,8 @@
 #include <unordered_map>
 #include <vector>
 #include <format>
+
+// add headers that you want to pre-compile here
+#include "framework.h"
 
 #endif //PCH_H

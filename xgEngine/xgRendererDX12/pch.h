@@ -9,8 +9,6 @@
 #ifndef PCH_H
 #define PCH_H
 
-// add headers that you want to pre-compile here
-#include "framework.h"
 
 // Common STL headers used throughout xgRendererDX12
 #include <map>
@@ -20,5 +18,8 @@
 #include <vector>
 #include <stdexcept>
 #include <cassert>
+
+// add headers that you want to pre-compile here
+#include "framework.h"
 
 #endif //PCH_H

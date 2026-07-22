@@ -26,7 +26,9 @@
     <Project Path="xgUtility/xgUtility.vcxproj" Id="f7226bfd-67ad-4c0f-adbb-a2f04c2a100a" />
   </Folder>
   <Folder Name="/engine/kits/">
-    <Project Path="xgEditorKit/xgEditorKit.vcxproj" Id="892b1e84-d1ce-4bda-b38b-0e7ed2cf0788" />
+    <Project Path="xgEditorKit/xgEditorKit.vcxproj" Id="892b1e84-d1ce-4bda-b38b-0e7ed2cf0788">
+      <BuildDependency Project="xgBase/xgBase.vcxproj" />
+    </Project>
     <Project Path="xgSharedKit.Managed/xgSharedKit.Managed.csproj">
       <BuildDependency Project="xgBase/xgBase.vcxproj" />
       <BuildDependency Project="xgCore/xgCore.vcxproj" />

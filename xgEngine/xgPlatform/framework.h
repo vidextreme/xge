@@ -8,15 +8,15 @@
 #include <SDL3/SDL.h>
 
 // Public xgBase headers (via xgBase framework)
-#include "public/xgHandles.h"
-#include "public/xgWindow.h"
-#include "public/xgEvent.h"
-#include "public/xgEventHelpers.h"
-#include "public/xgEventQueue.h"
-#include "public/xgEventDispatcher.h"
-#include "public/xgLog.h"
-#include "public/xgBase.h"
-#include "public/xgSystem.h"
+#include "xgHandles.h"
+#include "xgWindow.h"
+#include "xgEvent.h"
+#include "xgEventHelpers.h"
+#include "xgEventQueue.h"
+#include "xgEventDispatcher.h"
+#include "xgLog.h"
+#include "xgBase.h"
+#include "xgSystem.h"
 
 // Platform-specific utility headers
 #include "platform/xgEventToSDL.h"

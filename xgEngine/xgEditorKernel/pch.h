@@ -9,8 +9,6 @@
 #ifndef PCH_H
 #define PCH_H
 
-// add headers that you want to pre-compile here
-#include "framework.h"
 
 // Common STL headers used throughout xgEditorKernel
 #include <map>
@@ -18,5 +16,8 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
+// add headers that you want to pre-compile here
+#include "framework.h"
 
 #endif //PCH_H
