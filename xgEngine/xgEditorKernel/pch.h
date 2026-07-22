@@ -11,6 +11,8 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+
+// Common STL headers used throughout xgEditorKernel
 #include <map>
 #include <string>
 #include <memory>
