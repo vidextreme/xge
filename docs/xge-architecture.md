@@ -120,6 +120,72 @@ A ScriptHost is the runtime bridge between the engine and a scripting backend. I
 - Works across all ScriptHosts
 
 ---
+```cpp
+// ------------------------------------------------------------
+// Example: Routing a Game Event (EnemySpotted)
+// ------------------------------------------------------------
+
+// 1. Define a native gameplay event
+struct EnemySpotted
+{
+    float x;
+    float y;
+    float radius;
+};
+
+// 2. Sender (AI Module) encodes + routes the event
+class AIModule : public ScriptModule
+{
+public:
+    AIModule(ScriptHost* host)
+        : ScriptModule("AI", host, "Game") {}
+
+    void ReportEnemy(float x, float y, float radius)
+    {
+        EnemySpotted evt{ x, y, radius };
+
+        ScriptMessage msg;
+        CodecRegistry.Encode(
+            "EnemySpotted",
+            &evt,
+            TypeRegistry::Get("EnemySpotted"),
+            msg);
+
+        // Notify all siblings of AI (Player, UI, Systems, etc.)
+        _engine->GetMessenger()->Send(msg, Route::SiblingsOf("AI"));
+    }
+};
+
+```
+```cpp
+// 3. Receiver (PlayerModule) decodes + reacts to the event
+class PlayerModule : public ScriptModule
+{
+public:
+    PlayerModule(ScriptHost* host)
+        : ScriptModule("Player", host, "Game") {}
+
+    void OnMessage(const ScriptMessage& msg) override
+    {
+        EnemySpotted evt{};
+        if (CodecRegistry.Decode(
+                "EnemySpotted",
+                msg,
+                TypeRegistry::Get("EnemySpotted"),
+                &evt))
+        {
+            ReactToThreat(evt.x, evt.y, evt.radius);
+        }
+    }
+
+private:
+    void ReactToThreat(float x, float y, float radius)
+    {
+        // Player threat response logic here
+    }
+
+};
+```
 
 # 🏷️ Encoder / Decoder (Reflection Serialization)
 
