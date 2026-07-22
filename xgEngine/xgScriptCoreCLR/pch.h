@@ -11,14 +11,13 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+
+// Common STL headers used throughout xgScriptCoreCLR
 #include <map>
 #include <string>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 #include <format>
-
-#include "hostfxr.h"
-#include "coreclr_delegates.h"
 
 #endif //PCH_H

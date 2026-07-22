@@ -11,5 +11,11 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+
+// Common STL headers used throughout xgPlatform
 #include <string>
+#include <memory>
+#include <vector>
+#include <mutex>
+
 #endif //PCH_H

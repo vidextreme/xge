@@ -11,6 +11,8 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+
+// Common STL headers used throughout xgBase
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -20,4 +22,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <cstdint>
+#include <cstdio>
+#include <cstddef>
+
 #endif //PCH_H

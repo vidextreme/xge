@@ -11,9 +11,14 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+
+// Common STL headers used throughout xgRendererDX12
 #include <map>
 #include <string>
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <stdexcept>
+#include <cassert>
+
 #endif //PCH_H
