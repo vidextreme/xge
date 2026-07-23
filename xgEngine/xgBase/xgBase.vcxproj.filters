@@ -15,6 +15,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="math">
+      <UniqueIdentifier>{7b9642b7-966b-4e2c-8858-819b7bb0f362}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="public\xgBase.h">
@@ -95,6 +98,36 @@
     <ClInclude Include="public\xgSceneGraphFactory.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="math\xgBounds.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgMat4x4.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgMathCommon.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgMathFuncs.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgQuat.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgRay.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgTransform.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgVec2.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgVec3.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgVec4.h">
+      <Filter>math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -121,5 +154,10 @@
     <ClCompile Include="xgDynamicObject.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="math\__xgDirectXMath.inl">
+      <Filter>math</Filter>
+    </None>
   </ItemGroup>
 </Project>

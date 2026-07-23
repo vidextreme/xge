@@ -1,5 +1,10 @@
 #pragma once
 #include "xgSceneNode.h"
+#include "math/xgVec3.h"
+#include "math/xgQuat.h"
+#include "math/xgVec4.h"
+#include "math/xgMat4x4.h"
+#include "math/xgTransform.h"
 
 namespace xg
 {
@@ -22,9 +27,7 @@ namespace xg
     {
         static constexpr SceneNodeFlags Mask = SceneNode_Transform;
 
-        float Position[3]{ 0, 0, 0 };
-        float Rotation[3]{ 0, 0, 0 };
-        float Scale[3]{ 1, 1, 1 };
+        Transform Transform;
     };
 
     struct SceneNodeMetadata

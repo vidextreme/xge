@@ -51,6 +51,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_LIB;XG_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -72,6 +73,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -95,6 +97,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClInclude Include="math\xgBounds.h" />
+    <ClInclude Include="math\xgMat4x4.h" />
+    <ClInclude Include="math\xgMathCommon.h" />
+    <ClInclude Include="math\xgMathFuncs.h" />
+    <ClInclude Include="math\xgQuat.h" />
+    <ClInclude Include="math\xgRay.h" />
+    <ClInclude Include="math\xgTransform.h" />
+    <ClInclude Include="math\xgVec2.h" />
+    <ClInclude Include="math\xgVec3.h" />
+    <ClInclude Include="math\xgVec4.h" />
     <ClInclude Include="MemoryStreamImpl.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgActorRegistry.h" />
@@ -133,6 +145,9 @@
     <ClCompile Include="xgPathUtils.cpp" />
     <ClCompile Include="xgRoute.cpp" />
     <ClCompile Include="xgTypeRegistry.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="math\__xgDirectXMath.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

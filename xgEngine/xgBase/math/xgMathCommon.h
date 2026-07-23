@@ -211,17 +211,17 @@ namespace xg
 
     // Modulo that works correctly for negative numbers
     constexpr int Mod(int x, int m) noexcept { return (x % m + m) % m; }
-    constexpr float FMod(float x, float m) noexcept { return fmodf(fmodf(x, m) + m, m); }
+    float FMod(float x, float m) noexcept { return fmodf(fmodf(x, m) + m, m); }
 
     // Linear to gamma and gamma to linear (sRGB)
     constexpr float LinearToGamma(float linear) noexcept { return linear <= 0.0031308f ? 12.92f * linear : 1.055f * powf(linear, 1.0f / 2.4f) - 0.055f; }
     constexpr float GammaToLinear(float gamma) noexcept { return gamma <= 0.04045f ? gamma / 12.92f : powf((gamma + 0.055f) / 1.055f, 2.4f); }
 
     // Radians/degrees constants
-    constexpr float Deg90 = DEG_90;
-    constexpr float Deg180 = DEG_180;
-    constexpr float Deg270 = DEG_270;
-    constexpr float Deg360 = DEG_360;
+    constexpr float Deg90 = constants::DEG_90;
+    constexpr float Deg180 = constants::DEG_180;
+    constexpr float Deg270 = constants::DEG_270;
+    constexpr float Deg360 = constants::DEG_360;
 } // namespace xg
 
 // Forward declarations of math types (defined in their own headers)
