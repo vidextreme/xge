@@ -105,7 +105,7 @@ namespace xg::detail
 
     inline XGVector Vec3Lerp(XGVector a, XGVector b, float t) noexcept
     {
-        return XMVectorLerp(a, b, XMVectorReplicate(t));
+        return XMVectorLerp(a, b, t);
     }
 
     inline XGVector Vec3Negate(XGVector v) noexcept
@@ -203,7 +203,7 @@ namespace xg::detail
 
     inline XGVector Vec4Lerp(XGVector a, XGVector b, float t) noexcept
     {
-        return XMVectorLerp(a, b, XMVectorReplicate(t));
+        return XMVectorLerp(a, b, t);
     }
 
     inline XGVector Vec4Negate(XGVector v) noexcept
@@ -303,7 +303,7 @@ namespace xg::detail
 
     inline XGVector QuatLerp(XGVector a, XGVector b, float t) noexcept
     {
-        return XMVectorLerp(a, b, XMVectorReplicate(t));
+        return XMVectorLerp(a, b, t);
     }
 
     inline XGVector QuatRotationAxis(XGVector axis, float angle) noexcept
@@ -362,6 +362,11 @@ namespace xg::detail
     inline XGVector Mat4x4Determinant(XGMatrix m) noexcept
     {
         return XMMatrixDeterminant(m);
+    }
+
+    inline float DeterminantX(XGMatrix m) noexcept
+    {
+        return DirectX::XMVectorGetX(detail::Mat4x4Determinant(m));
     }
 
     inline XGMatrix Mat4x4Translation(float x, float y, float z) noexcept
