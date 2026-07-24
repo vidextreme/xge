@@ -4,6 +4,9 @@
     <Filter Include="platform">
       <UniqueIdentifier>{f5b016ab-aff0-4344-82bc-c359a572986e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="interop">
+      <UniqueIdentifier>{f06e8275-5ea5-4fad-9772-6515c7cb473c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="platform\xgEventToSDL.h">

@@ -211,7 +211,7 @@ namespace xg
 
     // Modulo that works correctly for negative numbers
     constexpr int Mod(int x, int m) noexcept { return (x % m + m) % m; }
-    float FMod(float x, float m) noexcept { return fmodf(fmodf(x, m) + m, m); }
+    inline float FMod(float x, float m) noexcept { return fmodf(fmodf(x, m) + m, m); }
 
     // Linear to gamma and gamma to linear (sRGB)
     constexpr float LinearToGamma(float linear) noexcept { return linear <= 0.0031308f ? 12.92f * linear : 1.055f * powf(linear, 1.0f / 2.4f) - 0.055f; }

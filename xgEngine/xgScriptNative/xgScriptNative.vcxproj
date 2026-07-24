@@ -56,7 +56,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -79,7 +79,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -91,9 +91,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="xgLogBridge.cpp" />
-    <ClCompile Include="xgScriptMessageBridge.cpp" />
     <ClInclude Include="framework.h" />
+    <ClCompile Include="interop\xgLogInterop.cpp" />
+    <ClCompile Include="interop\xgScriptMessageInterop.cpp" />
+    <ClCompile Include="interop\xgVec2Interop.cpp" />
+    <ClCompile Include="interop\xgVec3Interop.cpp" />
     <ClCompile Include="ScriptModuleNative.cpp" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ScriptHostNative.h" />
@@ -106,6 +108,11 @@
     </ClCompile>
     <ClCompile Include="ScriptHostNative.cpp" />
     <ClCompile Include="ScriptNative.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\xgBase\xgBase.vcxproj">
+      <Project>{caa21a27-7e4b-45ca-8915-bf017af8f3af}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

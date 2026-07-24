@@ -30,6 +30,8 @@
       </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Vector2Interop.cs" />
+    <Compile Include="Vector3Interop.cs" />
     <Compile Include="MessageCodec.cs" />
     <Compile Include="ScriptMessageInterop.cs" />
     <Compile Include="ScriptMessageParser.cs" />

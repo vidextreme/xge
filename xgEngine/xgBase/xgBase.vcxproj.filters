@@ -128,6 +128,9 @@
     <ClInclude Include="math\xgVec4.h">
       <Filter>math</Filter>
     </ClInclude>
+    <ClInclude Include="math\xgVec2Interop.h">
+      <Filter>math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -157,6 +160,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="math\__xgDirectXMath.inl">
+      <Filter>math</Filter>
+    </None>
+    <None Include="math\xgVec3Interop.h">
       <Filter>math</Filter>
     </None>
   </ItemGroup>

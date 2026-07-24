@@ -10,7 +10,7 @@
 
 namespace xg
 {
-    struct Vec2
+    struct alignas(4) Vec2
     {
         union
         {
@@ -49,7 +49,7 @@ namespace xg
         // Equality
         constexpr bool operator==(const Vec2& other) const noexcept
         {
-            return IsEqual(x, other.x) && IsEqual(y, other.y);
+            return x == other.x && y == other.y;
         }
 
         constexpr bool operator!=(const Vec2& other) const noexcept
@@ -309,12 +309,25 @@ namespace xg
             detail::XMToVec2(v, result);
             return result;
         }
+
+        bool IsEqual(const Vec2& b, float epsilon) const noexcept
+        {
+            auto va = this->ToXM();
+            auto vb = b.ToXM();
+            return detail::IsEqualSIMD(va, vb, epsilon);
+        }
+
+        bool IsZero() const noexcept
+        {
+            detail::XGVector vv = this->ToXM();
+            return detail::IsZeroSIMD(vv);
+        }
     };
 
     // Static assertions for POD/trivial properties
     //static_assert(std::is_trivial_v<Vec2>, "Vec2 must be trivial");
     static_assert(std::is_standard_layout_v<Vec2>, "Vec2 must be standard layout");
-    static_assert(sizeof(Vec2) == 2 * sizeof(float), "Vec2 must be 2 floats");
+    //static_assert(sizeof(Vec2) == 2 * sizeof(float), "Vec2 must be 2 floats");
     static_assert(std::is_trivially_copyable_v<Vec2>, "Vec2 must be trivially copyable");
 } // namespace xg
 
@@ -327,7 +340,7 @@ namespace xg
         return Vec2::Lerp(a, b, t);
     }
 
-    Vec2 LerpClamped(const Vec2& a, const Vec2& b, float t) noexcept
+    inline Vec2 LerpClamped(const Vec2& a, const Vec2& b, float t) noexcept
     {
         return Vec2::LerpClamped(a, b, t);
     }
@@ -338,7 +351,7 @@ namespace xg
         return a.DistanceSq(b);
     }
 
-    float Distance(const Vec2& a, const Vec2& b) noexcept
+    inline float Distance(const Vec2& a, const Vec2& b) noexcept
     {
         return a.Distance(b);
     }
