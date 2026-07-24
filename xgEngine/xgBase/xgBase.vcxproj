@@ -105,6 +105,7 @@
     <ClInclude Include="math\xgRay.h" />
     <ClInclude Include="math\xgTransform.h" />
     <ClInclude Include="math\xgVec2.h" />
+    <ClInclude Include="math\xgVec2Interop.h" />
     <ClInclude Include="math\xgVec3.h" />
     <ClInclude Include="math\xgVec4.h" />
     <ClInclude Include="MemoryStreamImpl.h" />
@@ -147,6 +148,7 @@
     <ClCompile Include="xgTypeRegistry.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="math\xgVec3Interop.h" />
     <None Include="math\__xgDirectXMath.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

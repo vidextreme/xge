@@ -59,7 +59,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\xgUtility</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -80,7 +80,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\xgUtility</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -107,6 +107,9 @@
   <ItemGroup>
     <ProjectReference Include="..\xgBase\xgBase.vcxproj">
       <Project>{caa21a27-7e4b-45ca-8915-bf017af8f3af}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\xgUtility\xgUtility.vcxproj">
+      <Project>{f7226bfd-67ad-4c0f-adbb-a2f04c2a100a}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

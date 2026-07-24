@@ -661,4 +661,38 @@ namespace xg::detail
         t = f * XMVectorGetX(XMVector3Dot(edge2, q));
         return t >= 0.0f;
     }
+
+    // Mat4x4 → XGMatrix (assuming Mat4x4 stores float[16] or XGFloat4x4)
+    inline XGMatrix ToXGMatrix(const Mat4x4& m)
+    {
+        return XMLoadFloat4x4(reinterpret_cast<const XGFloat4x4*>(&m));
+    }
+
+    inline XGVector TransformPointSIMD(XGVector v, const Mat4x4& m)
+    {
+        return XMVector3Transform(v, ToXGMatrix(m));
+    }
+
+    inline XGVector TransformDirectionSIMD(XGVector v, const Mat4x4& m)
+    {
+        return XMVector3TransformNormal(v, ToXGMatrix(m));
+    }
+
+    inline bool IsZeroSIMD(XGVector v, float epsilon = xg::constants::EPSILON_POS)
+    {
+        // Compute length of the vector
+        XGVector len = XMVector3Length(v);
+
+        // Compare length to epsilon
+        return XMVectorGetX(len) <= epsilon;
+    }
+
+    inline bool IsEqualSIMD(const XGVector& a, const XGVector& b, float epsilon)
+    {
+        XGVector diff = XMVectorSubtract(a, b);
+        XGVector len = XMVector3Length(diff);
+        return XMVectorGetX(len) <= epsilon;
+    }
+
+
 } // namespace xg::detail

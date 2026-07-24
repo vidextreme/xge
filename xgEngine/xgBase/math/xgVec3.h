@@ -306,6 +306,20 @@ namespace xg
             return *this * c + u.Cross(*this) * s + u * (u.Dot(*this)) * (1.0f - c);
         }
 
+        bool IsEqual(const Vec3& b, float epsilon) const noexcept
+        {
+            auto va = this->ToXM();
+            auto vb = b.ToXM();
+            return detail::IsEqualSIMD(va, vb, epsilon);
+        }
+
+        bool IsZero() const noexcept
+        {
+            detail::XGVector vv = this->ToXM();
+            return detail::IsZeroSIMD(vv);
+        }
+
+
         //--------------------------------------------------------
         // DirectXMath interop
         //--------------------------------------------------------
@@ -320,6 +334,23 @@ namespace xg
             detail::XMToVec3(v, result);
             return result;
         }
+
+        inline Vec3 Transform(const Mat4x4& m) const noexcept
+        {
+            detail::XGVector v = this->ToXM();
+            detail::XGVector r = detail::TransformPointSIMD(v, m);
+            return FromXM(r);
+        }
+
+        inline Vec3 TransformDirection(const Mat4x4& m) const noexcept
+        {
+            detail::XGVector v = this->ToXM();
+            detail::XGVector r = detail::TransformDirectionSIMD(v, m);
+            return FromXM(r);
+        }
+
+
+
 
         //--------------------------------------------------------
         // Static constants
