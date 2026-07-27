@@ -79,6 +79,14 @@ namespace xg
             return !(*this == other);
         }
 
+        constexpr bool IsApproxEqual(const Quat& other, float epsilon = EPSILON_POS) const noexcept
+        {
+            return IsEqual(x, other.x, epsilon) &&
+                   IsEqual(y, other.y, epsilon) &&
+                   IsEqual(z, other.z, epsilon) &&
+                   IsEqual(w, other.w, epsilon);
+        }
+
         //--------------------------------------------------------
         // Arithmetic operators
         //--------------------------------------------------------
@@ -113,6 +121,26 @@ namespace xg
         {
             float inv = 1.0f / scalar;
             x *= inv; y *= inv; z *= inv; w *= inv; return *this;
+        }
+
+        constexpr Quat operator+(const Quat& other) const noexcept
+        {
+            return Quat(x + other.x, y + other.y, z + other.z, w + other.w);
+        }
+
+        constexpr Quat operator-(const Quat& other) const noexcept
+        {
+            return Quat(x - other.x, y - other.y, z - other.z, w - other.w);
+        }
+
+        constexpr Quat& operator+=(const Quat& other) noexcept
+        {
+            x += other.x; y += other.y; z += other.z; w += other.w; return *this;
+        }
+
+        constexpr Quat& operator-=(const Quat& other) noexcept
+        {
+            x -= other.x; y -= other.y; z -= other.z; w -= other.w; return *this;
         }
 
         //--------------------------------------------------------

@@ -1,7 +1,6 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
-﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -22,6 +21,7 @@ namespace xgEditor.CoreCLR
             Console.WriteLine("wow");
             TestVector3();
             TestVector2();
+            TestQuaternion();
             return 1;
         }
 
@@ -240,5 +240,61 @@ namespace xgEditor.CoreCLR
 
             Console.WriteLine("=== XGE Vec2 Interop Test Complete ===");
         }
+
+        public static void TestQuaternion()
+        {
+            Console.WriteLine("=== XGE Quaternion Interop Test ===");
+
+            Quaternion qA = new Quaternion(0, 0.7071067f, 0, 0.7071067f); // 90° around Y
+            Quaternion qB = new Quaternion(0.7071067f, 0, 0, 0.7071067f); // 90° around X
+
+            // Arithmetic
+            Quaternion add = qA.Add(qB);
+            Console.WriteLine($"Add: {add.x}, {add.y}, {add.z}, {add.w}");
+
+            Quaternion sub = qA.Sub(qB);
+            Console.WriteLine($"Sub: {sub.x}, {sub.y}, {sub.z}, {sub.w}");
+
+            Quaternion mulScalar = qA.Mul(2.0f);
+            Console.WriteLine($"MulScalar: {mulScalar.x}, {mulScalar.y}, {mulScalar.z}, {mulScalar.w}");
+
+            // Quaternion math
+            Console.WriteLine($"Length(qA): {qA.Length()}");
+            Console.WriteLine($"LengthSquared(qA): {qA.LengthSquared()}");
+
+            Quaternion norm = qA.Normalized();
+            Console.WriteLine($"Normalize(qA): {norm.x}, {norm.y}, {norm.z}, {norm.w}");
+
+            Console.WriteLine($"Dot(qA,qB): {qA.Dot(qB)}");
+
+            Quaternion conj = qA.Conjugate();
+            Console.WriteLine($"Conjugate(qA): {conj.x}, {conj.y}, {conj.z}, {conj.w}");
+
+            Quaternion inv = qA.Inverse();
+            Console.WriteLine($"Inverse(qA): {inv.x}, {inv.y}, {inv.z}, {inv.w}");
+
+            Quaternion mul = qA.Mul(qB);
+            Console.WriteLine($"MulQuat(qA,qB): {mul.x}, {mul.y}, {mul.z}, {mul.w}");
+
+            // Slerp
+            Quaternion slerp = qA.Slerp(qB, 0.5f);
+            Console.WriteLine($"Slerp(qA,qB,0.5): {slerp.x}, {slerp.y}, {slerp.z}, {slerp.w}");
+
+            // Rotate vector
+            Vector3 v = new Vector3(1, 0, 0);
+            Vector3 vRot = qA.RotateVec3(v);
+            Console.WriteLine($"RotateVec3(qA, (1,0,0)): {vRot.x}, {vRot.y}, {vRot.z}");
+
+            // Identity check
+            Console.WriteLine($"IsIdentity(qA): {qA.IsIdentity()}");
+
+            // Equality
+            Console.WriteLine($"IsEqual(qA,qB): {qA.IsEqual(qB)}");
+            Console.WriteLine($"IsEqual(qA,qA): {qA.IsEqual(qA)}");
+
+            Console.WriteLine("=== XGE Quaternion Interop Test Complete ===");
+        }
+
+
     }
 }

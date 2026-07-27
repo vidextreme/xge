@@ -1,7 +1,6 @@
 #pragma once
 #include "xgVec3.h"
-
-#define XG_MODULE_EXPORT extern "C" __declspec(dllexport)
+#include "xgBase.h"
 
 namespace xg
 {

@@ -93,6 +93,7 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClCompile Include="interop\xgLogInterop.cpp" />
+    <ClCompile Include="interop\xgQuatInterop.cpp" />
     <ClCompile Include="interop\xgScriptMessageInterop.cpp" />
     <ClCompile Include="interop\xgVec2Interop.cpp" />
     <ClCompile Include="interop\xgVec3Interop.cpp" />

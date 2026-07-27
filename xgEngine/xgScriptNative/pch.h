@@ -9,6 +9,7 @@
 #ifndef PCH_H
 #define PCH_H
 
+#pragma message(">>> entering pch.h")
 
 // Common STL headers used throughout xgScriptNative
 #include <map>

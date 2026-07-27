@@ -102,6 +102,7 @@
     <ClInclude Include="math\xgMathCommon.h" />
     <ClInclude Include="math\xgMathFuncs.h" />
     <ClInclude Include="math\xgQuat.h" />
+    <ClInclude Include="math\xgQuatInterop.h" />
     <ClInclude Include="math\xgRay.h" />
     <ClInclude Include="math\xgTransform.h" />
     <ClInclude Include="math\xgVec2.h" />
