@@ -301,7 +301,7 @@ namespace xg
         return a.DistanceSq(b);
     }
 
-    float Distance(const Vec4& a, const Vec4& b) noexcept
+    inline float Distance(const Vec4& a, const Vec4& b) noexcept
     {
         return a.Distance(b);
     }
@@ -313,7 +313,7 @@ namespace xg
     }
 
     // Normalize
-    Vec4 Normalize(const Vec4& v) noexcept
+    inline Vec4 Normalize(const Vec4& v) noexcept
     {
         return v.Normalized();
     }

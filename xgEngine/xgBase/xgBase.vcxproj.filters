@@ -134,6 +134,12 @@
     <ClInclude Include="math\xgQuatInterop.h">
       <Filter>math</Filter>
     </ClInclude>
+    <ClInclude Include="interop\xgMat4x4Interop.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgMat4x4Interop.h">
+      <Filter>math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

@@ -62,5 +62,8 @@
     <ClCompile Include="interop\xgQuatInterop.cpp">
       <Filter>interop</Filter>
     </ClCompile>
+    <ClCompile Include="interop\xgMat4x4Interop.cpp">
+      <Filter>interop</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

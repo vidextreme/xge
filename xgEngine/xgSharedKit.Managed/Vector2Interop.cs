@@ -15,6 +15,27 @@ namespace xg.math
             this.x = x;
             this.y = y;
         }
+
+        public override string ToString()
+        {
+            return $"Vector2({x:F4}, {y:F4})";
+        }
+
+        public static Vector2 Zero()
+            => new Vector2(0f, 0f);
+
+        public static Vector2 One()
+            => new Vector2(1f, 1f);
+
+        public static Vector2 UnitX()
+            => new Vector2(1f, 0f);
+
+        public static Vector2 UnitY()
+            => new Vector2(0f, 1f);
+
+        public static Vector2 FromAngle(float radians)
+            => new Vector2(MathF.Cos(radians), MathF.Sin(radians));
+
     }
 
     internal static class NativeVec2

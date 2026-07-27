@@ -238,7 +238,7 @@ namespace xg
         }
 
         // Transform vector (no translation)
-        Vec3 TransformVector(const Vec3& v) const noexcept
+        Vec3 TransformDirection(const Vec3& v) const noexcept
         {
             detail::XGVector result = detail::Vec4Transform(Vec4(v.x, v.y, v.z, 0.0f).ToXM(), detail::Mat4x4ToXM(*this));
             return Vec3::FromXM(result);
@@ -248,7 +248,7 @@ namespace xg
         Vec3 TransformNormal(const Vec3& v) const noexcept
         {
             Mat4x4 invTrans = Inverse().Transposed();
-            return invTrans.TransformVector(v);
+            return invTrans.TransformDirection(v);
         }
 
         //--------------------------------------------------------

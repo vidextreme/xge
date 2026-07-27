@@ -15,15 +15,66 @@ namespace xg.math
             this.y = y;
             this.z = z;
         }
-    }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct Matrix4x4
-    {
-        public float m00, m01, m02, m03;
-        public float m10, m11, m12, m13;
-        public float m20, m21, m22, m23;
-        public float m30, m31, m32, m33;
+        public override string ToString()
+        {
+            return $"Vector3({x:F4}, {y:F4}, {z:F4})";
+        }
+
+
+        // ------------------------------------------------------------
+        // Standard static constructors
+        // ------------------------------------------------------------
+        public static Vector3 Zero()
+            => new Vector3(0f, 0f, 0f);
+
+        public static Vector3 One()
+            => new Vector3(1f, 1f, 1f);
+
+        public static Vector3 UnitX()
+            => new Vector3(1f, 0f, 0f);
+
+        public static Vector3 UnitY()
+            => new Vector3(0f, 1f, 0f);
+
+        public static Vector3 UnitZ()
+            => new Vector3(0f, 0f, 1f);
+
+        public static Vector3 Right()
+            => new Vector3(1f, 0f, 0f);
+
+        public static Vector3 Up()
+            => new Vector3(0f, 1f, 0f);
+
+        public static Vector3 Forward()
+            => new Vector3(0f, 0f, 1f);
+
+        // Spherical coordinates (θ = azimuth, φ = elevation)
+        public static Vector3 FromSpherical(float theta, float phi)
+        {
+            float cosPhi = MathF.Cos(phi);
+            return new Vector3(
+                cosPhi * MathF.Cos(theta),
+                MathF.Sin(phi),
+                cosPhi * MathF.Sin(theta)
+            );
+        }
+
+        // Yaw (Y), Pitch (X), Roll (Z)
+        public static Vector3 FromYawPitchRoll(float yaw, float pitch, float roll)
+        {
+            // Forward vector from yaw/pitch
+            float cy = MathF.Cos(yaw);
+            float sy = MathF.Sin(yaw);
+            float cp = MathF.Cos(pitch);
+            float sp = MathF.Sin(pitch);
+
+            return new Vector3(
+                cy * cp,
+                sp,
+                sy * cp
+            );
+        }
     }
 
     internal static class NativeVec3
