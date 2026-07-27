@@ -97,8 +97,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClInclude Include="interop\xgMat4x4Interop.h" />
     <ClInclude Include="math\xgBounds.h" />
     <ClInclude Include="math\xgMat4x4.h" />
+    <ClInclude Include="math\xgMat4x4Interop.h" />
     <ClInclude Include="math\xgMathCommon.h" />
     <ClInclude Include="math\xgMathFuncs.h" />
     <ClInclude Include="math\xgQuat.h" />

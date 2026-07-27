@@ -404,7 +404,7 @@ namespace xg
         Vec3 Right() const noexcept;
 
         // Angle between quaternions (radians)
-        float Angle(const Quat& other) const noexcept
+        inline float Angle(const Quat& other) const noexcept
         {
             float dot = Dot(other);
             dot = Clamp(dot, -1.0f, 1.0f);
@@ -448,13 +448,13 @@ namespace xg
     }
 
     // Slerp
-    Quat Slerp(const Quat& a, const Quat& b, float t) noexcept
+    inline Quat Slerp(const Quat& a, const Quat& b, float t) noexcept
     {
         return Quat::Slerp(a, b, t);
     }
 
     // Nlerp
-    Quat Nlerp(const Quat& a, const Quat& b, float t) noexcept
+    inline Quat Nlerp(const Quat& a, const Quat& b, float t) noexcept
     {
         return Quat::Nlerp(a, b, t);
     }
@@ -472,31 +472,31 @@ namespace xg
     }
 
     // Conjugate
-    Quat Conjugate(const Quat& q) noexcept
+    inline Quat Conjugate(const Quat& q) noexcept
     {
         return q.Conjugate();
     }
 
     // Inverse
-    Quat Inverse(const Quat& q) noexcept
+    inline Quat Inverse(const Quat& q) noexcept
     {
         return q.Inverse();
     }
 
     // Normalize
-    Quat Normalize(const Quat& q) noexcept
+    inline Quat Normalize(const Quat& q) noexcept
     {
         return q.Normalized();
     }
 
     // Rotate vector by quaternion
-    Vec3 RotateVector(const Quat& q, const Vec3& v) noexcept
+    inline Vec3 RotateVector(const Quat& q, const Vec3& v) noexcept
     {
         return q.RotateVector(v);
     }
 
     // Angle between quaternions
-    float Angle(const Quat& a, const Quat& b) noexcept
+    inline float Angle(const Quat& a, const Quat& b) noexcept
     {
         return a.Angle(b);
     }

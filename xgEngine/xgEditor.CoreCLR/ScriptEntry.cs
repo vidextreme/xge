@@ -22,6 +22,7 @@ namespace xgEditor.CoreCLR
             TestVector3();
             TestVector2();
             TestQuaternion();
+            TestMatrix4x4();
             return 1;
         }
 
@@ -295,6 +296,57 @@ namespace xgEditor.CoreCLR
             Console.WriteLine("=== XGE Quaternion Interop Test Complete ===");
         }
 
+        public static void TestMatrix4x4()
+        {
+            Console.WriteLine("=== XGE Matrix4x4 Interop Test ===");
+
+            Matrix4x4 I = Matrix4x4.Identity();
+            Console.WriteLine("Identity:");
+            Console.WriteLine(I);
+
+            Matrix4x4 T = Matrix4x4.Translation(3, 4, 5);
+            Console.WriteLine("Translation(3,4,5):");
+            Console.WriteLine(T);
+
+            Matrix4x4 S = Matrix4x4.Scaling(2, 2, 2);
+            Console.WriteLine("Scaling(2,2,2):");
+            Console.WriteLine(S);
+
+            Matrix4x4 RY = Matrix4x4.RotationY(MathF.PI * 0.5f);
+            Console.WriteLine("RotationY(90°):");
+            Console.WriteLine(RY);
+
+            Matrix4x4 M = T * RY * S;
+            Console.WriteLine("M = T * RY * S:");
+            Console.WriteLine(M);
+
+            Matrix4x4 MT = M.Transposed();
+            Console.WriteLine("Transpose(M):");
+            Console.WriteLine(MT);
+
+            Matrix4x4 MI = M.Inverse();
+            Console.WriteLine("Inverse(M):");
+            Console.WriteLine(MI);
+
+            float det = M.Determinant();
+            Console.WriteLine($"Determinant(M): {det}");
+
+            Vector3 p = new Vector3(1, 2, 3);
+            Vector3 p2 = M.TransformPoint(p);
+            Console.WriteLine($"TransformPoint(M, (1,2,3)): {p2}");
+
+            Vector3 d = new Vector3(0, 1, 0);
+            Vector3 d2 = M.TransformDirection(d);
+            Console.WriteLine($"TransformDirection(M, (0,1,0)): {d2}");
+
+            M.Decompose(out Vector3 scale, out Quaternion rot, out Vector3 trans);
+            Console.WriteLine("Decompose(M):");
+            Console.WriteLine($"  Scale: {scale}");
+            Console.WriteLine($"  Rotation: {rot}");
+            Console.WriteLine($"  Translation: {trans}");
+
+            Console.WriteLine("=== XGE Matrix4x4 Interop Test Complete ===");
+        }
 
     }
 }
