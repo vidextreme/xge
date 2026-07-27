@@ -59,5 +59,8 @@
     <ClCompile Include="interop\xgVec2Interop.cpp">
       <Filter>interop</Filter>
     </ClCompile>
+    <ClCompile Include="interop\xgQuatInterop.cpp">
+      <Filter>interop</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

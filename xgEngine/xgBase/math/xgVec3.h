@@ -392,7 +392,7 @@ namespace xg
         return Vec3::Lerp(a, b, t);
     }
 
-     Vec3 LerpClamped(const Vec3& a, const Vec3& b, float t) noexcept
+    inline Vec3 LerpClamped(const Vec3& a, const Vec3& b, float t) noexcept
     {
         return Vec3::LerpClamped(a, b, t);
     }
@@ -403,7 +403,7 @@ namespace xg
         return a.DistanceSq(b);
     }
 
-    float Distance(const Vec3& a, const Vec3& b) noexcept
+    inline float Distance(const Vec3& a, const Vec3& b) noexcept
     {
         return a.Distance(b);
     }
@@ -415,37 +415,37 @@ namespace xg
     }
 
     // Cross free function
-    Vec3 Cross(const Vec3& a, const Vec3& b) noexcept
+    inline Vec3 Cross(const Vec3& a, const Vec3& b) noexcept
     {
         return a.Cross(b);
     }
 
     // Reflect free function
-    Vec3 Reflect(const Vec3& v, const Vec3& normal) noexcept
+    inline Vec3 Reflect(const Vec3& v, const Vec3& normal) noexcept
     {
         return Vec3::Reflect(v, normal);
     }
 
     // Refract free function
-    Vec3 Refract(const Vec3& v, const Vec3& normal, float eta) noexcept
+    inline Vec3 Refract(const Vec3& v, const Vec3& normal, float eta) noexcept
     {
         return Vec3::Refract(v, normal, eta);
     }
 
     // Project free function
-    Vec3 Project(const Vec3& v, const Vec3& on) noexcept
+    inline Vec3 Project(const Vec3& v, const Vec3& on) noexcept
     {
         return Vec3::Project(v, on);
     }
 
     // Reject free function
-    Vec3 Reject(const Vec3& v, const Vec3& on) noexcept
+    inline inline Vec3 Reject(const Vec3& v, const Vec3& on) noexcept
     {
         return Vec3::Reject(v, on);
     }
 
     // Normalize free function
-    Vec3 Normalize(const Vec3& v) noexcept
+    inline Vec3 Normalize(const Vec3& v) noexcept
     {
         return v.Normalized();
     }

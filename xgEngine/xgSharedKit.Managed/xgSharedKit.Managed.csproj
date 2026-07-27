@@ -30,6 +30,7 @@
       </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="QuatInterop.cs" />
     <Compile Include="Vector2Interop.cs" />
     <Compile Include="Vector3Interop.cs" />
     <Compile Include="MessageCodec.cs" />
