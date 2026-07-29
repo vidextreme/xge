@@ -21,6 +21,11 @@ namespace xg.math
             return $"Vector3({x:F4}, {y:F4}, {z:F4})";
         }
 
+        public static implicit operator Vector3(Vector2 v)
+        {
+            return new Vector3(v.x, v.y, 0f);
+        }
+
 
         // ------------------------------------------------------------
         // Standard static constructors
@@ -75,6 +80,8 @@ namespace xg.math
                 sy * cp
             );
         }
+
+
     }
 
     internal static class NativeVec3
@@ -154,6 +161,7 @@ namespace xg.math
             public static Vector3 operator -(Vector3 a, Vector3 b) => NativeVec3.Sub(ref a, ref b);
             public static Vector3 operator *(Vector3 v, float s) => NativeVec3.MulScalar(ref v, s);
             public static Vector3 operator /(Vector3 v, float s) => NativeVec3.DivScalar(ref v, s);
+
         }
 
         // Arithmetic

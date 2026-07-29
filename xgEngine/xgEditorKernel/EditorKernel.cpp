@@ -21,7 +21,9 @@
 #include "imgui_internal.h"
 #include "xgEngineDef.h"
 #include "xgEngineDef.generated.h"
-//#include "xgReflectionRegistry.h"
+
+#include "xgHierarchyNode.h"
+#include "xgSceneGraph.h"
 
 // ImGui backends (SDL3 + SDL_Renderer3)
 #include "backends/imgui_impl_sdl3.h"
@@ -579,6 +581,9 @@ namespace xg
 		auto actorRegistry = engine->GetSystem<ActorRegistry>(this);
         auto sceneGraph = sceneGraphFactory->Create("tree", *actorRegistry);
 		engine->RegisterSystem<SceneGraph>(nullptr, sceneGraph);
+
+        auto sceneRoot = xg::CreateNode<HierarchyNode>(*sceneGraph);
+        sceneRoot->Name = "mr root";
         //
         // Load managed editor module
         //

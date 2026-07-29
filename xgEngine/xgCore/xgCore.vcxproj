@@ -59,7 +59,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;Generated;public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgBase\math;Generated;public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -87,7 +87,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;Generated;public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgBase\math;Generated;public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
