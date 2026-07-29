@@ -1,36 +1,43 @@
 #pragma once
 #include "xgSceneNode.h"
-#include "math/xgVec3.h"
-#include "math/xgQuat.h"
-#include "math/xgVec4.h"
-#include "math/xgMat4x4.h"
-#include "math/xgTransform.h"
+#include "xgVec3.h"
+#include "xgQuat.h"
+#include "xgVec4.h"
+#include "xgMat4x4.h"
+#include "xgTransform.h"
 
 namespace xg
 {
+    
+    struct SceneNodeMixinBase
+    {
+        SceneNode* Owner = nullptr;
+    };
+
+
     //
     // ------------------------------------------------------------
     // Built-in mixins (engine-level)
     // ------------------------------------------------------------
     //
 
-    struct SceneNodeHierarchy
+    struct SceneNodeHierarchy : SceneNodeMixinBase
     {
         static constexpr SceneNodeFlags Mask = SceneNode_Hierarchy;
 
-        SceneNode* Parent = nullptr;
-        SceneNode* FirstChild = nullptr;
-        SceneNode* NextSibling = nullptr;
+        SceneNodeHierarchy* Parent = nullptr;
+        SceneNodeHierarchy* FirstChild = nullptr;
+        SceneNodeHierarchy* NextSibling = nullptr;
     };
 
-    struct SceneNodeTransform
+    struct SceneNodeTransform : SceneNodeMixinBase
     {
         static constexpr SceneNodeFlags Mask = SceneNode_Transform;
 
         Transform Transform;
     };
 
-    struct SceneNodeMetadata
+    struct SceneNodeMetadata : SceneNodeMixinBase
     {
         static constexpr SceneNodeFlags Mask = SceneNode_Metadata;
 
@@ -38,7 +45,7 @@ namespace xg
         const char* Tag = nullptr;
     };
 
-    struct SceneNodeConstraints
+    struct SceneNodeConstraints : SceneNodeMixinBase
     {
         static constexpr SceneNodeFlags Mask = SceneNode_Constraints;
 

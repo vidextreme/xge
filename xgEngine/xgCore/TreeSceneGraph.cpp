@@ -4,96 +4,78 @@
 namespace xg
 {
     TreeSceneGraph::TreeSceneGraph(ActorRegistry& registry)
-        : _registry(registry)
     {
-        // Create root identity if needed
-        SceneNode::ActorID rootId = _registry.GenerateID();
-        SceneNode* identity = _registry.CreateIdentity(rootId);
-
-        _root = new TreeSceneNode(rootId);
-        _nodes[rootId] = _root;
-
-        _registry.RegisterGraphNode(rootId, this, _root);
+        _registry = &registry;
     }
 
     TreeSceneGraph::~TreeSceneGraph()
     {
-        // Destroy all graph-specific nodes
+        // Graph-specific nodes are owned by whoever created them.
+        // We only unregister them.
         for (auto& kv : _nodes)
-            delete kv.second;
+            _registry->UnregisterGraphNode(kv.first, this);
     }
 
-    void TreeSceneGraph::RegisterNode(SceneNode* identity)
+    void TreeSceneGraph::RegisterNode(SceneNode* node)
     {
-        SceneNode::ActorID id = identity->Id;
+        // Must have hierarchy mixin
+        if (!(node->TypeMask & SceneNode_Hierarchy))
+            return;
 
-        auto* node = new TreeSceneNode(id);
-        _nodes[id] = node;
+        auto h = node->Get<SceneNodeHierarchy>();
 
-        // Register membership with ActorRegistry
-        _registry.RegisterGraphNode(id, this, node);
+        _nodes[node->Id] = h;
 
-        // Default parent = root
-        AddChild(_root, node);
+        // Register membership
+        _registry->RegisterGraphNode(node->Id, this, node);
+
+        // Default parent = none (user must call SetParent)
     }
 
-    void TreeSceneGraph::DestroyNode(SceneNode* identity)
+    void TreeSceneGraph::DestroyNode(SceneNode* node)
     {
-        SceneNode::ActorID id = identity->Id;
-
-        auto it = _nodes.find(id);
+        auto it = _nodes.find(node->Id);
         if (it == _nodes.end())
             return;
 
-        TreeSceneNode* node = it->second;
+        auto* h = it->second;
 
-        // Remove from hierarchy
-        RemoveChild(node);
+        RemoveChild(h);
 
-        // Unregister membership
-        _registry.UnregisterGraphNode(id, this);
+        _registry->UnregisterGraphNode(node->Id, this);
 
-        delete node;
         _nodes.erase(it);
+        delete node;
     }
 
-    void TreeSceneGraph::SetParent(SceneNode* childIdentity,
-        SceneNode* parentIdentity)
+    void TreeSceneGraph::SetParent(SceneNode* childNode, SceneNode* parentNode)
     {
-        auto* child = static_cast<TreeSceneNode*>(GetNode(childIdentity->Id));
-        auto* parent = static_cast<TreeSceneNode*>(GetNode(parentIdentity->Id));
-
-        if (!child || !parent)
-            return;
+        auto* child = childNode->Get<SceneNodeHierarchy>();
+        auto* parent = parentNode->Get<SceneNodeHierarchy>();
 
         RemoveChild(child);
         AddChild(parent, child);
     }
 
-    void TreeSceneGraph::UpdateTransforms()
-    {
-        // TreeSceneGraph does not compute transforms.
-        // TransformSceneGraph handles TRS.
-    }
-
-    void TreeSceneGraph::Traverse(SceneNode* rootIdentity,
+    void TreeSceneGraph::Traverse(SceneNode* rootNode,
         void(*visitor)(SceneNode*))
     {
-        TreeSceneNode* root = static_cast<TreeSceneNode*>(GetNode(rootIdentity->Id));
+        auto* root = rootNode->Get<SceneNodeHierarchy>();
         if (!root)
             return;
 
-        TreeSceneNode* stack[256];
+        SceneNodeHierarchy* stack[256];
         int sp = 0;
 
         stack[sp++] = root;
 
         while (sp > 0)
         {
-            TreeSceneNode* node = stack[--sp];
-            visitor(node);
+            SceneNodeHierarchy* node = stack[--sp];
+            SceneNode* snode = node->Owner;
+            visitor(snode);
 
-            for (TreeSceneNode* child = node->FirstChild;
+            for (auto* child = node->FirstChild;
                 child != nullptr;
                 child = child->NextSibling)
             {
@@ -105,24 +87,24 @@ namespace xg
     SceneNode* TreeSceneGraph::GetNode(SceneNode::ActorID id) const
     {
         auto it = _nodes.find(id);
-        return (it != _nodes.end()) ? it->second : nullptr;
+        return (it != _nodes.end()) ? it->second->Owner : nullptr;
     }
 
-    void TreeSceneGraph::AddChild(TreeSceneNode* parent, TreeSceneNode* child)
+    void TreeSceneGraph::AddChild(SceneNodeHierarchy* parent,
+        SceneNodeHierarchy* child)
     {
         child->Parent = parent;
-
         child->NextSibling = parent->FirstChild;
         parent->FirstChild = child;
     }
 
-    void TreeSceneGraph::RemoveChild(TreeSceneNode* child)
+    void TreeSceneGraph::RemoveChild(SceneNodeHierarchy* child)
     {
-        TreeSceneNode* parent = child->Parent;
+        auto* parent = child->Parent;
         if (!parent)
             return;
 
-        TreeSceneNode** link = &parent->FirstChild;
+        SceneNodeHierarchy** link = &parent->FirstChild;
 
         while (*link)
         {

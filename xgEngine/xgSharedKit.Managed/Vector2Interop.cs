@@ -21,6 +21,14 @@ namespace xg.math
             return $"Vector2({x:F4}, {y:F4})";
         }
 
+        public static implicit operator Vector2(Vector3 v)
+        {
+            return new Vector2(v.x, v.y);
+        }
+
+        // ------------------------------------------------------------
+        // Standard static constructors
+        // ------------------------------------------------------------
         public static Vector2 Zero()
             => new Vector2(0f, 0f);
 

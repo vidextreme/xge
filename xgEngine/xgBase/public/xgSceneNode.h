@@ -22,14 +22,6 @@ namespace xg
         SceneNode_InitialUserFlag = 1 << 7
     };
 
-    //
-    // Compile-time mask composer
-    //
-    template<typename... Mixins>
-    static constexpr SceneNodeFlags ComposeNodeMask()
-    {
-        return (0 | ... | Mixins::Mask);
-    }
 
     //
     // SceneNode (base class)
@@ -48,7 +40,50 @@ namespace xg
         {}
 
         virtual ~SceneNode() = default;
+
+        template<typename T>
+        T* Get()
+        {
+            if (TypeMask & T::Mask)
+                return reinterpret_cast<T*>(this);
+
+            return nullptr;
+        }
+
+        template<typename T>
+        const T* Get() const
+        {
+            if (TypeMask & T::Mask)
+                return reinterpret_cast<const T*>(this);
+
+            return nullptr;
+        }
+
+
+
     };
+
+    //
+// Compile-time mask composer
+//
+    template<typename... Mixins>
+    static constexpr SceneNodeFlags ComposeNodeMask()
+    {
+        return (0 | ... | Mixins::Mask);
+    }
+
+    template<typename Mixin>
+    inline void AssignOwner(Mixin* mixin, SceneNode* owner)
+    {
+        mixin->Owner = owner;
+    }
+
+    template<typename... Mixins>
+    inline void AssignOwners(SceneNode* node)
+    {
+        (AssignOwner(node->Get<Mixins>(), node), ...);
+    }
+
 
 } // namespace xg
 
@@ -56,6 +91,22 @@ namespace xg
 // User flag helper
 //
 #define XG_DEFINE_USER_FLAG(n) (xg::SceneNode_InitialUserFlag << (n))
+
+
+#define XG_ASSIGN_OWNERS(...) \
+    xg::AssignOwner(static_cast<__VA_ARGS__*>(this), this)
+
+#define XG_ASSIGN_OWNERS_MULTI(...) \
+    int dummy[] = { (xg::AssignOwner(static_cast<__VA_ARGS__*>(this), this), 0)... }; \
+    (void)dummy;
+
+#define XG_BUILDNODE_CONSTRUCTOR_MANY(NodeName, ...) \
+    NodeName(xg::SceneNode::ActorID id, __VA_ARGS__) \
+    : _##NodeName##Base(id)
+
+#define XG_BUILDNODE_CONSTRUCTOR(NodeName) \
+    NodeName(xg::SceneNode::ActorID id) \
+    : _##NodeName##Base(id)
 
 //
 // XG_BUILDNODETYPE
@@ -68,17 +119,22 @@ namespace xg
 //
 // Usage:
 //
-//   struct LightNode
-//       : XG_BUILDNODETYPE(LightNode,
+//   XG_BUILDNODETYPE(LightNode,
 //                          SceneNodeLight,
 //                          SceneNodeTransform)
 //   {
 //       // custom fields...
 //   };
-#define XG_BUILDNODETYPE(NodeName, ...)                                \
-    xg::SceneNode, __VA_ARGS__                                         \
-public:                                                                \
-    static constexpr xg::SceneNodeFlags Mask =                         \
-        xg::ComposeNodeMask<__VA_ARGS__>();                            \
-    NodeName(xg::SceneNode::ActorID id)                                \
-        : xg::SceneNode(id, Mask) {}
+#define XG_BUILDNODETYPE(NodeName, ...)                                        \
+    struct _##NodeName##Base : public xg::SceneNode, public __VA_ARGS__           \
+    {                                                                          \
+        static constexpr xg::SceneNodeFlags Mask =                             \
+            xg::ComposeNodeMask<__VA_ARGS__>();                                \
+                                                                               \
+        _##NodeName##Base(xg::SceneNode::ActorID id)                              \
+            : xg::SceneNode(id, Mask)                                          \
+        {                                                                      \
+            xg::AssignOwners<__VA_ARGS__>(this);                               \
+        }                                                                      \
+    };                                                                         \
+    struct NodeName : public _##NodeName##Base
