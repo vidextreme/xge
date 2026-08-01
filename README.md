@@ -225,7 +225,6 @@ childModule->RegisterSystem(new SceneGraphFactoryImpl());
 
 ---
 
-If you want it even shorter, I can compress it further.
 
 ## 📡 Messenger — Central Message Router **(DONE)**
 
