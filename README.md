@@ -143,6 +143,7 @@ The system consists of:
 
 - ~~ScriptTree — hierarchical tree of ScriptModules (HSM)~~ **(DONE)**
 - ~~System Tree - hierarchical scoping system~~ **(DONE - 2026/07/31)**
+- ~~SceneGraph — Scoped, Multi‑Purpose Graph System~~  **(DONE - 2026/07/31)**
 - ~~Messenger — message routing backbone~~ **(DONE)**
 - ~~Route Traversal — parent/child/sibling routing rules~~ **(DONE)**
 - ~~Codec Registry — dynamic message encoding/decoding~~ **(DONE)**
@@ -222,6 +223,79 @@ auto* factory = engine->GetSystem<SceneGraphFactory>(module);
 ```cpp
 engine->RegisterSystem(childModule, new SceneGraphFactoryImpl());
 ```
+
+
+---
+
+## 🧩 SceneGraph — Scoped, Multi‑Purpose Graph System  **(DONE - 2026/07/31)**
+
+### **SceneGraph is a System**
+A `SceneGraph` is a first‑class **System**, which means:
+
+- It is **scope‑based**  
+- It is **registered per ScriptModule**  
+- It is **resolved hierarchically** through the ScriptTree  
+- The **closest ancestor SceneGraph** is used when requested  
+- A ScriptNode can override its parent’s SceneGraph by registering its own
+
+This makes SceneGraphs modular, replaceable, and context‑specific.
+
+---
+
+### **Global ActorID Generation**
+ActorIDs are generated globally by the engine’s `ActorRegistry`.
+
+- ActorIDs are **unique across the entire engine**  
+- ActorIDs are **not owned** by any SceneGraph  
+- ActorIDs allow the same logical actor to appear in multiple graphs
+
+This enables multi‑representation and multi‑domain processing.
+
+---
+
+### **Actors Can Exist in Multiple SceneGraphs**
+An `ActorID` can have **multiple representations**, one per SceneGraph.
+
+Examples of representations:
+
+- Transform hierarchy  
+- Physics bodies  
+- ECS entities  
+- Rendering nodes  
+- AI nodes  
+- Metadata nodes  
+
+Each SceneGraph stores its own representation of the same ActorID.
+
+---
+
+### **SceneGraphs Are Purpose‑Specific**
+A SceneGraph is not a single “scene tree.”  
+It is a **domain‑specific graph** with a specialized purpose.
+
+Examples of specialized SceneGraphs:
+
+- **Physics SceneGraph** — rigid bodies, colliders, constraints  
+- **ECS SceneGraph** — entity/component relationships  
+- **Render SceneGraph** — drawable objects, materials, LODs  
+- **Transform SceneGraph** — parent/child transforms  
+- **Metadata SceneGraph** — editor properties, tags, names  
+
+Each SceneGraph defines its own storage, traversal, and rules.
+
+---
+
+### **ScriptNodes Can Have Multiple SceneGraphs**
+A ScriptNode may register **multiple SceneGraphs**, each serving a different domain.
+
+For example, a ScriptNode may contain:
+
+- A Transform SceneGraph  
+- A Physics SceneGraph  
+- A Render SceneGraph  
+- A Metadata SceneGraph  
+
+All scoped to that ScriptNode and inherited by its children unless overridden.
 
 ---
 
@@ -496,12 +570,17 @@ XGE/
 │   ├── tools/                # Engine tools (reflection generator, etc.)
 │   │   └── xgReflectGen/
 │   ├── xgBase/               # Base types, macros, platform detection
-│   ├── xgCommon/             # Shared utilities (native + C#)
+│   │   └── math/
 │   ├── xgCore/               # Core engine runtime
+│   ├── xgEditor.CoreCLR/     # Editor module
+│   ├── xgEditorKit/          # Shared Editor utilities
 │   ├── xgPlatform/           # Platform backends (Win32, SDL)
 │   ├── xgRendererDX12/       # DirectX 12 renderer module
 │   ├── xgScriptCoreCLR/      # CoreCLR scripting host module
 │   ├── xgScriptNative/       # NativeAOT scripting host module
+│   │   └── interop/
+│   ├── xgSharedKit/          # Shared Editor/Runtime library
+│   ├── xgSharedKit.Managed/  # Managed Shared Editor/Runtime library
 │   ├── xgEditorKernel/       # Native editor kernel module
 │   ├── xgUtility/            # Utility layer (platform helpers, etc.)
 │   │   └── platform/
