@@ -142,7 +142,7 @@ XGE’s runtime is built around **HSM (Hierarchical Script Modules)** — a stru
 The system consists of:
 
 - ~~ScriptTree — hierarchical tree of ScriptModules (HSM)~~ **(DONE)**
-- ~~System Tree - hierarchical scoping system~~ **(DONE)**
+- ~~System Tree - hierarchical scoping system~~ **(DONE - 2026/07/31)**
 - ~~Messenger — message routing backbone~~ **(DONE)**
 - ~~Route Traversal — parent/child/sibling routing rules~~ **(DONE)**
 - ~~Codec Registry — dynamic message encoding/decoding~~ **(DONE)**
@@ -173,7 +173,7 @@ Each ScriptModule is a node in the tree, enabling:
 
 ---
 
-## 🧩 System Tree — Hierarchical System Scoping
+## 🧩 System Tree — Hierarchical System Scoping **(DONE - 2026/07/31)**
 
 - Systems are registered per ScriptModule  
 - Lookup walks upward through parents  
@@ -220,7 +220,7 @@ auto* factory = engine->GetSystem<SceneGraphFactory>(module);
 
 #### **5. Override (example)**
 ```cpp
-childModule->RegisterSystem(new SceneGraphFactoryImpl());
+engine->RegisterSystem(childModule, new SceneGraphFactoryImpl());
 ```
 
 ---
