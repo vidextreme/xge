@@ -44,13 +44,14 @@ It prioritizes **clean architecture**, **strict layering**, and **runtime modula
 
 XGE is built to support:
 
-- multiple scripting runtimes  
-- multiple rendering backends  
-- editor/runtime separation  
-- deterministic data pipelines  
-- future network replication  
-- future visual scripting  
+- multiple scripting runtimes
+- multiple rendering backends
+- editor/runtime separation
+- deterministic data pipelines
+- future network replication 
+- future visual scripting
 - future hot‑reload workflows  
+
 
 ---
 
@@ -59,7 +60,9 @@ XGE is built to support:
 ### **Strict Layering**
 No platform code in core.  
 No renderer code in scripting.  
-No STL in public headers.
+No STL in public headers.  
+Stable ABI.  
+Minimal implementation in headers.
 
 ### **Reflection Everywhere**
 Tree‑sitter generates metadata used for:
@@ -87,9 +90,11 @@ Swap renderer or scripting backend without recompiling the engine.
 xgBase        → Base types, macros, platform detection  
 xgPlatform    → Platform backends (Win32, SDL)  
 xgCore        → Engine runtime  
-Renderers     → DX12, Vulkan (modules)  
-Script Hosts  → CoreCLR, NativeAOT (modules)  
-Editor        → Native editor kernel + managed editor runtime  
+Renderers     → DX12, Vulkan (standard modules)  
+Script Hosts  → CoreCLR, NativeAOT (script module facilitator)  
+Script Modules→ Loaded in the HSM tree (Editor, Game01, PhysicsEngine, etc.)
+Editor        → Native editor kernel + managed editor runtime
+Kits          → Shared libraries (editor, runtime, runtime-managed)
 ```
 
 ---
@@ -102,6 +107,7 @@ Editor        → Native editor kernel + managed editor runtime
 - JSON serialization via reflection metadata  
 - Strict layering  
 - STL‑free public API surface  
+- Hierarchical system scoping   
 
 ## Platform Layer
 - SDL3 window backend  
@@ -136,6 +142,7 @@ XGE’s runtime is built around **HSM (Hierarchical Script Modules)** — a stru
 The system consists of:
 
 - ~~ScriptTree — hierarchical tree of ScriptModules (HSM)~~ **(DONE)**
+- ~~System Tree - hierarchical scoping system~~ **(DONE)**
 - ~~Messenger — message routing backbone~~ **(DONE)**
 - ~~Route Traversal — parent/child/sibling routing rules~~ **(DONE)**
 - ~~Codec Registry — dynamic message encoding/decoding~~ **(DONE)**
@@ -162,8 +169,63 @@ Each ScriptModule is a node in the tree, enabling:
 - scoped messaging  
 - clean separation of systems  
 - future hot‑reload boundaries  
+- system scoping
 
 ---
+
+## 🧩 System Tree — Hierarchical System Scoping
+
+- Systems are registered per ScriptModule  
+- Lookup walks upward through parents  
+- Closest ancestor wins  
+- Children inherit unless they override  
+- No global systems; all systems are scoped
+
+---
+
+### ⚙️ System Overview
+
+- A `System` is any overridable runtime service  
+- Declared with `XG_DECLARE_BASE_SYSTEM(Type)`  
+- Implemented with `XG_DECLARE_SYSTEM(Implementation, Type)`  
+- Resolved hierarchically through the ScriptTree  
+
+---
+
+### 🛠️ Create, Register, Get a System  
+
+#### **1. General System Type**
+```cpp
+struct SceneGraphFactory : public System {
+    XG_DECLARE_BASE_SYSTEM(SceneGraphFactory)
+};
+```
+
+#### **2. Implementation Example**
+```cpp
+class SceneGraphFactoryImpl : public SceneGraphFactory {
+    XG_DECLARE_SYSTEM(SceneGraphFactoryImpl, SceneGraphFactory)
+};
+```
+
+#### **3. Register**
+```cpp
+engine->RegisterSystem(module, new SceneGraphFactoryImpl());
+```
+
+#### **4. Get**
+```cpp
+auto* factory = engine->GetSystem<SceneGraphFactory>(module);
+```
+
+#### **5. Override (example)**
+```cpp
+childModule->RegisterSystem(new SceneGraphFactoryImpl());
+```
+
+---
+
+If you want it even shorter, I can compress it further.
 
 ## 📡 Messenger — Central Message Router **(DONE)**
 
