@@ -13,26 +13,26 @@ namespace xg
             delete rec.Identity;
     }
 
-    SceneNode::ActorID ActorRegistryImpl::GenerateID()
+    ActorID ActorRegistryImpl::GenerateID()
     {
         return _nextId++;
     }
 
-    SceneNode* ActorRegistryImpl::CreateIdentity(SceneNode::ActorID id)
+    SceneNode* ActorRegistryImpl::CreateIdentity(ActorID id)
     {
         auto* node = new SceneNode(id, SceneNode_None);
         _actors[id].Identity = node;
         return node;
     }
 
-    void ActorRegistryImpl::RegisterGraphNode(SceneNode::ActorID id,
+    void ActorRegistryImpl::RegisterGraphNode(ActorID id,
         SceneGraph* graph,
         SceneNode* node)
     {
         _actors[id].Memberships.push_back({ graph, node });
     }
 
-    void ActorRegistryImpl::UnregisterGraphNode(SceneNode::ActorID id,
+    void ActorRegistryImpl::UnregisterGraphNode(ActorID id,
         SceneGraph* graph)
     {
         auto it = _actors.find(id);
@@ -51,13 +51,13 @@ namespace xg
         );
     }
 
-    SceneNode* ActorRegistryImpl::GetIdentity(SceneNode::ActorID id) const
+    SceneNode* ActorRegistryImpl::GetIdentity(ActorID id) const
     {
         auto it = _actors.find(id);
         return (it != _actors.end()) ? it->second.Identity : nullptr;
     }
 
-    SceneNode* ActorRegistryImpl::GetGraphNode(SceneNode::ActorID id,
+    SceneNode* ActorRegistryImpl::GetGraphNode(ActorID id,
         SceneGraph* graph) const
     {
         auto it = _actors.find(id);
@@ -71,13 +71,13 @@ namespace xg
         return nullptr;
     }
 
-    int ActorRegistryImpl::GetMembershipCount(SceneNode::ActorID id) const
+    int ActorRegistryImpl::GetMembershipCount(ActorID id) const
     {
         auto it = _actors.find(id);
         return (it != _actors.end()) ? (int)it->second.Memberships.size() : 0;
     }
 
-    bool ActorRegistryImpl::GetMembership(SceneNode::ActorID id,
+    bool ActorRegistryImpl::GetMembership(ActorID id,
         int index,
         GraphMembership& outMembership) const
     {

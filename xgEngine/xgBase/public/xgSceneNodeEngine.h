@@ -53,6 +53,13 @@ namespace xg
     };
 
 
+    struct SceneNodeComponentCollection : SceneNodeMixinBase
+    {
+        static constexpr SceneNodeFlags Mask = SceneNode_ComponentCollection;
+
+        bool Locked = false;
+    };
+
     //
     // ------------------------------------------------------------
     // User-defined mixins (example pattern)

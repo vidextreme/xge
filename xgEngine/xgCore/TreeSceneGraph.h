@@ -7,7 +7,7 @@ namespace xg
 {
     class TreeSceneGraph : public SceneGraph
     {
-        XG_DECLARE_SYSTEM(SceneGraph, SceneGraph)
+        XG_DECLARE_SYSTEM(TreeSceneGraph, SceneGraph)
     public:
         explicit TreeSceneGraph(ActorRegistry& registry);
 
@@ -19,12 +19,12 @@ namespace xg
         void SetParent(SceneNode* child, SceneNode* parent) override;
         void Traverse(SceneNode* root, void(*visitor)(SceneNode*)) override;
 
-        SceneNode* GetNode(SceneNode::ActorID id) const override;
+        SceneNode* GetNode(ActorID id) const override;
 
     private:
 
         // Graph-specific storage (SceneNode* → SceneNodeHierarchy*)
-        std::unordered_map<SceneNode::ActorID, SceneNodeHierarchy*> _nodes;
+        std::unordered_map<ActorID, SceneNodeHierarchy*> _nodes;
 
         void AddChild(SceneNodeHierarchy* parent, SceneNodeHierarchy* child);
         void RemoveChild(SceneNodeHierarchy* child);

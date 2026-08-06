@@ -11,23 +11,23 @@ namespace xg
         ActorRegistryImpl();
         ~ActorRegistryImpl() override;
 
-        SceneNode::ActorID GenerateID() override;
-        SceneNode* CreateIdentity(SceneNode::ActorID id) override;
+        ActorID GenerateID() override;
+        SceneNode* CreateIdentity(ActorID id) override;
 
-        void RegisterGraphNode(SceneNode::ActorID id,
+        void RegisterGraphNode(ActorID id,
             SceneGraph* graph,
             SceneNode* node) override;
 
-        void UnregisterGraphNode(SceneNode::ActorID id,
+        void UnregisterGraphNode(ActorID id,
             SceneGraph* graph) override;
 
-        SceneNode* GetIdentity(SceneNode::ActorID id) const override;
+        SceneNode* GetIdentity(ActorID id) const override;
 
-        SceneNode* GetGraphNode(SceneNode::ActorID id,
+        SceneNode* GetGraphNode(ActorID id,
             SceneGraph* graph) const override;
 
-        int GetMembershipCount(SceneNode::ActorID id) const override;
-        bool GetMembership(SceneNode::ActorID id,
+        int GetMembershipCount(ActorID id) const override;
+        bool GetMembership(ActorID id,
             int index,
             GraphMembership& outMembership) const override;
 
@@ -38,7 +38,7 @@ namespace xg
             std::vector<GraphMembership> Memberships;
         };
 
-        SceneNode::ActorID _nextId = 1;
-        std::unordered_map<SceneNode::ActorID, ActorRecord> _actors;
+        ActorID _nextId = 1;
+        std::unordered_map<ActorID, ActorRecord> _actors;
     };
 }

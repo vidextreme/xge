@@ -4,6 +4,7 @@
 
 namespace xg
 {
+    using ActorID = uint32_t;
     using SceneNodeFlags = uint32_t;
 
     //
@@ -18,6 +19,7 @@ namespace xg
         SceneNode_Transform = 1 << 1,
         SceneNode_Metadata = 1 << 2,
         SceneNode_Constraints = 1 << 3,
+        SceneNode_ComponentCollection = 1 << 4,
 
         SceneNode_InitialUserFlag = 1 << 7
     };
@@ -29,8 +31,6 @@ namespace xg
     class SceneNode
     {
     public:
-        using ActorID = uint32_t;
-
         ActorID        Id;
         SceneNodeFlags TypeMask;
 
@@ -101,11 +101,11 @@ namespace xg
     (void)dummy;
 
 #define XG_BUILDNODE_CONSTRUCTOR_MANY(NodeName, ...) \
-    NodeName(xg::SceneNode::ActorID id, __VA_ARGS__) \
+    NodeName(xg::ActorID id, __VA_ARGS__) \
     : _##NodeName##Base(id)
 
 #define XG_BUILDNODE_CONSTRUCTOR(NodeName) \
-    NodeName(xg::SceneNode::ActorID id) \
+    NodeName(xg::ActorID id) \
     : _##NodeName##Base(id)
 
 //
@@ -131,7 +131,7 @@ namespace xg
         static constexpr xg::SceneNodeFlags Mask =                             \
             xg::ComposeNodeMask<__VA_ARGS__>();                                \
                                                                                \
-        _##NodeName##Base(xg::SceneNode::ActorID id)                              \
+        _##NodeName##Base(xg::ActorID id)                              \
             : xg::SceneNode(id, Mask)                                          \
         {                                                                      \
             xg::AssignOwners<__VA_ARGS__>(this);                               \
