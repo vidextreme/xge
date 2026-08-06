@@ -51,10 +51,15 @@ int main(int argc, char** argv)
     //
     // Load Editor.CoreCLR.dll using a CoreCLR host
     //
+    //xg::ScriptModule* module =
+    //    engine.AddScriptModule(
+    //        "editor.kernel",
+    //        "xgEditorKernel.dll", nullptr, "engine me");
+
     xg::ScriptModule* module =
         engine.AddScriptModule(
             "editor.kernel",
-            "xgEditorKernel.dll", nullptr, "engine me");
+            "xgEditor.CoreCLR.dll", nullptr, "engine me");
 
     if (!module)
     {

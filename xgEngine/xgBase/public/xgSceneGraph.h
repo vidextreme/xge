@@ -23,14 +23,14 @@ namespace xg
         virtual void Traverse(SceneNode* root,
             void(*visitor)(SceneNode*)) = 0;
 
-        virtual SceneNode* GetNode(SceneNode::ActorID id) const = 0;
+        virtual SceneNode* GetNode(ActorID id) const = 0;
         inline ActorRegistry& GetRegistry() const { return *_registry; }
     protected:
         ActorRegistry* _registry;
     };
 
     template<typename T>
-    T* CreateNode(SceneGraph& graph, SceneNode::ActorID id)
+    T* CreateNode(SceneGraph& graph, ActorID id)
     {
         T* node = new T(id);
         graph.RegisterNode(node);

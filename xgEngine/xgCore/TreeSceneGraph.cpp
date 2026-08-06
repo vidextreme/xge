@@ -84,7 +84,7 @@ namespace xg
         }
     }
 
-    SceneNode* TreeSceneGraph::GetNode(SceneNode::ActorID id) const
+    SceneNode* TreeSceneGraph::GetNode(ActorID id) const
     {
         auto it = _nodes.find(id);
         return (it != _nodes.end()) ? it->second->Owner : nullptr;
