@@ -1,10 +1,11 @@
 #pragma once
 #include <cstdint>
 #include "xgBase.h"
+#include "xgID.h"
 
 namespace xg
 {
-    using ActorID = uint32_t;
+    using ActorID = xgID;
     using SceneNodeFlags = uint32_t;
 
     //
@@ -19,7 +20,7 @@ namespace xg
         SceneNode_Transform = 1 << 1,
         SceneNode_Metadata = 1 << 2,
         SceneNode_Constraints = 1 << 3,
-        SceneNode_ComponentCollection = 1 << 4,
+        SceneNode_Components = 1 << 4,
 
         SceneNode_InitialUserFlag = 1 << 7
     };

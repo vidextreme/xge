@@ -244,6 +244,14 @@ namespace xg
         xg::Log(xg::MessageType::Info, "==================");
     }
 
+    void ScriptTree::Shutdown()
+    {
+        ForEachNodeRecursive(_root, [&](ScriptNode* node) 
+            { 
+                node->ShutdownAllSystems();
+            });
+    }
+
     ScriptModule* ScriptTree::FindModuleById(const char* id)
     {
         if (!_root)
@@ -269,6 +277,19 @@ namespace xg
         }
 
         return nullptr;
+    }
+
+    void ScriptTree::ForEachNodeRecursive(ScriptNode* node, const std::function<void(ScriptNode*)>& callback)
+    {
+        if (!node)
+            return;
+
+        callback(node);
+
+        for (auto& child : node->_children)
+        {
+            ForEachNodeRecursive(child.get(), callback);
+        }
     }
 
     void ScriptTree::ForEachModule(const std::function<void(ScriptModule*)>& callback)

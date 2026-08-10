@@ -116,12 +116,15 @@
     <ClInclude Include="public\xgActorRegistry.h" />
     <ClInclude Include="public\xgBase.h" />
     <ClInclude Include="public\xgCodecRegistry.h" />
+    <ClInclude Include="public\xgComponentNode.h" />
+    <ClInclude Include="public\xgComponentSceneGraph.h" />
     <ClInclude Include="public\xgDynamicObject.h" />
     <ClInclude Include="public\xgEvent.h" />
     <ClInclude Include="public\xgEventDispatcher.h" />
     <ClInclude Include="public\xgEventHelpers.h" />
     <ClInclude Include="public\xgEventQueue.h" />
     <ClInclude Include="public\xgHandles.h" />
+    <ClInclude Include="public\xgID.h" />
     <ClInclude Include="public\xgJson.h" />
     <ClInclude Include="public\xgLog.h" />
     <ClInclude Include="public\xgPathUtils.h" />
@@ -143,6 +146,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="xgDynamicObject.cpp" />
+    <ClCompile Include="xgID.cpp" />
     <ClCompile Include="xgJson.cpp" />
     <ClCompile Include="xgLog.cpp" />
     <ClCompile Include="MemoryStreamImpl.cpp" />

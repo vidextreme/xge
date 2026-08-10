@@ -22,6 +22,7 @@
 #include "SceneGraphFactoryImpl.h"
 
 #include "TreeSceneGraph.h"
+#include "CompositeSceneGraph.h"
 
 #include "CodecJson.h"
 #include "CodecBinary.h"
@@ -76,6 +77,11 @@ namespace xg
                 return new TreeSceneGraph(reg);
             });
 
+        sceneGraphFactory->RegisterType("compset",
+            [](ActorRegistry& reg) -> SceneGraph*
+            {
+                return new CompositeSceneGraph(reg);
+            });
 
 		_typeRegistry = CreateTypeRegistry();
 
@@ -393,6 +399,8 @@ namespace xg
 
     void Engine::Shutdown()
     {
+        _scriptTree->Shutdown();
+
         // Shutdown modules
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
 

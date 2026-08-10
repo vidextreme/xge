@@ -24,6 +24,7 @@
 
 #include "xgHierarchyNode.h"
 #include "xgSceneGraph.h"
+#include "xgComponentSceneGraph.h"
 
 // ImGui backends (SDL3 + SDL_Renderer3)
 #include "backends/imgui_impl_sdl3.h"
@@ -590,8 +591,13 @@ namespace xg
         const char* group = GetGroup();
         auto root = _engine->AddScriptModule("editor_root", nullptr, this, group);
         _editorModule = _engine->AddScriptModule("editor", "xgEditor.CoreCLR.dll", root, group);
-        _editorModule = _engine->AddScriptModule("game_demo", "GameDemoModule.dll", root, group);
+        _engine->AddScriptModule("game_demo", "GameDemoModule.dll", root, group);
 
+        auto componentSG = sceneGraphFactory->Create("compset", *actorRegistry);
+        auto componentSet = static_cast<ComponentSceneGraph*>(componentSG);
+        engine->RegisterSystemWithAlias(nullptr, componentSet, "PlayerComponent");
+        componentSet->InitializeComponentSet("PlayerComponent", 100);
+        ComponentSetNode* co = componentSet->CreateComponent<ComponentSetNode>(sceneRoot->Id);
         //xg::TypeRegistry::Register(&xg::TypeInfo<PlayerState>::Instance);
 
         CodecRegistry* registry = _host->GetCodecRegistry();

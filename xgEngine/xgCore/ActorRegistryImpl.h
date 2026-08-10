@@ -8,7 +8,7 @@ namespace xg
     {
         XG_DECLARE_SYSTEM(ActorRegistryImpl, ActorRegistry)
     public:
-        ActorRegistryImpl();
+        ActorRegistryImpl(uint16_t machineID = 1);
         ~ActorRegistryImpl() override;
 
         ActorID GenerateID() override;
@@ -38,7 +38,7 @@ namespace xg
             std::vector<GraphMembership> Memberships;
         };
 
-        ActorID _nextId = 1;
+        xgIDGenerator _idGen;
         std::unordered_map<ActorID, ActorRecord> _actors;
     };
 }
