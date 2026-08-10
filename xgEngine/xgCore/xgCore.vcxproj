@@ -107,6 +107,7 @@
     <ClInclude Include="ActorRegistryImpl.h" />
     <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="CodecRegistryImpl.h" />
+    <ClInclude Include="CompositeSceneGraph.h" />
     <ClInclude Include="DispatchSystem.h" />
     <ClInclude Include="DynamicObjectImpl.h" />
     <ClInclude Include="EventDispatcherImpl.h" />
@@ -131,10 +132,12 @@
     <ClInclude Include="ScriptTree.h" />
     <ClInclude Include="CodecBinary.h" />
     <ClInclude Include="CodecJson.h" />
+    <ClInclude Include="StridePool.h" />
     <ClInclude Include="TreeSceneGraph.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ActorRegistryImpl.cpp" />
+    <ClCompile Include="CompositeSceneGraph.cpp" />
     <ClCompile Include="DispatchSystem.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="SceneGraphFactoryImpl.cpp" />
@@ -144,6 +147,7 @@
     <ClCompile Include="DynamicObjectImpl.cpp" />
     <ClCompile Include="CodecBinary.cpp" />
     <ClCompile Include="CodecJson.cpp" />
+    <ClCompile Include="StridePool.cpp" />
     <ClCompile Include="TreeSceneGraph.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="EventDispatcherImpl.cpp" />

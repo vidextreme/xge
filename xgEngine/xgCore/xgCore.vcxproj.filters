@@ -105,6 +105,12 @@
     <ClInclude Include="SceneGraphFactoryImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="CompositeSceneGraph.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="StridePool.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -162,6 +168,12 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="SceneGraphFactoryImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="CompositeSceneGraph.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="StridePool.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

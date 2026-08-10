@@ -77,6 +77,13 @@ namespace xg
         {
 			return RegisterSystemImpl(module, T::SuperTypeID, system);
         }
+
+        template<typename T>
+        void RegisterSystemWithAlias(ScriptModule* module, T* system, const char* systemAlias)
+        {
+            return RegisterSystemImpl(module, fnv1a(systemAlias), system);
+        }
+
     protected:
         virtual System* GetSystemImpl(TypeID id, ScriptModule* module) = 0;
         virtual System* GetSystemImpl(TypeID id, const char* moduleID) = 0;

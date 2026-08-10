@@ -87,7 +87,7 @@ namespace xg
         ScriptNode* FindNodeForCallback(Callback* cb) const;
         ScriptModule* FindModuleById(const char* id);
 
-
+        void ForEachNodeRecursive(ScriptNode* node, const std::function<void(ScriptNode*)>& callback);
         void ForEachModule(const std::function<void(ScriptModule*)>& callback);
         void ForEachModuleRecursive(ScriptNode* node,
             const std::function<void(ScriptModule*)>& callback);
@@ -102,7 +102,7 @@ namespace xg
         void UpdatePinned(size_t lane, float dt);
 
         void DebugPrint() const;
-
+        void Shutdown();
     private:
         bool RemoveRecursive(ScriptNode* parent, ScriptModule* module);
         void DebugPrintNode(const ScriptNode* node, int depth) const;

@@ -30,6 +30,7 @@
       </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ComponentRef.cs" />
     <Compile Include="Matrix4x4Interop.cs" />
     <Compile Include="QuaternionInterop.cs" />
     <Compile Include="Vector2Interop.cs" />

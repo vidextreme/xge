@@ -3,7 +3,8 @@
 
 namespace xg
 {
-    ActorRegistryImpl::ActorRegistryImpl()
+    ActorRegistryImpl::ActorRegistryImpl(uint16_t machineID)
+        : _idGen(machineID)
     {}
 
     ActorRegistryImpl::~ActorRegistryImpl()
@@ -15,7 +16,7 @@ namespace xg
 
     ActorID ActorRegistryImpl::GenerateID()
     {
-        return _nextId++;
+        return _idGen.Generate();
     }
 
     SceneNode* ActorRegistryImpl::CreateIdentity(ActorID id)
