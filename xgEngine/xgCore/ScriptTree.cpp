@@ -57,6 +57,14 @@ namespace xg
         }
     }
 
+    void ScriptNode::ForEachSystem(const std::function<void(System*)>& callback)
+    {
+        for (auto& [id, system] : _systems)
+        {
+            callback(system);
+        }
+    }
+
     void ScriptNode::ShutdownAllSystems()
     {
         for (auto& pair : _systems)

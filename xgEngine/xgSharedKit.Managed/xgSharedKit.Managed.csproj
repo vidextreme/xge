@@ -30,18 +30,30 @@
       </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ComponentRef.cs" />
+    <Compile Include="ActorID.cs" />
+    <Compile Include="Actor.cs" />
+    <Compile Include="Component.cs" />
+    <Compile Include="ComponentData.cs" />
+    <Compile Include="ComponentDataSet.cs" />
+    <Compile Include="ComponentHandle.cs" />
+    <Compile Include="ComponentUtils.cs" />
     <Compile Include="Matrix4x4Interop.cs" />
     <Compile Include="QuaternionInterop.cs" />
+    <Compile Include="System.cs" />
+    <Compile Include="TestCode.cs" />
     <Compile Include="Vector2Interop.cs" />
     <Compile Include="Vector3Interop.cs" />
     <Compile Include="MessageCodec.cs" />
     <Compile Include="ScriptMessageInterop.cs" />
     <Compile Include="ScriptMessageParser.cs" />
     <Compile Include="ScriptRuntime.cs" />
+    <Compile Include="xgID.cs" />
   </ItemGroup>
+  <ItemGroup>
+	<Using Include="System.Runtime.InteropServices" />
+</ItemGroup>
 
-  <!-- Optional: keep folder visible in Solution Explorer -->
+	<!-- Optional: keep folder visible in Solution Explorer -->
   <ItemGroup>
     <Folder Include="Generated\">
       <ExcludeFromClean>true</ExcludeFromClean>

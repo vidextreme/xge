@@ -32,7 +32,7 @@ namespace xg
 
         void ShutdownSystem(TypeID typeID);
        
-
+        void ForEachSystem(const std::function<void(System*)>& callback);
 
 		System* GetSystem(TypeID typeID)
 		{

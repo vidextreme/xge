@@ -16,7 +16,7 @@ namespace xg
 		auto cs = node->Get<SceneNodeComponentSet>();
 		cs->Owner = node;
 		_nodes[node->Id] = cs;
-		cs->Size = _componentPool->GetStride();		
+		//cs->Size = _componentPool->GetStride();		
 		_registry->RegisterGraphNode(node->Id, this, node);
 	}
 	void CompositeSceneGraph::DestroyNode(SceneNode * node)

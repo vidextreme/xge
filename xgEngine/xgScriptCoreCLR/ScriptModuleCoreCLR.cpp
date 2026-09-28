@@ -13,6 +13,7 @@
 
 namespace xg
 {
+
     std::string GetFullPath(const char* path)
     {
         char buffer[MAX_PATH];
@@ -146,6 +147,7 @@ namespace xg
         _valid = true;
         return true;
     }
+
 
     bool ScriptModuleCoreCLR::Init(ScriptEngine* engine)
     {

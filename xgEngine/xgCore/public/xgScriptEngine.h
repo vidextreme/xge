@@ -52,6 +52,8 @@ namespace xg
         virtual ScriptModule* GetScriptModule(const char* id) = 0;
         virtual void RemoveScriptModule(const char* id) = 0;
 
+        virtual ScriptModule* GetScriptModule(uint32_t moduleID) = 0;
+
         virtual TypeRegistry* GetTypeRegistry() = 0;
 
         virtual void AddLogCallback(LogCallback cb) = 0;
@@ -65,6 +67,11 @@ namespace xg
         template<typename T>
         T* GetSystem(ScriptModule* module = nullptr) {
             return static_cast<T*>(GetSystemImpl(T::SuperTypeID, module));
+        }
+
+        template<typename T>
+        T* GetSystemWithAlias(ScriptModule* module, const char* systemAlias) {
+            return static_cast<T*>(GetSystemImpl(fnv1a(systemAlias), module));
         }
 
         template<typename T>

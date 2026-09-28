@@ -23,7 +23,6 @@
 #include "xgEngineDef.generated.h"
 
 #include "xgHierarchyNode.h"
-#include "xgSceneGraph.h"
 #include "xgComponentSceneGraph.h"
 
 // ImGui backends (SDL3 + SDL_Renderer3)
@@ -578,26 +577,27 @@ namespace xg
         //
         InitImGui();
 
-		auto sceneGraphFactory = engine->GetSystem<SceneGraphFactory>(this);
+		/*auto sceneGraphFactory = engine->GetSystem<SceneGraphFactory>(this);
 		auto actorRegistry = engine->GetSystem<ActorRegistry>(this);
         auto sceneGraph = sceneGraphFactory->Create("tree", *actorRegistry);
 		engine->RegisterSystem<SceneGraph>(nullptr, sceneGraph);
 
         auto sceneRoot = xg::CreateNode<HierarchyNode>(*sceneGraph);
-        sceneRoot->Name = "mr root";
+        sceneRoot->Name = "mr root";*/
         //
         // Load managed editor module
         //
         const char* group = GetGroup();
-        auto root = _engine->AddScriptModule("editor_root", nullptr, this, group);
-        _editorModule = _engine->AddScriptModule("editor", "xgEditor.CoreCLR.dll", root, group);
-        _engine->AddScriptModule("game_demo", "GameDemoModule.dll", root, group);
+        _gameKernel = _engine->AddScriptModule("game.kernel", "xgGameKernel.dll", this, group);
+        _editorModule = _engine->AddScriptModule("editor", "xgEditor.CoreCLR.dll", _gameKernel, group);
+        _engine->AddScriptModule("game.demo", "GameDemoModule.dll", _gameKernel, group);
 
-        auto componentSG = sceneGraphFactory->Create("compset", *actorRegistry);
+       /* auto componentSG = sceneGraphFactory->Create("compset", *actorRegistry);
         auto componentSet = static_cast<ComponentSceneGraph*>(componentSG);
         engine->RegisterSystemWithAlias(nullptr, componentSet, "PlayerComponent");
-        componentSet->InitializeComponentSet("PlayerComponent", 100);
-        ComponentSetNode* co = componentSet->CreateComponent<ComponentSetNode>(sceneRoot->Id);
+        
+        componentSet->InitializeComponentSet("PlayerComponent", 12);
+        ComponentSetNode* co = componentSet->CreateComponent<ComponentSetNode>(55);*/
         //xg::TypeRegistry::Register(&xg::TypeInfo<PlayerState>::Instance);
 
         CodecRegistry* registry = _host->GetCodecRegistry();

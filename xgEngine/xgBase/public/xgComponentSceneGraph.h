@@ -18,7 +18,7 @@ namespace xg
 		T* CreateComponent(ActorID id)
 		{
 			T* node = new T(id);
-			auto componentSet = node->Get<SceneNodeComponentSet>();
+			SceneNodeComponentSet* componentSet = node->Get<SceneNodeComponentSet>();
 			componentSet->Data = CreateComponentRaw(id);
 			this->RegisterNode(node);
 			return node;

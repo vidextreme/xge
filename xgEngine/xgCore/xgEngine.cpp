@@ -132,9 +132,9 @@ namespace xg
             registry->RegisterEncoder("*", Encode_Binary_Generic);
             registry->RegisterDecoder("*", Decode_Binary_Generic);
         }
-
-        if (config.RendererModule)
-            return SetRendererModule(config.RendererModule);
+        
+        if (config.RendererModule && !SetRendererModule(config.RendererModule))
+            return false;
 
         return true;
     }
@@ -340,6 +340,13 @@ namespace xg
             return nullptr;
         }
 
+        _scriptTree->ForEachNodeRecursive(node, [](ScriptNode* n)
+            {
+                n->ForEachSystem([](System* system)
+                    {
+                        system->Initialize();
+                    });
+            });
         //_scriptTree->DebugPrint();
         return module;
     }
@@ -380,6 +387,21 @@ namespace xg
 
             storage->Modules.erase(it);
         }
+    }
+
+    ScriptModule* Engine::GetScriptModule(uint32_t moduleID)
+    {
+        ScriptModule* module = nullptr;
+        auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
+        for (auto& [id, content] : storage->Modules)
+        {
+            if (content->GetModuleId() == moduleID)
+            {
+                module = content;
+                break;
+            }
+        }
+        return module;
     }
 
     void Engine::Run()

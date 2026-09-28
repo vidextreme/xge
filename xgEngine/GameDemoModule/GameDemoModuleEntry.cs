@@ -16,11 +16,28 @@ namespace GameDemoModule
             Console.WriteLine("wow");
             return 1;
         }
+
+        static PlayerComponent comp, comp2;
         [UnmanagedCallersOnly(EntryPoint = "xg:Update")]
         public static void Update(float dt)
         {
+            if (comp == null)
+            {
+                comp = new PlayerComponent();
+                //(comp as IComponentUpdate).Update(0.010f);
+                //comp = ScriptRuntime.AllocateComponent<PlayerComponent>(55);
 
+                //  using (comp.BeginEdit())
+                {
+                //    comp.Data.Stats.Health = 25;
+                }
+            }
+            else
+            {
+                Console.WriteLine("NativeAOT: " + comp);
+            }
         }
+
 
         [UnmanagedCallersOnly(EntryPoint = "xg:Shutdown")]
         public static void Shutdown()
