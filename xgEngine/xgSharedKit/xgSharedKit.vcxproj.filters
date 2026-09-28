@@ -30,12 +30,18 @@
     <ClInclude Include="public\xgHierarchyNode.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgActorSystem.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xgSharedKit.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgActorSystem.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

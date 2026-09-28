@@ -68,6 +68,8 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
     </Link>
     <PreBuildEvent>
       <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)." "$(ProjectDir)Generated"</Command>
@@ -94,6 +96,8 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\3rdparty\SDL3\lib\x64;$(SolutionDir)\lib</AdditionalLibraryDirectories>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
     </Link>
     <PreBuildEvent>
       <Command>dotnet run --project "$(SolutionDir)tools\xgReflectGen" "$(ProjectDir)." "$(ProjectDir)Generated"</Command>
@@ -153,9 +157,11 @@
     </ProjectReference>
     <ProjectReference Include="..\xgEditorKit\xgEditorKit.vcxproj">
       <Project>{892b1e84-d1ce-4bda-b38b-0e7ed2cf0788}</Project>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
     </ProjectReference>
     <ProjectReference Include="..\xgSharedKit\xgSharedKit.vcxproj">
       <Project>{ff6863ef-79f9-4b98-ab14-b0a5453c5c1a}</Project>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

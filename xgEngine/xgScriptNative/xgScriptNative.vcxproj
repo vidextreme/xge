@@ -92,13 +92,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClCompile Include="CompositeComponent.cpp" />
+    <ClCompile Include="InteropSystem.cpp" />
     <ClCompile Include="interop\xgLogInterop.cpp" />
     <ClCompile Include="interop\xgMat4x4Interop.cpp" />
     <ClCompile Include="interop\xgQuatInterop.cpp" />
     <ClCompile Include="interop\xgScriptMessageInterop.cpp" />
     <ClCompile Include="interop\xgVec2Interop.cpp" />
     <ClCompile Include="interop\xgVec3Interop.cpp" />
+    <ClCompile Include="NativeSystem.cpp" />
     <ClCompile Include="ScriptModuleNative.cpp" />
+    <ClInclude Include="InteropSystem.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ScriptHostNative.h" />
     <ClInclude Include="ScriptModuleNative.h" />

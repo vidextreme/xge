@@ -23,13 +23,38 @@ namespace xgEditor.CoreCLR
             TestVector2();
             TestQuaternion();
             TestMatrix4x4();
+            
+            xgSystem system = new();
+            GCHandle handle = GCHandle.Alloc(system, GCHandleType.Normal);
+            IntPtr instancePtr = GCHandle.ToIntPtr(handle);
+            ScriptRuntime.RegisterSystemWithAlias(enginePtr, moduleID, (nint)instancePtr, "managed.system", &SystemBridge.Initialize, &SystemBridge.Shutdown, &SystemBridge.Update);
+
+            var actor = xg.Actor.Create();
             return 1;
         }
 
+        static PlayerComponent component;
         [UnmanagedCallersOnly]
         public static void Update(float dt) 
         {
-            
+            if (component == null)
+            {
+                component = new PlayerComponent();
+
+                (component as IComponentUpdate).Setup();
+                (component as IComponentUpdate).Update(0.01f);
+                // component = ScriptRuntime.AllocateComponent<PlayerComponent>(55);
+                //  using var editScope = component.BeginEdit();
+                //PlayerComponent component = TestMe.Read();
+                component.Data.Stats.Health = 100;
+                //TestMe.Write(component);
+            }
+            else
+            {
+               // component.Refresh();
+                //Console.WriteLine(component.Haha);
+                Console.WriteLine("CoreCLR: " + component);
+            }
         }
 
         [UnmanagedCallersOnly]

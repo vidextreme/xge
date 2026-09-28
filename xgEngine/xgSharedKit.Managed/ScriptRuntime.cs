@@ -1,7 +1,5 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
-﻿using System;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace xg
@@ -11,7 +9,7 @@ namespace xg
     public sealed class ScriptRuntime
     {
         public static uint ModuleID { get; private set; }
-        private static nint _enginePtr;        
+        private static nint _enginePtr;
         public static void Initialize(nint ptr, uint moduleID)
         {
             _enginePtr = ptr;
@@ -52,6 +50,17 @@ namespace xg
 
         public static PayloadMode PayloadMode => XGGetPayloadMode(_enginePtr);
 
+
+        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
+         EntryPoint = "XGAllocateComponent")]
+        private static extern IntPtr XGAllocateComponent(nint enginePtr, ulong actorID, string componentType, uint size);
+
+        [DllImport("xgScriptNative", EntryPoint = "XGRegiterSystemWithAlias")]
+        public static extern unsafe IntPtr RegisterSystemWithAlias(nint engine, uint moduleID, nint instancePtr,
+                                        string systemName,
+                                        delegate* unmanaged<nint, void> initFn,
+                                        delegate* unmanaged<nint, void> shutdownFn,
+                                        delegate* unmanaged<nint, float, void> updateFn);
 
         // ------------------------------------------------------------
         // Logging
@@ -95,9 +104,21 @@ namespace xg
         // Native → Managed dispatch
         // ------------------------------------------------------------
 
+
         public static void DispatchMessage(string typeName, object obj)
         {
             Console.WriteLine($"[Managed] Message received: {typeName}");
+        }
+
+        public static unsafe ComponentHandle<T> AllocateComponent<T>(ActorID id)
+            where T : ComponentOLD, new()
+        {
+            var componentType = typeof(T);
+            T component = new();
+            IntPtr ptr = XGAllocateComponent(_enginePtr, id.Value, componentType.Name, (uint)component.DataSize);
+            var componentRef = new ComponentHandle<T>(ptr);
+            componentRef.Bind(component);
+            return componentRef;
         }
     }
 }

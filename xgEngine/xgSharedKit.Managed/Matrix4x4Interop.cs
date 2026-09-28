@@ -1,4 +1,7 @@
-﻿using System.Runtime.InteropServices;
+﻿// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
+
+using System.Runtime.InteropServices;
 
 namespace xg.math
 {

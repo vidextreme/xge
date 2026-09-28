@@ -40,6 +40,7 @@ namespace xg
 
         ScriptModule* GetScriptModule(const char* id) override;
         void RemoveScriptModule(const char* id) override;
+        ScriptModule* GetScriptModule(uint32_t moduleID) override;
 
         RendererUnique Renderer;
         WindowUnique MainWindow;

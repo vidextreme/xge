@@ -6,7 +6,6 @@ namespace xg
 {
     XG_BUILDNODETYPE(HierarchyNode,
             SceneNodeHierarchy,
-            SceneNodeTransform,
             SceneNodeMetadata)
     {
 

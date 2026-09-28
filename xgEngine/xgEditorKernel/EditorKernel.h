@@ -51,7 +51,7 @@ namespace xg
     private:
         ScriptEngine* _engine = nullptr;
         ScriptModule* _editorModule = nullptr;
-
+        ScriptModule* _gameKernel = nullptr;
         // Stored as void* to avoid SDL includes in the header
         void* _sdlRenderer = nullptr;
 

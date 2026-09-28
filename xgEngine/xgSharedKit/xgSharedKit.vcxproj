@@ -59,7 +59,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgUtility;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgUtility;..\xgCore\Generated;public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -83,7 +83,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgUtility;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgUtility;..\xgCore\Generated;public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -98,9 +98,11 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="public\xgActorSystem.h" />
     <ClInclude Include="public\xgHierarchyNode.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="xgActorSystem.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
