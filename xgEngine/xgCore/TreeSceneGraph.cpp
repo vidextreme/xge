@@ -24,6 +24,8 @@ namespace xg
 
         auto h = node->Get<SceneNodeHierarchy>();
 
+        h->Owner = node;
+
         _nodes[node->Id] = h;
 
         // Register membership

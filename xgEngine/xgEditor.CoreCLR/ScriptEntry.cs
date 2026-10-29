@@ -29,7 +29,10 @@ namespace xgEditor.CoreCLR
             IntPtr instancePtr = GCHandle.ToIntPtr(handle);
             ScriptRuntime.RegisterSystemWithAlias(enginePtr, moduleID, (nint)instancePtr, "managed.system", &SystemBridge.Initialize, &SystemBridge.Shutdown, &SystemBridge.Update);
 
-            var actor = xg.Actor.Create();
+            var actor = xg.Actor.Create("walaweh!");
+            Console.WriteLine(actor.Name);
+            actor.Name = "REALLY AWWESOMEH!!!";
+            Console.WriteLine(actor.Name);
             return 1;
         }
 
@@ -53,7 +56,7 @@ namespace xgEditor.CoreCLR
             {
                // component.Refresh();
                 //Console.WriteLine(component.Haha);
-                Console.WriteLine("CoreCLR: " + component);
+                //Console.WriteLine("CoreCLR: " + component);
             }
         }
 

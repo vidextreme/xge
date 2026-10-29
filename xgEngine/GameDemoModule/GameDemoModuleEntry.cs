@@ -34,7 +34,7 @@ namespace GameDemoModule
             }
             else
             {
-                Console.WriteLine("NativeAOT: " + comp);
+                //Console.WriteLine("NativeAOT: " + comp);
             }
         }
 

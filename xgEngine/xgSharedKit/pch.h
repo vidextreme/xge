@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <string.h>
 #include <memory>
 #include <unordered_map>
 #include <vector>
