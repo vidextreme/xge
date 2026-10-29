@@ -9,7 +9,7 @@ namespace xg
     public sealed class ScriptRuntime
     {
         public static uint ModuleID { get; private set; }
-        private static nint _enginePtr;
+        internal static nint _enginePtr;
         public static void Initialize(nint ptr, uint moduleID)
         {
             _enginePtr = ptr;

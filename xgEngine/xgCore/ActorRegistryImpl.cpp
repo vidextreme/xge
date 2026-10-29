@@ -16,7 +16,7 @@ namespace xg
 
     ActorID ActorRegistryImpl::GenerateID()
     {
-        return 55;//_idGen.Generate();
+        return _idGen.Generate();
     }
 
     SceneNode* ActorRegistryImpl::CreateIdentity(ActorID id)
