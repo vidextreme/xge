@@ -14,6 +14,17 @@ namespace xg
         {
             _enginePtr = ptr;
             ModuleID = moduleID;
+
+            // Catch managed/native math struct size drift before it corrupts memory.
+            // Not rethrown: Initialize runs inside an UnmanagedCallersOnly entry point.
+            try
+            {
+                xg.math.MathLayout.Validate();
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"[xgSharedKit] {e.Message}");
+            }
         }
 
         // ------------------------------------------------------------

@@ -7,6 +7,9 @@
 // POD-friendly, trivially copyable, STL-free
 
 #include "xgMathCommon.h"
+#include "xgVec3.h"
+#include "xgVec4.h"
+#include "xgMat4x4.h"
 
 namespace xg
 {
@@ -15,6 +18,7 @@ namespace xg
     struct Sphere;
     struct Frustum;
     struct Ray;
+    struct OBB;
 
     namespace detail
     {
@@ -41,10 +45,10 @@ namespace xg
         constexpr AABB() noexcept = default;
 
         constexpr AABB(const Vec3& min_, const Vec3& max_) noexcept
-            : min(min_), max(max_) {}
+            : min{ min_ }, max{ max_ } {}
 
         constexpr AABB(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) noexcept
-            : min(minX, minY, minZ), max(maxX, maxY, maxZ) {}
+            : min{ minX, minY, minZ }, max{ maxX, maxY, maxZ } {}
 
         // Create from center and extents
         static AABB FromCenterExtents(const Vec3& center, const Vec3& extents) noexcept
@@ -191,13 +195,16 @@ namespace xg
         AABB Transform(const Mat4x4& matrix) const noexcept
         {
             AABB result;
-            detail::BoundsTransform(min.ToXM(), max.ToXM(), matrix.ToXM(), result.min.ToXM(), result.max.ToXM());
+            Transform(matrix, result);
             return result;
         }
 
         void Transform(const Mat4x4& matrix, AABB& out) const noexcept
         {
-            detail::BoundsTransform(min.ToXM(), max.ToXM(), matrix.ToXM(), out.min.ToXM(), out.max.ToXM());
+            detail::XGVector outMin, outMax;
+            detail::BoundsTransform(min.ToXM(), max.ToXM(), matrix.ToXM(), outMin, outMax);
+            out.min = Vec3::FromXM(outMin);
+            out.max = Vec3::FromXM(outMax);
         }
 
         //--------------------------------------------------------
@@ -413,17 +420,31 @@ namespace xg
         //--------------------------------------------------------
         constexpr Frustum() noexcept = default;
 
-        // Create from view-projection matrix
-        static Frustum FromMatrix(const Mat4x4& viewProj) noexcept
+        // Clip-space depth convention of the projection matrix
+        enum class DepthRange : uint8_t
+        {
+            ZeroToOne,      // D3D / DirectXMath / Vulkan
+            MinusOneToOne   // OpenGL
+        };
+
+        // Create from view-projection matrix (row-vector convention, v * M)
+        static Frustum FromMatrix(const Mat4x4& viewProj, DepthRange depthRange = DepthRange::ZeroToOne) noexcept
         {
             Frustum f;
             // Extract planes from matrix
             const float* m = &viewProj.m[0][0];
 
-            // Near: m3 + m2
-            f.planes[Near] = Vec4(
-                m[3] + m[2], m[7] + m[6], m[11] + m[10], m[15] + m[14]
-            );
+            // Near: m2 (0..1 depth) or m3 + m2 (-1..1 depth)
+            if (depthRange == DepthRange::ZeroToOne)
+            {
+                f.planes[Near] = Vec4(m[2], m[6], m[10], m[14]);
+            }
+            else
+            {
+                f.planes[Near] = Vec4(
+                    m[3] + m[2], m[7] + m[6], m[11] + m[10], m[15] + m[14]
+                );
+            }
 
             // Far: m3 - m2
             f.planes[Far] = Vec4(
@@ -524,6 +545,7 @@ namespace xg
 
         ContainmentType Contains(const Sphere& sphere) const noexcept
         {
+            bool intersects = false;
             for (int i = 0; i < Count; ++i)
             {
                 float dist = planes[i].x * sphere.center.x +
@@ -534,28 +556,63 @@ namespace xg
                 if (dist < -sphere.radius)
                     return ContainmentType::Disjoint;
 
+                // Keep testing: a later plane may still reject the sphere
                 if (dist < sphere.radius)
-                    return ContainmentType::Intersects;
+                    intersects = true;
             }
-            return ContainmentType::Contains;
+            return intersects ? ContainmentType::Intersects : ContainmentType::Contains;
         }
 
-        // Intersection with ray
+        // Defined in xgShapes.h
+        ContainmentType Contains(const OBB& box) const noexcept;
+
+        // Fast visibility tests (true = at least partially inside)
+        bool Intersects(const AABB& box) const noexcept
+        {
+            return Contains(box) != ContainmentType::Disjoint;
+        }
+
+        bool Intersects(const Sphere& sphere) const noexcept
+        {
+            for (int i = 0; i < Count; ++i)
+            {
+                float dist = planes[i].x * sphere.center.x +
+                             planes[i].y * sphere.center.y +
+                             planes[i].z * sphere.center.z +
+                             planes[i].w;
+                if (dist < -sphere.radius)
+                    return false;
+            }
+            return true;
+        }
+
+        // Intersection with ray (defined in xgRay.h)
         bool Intersects(const Ray& ray, float& tNear, float& tFar) const noexcept;
     };
 
+    //============================================================
+    // Out-of-line AABB <-> Sphere tests
+    //============================================================
+    inline bool AABB::Intersects(const Sphere& sphere) const noexcept
+    {
+        return detail::BoundsIntersectsSphere(sphere.center.ToXM(), sphere.radius, min.ToXM(), max.ToXM());
+    }
+
+    inline bool Sphere::Intersects(const AABB& box) const noexcept
+    {
+        return box.Intersects(*this);
+    }
+
     // Static assertions
-    static_assert(std::is_trivial_v<AABB>, "AABB must be trivial");
+    // (Not std::is_trivial: default member initializers make the default constructor non-trivial)
     static_assert(std::is_standard_layout_v<AABB>, "AABB must be standard layout");
     static_assert(std::is_trivially_copyable_v<AABB>, "AABB must be trivially copyable");
     static_assert(sizeof(AABB) == 2 * sizeof(Vec3), "AABB size mismatch");
 
-    static_assert(std::is_trivial_v<Sphere>, "Sphere must be trivial");
     static_assert(std::is_standard_layout_v<Sphere>, "Sphere must be standard layout");
     static_assert(std::is_trivially_copyable_v<Sphere>, "Sphere must be trivially copyable");
-    static_assert(sizeof(Sphere) == sizeof(Vec3) + sizeof(float), "Sphere size mismatch");
+    static_assert(sizeof(Sphere) == 32, "Sphere size mismatch (Vec3 is 16 bytes + radius, padded to 16)");
 
-    static_assert(std::is_trivial_v<Frustum>, "Frustum must be trivial");
     static_assert(std::is_standard_layout_v<Frustum>, "Frustum must be standard layout");
     static_assert(std::is_trivially_copyable_v<Frustum>, "Frustum must be trivially copyable");
     static_assert(sizeof(Frustum) == 6 * sizeof(Vec4), "Frustum size mismatch");

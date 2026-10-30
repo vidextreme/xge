@@ -128,6 +128,48 @@
     <ClInclude Include="math\xgVec4.h">
       <Filter>math</Filter>
     </ClInclude>
+    <ClInclude Include="math\xgColor.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgEasing.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgGeometry.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgGeometryInterop.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgInteropUtil.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgMat3x3.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgMath.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgMotion.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgRandom.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgRect.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgShapes.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgTransform2D.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgVec2Int.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\xgVec3Int.h">
+      <Filter>math</Filter>
+    </ClInclude>
     <ClInclude Include="math\xgVec2Interop.h">
       <Filter>math</Filter>
     </ClInclude>

@@ -19,55 +19,71 @@ namespace xg.math
         }
     }
 
-    internal static class NativeQuat
+    internal static partial class NativeQuat
     {
         private const string DLL = "xgScriptNative";
 
         // Arithmetic
-        [DllImport(DLL, EntryPoint = "XG_Quat_Add")]
-        public static extern Quaternion Add(ref Quaternion a, ref Quaternion b);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Add")]
+        [SuppressGCTransition]
+        public static partial Quaternion Add(ref Quaternion a, ref Quaternion b);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_Sub")]
-        public static extern Quaternion Sub(ref Quaternion a, ref Quaternion b);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Sub")]
+        [SuppressGCTransition]
+        public static partial Quaternion Sub(ref Quaternion a, ref Quaternion b);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_MulScalar")]
-        public static extern Quaternion MulScalar(ref Quaternion q, float s);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_MulScalar")]
+        [SuppressGCTransition]
+        public static partial Quaternion MulScalar(ref Quaternion q, float s);
 
         // Quaternion math
-        [DllImport(DLL, EntryPoint = "XG_Quat_Dot")]
-        public static extern float Dot(ref Quaternion a, ref Quaternion b);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Dot")]
+        [SuppressGCTransition]
+        public static partial float Dot(ref Quaternion a, ref Quaternion b);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_Length")]
-        public static extern float Length(ref Quaternion q);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Length")]
+        [SuppressGCTransition]
+        public static partial float Length(ref Quaternion q);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_LengthSquared")]
-        public static extern float LengthSquared(ref Quaternion q);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_LengthSquared")]
+        [SuppressGCTransition]
+        public static partial float LengthSquared(ref Quaternion q);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_Normalized")]
-        public static extern Quaternion Normalized(ref Quaternion q);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Normalized")]
+        [SuppressGCTransition]
+        public static partial Quaternion Normalized(ref Quaternion q);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_Slerp")]
-        public static extern Quaternion Slerp(ref Quaternion a, ref Quaternion b, float t);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Slerp")]
+        [SuppressGCTransition]
+        public static partial Quaternion Slerp(ref Quaternion a, ref Quaternion b, float t);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_Inverse")]
-        public static extern Quaternion Inverse(ref Quaternion q);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Inverse")]
+        [SuppressGCTransition]
+        public static partial Quaternion Inverse(ref Quaternion q);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_Conjugate")]
-        public static extern Quaternion Conjugate(ref Quaternion q);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_Conjugate")]
+        [SuppressGCTransition]
+        public static partial Quaternion Conjugate(ref Quaternion q);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_MulQuat")]
-        public static extern Quaternion MulQuat(ref Quaternion a, ref Quaternion b);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_MulQuat")]
+        [SuppressGCTransition]
+        public static partial Quaternion MulQuat(ref Quaternion a, ref Quaternion b);
 
         // Transform helpers
-        [DllImport(DLL, EntryPoint = "XG_Quat_RotateVec3")]
-        public static extern Vector3 RotateVec3(ref Quaternion q, ref Vector3 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_RotateVec3")]
+        [SuppressGCTransition]
+        public static partial Vector3 RotateVec3(ref Quaternion q, ref Vector3 v);
 
         // Utility
-        [DllImport(DLL, EntryPoint = "XG_Quat_IsIdentity")]
-        public static extern bool IsIdentity(ref Quaternion q);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_IsIdentity")]
+        [SuppressGCTransition]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static partial bool IsIdentity(ref Quaternion q);
 
-        [DllImport(DLL, EntryPoint = "XG_Quat_IsEqual")]
-        public static extern bool IsEqual(ref Quaternion a, ref Quaternion b, float epsilon);
+        [LibraryImport(DLL, EntryPoint = "XG_Quat_IsEqual")]
+        [SuppressGCTransition]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static partial bool IsEqual(ref Quaternion a, ref Quaternion b, float epsilon);
     }
 
     public static class QuatExtensions

@@ -3,24 +3,24 @@
 
 namespace xg
 {
-    Vec2 XG_Vec2_Add(const Vec2* a, const Vec2* b)
+    interop::Vec2Abi XG_Vec2_Add(const Vec2* a, const Vec2* b)
     {
-        return *a + *b;
+        return interop::ToAbi(*a + *b);
     }
 
-    Vec2 XG_Vec2_Sub(const Vec2* a, const Vec2* b)
+    interop::Vec2Abi XG_Vec2_Sub(const Vec2* a, const Vec2* b)
     {
-        return *a - *b;
+        return interop::ToAbi(*a - *b);
     }
 
-    Vec2 XG_Vec2_MulScalar(const Vec2* v, float s)
+    interop::Vec2Abi XG_Vec2_MulScalar(const Vec2* v, float s)
     {
-        return *v * s;
+        return interop::ToAbi(*v * s);
     }
 
-    Vec2 XG_Vec2_DivScalar(const Vec2* v, float s)
+    interop::Vec2Abi XG_Vec2_DivScalar(const Vec2* v, float s)
     {
-        return *v / s;
+        return interop::ToAbi(*v / s);
     }
 
     float XG_Vec2_Length(const Vec2* v)
@@ -33,9 +33,9 @@ namespace xg
         return v->LengthSq();
     }
 
-    Vec2 XG_Vec2_Normalized(const Vec2* v)
+    interop::Vec2Abi XG_Vec2_Normalized(const Vec2* v)
     {
-        return v->Normalized();
+        return interop::ToAbi(v->Normalized());
     }
 
     float XG_Vec2_Dot(const Vec2* a, const Vec2* b)
@@ -53,24 +53,24 @@ namespace xg
         return a->DistanceSq(*b);
     }
 
-    Vec2 XG_Vec2_Lerp(const Vec2* a, const Vec2* b, float t)
+    interop::Vec2Abi XG_Vec2_Lerp(const Vec2* a, const Vec2* b, float t)
     {
-        return Vec2::Lerp(*a, *b, t);
+        return interop::ToAbi(Vec2::Lerp(*a, *b, t));
     }
 
-    Vec2 XG_Vec2_Min(const Vec2* a, const Vec2* b)
+    interop::Vec2Abi XG_Vec2_Min(const Vec2* a, const Vec2* b)
     {
-        return Vec2::Min(*a, *b);
+        return interop::ToAbi(Vec2::Min(*a, *b));
     }
 
-    Vec2 XG_Vec2_Max(const Vec2* a, const Vec2* b)
+    interop::Vec2Abi XG_Vec2_Max(const Vec2* a, const Vec2* b)
     {
-        return Vec2::Max(*a, *b);
+        return interop::ToAbi(Vec2::Max(*a, *b));
     }
 
-    Vec2 XG_Vec2_Clamp(const Vec2* v, const Vec2* min, const Vec2* max)
+    interop::Vec2Abi XG_Vec2_Clamp(const Vec2* v, const Vec2* min, const Vec2* max)
     {
-        return Vec2::Clamp(*v, *min, *max);
+        return interop::ToAbi(Vec2::Clamp(*v, *min, *max));
     }
 
     bool XG_Vec2_IsZero(const Vec2* v)

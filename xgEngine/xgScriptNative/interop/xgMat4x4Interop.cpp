@@ -3,68 +3,70 @@
 
 namespace xg
 {
+    using interop::Load;
+
     // Creation
-    Mat4x4 XG_Mat4x4_Identity()
+    interop::Mat4x4Abi XG_Mat4x4_Identity()
     {
-        return Mat4x4::Identity();
+        return interop::ToAbi(Mat4x4::Identity());
     }
 
-    Mat4x4 XG_Mat4x4_Translation(float x, float y, float z)
+    interop::Mat4x4Abi XG_Mat4x4_Translation(float x, float y, float z)
     {
-        return Mat4x4::Translation(x, y, z);
+        return interop::ToAbi(Mat4x4::Translation(x, y, z));
     }
 
-    Mat4x4 XG_Mat4x4_Scaling(float x, float y, float z)
+    interop::Mat4x4Abi XG_Mat4x4_Scaling(float x, float y, float z)
     {
-        return Mat4x4::Scaling(x, y, z);
+        return interop::ToAbi(Mat4x4::Scaling(x, y, z));
     }
 
-    Mat4x4 XG_Mat4x4_RotationX(float angle)
+    interop::Mat4x4Abi XG_Mat4x4_RotationX(float angle)
     {
-        return Mat4x4::RotationX(angle);
+        return interop::ToAbi(Mat4x4::RotationX(angle));
     }
 
-    Mat4x4 XG_Mat4x4_RotationY(float angle)
+    interop::Mat4x4Abi XG_Mat4x4_RotationY(float angle)
     {
-        return Mat4x4::RotationY(angle);
+        return interop::ToAbi(Mat4x4::RotationY(angle));
     }
 
-    Mat4x4 XG_Mat4x4_RotationZ(float angle)
+    interop::Mat4x4Abi XG_Mat4x4_RotationZ(float angle)
     {
-        return Mat4x4::RotationZ(angle);
+        return interop::ToAbi(Mat4x4::RotationZ(angle));
     }
 
     // Arithmetic
-    Mat4x4 XG_Mat4x4_Multiply(const Mat4x4* a, const Mat4x4* b)
+    interop::Mat4x4Abi XG_Mat4x4_Multiply(const Mat4x4* a, const Mat4x4* b)
     {
-        return a->operator*(*b);
+        return interop::ToAbi(Load(a).operator*(Load(b)));
     }
 
-    Mat4x4 XG_Mat4x4_Transposed(const Mat4x4* m)
+    interop::Mat4x4Abi XG_Mat4x4_Transposed(const Mat4x4* m)
     {
-        return m->Transposed();
+        return interop::ToAbi(Load(m).Transposed());
     }
 
-    Mat4x4 XG_Mat4x4_Inverse(const Mat4x4* m)
+    interop::Mat4x4Abi XG_Mat4x4_Inverse(const Mat4x4* m)
     {
-        return m->Inverse();
+        return interop::ToAbi(Load(m).Inverse());
     }
 
     // Determinant
     float XG_Mat4x4_Determinant(const Mat4x4* m)
     {
-        return m->Determinant();
+        return Load(m).Determinant();
     }
 
     // Transform helpers
-    Vec3 XG_Mat4x4_TransformPoint(const Mat4x4* m, const Vec3* v)
+    interop::Vec3Abi XG_Mat4x4_TransformPoint(const Mat4x4* m, const Vec3* v)
     {
-        return m->TransformPoint(*v);
+        return interop::ToAbi(Load(m).TransformPoint(Load(v)));
     }
 
-    Vec3 XG_Mat4x4_TransformDirection(const Mat4x4* m, const Vec3* v)
+    interop::Vec3Abi XG_Mat4x4_TransformDirection(const Mat4x4* m, const Vec3* v)
     {
-        return m->TransformDirection(*v);
+        return interop::ToAbi(Load(m).TransformDirection(Load(v)));
     }
 
     // Decompose
@@ -74,6 +76,11 @@ namespace xg
         Quat* outRotation,
         Vec3* outTranslation)
     {
-        m->Decompose(*outScale, *outRotation, *outTranslation);
+        Vec3 scale, translation;
+        Quat rotation;
+        Load(m).Decompose(scale, rotation, translation);
+        interop::Store(outScale, scale);
+        interop::Store(outRotation, rotation);
+        interop::Store(outTranslation, translation);
     }
 }

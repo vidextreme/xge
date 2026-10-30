@@ -5,14 +5,14 @@ using System.Runtime.InteropServices;
 
 namespace xg.math
 {
+    // 8 bytes, matches C++ Vec2 (alignas(4)). No padding: an 8-byte struct is returned
+    // in a register by native code, a 16-byte one through a hidden pointer.
     [StructLayout(LayoutKind.Sequential)]
     public struct Vector2
     {
         public float x;
         public float y;
 
-        private float _pad1;
-        private float _pad2;
         public Vector2(float x, float y)
         {
             this.x = x;
@@ -49,62 +49,80 @@ namespace xg.math
 
     }
 
-    internal static class NativeVec2
+    internal static partial class NativeVec2
     {
         private const string DLL = "xgScriptNative";
 
         // Arithmetic
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Add")]
-        public static extern Vector2 Add(ref Vector2 a, ref Vector2 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Add")]
+        [SuppressGCTransition]
+        public static partial Vector2 Add(ref Vector2 a, ref Vector2 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Sub")]
-        public static extern Vector2 Sub(ref Vector2 a, ref Vector2 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Sub")]
+        [SuppressGCTransition]
+        public static partial Vector2 Sub(ref Vector2 a, ref Vector2 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_MulScalar")]
-        public static extern Vector2 MulScalar(ref Vector2 v, float s);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_MulScalar")]
+        [SuppressGCTransition]
+        public static partial Vector2 MulScalar(ref Vector2 v, float s);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_DivScalar")]
-        public static extern Vector2 DivScalar(ref Vector2 v, float s);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_DivScalar")]
+        [SuppressGCTransition]
+        public static partial Vector2 DivScalar(ref Vector2 v, float s);
 
         // Vector math
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Length")]
-        public static extern float Length(ref Vector2 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Length")]
+        [SuppressGCTransition]
+        public static partial float Length(ref Vector2 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_LengthSquared")]
-        public static extern float LengthSquared(ref Vector2 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_LengthSquared")]
+        [SuppressGCTransition]
+        public static partial float LengthSquared(ref Vector2 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Normalized")]
-        public static extern Vector2 Normalized(ref Vector2 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Normalized")]
+        [SuppressGCTransition]
+        public static partial Vector2 Normalized(ref Vector2 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Dot")]
-        public static extern float Dot(ref Vector2 a, ref Vector2 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Dot")]
+        [SuppressGCTransition]
+        public static partial float Dot(ref Vector2 a, ref Vector2 b);
 
         // Distance
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Distance")]
-        public static extern float Distance(ref Vector2 a, ref Vector2 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Distance")]
+        [SuppressGCTransition]
+        public static partial float Distance(ref Vector2 a, ref Vector2 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_DistanceSquared")]
-        public static extern float DistanceSquared(ref Vector2 a, ref Vector2 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_DistanceSquared")]
+        [SuppressGCTransition]
+        public static partial float DistanceSquared(ref Vector2 a, ref Vector2 b);
 
         // Lerp / Min / Max / Clamp
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Lerp")]
-        public static extern Vector2 Lerp(ref Vector2 a, ref Vector2 b, float t);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Lerp")]
+        [SuppressGCTransition]
+        public static partial Vector2 Lerp(ref Vector2 a, ref Vector2 b, float t);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Min")]
-        public static extern Vector2 Min(ref Vector2 a, ref Vector2 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Min")]
+        [SuppressGCTransition]
+        public static partial Vector2 Min(ref Vector2 a, ref Vector2 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Max")]
-        public static extern Vector2 Max(ref Vector2 a, ref Vector2 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Max")]
+        [SuppressGCTransition]
+        public static partial Vector2 Max(ref Vector2 a, ref Vector2 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_Clamp")]
-        public static extern Vector2 Clamp(ref Vector2 v, ref Vector2 min, ref Vector2 max);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_Clamp")]
+        [SuppressGCTransition]
+        public static partial Vector2 Clamp(ref Vector2 v, ref Vector2 min, ref Vector2 max);
 
         // Utility
-        [DllImport(DLL, EntryPoint = "XG_Vec2_IsZero")]
-        public static extern bool IsZero(ref Vector2 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_IsZero")]
+        [SuppressGCTransition]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static partial bool IsZero(ref Vector2 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec2_IsEqual")]
-        public static extern bool IsEqual(ref Vector2 a, ref Vector2 b, float epsilon);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec2_IsEqual")]
+        [SuppressGCTransition]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static partial bool IsEqual(ref Vector2 a, ref Vector2 b, float epsilon);
     }
 
     public static class Vec2Extensions

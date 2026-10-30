@@ -48,6 +48,20 @@
     <Compile Include="ScriptMessageParser.cs" />
     <Compile Include="ScriptRuntime.cs" />
     <Compile Include="xgID.cs" />
+    <Compile Include="ColorInterop.cs" />
+    <Compile Include="EasingInterop.cs" />
+    <Compile Include="GeometryInterop.cs" />
+    <Compile Include="Matrix3x3Interop.cs" />
+    <Compile Include="MotionInterop.cs" />
+    <Compile Include="RandomInterop.cs" />
+    <Compile Include="RectInterop.cs" />
+    <Compile Include="ShapesInterop.cs" />
+    <Compile Include="Transform2DInterop.cs" />
+    <Compile Include="Vector2IntInterop.cs" />
+    <Compile Include="Vector3IntInterop.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="xgMathVerify.Managed" />
   </ItemGroup>
   <ItemGroup>
 	<Using Include="System.Runtime.InteropServices" />

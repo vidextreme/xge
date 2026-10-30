@@ -3,98 +3,100 @@
 
 namespace xg
 {
-    Vec3 XG_Vec3_Add(const Vec3* a, const Vec3* b)
+    using interop::Load;
+
+    interop::Vec3Abi XG_Vec3_Add(const Vec3* a, const Vec3* b)
     {
-        return *a + *b;
+        return interop::ToAbi(Load(a) + Load(b));
     }
 
-    Vec3 XG_Vec3_Sub(const Vec3* a, const Vec3* b)
+    interop::Vec3Abi XG_Vec3_Sub(const Vec3* a, const Vec3* b)
     {
-        return *a - *b;
+        return interop::ToAbi(Load(a) - Load(b));
     }
 
-    Vec3 XG_Vec3_MulScalar(const Vec3* v, float s)
+    interop::Vec3Abi XG_Vec3_MulScalar(const Vec3* v, float s)
     {
-        return *v * s;
+        return interop::ToAbi(Load(v) * s);
     }
 
-    Vec3 XG_Vec3_DivScalar(const Vec3* v, float s)
+    interop::Vec3Abi XG_Vec3_DivScalar(const Vec3* v, float s)
     {
-        return *v / s;
+        return interop::ToAbi(Load(v) / s);
     }
 
     float XG_Vec3_Length(const Vec3* v)
     {
-        return v->Length();
+        return Load(v).Length();
     }
 
     float XG_Vec3_LengthSquared(const Vec3* v)
     {
-        return v->LengthSq();
+        return Load(v).LengthSq();
     }
 
-    Vec3 XG_Vec3_Normalized(const Vec3* v)
+    interop::Vec3Abi XG_Vec3_Normalized(const Vec3* v)
     {
-        return v->Normalized();
+        return interop::ToAbi(Load(v).Normalized());
     }
 
     float XG_Vec3_Dot(const Vec3* a, const Vec3* b)
     {
-        return a->Dot(*b);
+        return Load(a).Dot(Load(b));
     }
 
-    Vec3 XG_Vec3_Cross(const Vec3* a, const Vec3* b)
+    interop::Vec3Abi XG_Vec3_Cross(const Vec3* a, const Vec3* b)
     {
-        return a->Cross(*b);
+        return interop::ToAbi(Load(a).Cross(Load(b)));
     }
 
     float XG_Vec3_Distance(const Vec3* a, const Vec3* b)
     {
-        return a->Distance(*b);
+        return Load(a).Distance(Load(b));
     }
 
     float XG_Vec3_DistanceSquared(const Vec3* a, const Vec3* b)
     {
-        return a->DistanceSq(*b);
+        return Load(a).DistanceSq(Load(b));
     }
 
-    Vec3 XG_Vec3_Lerp(const Vec3* a, const Vec3* b, float t)
+    interop::Vec3Abi XG_Vec3_Lerp(const Vec3* a, const Vec3* b, float t)
     {
-        return Vec3::Lerp(*a, *b, t);
+        return interop::ToAbi(Vec3::Lerp(Load(a), Load(b), t));
     }
 
-    Vec3 XG_Vec3_Min(const Vec3* a, const Vec3* b)
+    interop::Vec3Abi XG_Vec3_Min(const Vec3* a, const Vec3* b)
     {
-        return Vec3::Min(*a, *b);
+        return interop::ToAbi(Vec3::Min(Load(a), Load(b)));
     }
 
-    Vec3 XG_Vec3_Max(const Vec3* a, const Vec3* b)
+    interop::Vec3Abi XG_Vec3_Max(const Vec3* a, const Vec3* b)
     {
-        return Vec3::Max(*a, *b);
+        return interop::ToAbi(Vec3::Max(Load(a), Load(b)));
     }
 
-    Vec3 XG_Vec3_Clamp(const Vec3* v, const Vec3* min, const Vec3* max)
+    interop::Vec3Abi XG_Vec3_Clamp(const Vec3* v, const Vec3* min, const Vec3* max)
     {
-        return Vec3::Clamp(*v, *min, *max);
+        return interop::ToAbi(Vec3::Clamp(Load(v), Load(min), Load(max)));
     }
 
-    Vec3 XG_Vec3_Transform(const Vec3* v, const Mat4x4* m)
+    interop::Vec3Abi XG_Vec3_Transform(const Vec3* v, const Mat4x4* m)
     {
-        return v->Transform(*m);
+        return interop::ToAbi(Load(v).Transform(Load(m)));
     }
 
-    Vec3 XG_Vec3_TransformDirection(const Vec3* v, const Mat4x4* m)
+    interop::Vec3Abi XG_Vec3_TransformDirection(const Vec3* v, const Mat4x4* m)
     {
-        return v->TransformDirection(*m);
+        return interop::ToAbi(Load(v).TransformDirection(Load(m)));
     }
 
     bool XG_Vec3_IsZero(const Vec3* v)
     {
-        return v->IsZero();
+        return Load(v).IsZero();
     }
 
     bool XG_Vec3_IsEqual(const Vec3* a, const Vec3* b, float epsilon)
     {
-        return a->IsEqual(*b, epsilon);
+        return Load(a).IsEqual(Load(b), epsilon);
     }
 }

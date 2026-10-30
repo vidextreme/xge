@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace xg.math
 {
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Size = 16)] // matches C++ alignas(16) Vec3
     public struct Vector3
     {
         public float x;
@@ -87,72 +87,93 @@ namespace xg.math
 
     }
 
-    internal static class NativeVec3
+    internal static partial class NativeVec3
     {
         private const string DLL = "xgScriptNative";
 
         // Arithmetic
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Add")]
-        public static extern Vector3 Add(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Add")]
+        [SuppressGCTransition]
+        public static partial Vector3 Add(ref Vector3 a, ref Vector3 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Sub")]
-        public static extern Vector3 Sub(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Sub")]
+        [SuppressGCTransition]
+        public static partial Vector3 Sub(ref Vector3 a, ref Vector3 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_MulScalar")]
-        public static extern Vector3 MulScalar(ref Vector3 v, float s);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_MulScalar")]
+        [SuppressGCTransition]
+        public static partial Vector3 MulScalar(ref Vector3 v, float s);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_DivScalar")]
-        public static extern Vector3 DivScalar(ref Vector3 v, float s);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_DivScalar")]
+        [SuppressGCTransition]
+        public static partial Vector3 DivScalar(ref Vector3 v, float s);
 
         // Vector math
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Length")]
-        public static extern float Length(ref Vector3 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Length")]
+        [SuppressGCTransition]
+        public static partial float Length(ref Vector3 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_LengthSquared")]
-        public static extern float LengthSquared(ref Vector3 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_LengthSquared")]
+        [SuppressGCTransition]
+        public static partial float LengthSquared(ref Vector3 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Normalized")]
-        public static extern Vector3 Normalized(ref Vector3 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Normalized")]
+        [SuppressGCTransition]
+        public static partial Vector3 Normalized(ref Vector3 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Dot")]
-        public static extern float Dot(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Dot")]
+        [SuppressGCTransition]
+        public static partial float Dot(ref Vector3 a, ref Vector3 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Cross")]
-        public static extern Vector3 Cross(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Cross")]
+        [SuppressGCTransition]
+        public static partial Vector3 Cross(ref Vector3 a, ref Vector3 b);
 
         // Distance
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Distance")]
-        public static extern float Distance(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Distance")]
+        [SuppressGCTransition]
+        public static partial float Distance(ref Vector3 a, ref Vector3 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_DistanceSquared")]
-        public static extern float DistanceSquared(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_DistanceSquared")]
+        [SuppressGCTransition]
+        public static partial float DistanceSquared(ref Vector3 a, ref Vector3 b);
 
         // Lerp / Min / Max / Clamp
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Lerp")]
-        public static extern Vector3 Lerp(ref Vector3 a, ref Vector3 b, float t);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Lerp")]
+        [SuppressGCTransition]
+        public static partial Vector3 Lerp(ref Vector3 a, ref Vector3 b, float t);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Min")]
-        public static extern Vector3 Min(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Min")]
+        [SuppressGCTransition]
+        public static partial Vector3 Min(ref Vector3 a, ref Vector3 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Max")]
-        public static extern Vector3 Max(ref Vector3 a, ref Vector3 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Max")]
+        [SuppressGCTransition]
+        public static partial Vector3 Max(ref Vector3 a, ref Vector3 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Clamp")]
-        public static extern Vector3 Clamp(ref Vector3 v, ref Vector3 min, ref Vector3 max);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Clamp")]
+        [SuppressGCTransition]
+        public static partial Vector3 Clamp(ref Vector3 v, ref Vector3 min, ref Vector3 max);
 
         // Transform
-        [DllImport(DLL, EntryPoint = "XG_Vec3_Transform")]
-        public static extern Vector3 Transform(ref Vector3 v, ref Matrix4x4 m);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_Transform")]
+        [SuppressGCTransition]
+        public static partial Vector3 Transform(ref Vector3 v, ref Matrix4x4 m);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_TransformDirection")]
-        public static extern Vector3 TransformDirection(ref Vector3 v, ref Matrix4x4 m);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_TransformDirection")]
+        [SuppressGCTransition]
+        public static partial Vector3 TransformDirection(ref Vector3 v, ref Matrix4x4 m);
 
         // Utility
-        [DllImport(DLL, EntryPoint = "XG_Vec3_IsZero")]
-        public static extern bool IsZero(ref Vector3 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_IsZero")]
+        [SuppressGCTransition]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static partial bool IsZero(ref Vector3 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Vec3_IsEqual")]
-        public static extern bool IsEqual(ref Vector3 a, ref Vector3 b, float epsilon);
+        [LibraryImport(DLL, EntryPoint = "XG_Vec3_IsEqual")]
+        [SuppressGCTransition]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static partial bool IsEqual(ref Vector3 a, ref Vector3 b, float epsilon);
     }
 
     public static class Vec3Extensions

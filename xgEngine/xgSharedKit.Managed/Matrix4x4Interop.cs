@@ -78,53 +78,66 @@ namespace xg.math
     // ------------------------------------------------------------
     // Native P/Invoke bindings
     // ------------------------------------------------------------
-    internal static class NativeMatrix4x4
+    internal static partial class NativeMatrix4x4
     {
         private const string DLL = "xgScriptNative";
 
         // Creation
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Identity")]
-        public static extern Matrix4x4 Identity();
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Identity")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 Identity();
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Translation")]
-        public static extern Matrix4x4 Translation(float x, float y, float z);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Translation")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 Translation(float x, float y, float z);
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Scaling")]
-        public static extern Matrix4x4 Scaling(float x, float y, float z);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Scaling")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 Scaling(float x, float y, float z);
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_RotationX")]
-        public static extern Matrix4x4 RotationX(float angle);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_RotationX")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 RotationX(float angle);
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_RotationY")]
-        public static extern Matrix4x4 RotationY(float angle);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_RotationY")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 RotationY(float angle);
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_RotationZ")]
-        public static extern Matrix4x4 RotationZ(float angle);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_RotationZ")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 RotationZ(float angle);
 
         // Arithmetic
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Multiply")]
-        public static extern Matrix4x4 Multiply(ref Matrix4x4 a, ref Matrix4x4 b);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Multiply")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 Multiply(ref Matrix4x4 a, ref Matrix4x4 b);
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Transposed")]
-        public static extern Matrix4x4 Transposed(ref Matrix4x4 m);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Transposed")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 Transposed(ref Matrix4x4 m);
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Inverse")]
-        public static extern Matrix4x4 Inverse(ref Matrix4x4 m);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Inverse")]
+        [SuppressGCTransition]
+        public static partial Matrix4x4 Inverse(ref Matrix4x4 m);
 
         // Determinant
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Determinant")]
-        public static extern float Determinant(ref Matrix4x4 m);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Determinant")]
+        [SuppressGCTransition]
+        public static partial float Determinant(ref Matrix4x4 m);
 
         // Transform helpers
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_TransformPoint")]
-        public static extern Vector3 TransformPoint(ref Matrix4x4 m, ref Vector3 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_TransformPoint")]
+        [SuppressGCTransition]
+        public static partial Vector3 TransformPoint(ref Matrix4x4 m, ref Vector3 v);
 
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_TransformDirection")]
-        public static extern Vector3 TransformDirection(ref Matrix4x4 m, ref Vector3 v);
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_TransformDirection")]
+        [SuppressGCTransition]
+        public static partial Vector3 TransformDirection(ref Matrix4x4 m, ref Vector3 v);
 
         // Decompose
-        [DllImport(DLL, EntryPoint = "XG_Mat4x4_Decompose")]
-        public static extern void Decompose(
+        [LibraryImport(DLL, EntryPoint = "XG_Mat4x4_Decompose")]
+        [SuppressGCTransition]
+        public static partial void Decompose(
             ref Matrix4x4 m,
             out Vector3 scale,
             out Quaternion rotation,

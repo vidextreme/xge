@@ -7,6 +7,10 @@
 // POD-friendly, trivially copyable, STL-free
 
 #include "xgMathCommon.h"
+#include "xgVec3.h"
+#include "xgMat4x4.h"
+#include "xgBounds.h"
+#include "xgShapes.h"
 
 namespace xg
 {
@@ -37,10 +41,11 @@ namespace xg
         //--------------------------------------------------------
         constexpr Ray() noexcept = default;
 
-        constexpr Ray(const Vec3& origin_, const Vec3& direction_) noexcept
+        // Not constexpr: Vec3::Normalized() uses sqrtf
+        Ray(const Vec3& origin_, const Vec3& direction_) noexcept
             : origin(origin_), direction(direction_.Normalized()) {}
 
-        constexpr Ray(float ox, float oy, float oz, float dx, float dy, float dz) noexcept
+        Ray(float ox, float oy, float oz, float dx, float dy, float dz) noexcept
             : origin(ox, oy, oz), direction(Vec3(dx, dy, dz).Normalized()) {}
 
         constexpr Ray(const Ray&) noexcept = default;
@@ -95,30 +100,12 @@ namespace xg
             return Intersects(sphere, tNear, tFar);
         }
 
-        // Plane
-        struct Plane
-        {
-            Vec3 normal = Vec3::UnitY();
-            float distance = 0.0f; // d in ax + by + cz + d = 0
-
-            constexpr Plane() noexcept = default;
-            constexpr Plane(const Vec3& n, float d) noexcept : normal(n.Normalized()), distance(d) {}
-            constexpr Plane(float nx, float ny, float nz, float d) noexcept : normal(Vec3(nx, ny, nz).Normalized()), distance(d) {}
-
-            static Plane FromPointNormal(const Vec3& point, const Vec3& normal) noexcept
-            {
-                return Plane(normal.Normalized(), -normal.Normalized().Dot(point));
-            }
-
-            float Distance(const Vec3& point) const noexcept
-            {
-                return normal.Dot(point) + distance;
-            }
-        };
+        // Plane (kept as Ray::Plane for existing callers; see xg::Plane in xgShapes.h)
+        using Plane = xg::Plane;
 
         bool Intersects(const Plane& plane, float& t) const noexcept
         {
-            XGVector planeVec = detail::Vec4Set(plane.normal.x, plane.normal.y, plane.normal.z, plane.distance);
+            detail::XGVector planeVec = detail::Vec4Set(plane.normal.x, plane.normal.y, plane.normal.z, plane.distance);
             return detail::RayIntersectsPlane(origin.ToXM(), direction.ToXM(), planeVec, t);
         }
 
@@ -175,14 +162,14 @@ namespace xg
         {
             Ray result;
             result.origin = matrix.TransformPoint(origin);
-            result.direction = matrix.TransformVector(direction).Normalized();
+            result.direction = matrix.TransformDirection(direction).Normalized();
             return result;
         }
 
         //--------------------------------------------------------
         // Static constants
         //--------------------------------------------------------
-        static constexpr Ray Zero() noexcept { return Ray(Vec3::Zero(), Vec3::UnitZ()); }
+        static Ray Zero() noexcept { return Ray(Vec3::Zero(), Vec3::UnitZ()); }
     };
 
     //============================================================
@@ -204,17 +191,30 @@ namespace xg
         }
     };
 
+    //============================================================
+    // Out-of-line ray tests declared in xgBounds.h
+    //============================================================
+    inline bool AABB::Intersects(const Ray& ray, float& tNear, float& tFar) const noexcept
+    {
+        return ray.Intersects(*this, tNear, tFar);
+    }
+
+    inline bool Sphere::Intersects(const Ray& ray, float& tNear, float& tFar) const noexcept
+    {
+        return ray.Intersects(*this, tNear, tFar);
+    }
+
+    inline bool Frustum::Intersects(const Ray& ray, float& tNear, float& tFar) const noexcept
+    {
+        return ray.Intersects(*this, tNear, tFar);
+    }
+
     // Static assertions
-    static_assert(std::is_trivial_v<Ray>, "Ray must be trivial");
+    // (Not std::is_trivial: default member initializers make the default constructor non-trivial)
     static_assert(std::is_standard_layout_v<Ray>, "Ray must be standard layout");
     static_assert(std::is_trivially_copyable_v<Ray>, "Ray must be trivially copyable");
     static_assert(sizeof(Ray) == 2 * sizeof(Vec3), "Ray size mismatch");
 
-    static_assert(std::is_trivial_v<Ray::Plane>, "Ray::Plane must be trivial");
-    static_assert(std::is_standard_layout_v<Ray::Plane>, "Ray::Plane must be standard layout");
-    static_assert(std::is_trivially_copyable_v<Ray::Plane>, "Ray::Plane must be trivially copyable");
-
-    static_assert(std::is_trivial_v<RaycastHit>, "RaycastHit must be trivial");
     static_assert(std::is_standard_layout_v<RaycastHit>, "RaycastHit must be standard layout");
     static_assert(std::is_trivially_copyable_v<RaycastHit>, "RaycastHit must be trivially copyable");
 } // namespace xg
