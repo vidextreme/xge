@@ -233,7 +233,8 @@ namespace xg
         // Transform point (with translation)
         Vec3 TransformPoint(const Vec3& v) const noexcept
         {
-            detail::XGVector result = detail::Vec4Transform(v.ToXM(), detail::Mat4x4ToXM(*this));
+            // w must be 1 so the translation row applies (Vec3::ToXM loads w = 0)
+            detail::XGVector result = detail::Vec4Transform(Vec4(v.x, v.y, v.z, 1.0f).ToXM(), detail::Mat4x4ToXM(*this));
             return Vec3::FromXM(result);
         }
 

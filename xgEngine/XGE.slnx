@@ -55,6 +55,13 @@
     </Project>
     <Project Path="xgGameKernel/xgGameKernel.vcxproj" Id="0a23dda4-70fc-4a09-81dd-8bffba0e4935" />
   </Folder>
+  <Folder Name="/verify/">
+    <Project Path="verify/xgMathVerify/xgMathVerify.vcxproj" Id="32fdda35-60f3-47d0-a8c6-cce56856c2c4" />
+    <Project Path="verify/xgMathVerify.Managed/xgMathVerify.Managed.csproj">
+      <BuildDependency Project="xgScriptNative/xgScriptNative.vcxproj" />
+      <BuildDependency Project="xgSharedKit.Managed/xgSharedKit.Managed.csproj" />
+    </Project>
+  </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/xgReflectGen/xgReflectGen.csproj" />
   </Folder>

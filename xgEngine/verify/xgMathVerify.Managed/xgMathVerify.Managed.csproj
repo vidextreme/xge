@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- xgScriptNative.dll is loaded from gameroot/bin at runtime (see ResolveNative in Program.cs) -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
+  </ItemGroup>
+
+</Project>
