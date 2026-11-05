@@ -439,7 +439,7 @@ namespace xg
     }
 
     // Reject free function
-    inline inline Vec3 Reject(const Vec3& v, const Vec3& on) noexcept
+    inline Vec3 Reject(const Vec3& v, const Vec3& on) noexcept
     {
         return Vec3::Reject(v, on);
     }

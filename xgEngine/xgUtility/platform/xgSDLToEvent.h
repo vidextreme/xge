@@ -42,13 +42,17 @@ namespace xg
 
         case SDL_EVENT_KEY_DOWN:
             e.Type = xgEventType::KeyDown;
-            e.Key.Key = sdl.key.key;
+            e.Key.Key = static_cast<int>(sdl.key.key);
+            e.Key.Scancode = static_cast<int>(sdl.key.scancode);
+            e.Key.Mod = static_cast<uint16_t>(sdl.key.mod);
             e.Key.Repeat = sdl.key.repeat != 0;
             break;
 
         case SDL_EVENT_KEY_UP:
             e.Type = xgEventType::KeyUp;
-            e.Key.Key = sdl.key.key;
+            e.Key.Key = static_cast<int>(sdl.key.key);
+            e.Key.Scancode = static_cast<int>(sdl.key.scancode);
+            e.Key.Mod = static_cast<uint16_t>(sdl.key.mod);
             e.Key.Repeat = sdl.key.repeat != 0;
             break;
 
@@ -75,10 +79,11 @@ namespace xg
             e.MouseButton.Y = static_cast<int>(sdl.button.y);
             break;
 
-
         case SDL_EVENT_MOUSE_BUTTON_UP:
             e.Type = xgEventType::MouseButtonUp;
             e.MouseButton.Button = static_cast<xgMouseButton>(sdl.button.button);
+            e.MouseButton.X = static_cast<int>(sdl.button.x);
+            e.MouseButton.Y = static_cast<int>(sdl.button.y);
             break;
 
         case SDL_EVENT_MOUSE_WHEEL:

@@ -59,7 +59,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated;..\xgBase\math</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui-docking;..\3rdparty\imgui-docking\backends;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated;..\xgBase\math</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -87,7 +87,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated;..\xgBase\math</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\xgCore\Generated;..\3rdparty\imgui-docking;..\3rdparty\imgui-docking\backends;..\3rdparty\SDL3\include;..\xgSharedKit;..\xgSharedKit\public;..\xgShared\Generated;..\xgEditorKit;..\xgEditorKit\public;..\xgEditorKit\Generated;..\xgUtility;Generated;..\xgBase\math</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -104,44 +104,45 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\3rdparty\imgui\backends\imgui_impl_sdl3.h" />
-    <ClInclude Include="..\3rdparty\imgui\backends\imgui_impl_sdlrenderer3.h" />
-    <ClInclude Include="..\3rdparty\imgui\imconfig.h" />
-    <ClInclude Include="..\3rdparty\imgui\imgui.h" />
-    <ClInclude Include="..\3rdparty\imgui\imgui_internal.h" />
-    <ClInclude Include="..\3rdparty\imgui\imstb_rectpack.h" />
-    <ClInclude Include="..\3rdparty\imgui\imstb_textedit.h" />
-    <ClInclude Include="..\3rdparty\imgui\imstb_truetype.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdl3.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdlgpu3.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdlgpu3_shaders.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\imconfig.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\imgui.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\imgui_internal.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_rectpack.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_textedit.h" />
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_truetype.h" />
     <ClInclude Include="EditorKernel.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\3rdparty\imgui\backends\imgui_impl_sdl3.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdl3.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\backends\imgui_impl_sdlrenderer3.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdlgpu3.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_demo.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_demo.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_draw.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_draw.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_tables.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_tables.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_widgets.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_widgets.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>

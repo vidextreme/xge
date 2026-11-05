@@ -34,6 +34,8 @@ namespace xg {
         GamepadButtonDown,
         GamepadButtonUp,
         GamepadAxisMotion,
+
+        Platform,
     };
 
     //
@@ -53,7 +55,13 @@ namespace xg {
     //
     struct xgWindowResizeEvent { int Width, Height; };
 
-    struct xgKeyEvent { int Key; bool Repeat; };
+    struct xgKeyEvent
+    {
+        int Key;
+        int Scancode;
+        uint16_t Mod;
+        bool Repeat;
+    };
 
     struct xgTextInputEvent { char Text[32]; };
 
@@ -65,7 +73,6 @@ namespace xg {
         int X;
         int Y;
     };
-
 
     struct xgMouseWheelEvent { float X, Y; };
 
@@ -94,6 +101,8 @@ namespace xg {
             xgGamepadButtonEvent     GamepadButton;
             xgGamepadAxisEvent       GamepadAxis;
         };
+
+        const void* Native = nullptr;
     };
 
 } // namespace xg

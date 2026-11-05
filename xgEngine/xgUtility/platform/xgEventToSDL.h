@@ -50,7 +50,10 @@ namespace xg
         case xgEventType::KeyDown:
             sdl.type = SDL_EVENT_KEY_DOWN;
             sdl.key.windowID = windowID;
-            sdl.key.key = e.Key.Key;
+            sdl.key.key = static_cast<SDL_Keycode>(e.Key.Key);
+            sdl.key.scancode = static_cast<SDL_Scancode>(e.Key.Scancode);
+            sdl.key.mod = static_cast<SDL_Keymod>(e.Key.Mod);
+            sdl.key.down = true;
             sdl.key.repeat = e.Key.Repeat ? 1 : 0;
             sdl.key.timestamp = timestamp;
             break;
@@ -58,7 +61,9 @@ namespace xg
         case xgEventType::KeyUp:
             sdl.type = SDL_EVENT_KEY_UP;
             sdl.key.windowID = windowID;
-            sdl.key.key = e.Key.Key;
+            sdl.key.key = static_cast<SDL_Keycode>(e.Key.Key);
+            sdl.key.scancode = static_cast<SDL_Scancode>(e.Key.Scancode);
+            sdl.key.mod = static_cast<SDL_Keymod>(e.Key.Mod);
             sdl.key.repeat = e.Key.Repeat ? 1 : 0;
             sdl.key.timestamp = timestamp;
             break;

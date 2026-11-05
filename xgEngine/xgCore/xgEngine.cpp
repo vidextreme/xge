@@ -93,12 +93,6 @@ namespace xg
 		_coreclrCodecRegistry = new CodecRegistryImpl();
 
         RegisterTypes_xgEngineDef(_typeRegistry.get());
-
-        if (MainWindow)
-        {
-            MainWindow->SetEventQueue(queue);
-            MainWindow->SetEventDispatcher(eventDispatcher);
-        }
     }
 
     Engine::~Engine()
@@ -125,6 +119,12 @@ namespace xg
         // TODO: look for a better place for this!
         xg::ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
         xg::ScriptNativeDLL = "xgScriptNative.dll";
+
+        if (MainWindow)
+        {
+            MainWindow->SetEventQueue(GetSystem<EventQueue>());
+            MainWindow->SetEventDispatcher(GetSystem<EventDispatcher>());
+        }
 
         CodecRegistry* registry = GetCodecRegistry(ScriptBackendType::CoreCLR);
         PayloadMode mode = GetPayloadMode();
@@ -415,6 +415,7 @@ namespace xg
         static constexpr float MaxDeltaTime = 0.25f;
 
         using Clock = std::chrono::steady_clock;
+        EventQueue* eventQueue = GetSystem<EventQueue>();
         Clock::time_point last = Clock::now();
 
         while (!MainWindow->ShouldClose())
@@ -428,6 +429,8 @@ namespace xg
                 xg::Log(xg::MessageType::Info, "Frame took %.2f s; delta capped to %.2f s", frameTime, MaxDeltaTime);
 #endif
 
+            if (eventQueue)
+                eventQueue->Clear();
             MainWindow->PollEvents();
 
             _scriptTree->Update(dt);

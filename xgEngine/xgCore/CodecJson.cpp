@@ -20,7 +20,7 @@ namespace xg
     {
         Json json;
 
-        for (int i = 0; i < schema->FieldCount; ++i)
+        for (uint32_t i = 0; i < schema->FieldCount; ++i)
         {
             const FieldSchema& field = schema->Fields[i];
             const uint8_t* base = reinterpret_cast<const uint8_t*>(object);
@@ -83,7 +83,7 @@ namespace xg
 
         uint8_t* base = reinterpret_cast<uint8_t*>(outObject);
 
-        for (int i = 0; i < schema->FieldCount; ++i)
+        for (uint32_t i = 0; i < schema->FieldCount; ++i)
         {
             const FieldSchema& field = schema->Fields[i];
             void* fieldPtr = base + field.Offset;

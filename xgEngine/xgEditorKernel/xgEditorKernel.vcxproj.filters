@@ -33,29 +33,32 @@
     <ClInclude Include="EditorKernel.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\imconfig.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\imgui.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\imgui_internal.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\imstb_rectpack.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\imstb_textedit.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\imstb_truetype.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\backends\imgui_impl_sdl3.h">
+    <ClInclude Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdl3.h">
       <Filter>imgui\backends</Filter>
     </ClInclude>
-    <ClInclude Include="..\3rdparty\imgui\backends\imgui_impl_sdlrenderer3.h">
+    <ClInclude Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdlgpu3.h">
       <Filter>imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdlgpu3_shaders.h">
+      <Filter>imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imconfig.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_rectpack.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_truetype.h">
+      <Filter>imgui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -65,26 +68,26 @@
     <ClCompile Include="EditorKernel.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_demo.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_draw.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_tables.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\imgui_widgets.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\backends\imgui_impl_sdl3.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdl3.cpp">
       <Filter>imgui\backends</Filter>
     </ClCompile>
-    <ClCompile Include="..\3rdparty\imgui\backends\imgui_impl_sdlrenderer3.cpp">
+    <ClCompile Include="..\3rdparty\imgui-docking\backends\imgui_impl_sdlgpu3.cpp">
       <Filter>imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_demo.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
