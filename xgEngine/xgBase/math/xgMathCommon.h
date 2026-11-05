@@ -114,7 +114,6 @@ namespace xg
     {
         // Fast sine approximation using Bhaskara I's approximation
         // Valid for [0, PI], extend using symmetry
-        const float x2 = x * x;
         return (16.0f * x * (PI - x)) / (5.0f * PI * PI - 4.0f * x * (PI - x));
     }
 
@@ -174,7 +173,7 @@ namespace xg
     }
 
     // Sign function
-    constexpr float Sign(float x) noexcept { return (x > 0.0f) - (x < 0.0f); }
+    constexpr float Sign(float x) noexcept { return static_cast<float>((x > 0.0f) - (x < 0.0f)); }
     constexpr int Sign(int x) noexcept { return (x > 0) - (x < 0); }
 
     // Absolute value

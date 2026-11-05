@@ -1,14 +1,12 @@
 <Project>
-  <!-- Hook exclusively into the master solution-wide Clean target wrapper -->
-  <!-- Using a condition guarantees it runs exactly ONCE on the very first project, preventing parallel race conditions -->
-  <Target Name="GlobalEngineWorkspaceClean" 
+  <!-- Runs only in xgReflectGen's Clean: it is the root of every code generator's build dependency chain,
+       so a solution Clean/Rebuild sweeps once, before any project regenerates its files -->
+  <Target Name="GlobalEngineWorkspaceClean"
           BeforeTargets="BeforeClean;Clean;CoreClean;CppClean;BeforeCppClean"
-          Condition="'$(XgeWorkspaceCleanExecuted)' != 'true'">
-    
+          Condition="'$(MSBuildProjectName)' == 'xgReflectGen'">
+
     <PropertyGroup>
       <EngineWorkspaceRoot>$(MSBuildThisFileDirectory)</EngineWorkspaceRoot>
-      <!-- Toggle a global environment macro flag to block other parallel threads from running this script again -->
-      <XgeWorkspaceCleanExecuted>true</XgeWorkspaceCleanExecuted>
     </PropertyGroup>
 
     <Message Text="XGE Master Engine Sweep --&gt; Scanning workspace tree: '$(EngineWorkspaceRoot)'" 

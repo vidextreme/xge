@@ -70,7 +70,7 @@ class Program
 
         // Managed generation is optional
         bool generateManaged = args.Length >= 3;
-        string destManaged = null;
+        string destManaged = string.Empty;
 
         if (generateManaged)
         {
@@ -108,6 +108,11 @@ class Program
     {
         string code = File.ReadAllText(headerPath);
         var tree = parser.Parse(code);
+        if (tree is null)
+        {
+            Console.WriteLine("ERROR: failed to parse " + headerPath);
+            return;
+        }
         var root = tree.RootNode;
 
         var structs = StructExtractor.Extract(root);

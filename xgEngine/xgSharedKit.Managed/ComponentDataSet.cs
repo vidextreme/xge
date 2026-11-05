@@ -11,7 +11,7 @@ namespace xg
     public abstract class ComponentDataSet<T1> : ComponentDataSet
             where T1 : struct, IComponentData
     {
-        protected ComponentData<T1> D1;
+        protected ComponentData<T1> D1 = null!;
         static ComponentDataSet()
         {
             _dataNames.Add(typeof(T1).Name);
@@ -22,7 +22,7 @@ namespace xg
             where T1 : struct, IComponentData
             where T2 : struct, IComponentData
     {
-        protected ComponentData<T2> D2;
+        protected ComponentData<T2> D2 = null!;
         static ComponentDataSet()
         {
             _dataNames.Add(typeof(T2).Name);

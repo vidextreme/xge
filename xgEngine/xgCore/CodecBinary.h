@@ -5,7 +5,7 @@
 
 namespace xg
 {
-    class TypeSchema;
+    struct TypeSchema;
     XG_MODULE_EXPORT bool Encode_Binary_Generic(const void* object,
         const TypeSchema* schema,
         ScriptMessage& out);

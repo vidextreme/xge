@@ -14,7 +14,7 @@ namespace xg
         public static void Register(string typeName, Func<byte[], object> decoder)
             => _decoders[typeName] = decoder;
 
-        public static object Decode(string typeName, byte[] payload)
+        public static object? Decode(string typeName, byte[] payload)
         {
             if (_decoders.TryGetValue(typeName, out var fn))
                 return fn(payload);

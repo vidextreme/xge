@@ -20,8 +20,13 @@ namespace xg
     class Messenger;
 	class CodecRegistry;
     class ScriptNode;
-    class System;
+    struct System;
     class LoggerImpl;
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251 4275)
+#endif
     class XG_API Engine : public ScriptEngine
     {
     public:
@@ -92,4 +97,7 @@ namespace xg
 		CodecRegistry* _nativeCodecRegistry = nullptr;
         CodecRegistry* _coreclrCodecRegistry = nullptr;
     };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 }

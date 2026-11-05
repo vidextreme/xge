@@ -97,11 +97,11 @@ namespace xg
                 ms->Read(&len, sizeof(uint32_t));
 
                 size_t copyLen = (len < field.Size - 1) ? len : (field.Size - 1);
-                ms->Read(fieldPtr, copyLen);
+                ms->Read(fieldPtr, static_cast<int>(copyLen));
                 reinterpret_cast<char*>(fieldPtr)[copyLen] = '\0';
 
                 if (len > copyLen)
-                    ms->Seek(len - copyLen, FileOrigin::Current);
+                    ms->Seek(static_cast<long>(len - copyLen), FileOrigin::Current);
             }
         }
 

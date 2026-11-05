@@ -77,8 +77,8 @@ namespace xg
         case xgEventType::MouseMove:
             sdl.type = SDL_EVENT_MOUSE_MOTION;
             sdl.motion.windowID = windowID;
-            sdl.motion.x = e.MouseMove.X;
-            sdl.motion.y = e.MouseMove.Y;
+            sdl.motion.x = static_cast<float>(e.MouseMove.X);
+            sdl.motion.y = static_cast<float>(e.MouseMove.Y);
             sdl.motion.timestamp = timestamp;
             break;
 
@@ -87,8 +87,8 @@ namespace xg
             sdl.button.windowID = windowID;
             sdl.button.button = static_cast<uint8_t>(e.MouseButton.Button);
             sdl.button.clicks = 1;
-            sdl.button.x = e.MouseButton.X;
-            sdl.button.y = e.MouseButton.Y;
+            sdl.button.x = static_cast<float>(e.MouseButton.X);
+            sdl.button.y = static_cast<float>(e.MouseButton.Y);
             sdl.button.timestamp = timestamp;
             break;
 
@@ -97,8 +97,8 @@ namespace xg
             sdl.button.windowID = windowID;
             sdl.button.button = static_cast<uint8_t>(e.MouseButton.Button);
             sdl.button.clicks = 1;
-            sdl.button.x = e.MouseButton.X;
-            sdl.button.y = e.MouseButton.Y;
+            sdl.button.x = static_cast<float>(e.MouseButton.X);
+            sdl.button.y = static_cast<float>(e.MouseButton.Y);
             sdl.button.timestamp = timestamp;
             break;
 
@@ -136,7 +136,7 @@ namespace xg
             sdl.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
             sdl.gaxis.which = e.GamepadAxis.DeviceId;
             sdl.gaxis.axis = e.GamepadAxis.Axis;
-            sdl.gaxis.value = e.GamepadAxis.Value;
+            sdl.gaxis.value = static_cast<Sint16>(e.GamepadAxis.Value);
             break;
 
         default:

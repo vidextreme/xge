@@ -20,6 +20,7 @@
     <PublishAot>true</PublishAot>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <RuntimeFrameworkVersion>10.0.14</RuntimeFrameworkVersion>
   </PropertyGroup>
 
   <!-- Debug build: keep symbols, allow breakpoints -->
@@ -37,8 +38,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
-  </ItemGroup>
+    <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />  </ItemGroup>
 
   <!-- Publish Debug NativeAOT -->
   <Target Name="BuildNativeAOT_Debug"

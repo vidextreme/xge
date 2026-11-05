@@ -231,25 +231,25 @@ namespace xg
         }
 
         // Transform point (with translation)
-        Vec3 TransformPoint(const Vec3& v) const noexcept
+        Vec3 TransformPoint(const Vec3& point) const noexcept
         {
             // w must be 1 so the translation row applies (Vec3::ToXM loads w = 0)
-            detail::XGVector result = detail::Vec4Transform(Vec4(v.x, v.y, v.z, 1.0f).ToXM(), detail::Mat4x4ToXM(*this));
+            detail::XGVector result = detail::Vec4Transform(Vec4(point.x, point.y, point.z, 1.0f).ToXM(), detail::Mat4x4ToXM(*this));
             return Vec3::FromXM(result);
         }
 
         // Transform vector (no translation)
-        Vec3 TransformDirection(const Vec3& v) const noexcept
+        Vec3 TransformDirection(const Vec3& dir) const noexcept
         {
-            detail::XGVector result = detail::Vec4Transform(Vec4(v.x, v.y, v.z, 0.0f).ToXM(), detail::Mat4x4ToXM(*this));
+            detail::XGVector result = detail::Vec4Transform(Vec4(dir.x, dir.y, dir.z, 0.0f).ToXM(), detail::Mat4x4ToXM(*this));
             return Vec3::FromXM(result);
         }
 
         // Transform normal (inverse transpose)
-        Vec3 TransformNormal(const Vec3& v) const noexcept
+        Vec3 TransformNormal(const Vec3& normal) const noexcept
         {
             Mat4x4 invTrans = Inverse().Transposed();
-            return invTrans.TransformDirection(v);
+            return invTrans.TransformDirection(normal);
         }
 
         //--------------------------------------------------------
