@@ -23,7 +23,28 @@ namespace xg
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine($"[xgSharedKit] {e.Message}");
+                Debug.LogError($"[xgSharedKit] {e.Message}");
+            }
+
+            try
+            {
+                ActorRegistry.Attach(ptr, moduleID);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[xgSharedKit] Actor update registration failed: {e.Message}");
+            }
+        }
+
+        public static void Shutdown()
+        {
+            try
+            {
+                ActorRegistry.Detach(_enginePtr);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
             }
         }
 
@@ -60,7 +81,6 @@ namespace xg
         private static extern PayloadMode XGGetPayloadMode(nint enginePtr);
 
         public static PayloadMode PayloadMode => XGGetPayloadMode(_enginePtr);
-
 
         [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
          EntryPoint = "XGAllocateComponent")]
@@ -114,7 +134,6 @@ namespace xg
         // ------------------------------------------------------------
         // Native → Managed dispatch
         // ------------------------------------------------------------
-
 
         public static void DispatchMessage(string typeName, object obj)
         {

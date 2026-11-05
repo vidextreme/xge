@@ -14,6 +14,8 @@ namespace xg
         SceneNode* Node;    // graph-specific node
     };
 
+    using ActorUpdateFn = void (*)(float dt);
+
     class ActorRegistry : public System
     {
         XG_DECLARE_BASE_SYSTEM(ActorRegistry)
@@ -48,5 +50,9 @@ namespace xg
         virtual bool GetMembership(ActorID id,
             int index,
             GraphMembership& outMembership) const = 0;
+
+        virtual void AddUpdateCallback(uint32_t moduleId, ActorUpdateFn fn) = 0;
+        virtual void RemoveUpdateCallback(uint32_t moduleId) = 0;
+        virtual void UpdateActors(float dt) = 0;
     };
 }

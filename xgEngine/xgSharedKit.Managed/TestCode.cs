@@ -29,9 +29,13 @@ namespace xg
 
     public class EnemyComponent : IComponentUpdate<EnemyComponent>
     {
+        public int UpdateCount;
+        public float ElapsedTime;
+
         public static void OnUpdate(EnemyComponent component, float deltaTime)
         {
-
+            component.UpdateCount++;
+            component.ElapsedTime += deltaTime;
         }
     }
     public class PlayerComponent : ComponentDataSet<CharacterData>, IComponentUpdate<PlayerComponent>, IComponentDataUpdate<CharacterData>
@@ -45,9 +49,19 @@ namespace xg
             }
         }
 
+        public int UpdateCount;
+        public float ElapsedTime;
+        public float TargetTime = 5;
+
         public static void OnUpdate(PlayerComponent component, float deltaTime)
         {
-
+            component.UpdateCount++;
+            if(component.ElapsedTime < component.TargetTime)
+            {
+                component.ElapsedTime += deltaTime;
+                if (component.ElapsedTime >= component.TargetTime)
+                    Debug.LogSuccess("Great Success!");
+            }
         }
 
         CharacterData _data;
@@ -64,7 +78,6 @@ namespace xg
 
     }
 
-
     // ECS Data (pure SoA)
     public struct NPCData : IComponentData
     {
@@ -73,7 +86,6 @@ namespace xg
         public float AwarenessGainRate;
         public float HealthRegenRate;
     }
-
 
     // Hybrid Component (Standard + ECS)
     public class NPCComponent : ComponentDataSet<NPCData>, // ComponentSet<D1, D2, ...>

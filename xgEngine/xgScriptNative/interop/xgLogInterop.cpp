@@ -15,3 +15,14 @@ XG_MODULE_EXPORT void XGAddLogCallbackForEngine(
     engine->AddLogCallback(callback);
 }
 
+XG_MODULE_EXPORT void XGLogForEngine(
+    xg::ScriptEngine* engine,
+    int32_t type,
+    const char* message)
+{
+    if (!engine || !message)
+        return;
+
+    if (xg::Logger* logger = engine->GetLogger())
+        logger->Write(type, message);
+}

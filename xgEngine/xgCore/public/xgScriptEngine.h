@@ -41,7 +41,6 @@ namespace xg
     {
     public:
 
-
         virtual ~ScriptEngine() = default;
 
         virtual ScriptModule* AddScriptModule(const char* id,
@@ -62,7 +61,6 @@ namespace xg
         virtual CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const = 0;
         virtual PayloadMode GetPayloadMode() const = 0;
         virtual DynamicObjectUnique CreateDynamic(const TypeSchema* schema) = 0;
-
 
         template<typename T>
         T* GetSystem(ScriptModule* module = nullptr) {
@@ -95,5 +93,8 @@ namespace xg
         virtual System* GetSystemImpl(TypeID id, ScriptModule* module) = 0;
         virtual System* GetSystemImpl(TypeID id, const char* moduleID) = 0;
         virtual void RegisterSystemImpl(ScriptModule* module, TypeID id, System* system) = 0;
+
+    public:
+        virtual Logger* GetLogger() = 0;
     };
 }

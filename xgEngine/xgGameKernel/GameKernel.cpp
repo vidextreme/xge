@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "GameKernel.h"
+#include "xgScriptHost.h"
+#include "xgScriptEngine.h"
 #include "xgSceneGraph.h"
 #include "xgSceneGraphFactory.h"
 #include "xgActorRegistry.h"
@@ -51,5 +53,7 @@ namespace xg
 extern "C"
 XG_MODULE_EXPORT xg::ScriptModule* CreateScriptModule(const char* id, int moduleID, xg::ScriptHost* host, const char* group)
 {
+	if (host && host->GetEngine())
+		xg::SetLogger(host->GetEngine()->GetLogger());
 	return new xg::GameKernelModule(id, moduleID, host, group);
 }

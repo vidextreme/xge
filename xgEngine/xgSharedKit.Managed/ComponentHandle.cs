@@ -38,8 +38,17 @@ namespace xg
         {
             UpdateFunc((T)this, deltaTime);
         }
-    }
 
+        void IComponentUpdate.Attach()
+        {
+            ComponentUpdateGroup<T>.Instance.Add((T)this);
+        }
+
+        void IComponentUpdate.Detach()
+        {
+            ComponentUpdateGroup<T>.Instance.Remove((T)this);
+        }
+    }
 
     public abstract class ComponentOLD
     {
@@ -54,10 +63,6 @@ namespace xg
     {
 
     }
-
-
-
-
 
     public abstract class Component<TData> : ComponentOLD
         where TData : struct, IComponentData
@@ -240,5 +245,3 @@ namespace xg
     }
 
 }
-
-

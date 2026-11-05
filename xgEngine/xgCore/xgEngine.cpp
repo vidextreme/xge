@@ -19,6 +19,7 @@
 #include "CodecRegistryImpl.h"
 #include "DynamicObjectImpl.h"
 #include "ActorRegistryImpl.h"
+#include "LoggerImpl.h"
 #include "SceneGraphFactoryImpl.h"
 
 #include "TreeSceneGraph.h"
@@ -49,6 +50,9 @@ namespace xg
 
     Engine::Engine()
     {
+        _logger = new LoggerImpl();
+        xg::SetLogger(_logger);
+
         //MainWindow = NewWindow("xgEngine", 1280, 720);
         _moduleStorage = new ModuleStorage();
         _hostStorage = new HostStorage();
@@ -110,6 +114,10 @@ namespace xg
 
         _moduleStorage = nullptr;
         _hostStorage = nullptr;
+
+        if (xg::GetLogger() == _logger)
+            xg::SetLogger(nullptr);
+        XG_DELETE(_logger)
     }
 
     bool Engine::Initialize(const EngineConfig& config)
@@ -293,7 +301,6 @@ namespace xg
             RegisterHostInGroup(resolvedGroup, backend, host);
         }
 
-        
         // 2. Load module through host
         uint32_t newModuleID = ++_nextModuleId;
         ScriptModule* module = host->LoadModule(id, newModuleID, path, resolvedGroup);
@@ -351,7 +358,6 @@ namespace xg
         return module;
     }
 
-
     ScriptModule* Engine::GetScriptModule(const char* id)
     {
         if (!id)
@@ -406,13 +412,28 @@ namespace xg
 
     void Engine::Run()
     {
-        float dt = 0.016f;
+        static constexpr float MaxDeltaTime = 0.25f;
+
+        using Clock = std::chrono::steady_clock;
+        Clock::time_point last = Clock::now();
 
         while (!MainWindow->ShouldClose())
         {
+            const Clock::time_point now = Clock::now();
+            const float frameTime = std::chrono::duration<float>(now - last).count();
+            last = now;
+            const float dt = (std::min)(frameTime, MaxDeltaTime);
+#ifdef _DEBUG
+            if (frameTime > MaxDeltaTime)
+                xg::Log(xg::MessageType::Info, "Frame took %.2f s; delta capped to %.2f s", frameTime, MaxDeltaTime);
+#endif
+
             MainWindow->PollEvents();
 
             _scriptTree->Update(dt);
+
+            if (ActorRegistry* actors = GetSystem<ActorRegistry>())
+                actors->UpdateActors(dt);
 
             // if (Renderer)
             //     Renderer->Render();
@@ -457,12 +478,17 @@ namespace xg
 
     void Engine::AddLogCallback(LogCallback cb)
     {
-        xg::AddLogCallback(cb);
+        _logger->AddCallback(cb);
     }
 
     void Engine::RemoveLogCallback(LogCallback cb)
     {
-        xg::RemoveLogCallback(cb);
+        _logger->RemoveCallback(cb);
+    }
+
+    Logger* Engine::GetLogger()
+    {
+        return _logger;
     }
 
     CodecRegistry* Engine::GetCodecRegistry(ScriptBackendType backendType) const
@@ -478,9 +504,6 @@ namespace xg
         }
         return nullptr;
     }
-
-
-
 
     XG_DECLARE_UNIQUE_TYPE(DynamicObjectImpl)
     DynamicObjectUnique Engine::CreateDynamic(const TypeSchema* schema)

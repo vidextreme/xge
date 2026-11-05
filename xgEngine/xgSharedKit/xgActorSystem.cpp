@@ -3,6 +3,7 @@
 #include "xgHierarchyNode.h"
 #include "xgSceneGraph.h"
 #include "xgScriptEngine.h"
+#include "xgActorRegistry.h"
 
 using namespace xg;
 
@@ -69,4 +70,33 @@ void XGSetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newNam
     HierarchyNode* hNode = node->Get<HierarchyNode>();
 
     _SetActorName(hNode, newName);
+}
+
+void XGDestroyActor(xg::ScriptEngine* engine, xg::ActorID id)
+{
+    SceneGraph* sceneGraph = engine->GetSystem<SceneGraph>();
+    SceneNode* node = sceneGraph ? sceneGraph->GetNode(id) : nullptr;
+    if (!node)
+        return;
+
+    if (HierarchyNode* hNode = node->Get<HierarchyNode>())
+    {
+        if (hNode->Name && hNode->Name != DEFAULT_ACTOR_NAME)
+            free((void*)hNode->Name);
+        hNode->Name = nullptr;
+    }
+
+    sceneGraph->DestroyNode(node);
+}
+
+void XGRegisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId, void (*update)(float dt))
+{
+    if (ActorRegistry* actors = engine->GetSystem<ActorRegistry>())
+        actors->AddUpdateCallback(moduleId, update);
+}
+
+void XGUnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId)
+{
+    if (ActorRegistry* actors = engine->GetSystem<ActorRegistry>())
+        actors->RemoveUpdateCallback(moduleId);
 }
