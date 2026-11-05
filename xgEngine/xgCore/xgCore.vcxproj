@@ -113,6 +113,7 @@
     <ClInclude Include="EventDispatcherImpl.h" />
     <ClInclude Include="EventQueueImpl.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="LoggerImpl.h" />
     <ClInclude Include="MessengerImpl.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgCallback.h" />
@@ -139,6 +140,7 @@
     <ClCompile Include="ActorRegistryImpl.cpp" />
     <ClCompile Include="CompositeSceneGraph.cpp" />
     <ClCompile Include="DispatchSystem.cpp" />
+    <ClCompile Include="LoggerImpl.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="SceneGraphFactoryImpl.cpp" />
     <ClCompile Include="ScriptHostNull.cpp" />

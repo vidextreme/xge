@@ -93,4 +93,39 @@ namespace xg
         outMembership = list[index];
         return true;
     }
+
+    void ActorRegistryImpl::AddUpdateCallback(uint32_t moduleId, ActorUpdateFn fn)
+    {
+        if (!fn)
+            return;
+
+        for (auto& entry : _updateCallbacks)
+        {
+            if (entry.first == moduleId)
+            {
+                entry.second = fn;
+                return;
+            }
+        }
+        _updateCallbacks.emplace_back(moduleId, fn);
+    }
+
+    void ActorRegistryImpl::RemoveUpdateCallback(uint32_t moduleId)
+    {
+        _updateCallbacks.erase(
+            std::remove_if(_updateCallbacks.begin(), _updateCallbacks.end(),
+                [moduleId](const std::pair<uint32_t, ActorUpdateFn>& entry)
+                {
+                    return entry.first == moduleId;
+                }),
+            _updateCallbacks.end()
+        );
+    }
+
+    void ActorRegistryImpl::UpdateActors(float dt)
+    {
+        const auto callbacks = _updateCallbacks;
+        for (const auto& entry : callbacks)
+            entry.second(dt);
+    }
 }

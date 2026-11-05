@@ -12,6 +12,9 @@ namespace xg
     {
         void Setup();
         void Update(float deltaTime);
+
+        void Attach();
+        void Detach();
     }
 
     public interface IComponentData { }

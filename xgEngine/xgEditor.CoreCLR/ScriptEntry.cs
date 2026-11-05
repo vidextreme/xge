@@ -33,37 +33,68 @@ namespace xgEditor.CoreCLR
             Console.WriteLine(actor.Name);
             actor.Name = "REALLY AWWESOMEH!!!";
             Console.WriteLine(actor.Name);
+
+            s_player = actor.AddComponent<PlayerComponent>();
+            s_player.Data.Stats.Health = 100;
+
+            s_temporary = xg.Actor.Create("temporary");
+            s_temporaryEnemy = s_temporary.AddComponent<EnemyComponent>();
+
+            Debug.Log("[Debug] editor module initialized", actor);
+            Debug.LogSuccess("[Debug] success level");
+            Debug.LogWarningFormat("[Debug] {0} actor(s) registered, 100% {1}", ActorRegistry.Count, "ok");
+            Debug.LogError("[Debug] sample error with caller stack");
+            try
+            {
+                throw new InvalidOperationException("sample exception");
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e, s_temporary);
+            }
+            Debug.Assert(ActorRegistry.Count == 2, "expected two actors");
+            Debug.Log(null);
             return 1;
         }
 
-        static PlayerComponent component;
-        [UnmanagedCallersOnly]
-        public static void Update(float dt) 
-        {
-            if (component == null)
-            {
-                component = new PlayerComponent();
+        static PlayerComponent s_player = null!;
+        static xg.Actor s_temporary = null!;
+        static EnemyComponent s_temporaryEnemy = null!;
+        static bool s_reported;
 
-                (component as IComponentUpdate).Setup();
-                (component as IComponentUpdate).Update(0.01f);
-                // component = ScriptRuntime.AllocateComponent<PlayerComponent>(55);
-                //  using var editScope = component.BeginEdit();
-                //PlayerComponent component = TestMe.Read();
-                component.Data.Stats.Health = 100;
-                //TestMe.Write(component);
-            }
-            else
+        static readonly System.Diagnostics.Stopwatch s_clock = new();
+        static float s_elapsedAtStart;
+
+        [UnmanagedCallersOnly]
+        public static void Update(float dt)
+        {
+            long frames = ActorRegistry.FrameCount;
+            if (frames == 1 && !s_clock.IsRunning)
             {
-               // component.Refresh();
-                //Console.WriteLine(component.Haha);
-                //Console.WriteLine("CoreCLR: " + component);
+                s_elapsedAtStart = s_player.ElapsedTime;
+                s_clock.Start();
+            }
+            if (s_temporary.IsValid && frames >= 30)
+            {
+                s_temporary.Destroy();
+                Debug.Log($"[Actors] destroyed 'temporary' after {frames} actor frames (EnemyComponent updated {s_temporaryEnemy.UpdateCount} times)");
+            }
+            if (!s_reported && frames >= 61)
+            {
+                s_reported = true;
+                double wall = s_clock.Elapsed.TotalSeconds;
+                double summed = s_player.ElapsedTime - s_elapsedAtStart;
+                Debug.Log($"[Actors] CoreCLR: {ActorRegistry.Count} actor(s) after {frames} actor frames: " +
+                    $"PlayerComponent updated {s_player.UpdateCount} times, destroyed actor's EnemyComponent {s_temporaryEnemy.UpdateCount} times");
+                Debug.Log($"[Actors] delta time over 60 frames: summed dt {summed:F4} s, wall clock {wall:F4} s, " +
+                    $"difference {(summed - wall) * 1000.0:F2} ms, average frame {wall / 60.0 * 1000.0:F2} ms");
             }
         }
 
         [UnmanagedCallersOnly]
-        public static void Shutdown() 
+        public static void Shutdown()
         {
-
+            ScriptRuntime.Shutdown();
         }
 
         private static void OnLog(MessageType type, IntPtr msgPtr)
@@ -77,7 +108,6 @@ namespace xgEditor.CoreCLR
             public int Health { get; set; }
             public string Name { get; set; }
         }
-
 
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
         public static void OnMessage(nint typeName, nint payload, int payloadSize)
@@ -135,7 +165,6 @@ namespace xgEditor.CoreCLR
                 }
             }
         }
-
 
         public static void TestVector3()
         {

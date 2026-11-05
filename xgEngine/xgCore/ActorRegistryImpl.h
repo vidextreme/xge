@@ -1,7 +1,6 @@
 #pragma once
 #include "xgActorRegistry.h"
 
-
 namespace xg
 {
     class ActorRegistryImpl : public ActorRegistry
@@ -31,6 +30,10 @@ namespace xg
             int index,
             GraphMembership& outMembership) const override;
 
+        void AddUpdateCallback(uint32_t moduleId, ActorUpdateFn fn) override;
+        void RemoveUpdateCallback(uint32_t moduleId) override;
+        void UpdateActors(float dt) override;
+
     private:
         struct ActorRecord
         {
@@ -40,5 +43,6 @@ namespace xg
 
         xgIDGenerator _idGen;
         std::unordered_map<ActorID, ActorRecord> _actors;
+        std::vector<std::pair<uint32_t, ActorUpdateFn>> _updateCallbacks;
     };
 }

@@ -32,11 +32,14 @@
   <ItemGroup>
     <Compile Include="ActorID.cs" />
     <Compile Include="Actor.cs" />
+    <Compile Include="ActorRegistry.cs" />
     <Compile Include="Component.cs" />
+    <Compile Include="ComponentUpdateGroup.cs" />
     <Compile Include="ComponentData.cs" />
     <Compile Include="ComponentDataSet.cs" />
     <Compile Include="ComponentHandle.cs" />
     <Compile Include="ComponentUtils.cs" />
+    <Compile Include="Debug.cs" />
     <Compile Include="Matrix4x4Interop.cs" />
     <Compile Include="QuaternionInterop.cs" />
     <Compile Include="System.cs" />

@@ -21,6 +21,7 @@ namespace xg
 	class CodecRegistry;
     class ScriptNode;
     class System;
+    class LoggerImpl;
     class XG_API Engine : public ScriptEngine
     {
     public:
@@ -47,15 +48,13 @@ namespace xg
 
 		TypeRegistry* GetTypeRegistry() override { return _typeRegistry.get(); }
 
-
         void AddLogCallback(LogCallback cb) override;
         void RemoveLogCallback(LogCallback cb) override;
+        Logger* GetLogger() override;
 
 		CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const override;
 		PayloadMode GetPayloadMode() const override { return PayloadMode::JSON; }
         DynamicObjectUnique CreateDynamic(const TypeSchema* schema) override;
-
-
 
     private:
         const char* GetDefaultGroupFor(const char* path);
@@ -76,6 +75,8 @@ namespace xg
 		void RegisterSystemImpl(ScriptModule* module, TypeID id, System* system) override;
     private:
         std::unordered_map<TypeID, System*> _systems;
+
+        LoggerImpl* _logger = nullptr;
 
         uint32_t _nextModuleId = 0;
         void* _rendererLib = nullptr;

@@ -13,11 +13,11 @@
 void _LogMsg(xg::MessageType _type, const char* _message)
 {
     printf("%s\n", _message);
+    fflush(stdout);
 }
 
 int main(int argc, char** argv)
 {
-	xg::AddLogCallback(_LogMsg);
     xg::EngineConfig config;
 	config.RendererModule = "xgRendererDX12.dll";
  //   xg::Json json;
@@ -44,6 +44,7 @@ int main(int argc, char** argv)
     //printf("Serialized JSON:\n%s\n", out.c_str());
     
     xg::Engine engine;
+    engine.AddLogCallback(_LogMsg);
 	engine.MainWindow = xg::NewWindow("xgEngine", 1280, 720);
     if (!engine.Initialize(config))
         return -1;

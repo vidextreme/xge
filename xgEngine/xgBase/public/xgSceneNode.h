@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <type_traits>
 #include "xgBase.h"
 #include "xgID.h"
 
@@ -25,7 +26,6 @@ namespace xg
         SceneNode_InitialUserFlag = 1 << 7
     };
 
-
     //
     // SceneNode (base class)
     //
@@ -42,26 +42,29 @@ namespace xg
 
         virtual ~SceneNode() = default;
 
+        virtual void* GetMixin(SceneNodeFlags mixinMask)
+        {
+            (void)mixinMask;
+            return nullptr;
+        }
+
         template<typename T>
         T* Get()
         {
-            if (TypeMask & T::Mask)
-                return reinterpret_cast<T*>(this);
+            if ((TypeMask & T::Mask) != T::Mask)
+                return nullptr;
 
-            return nullptr;
+            if constexpr (std::is_base_of_v<SceneNode, T>)
+                return static_cast<T*>(this);
+            else
+                return static_cast<T*>(GetMixin(T::Mask));
         }
 
         template<typename T>
         const T* Get() const
         {
-            if (TypeMask & T::Mask)
-                return reinterpret_cast<const T*>(this);
-
-            return nullptr;
+            return const_cast<SceneNode*>(this)->Get<T>();
         }
-
-
-
     };
 
     //
@@ -79,12 +82,19 @@ namespace xg
         mixin->Owner = owner;
     }
 
-    template<typename... Mixins>
-    inline void AssignOwners(SceneNode* node)
+    template<typename... Mixins, typename Node>
+    inline void AssignOwners(Node* node)
     {
-        (AssignOwner(node->Get<Mixins>(), node), ...);
+        (AssignOwner(static_cast<Mixins*>(node), node), ...);
     }
 
+    template<typename... Mixins, typename Node>
+    inline void* FindMixin(Node* node, SceneNodeFlags mixinMask)
+    {
+        void* found = nullptr;
+        (void)((Mixins::Mask == mixinMask && (found = static_cast<Mixins*>(node), true)) || ...);
+        return found;
+    }
 
 } // namespace xg
 
@@ -92,7 +102,6 @@ namespace xg
 // User flag helper
 //
 #define XG_DEFINE_USER_FLAG(n) (xg::SceneNode_InitialUserFlag << (n))
-
 
 #define XG_ASSIGN_OWNERS(...) \
     xg::AssignOwner(static_cast<__VA_ARGS__*>(this), this)
@@ -136,6 +145,11 @@ namespace xg
             : xg::SceneNode(id, Mask)                                          \
         {                                                                      \
             xg::AssignOwners<__VA_ARGS__>(this);                               \
+        }                                                                      \
+                                                                               \
+        void* GetMixin(xg::SceneNodeFlags mixinMask) override                  \
+        {                                                                      \
+            return xg::FindMixin<__VA_ARGS__>(this, mixinMask);                \
         }                                                                      \
     };                                                                         \
     struct NodeName : public _##NodeName##Base

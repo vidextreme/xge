@@ -14,35 +14,29 @@ namespace GameDemoModule
             // Example: register a managed log callback
             ScriptRuntime.AddLogCallback(OnLog);
             Console.WriteLine("wow");
+
+            s_enemy = Actor.Create("demo enemy").AddComponent<EnemyComponent>();
             return 1;
         }
 
-        static PlayerComponent comp, comp2;
+        static EnemyComponent s_enemy = null!;
+        static bool s_reported;
+
         [UnmanagedCallersOnly(EntryPoint = "xg:Update")]
         public static void Update(float dt)
         {
-            if (comp == null)
+            long frames = ActorRegistry.FrameCount;
+            if (!s_reported && frames >= 60)
             {
-                comp = new PlayerComponent();
-                //(comp as IComponentUpdate).Update(0.010f);
-                //comp = ScriptRuntime.AllocateComponent<PlayerComponent>(55);
-
-                //  using (comp.BeginEdit())
-                {
-                //    comp.Data.Stats.Health = 25;
-                }
-            }
-            else
-            {
-                //Console.WriteLine("NativeAOT: " + comp);
+                s_reported = true;
+                Debug.Log($"[Actors] NativeAOT: {ActorRegistry.Count} actor(s) after {frames} actor frames: EnemyComponent updated {s_enemy.UpdateCount} times");
             }
         }
-
 
         [UnmanagedCallersOnly(EntryPoint = "xg:Shutdown")]
         public static void Shutdown()
         {
-
+            ScriptRuntime.Shutdown();
         }
 
         private static void OnLog(MessageType type, IntPtr msgPtr)
