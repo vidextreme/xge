@@ -1,307 +1,115 @@
-# **XGE ECS Architecture — Formal Specification**
+# XGE Actors and Components (C#)
+
+> Status: current implementation (2026-11). Future design is listed at the end. See the [README](../README.md) for the overall status table.
+
+Gameplay code is written in C# against `xgSharedKit.Managed`, and runs the same way in CoreCLR modules (editor) and NativeAOT modules (runtime). Native actor identity and scene graphs are covered in [SceneGraph and Actors](xge-scenegraph.md).
+
+| Piece | State |
+|---|---|
+| `Actor` API | Working |
+| Behaviour components (`IComponentUpdate<T>`, CRTP) | Working, updated every frame |
+| Data components (`ComponentData<TData>`, `ComponentDataSet<...>`) | Prototype: not bound to native memory, `OnDataUpdate` not scheduled |
+| Native component storage (`CompositeSceneGraph`) | WIP |
 
 ---
 
-# **1. Actor Layer (C++)**
+## Actor
 
-### **Responsibilities**
-- Owns `ActorID` lifecycle  
-- Maintains hierarchy  
-- Stores transforms  
-- Stores metadata  
-- Hosts component attachments  
-
-### **Interface**
-```cpp
-class SceneGraph {
-public:
-    virtual SceneNode* GetNode(ActorID id) const = 0;
-    virtual void SetParent(SceneNode* child, SceneNode* parent) = 0;
-    virtual void Traverse(SceneNode* root, VisitorFn fn) = 0;
-};
-```
-
----
-
-# **2. ScriptModule Hierarchy**
-
-```
-EngineRootModule
-└── WorldScriptModule
-    ├── EditorKernelModule
-    │   ├── EditorViewportModule
-    │   ├── EditorSelectionModule
-    │   ├── EditorGizmoModule
-    │   ├── EditorInspectorModule
-    │   └── EditorToolsModule
-    │
-    └── RuntimeKernelModule
-        ├── GameplayModule
-        ├── PhysicsModule
-        ├── AIModule
-        └── UIModule
-```
-
-SceneGraph attaches to `WorldScriptModule`.
-
----
-
-# **3. Component Model**
-
-## **3.1 Base Class**
 ```csharp
-public abstract class Component
+Actor actor = Actor.Create("player");
+actor.Name = "hero";
+
+var player = actor.AddComponent<PlayerComponent>();
+var same   = actor.GetComponent<PlayerComponent>();
+actor.RemoveComponent<PlayerComponent>();
+
+actor.Destroy();
+```
+
+- `Actor.Create` asks the engine for a new global `ActorID` (`XGCreateActor` / `XGCreateActorWithName`) and registers the managed `Actor` in the managed `ActorRegistry`.
+- Components are plain C# objects (`where T : class, new()`). `ActorRegistry.GetOwner(component)` returns a component's actor.
+- `Destroy` detaches every component, unregisters the actor and destroys it natively. Using a destroyed actor throws `ObjectDisposedException`.
+- `ActorRegistry.Count`, `Actors`, `TryGet(id, out actor)` and `FrameCount` are available for queries.
+
+---
+
+## Behaviour components (CRTP)
+
+A component that needs per-frame logic implements `IComponentUpdate<T>`, where `T` is the component's own type (the curiously recurring template pattern):
+
+```csharp
+public class EnemyComponent : IComponentUpdate<EnemyComponent>
 {
+    public int UpdateCount;
+    public float ElapsedTime;
+
+    public static void OnUpdate(EnemyComponent component, float deltaTime)
+    {
+        component.UpdateCount++;
+        component.ElapsedTime += deltaTime;
+    }
 }
 ```
 
-## **3.2 Component<TData>**
+How it runs:
+
+1. `AddComponent<T>` calls the interface's `Attach`, which adds the component to `ComponentUpdateGroup<T>.Instance`, one group per component type. The group registers itself with the managed `ActorRegistry` on first use.
+2. Each group caches `&T.OnUpdate` in a `delegate* managed<T, float, void>`. Updating a group is a tight loop of direct calls: no virtual dispatch, no boxing and no reflection per frame. This also works under NativeAOT trimming.
+3. Every frame, `Engine::Run` calls native `ActorRegistry::UpdateActors(dt)`, which calls each C# module's callback registered through `XGRegisterActorUpdate`. That callback runs `ActorRegistry.Update(dt)`, which updates every group.
+4. `RemoveComponent` / `Destroy` only null out the slot during the pass. `FlushRemovals` compacts each group after all groups have updated, so removing components inside `OnUpdate` is safe.
+5. If a group's `OnUpdate` throws, the error is logged once through `Debug.LogError` and the other groups keep running.
+
+---
+
+## Data components (prototype)
+
+Data components separate blittable data from behaviour, aimed at native, cache-friendly storage.
+
 ```csharp
-public abstract class Component<TData> : Component
-    where TData : struct
+public struct CharacterData : IComponentData
 {
-    public TData Data;
+    public int Health;
+    public float Stamina;
 }
 ```
 
-### **Properties**
-- Used by Archetype ECS  
-- Used by Dynamic ECS  
-- `TData` is blittable  
-- Stored in native ECS memory  
-- Component class resides in sidecar  
+| Type | Role |
+|---|---|
+| `IComponentData` | Marker for blittable data structs (checked by `BlittableValidator`) |
+| `ComponentData<TData>` | Holds one `TData`. `ref TData Data` gives in-place access, and `DataCopy` returns a copy. `Refresh()` copies native memory into `Data`, `Commit()` copies `Data` back. |
+| `BeginEdit()` | Returns a scope that optionally refreshes first and calls `Commit()` when disposed |
+| `ComponentDataSet<T1>` / `<T1, T2>` | Base class for a component holding one or two data blocks (`D1`, `D2`) |
+| `IComponentDataUpdate<TData>` | `static abstract void OnDataUpdate(ComponentData<TData> comp, float dt)` |
+
+Current limits:
+
+- `ComponentData<TData>` is never bound to native memory yet (`BindHandle` is a stub), so `Refresh` / `Commit` do nothing, and `ComponentDataSet`'s `D1` / `D2` are not created automatically.
+- No scheduler calls `OnDataUpdate`. Only `IComponentUpdate<T>.OnUpdate` runs every frame.
+- Always take `Data` by reference (`ref var data = ref cd.Data;`); `var data = cd.Data;` copies the struct and loses the writes.
+- An older shape, `Component<TData> : ComponentOLD` with `ComponentHandle<T>` and `ScriptRuntime.AllocateComponent<T>`, is still in the code and will be removed when the data path settles.
+
+See the [hybrid component sample](xge-component-sample.md) for a component that uses both update paths.
 
 ---
 
-# **4. ECS Storage Model**
+## Native storage (WIP)
 
-## **4.1 Archetype Component Graph**
+- `CompositeSceneGraph` (`"compset"` in the `SceneGraphFactory`) keeps one `StridePool` per component type: a dense byte buffer with a parallel array of owner ActorIDs, and swap-and-pop removal.
+- `XGAllocateComponent(engine, actorID, componentType, size)` allocates a block for an actor.
+- Pointers into the pool aren't stable yet (the buffer can grow, and removal moves other actors' data), which is why the managed data components aren't bound to it.
 
-### **Definition**
-A graph whose stride is the composition of multiple `Component<TData>` types defined by an archetype.
-
-### **Stride**
-```
-Stride = sum(sizeof(TData_i)) for all components in the archetype
-```
-
-### **Source**
-Prefab-defined archetypes.
-
-### **Metadata**
-- Component list  
-- Stable ordering  
-- Offsets  
-- Stride size  
-- Alignment  
-- Marshaling metadata  
-
-### **Memory Layout**
-```
-[Stride][Stride][Stride]...
-```
-
-### **Structures**
-```cpp
-struct ArchetypeInfo {
-    size_t Stride;
-    size_t Alignment;
-    std::vector<ComponentType> ComponentTypes;
-    std::vector<size_t> ComponentOffsets;
-};
-
-struct Chunk {
-    void* Data;
-    int Capacity;
-    int Count;
-    FreeList FreeSlots;
-};
-```
+See [Component graphs](xge-components2.md) for how per-type component graphs fit the scoped system model.
 
 ---
 
-## **4.2 Dynamic Component Graph**
+## Future design
 
-### **Definition**
-A graph where each component type has its own storage, and the stride is the size of that component’s `TData`.
+Not implemented yet:
 
-### **Stride**
-```
-Stride = sizeof(TData)
-```
-
-### **Source**
-Engine-registered component types.
-
-### **Memory Layout**
-```
-[TData][TData][TData]...
-```
-
-### **Structures**
-```cpp
-struct DynamicComponentGraph {
-    size_t ComponentSize;
-    size_t Alignment;
-    std::vector<uint8_t> DenseStorage;
-    std::vector<ActorID> Owner;
-    FreeList FreeSlots;
-};
-```
-
----
-
-# **5. Sidecar (Managed C#)**
-
-### **Contents**
-- Component<TData> class instances  
-- Managed fields  
-- Script logic  
-- RPC methods  
-- Message handlers  
-
-### **Properties**
-- Indexed by ActorID externally  
-- Synchronized with ECS TData  
-
----
-
-# **6. Marshaling**
-
-### **Static and Dynamic Components**
-```
-Unsafe.Write(ptr, component.Data);
-component.Data = Unsafe.Read<TData>(ptr);
-```
-
----
-
-# **7. ActorID**
-
-### **Structure**
-```cpp
-struct ActorID {
-    uint Index;
-    uint Generation;
-};
-```
-
-### **Usage**
-Static ECS:
-```csharp
-public struct EnemyAIData {
-    public ActorID Target;
-}
-```
-
-Dynamic ECS:
-```cpp
-Owner[index] = actorId;
-```
-
-Sidecar:
-```csharp
-var health = World.GetComponent<HealthComponent>(targetActorId);
-```
-
----
-
-# **8. Component Access**
-
-### **Same Actor**
-```
-var health = World.GetComponent<HealthComponent>(actorId);
-```
-
-### **Cross-Actor**
-```
-var health = World.GetComponent<HealthComponent>(targetActorId);
-```
-
-### **Lookup**
-- ActorID → ECS index  
-- ECS index → sidecar instance  
-
----
-
-# **9. Systems**
-
-### **C# Systems**
-- Operate on archetype chunks  
-- Operate on dynamic component graphs  
-- Synchronize with sidecar  
-
-### **C++ Systems**
-- Physics  
-- Rendering  
-- Animation  
-- Audio  
-
----
-
-# **10. Reflection Integration**
-
-### **Component<TData>**
-- Managed fields  
-- Editor UI  
-- Serialization  
-- Messaging  
-- RPC metadata  
-- Script binding  
-
----
-
-# **11. Spawning Pipeline**
-
-1. Generate ActorID  
-2. Register ActorID → ScriptNode*  
-3. SceneGraph creates node  
-4. Archetype ECS allocates stride block  
-5. Dynamic ECS registers per-component graphs  
-6. Sidecar initializes Component<TData> instances  
-
----
-
-# **12. NativeAOT Integration**
-
-- Archetype memory exposed as `void*`  
-- Fixed offsets  
-- Direct read/write  
-- Zero marshalling  
-- ScriptModules access ECS + SceneGraph via C ABI  
-
----
-
-# **13. Architecture Diagram**
-
-```
-SceneGraph (C++)
- ├─ ActorID
- ├─ Hierarchy
- ├─ Transform
- └─ Metadata
-
-Archetype Component Graph
- ├─ Prefab-defined
- ├─ Stride = composition of Component<TData>
- ├─ Chunk-based
- └─ Offline metadata
-
-Dynamic Component Graph
- ├─ One graph per Component<TData> type
- ├─ Stride = sizeof(TData)
- ├─ Dense arrays
- └─ ActorID association
-
-Sidecar (C#)
- ├─ Component<TData> instances
- ├─ Managed fields
- ├─ Reflection metadata
- └─ Script logic
-
-Systems
- ├─ C# systems
- └─ C++ systems
-```
-
----
+- **Archetype component graph:** prefab-defined actors whose components share one stride (`Stride = sum(sizeof(TData_i))`), stored in chunks with free lists.
+- **Stable dynamic storage:** per-type pools with free lists and stable handles, bound to `ComponentData<TData>`.
+- **Data update scheduling:** iterate data blocks per type and call `OnDataUpdate`, including from worker threads.
+- **Cross-actor lookup:** for example `World.GetComponent<T>(actorId)`, through an ActorID → storage index → managed instance map.
+- **Reflection-driven editing:** `[Editable]` fields shown in the editor's property panel and serialized (the attribute exists in `TestCode.cs`; nothing reads it yet).
+- **Native systems** (physics, rendering, animation, audio) operating on the same component data from C++.
+- **NativeAOT direct access:** native component memory handed to NativeAOT modules as `void*` with fixed offsets and no marshalling.
