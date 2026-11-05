@@ -103,7 +103,7 @@ namespace xg
             npc._decisionTimer += dt;
 
             // ECS data is safely mutable in this edit scope
-            var npcData = npc.D1.Data;
+            ref var npcData = ref npc.D1.Data;
             npc._alerted = npcData.Awareness > 0.5f;
             npcData.AwarenessGainRate = npc._alerted ? 0.3f : 0.1f;
             npcData.HealthRegenRate = npc._alerted ? 0.0f : 0.05f;
@@ -114,7 +114,7 @@ namespace xg
         {
             using (cd.BeginEdit())
             {
-                var data = cd.Data;
+                ref var data = ref cd.Data;
                 data.Awareness += data.AwarenessGainRate * dt;
                 data.Health += data.HealthRegenRate * dt;
             }// commit changes to ECS storage

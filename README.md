@@ -1,670 +1,254 @@
 ![xfg xge](docs/xge-logo.png#gh-dark-mode-only)
-![xfg xge](docs/xge-logo-white.png#gh-dark-mode-only#gh-light-mode-only)
+![xfg xge](docs/xge-logo-white.png#gh-light-mode-only)
 
-# 🎮 XGE — Cross‑Game Engine
+# 🎮 XGE — Cross-Game Engine
 
-A work‑in‑progress, modular C++20 engine focused on **foundational architecture**, **technical design**, and **clean systems engineering** rather than commercial features or production‑ready tooling.
+A work-in-progress, modular C++20 engine focused on **foundational architecture** and **clean systems engineering** rather than production features. XGE explores a hierarchical module runtime, reflection-driven data, and dual-runtime C# scripting (CoreCLR + NativeAOT) behind a stable C ABI.
 
-XGE is an exploration of modern engine architecture: reflection‑driven data, modular runtime systems, dual‑runtime scripting (CoreCLR + NativeAOT), and strict layering. The goal is to build a **solid, extensible foundation** that can grow into a full engine over time.
+> **Work in progress.** Windows only for now (MSVC, .NET 10). Expect APIs to change.
 
-The project emphasizes:
-- strict layering  
-- reflection‑driven data  
-- modular runtime systems  
-- dual scripting runtimes (CoreCLR + NativeAOT, extendable to support other language like Squirrel, Lua, etc)
-- editor integration  
-- clean, STL‑free public API surfaces  
+## Contents
 
-
----
-
-# 🔗 Quick Jump
-
-- [Overview](#-overview)  
-- [Design Philosophy](#-design-philosophy)  
-- [Architecture](#-architecture)  
-- [Current Engine Capabilities](#-current-engine-capabilities)  
-- [Current Work‑In‑Progress](#-current-workinprogress-core-architecture-initiative)  
-- [Rendering Architecture](#-rendering-architecture)  
-- [Network Serialization (Planned)](#-network-serialization-planned)  
-- [Scripting Architecture](#-scripting-architecture)  
-- [Repository Structure](#-repository-structure)  
-- [Reflection System](#-reflection-system)  
-- [JSON Serialization](#-json-serialization)  
-- [Runtime Flow](#-runtime-flow)  
-- [Roadmap](#-roadmap)  
-- [License](#-license)  
+- [Highlights](#highlights)
+- [Status](#status)
+- [Getting started](#getting-started)
+- [Architecture](#architecture)
+- [A taste of the API](#a-taste-of-the-api)
+- [Repository structure](#repository-structure)
+- [Documentation](#documentation)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
-# 📘 Overview
+## Highlights
 
-XGE is a modular, reflection‑driven, cross‑platform engine foundation designed for long‑term scalability.  
-It prioritizes **clean architecture**, **strict layering**, and **runtime modularity** over monolithic engine design.
-
-XGE is built to support:
-
-- multiple scripting runtimes
-- multiple rendering backends
-- editor/runtime separation
-- deterministic data pipelines
-- future network replication 
-- future visual scripting
-- future hot‑reload workflows  
-
+- **HSM (Hierarchical Script Modules):** every module (native DLL, CoreCLR or NativeAOT) is a node in one ScriptTree with deterministic parent → child updates.
+- **Scoped systems:** services are registered per module and resolved by walking up the tree, so children inherit or override them.
+- **Dual C# scripting:** CoreCLR for the editor, NativeAOT for the runtime, both behind the same `ScriptModule` interface.
+- **Reflection codegen:** a Tree-sitter tool (`xgReflectGen`) generates type schemas from `XG_SERIALIZABLE` / `XG_FIELD` / `XG_ENUM` markers, used for JSON, message codecs and C# enums.
+- **Editor shell:** Dear ImGui (docking + multi-viewport) on SDL3.
+- **Stable ABI:** cross-DLL interfaces are pure virtual and append-only, and only C types and function pointers cross module boundaries.
 
 ---
 
-# 🧭 Design Philosophy
+## Status
 
-### **Strict Layering**
-No platform code in core.  
-No renderer code in scripting.  
-No STL in public headers.  
-Stable ABI.  
-Minimal implementation in headers.
-
-### **Reflection Everywhere**
-Tree‑sitter generates metadata used for:
-- JSON serialization  
-- editor property panels  
-- network replication (future)  
-- deterministic data pipelines  
-
-### **Modularity First**
-Everything is a module:
-- renderer  
-- scripting runtime  
-- editor kernel  
-- future physics/audio/gameplay  
-
-### **Runtime Flexibility**
-Load modules at runtime.  
-Swap renderer or scripting backend without recompiling the engine.
+| Area | Status | Notes |
+|---|---|---|
+| ScriptTree / HSM | 🟢 Working | Native, CoreCLR and NativeAOT modules load into one tree. |
+| Scoped systems | 🟢 Working | Lookup walks up the tree; the closest ancestor wins. |
+| Messenger / routes | 🟢 Working | `Direct`, `ChildrenOf`, `ParentOf`, `SiblingsOf`, `Filtered`, `SendToAll`. The managed route API is still incomplete. |
+| Codec registry | 🟡 Partial | JSON and binary codecs work for numbers and bools; string fields need work. |
+| Reflection (`xgReflectGen`) | 🟡 Partial | bool / int / uint / float / `const char*` fields and enums. No arrays or nested types yet. |
+| Config (`gameconfig.json`) | 🟢 Working | Loaded by `xge` through reflection into `EngineConfig`. |
+| Actors & components (C#) | 🟡 Partial | `Actor.Create`, `AddComponent<T>` / `GetComponent<T>` / `RemoveComponent<T>`, `Destroy`. Update logic uses **CRTP**: a component implements `IComponentUpdate<T>` with a `static abstract OnUpdate(T, float)`, and one `ComponentUpdateGroup<T>` per type calls it through a cached function pointer (no virtual call, boxing or reflection per frame). Removals are deferred until after the pass. Driven every frame by `ActorRegistry::UpdateActors(dt)` in both CoreCLR and NativeAOT modules. Data components (`ComponentData<TData>`, `IComponentDataUpdate<TData>`) and native component storage are prototypes. |
+| SceneGraph (native) | 🟡 Partial | ActorIDs are global 64-bit IDs; an actor can belong to several graphs. The tree graph works; transforms are not propagated yet. |
+| Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
+| Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `verify/`. |
+| Editor UI | 🟡 Prototype | Docking layout with static panels (non-functional). Toggle with `EditorUI` in `gameconfig.json`. |
+| Renderer (DX12) | 🟠 Very rough | Device, swap chain and clear/present only. Not called in the main loop; the editor currently renders through SDL GPU. |
+| Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
+| Vulkan | ⚪ Planned | |
+| Network replication | ⚪ Planned | |
+| Hot reload | ⚪ Planned | |
 
 ---
 
-# 🏛️ Architecture
+## Getting started
 
-```
-xgBase        → Base types, macros, platform detection  
-xgPlatform    → Platform backends (Win32, SDL)  
-xgCore        → Engine runtime  
-Renderers     → DX12, Vulkan (standard modules)  
-Script Hosts  → CoreCLR, NativeAOT (script module facilitator)  
-Script Modules→ Loaded in the HSM tree (Editor, Game01, PhysicsEngine, etc.)
-Editor        → Native editor kernel + managed editor runtime
-Kits          → Shared libraries (editor, runtime, runtime-managed)
+### Requirements
+
+- Windows 10/11 x64
+- Visual Studio 2026 with the C++ desktop workload (toolset v145)
+- .NET 10 SDK
+
+### Build
+
+Build the full solution `xgEngine/XGE.slnx` (Debug x64) from Visual Studio, or from PowerShell:
+
+```powershell
+cd xgEngine
+& (vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe") XGE.slnx -restore -m -p:Configuration=Debug -p:Platform=x64 -v:minimal -nologo
 ```
 
----
+The NativeAOT publish of `GameDemoModule` needs `C:\Program Files (x86)\Microsoft Visual Studio\Installer` (for `vswhere.exe`) on `PATH` when MSBuild is started from a plain shell.
 
-# 🚀 Current Engine Capabilities
+Binaries go to `gameroot/bin`.
 
-## Core Systems
-- Modular engine with dynamic module loading  
-- Reflection‑driven configuration  
-- JSON serialization via reflection metadata  
-- Strict layering  
-- STL‑free public API surface  
-- Hierarchical system scoping   
+### Run
 
-## Platform Layer
-- SDL3 window backend  
-- Win32 file backend  
-- Cross‑platform module loader  
-- Event system (SDL → `xgEvent`)  
+Run `xge.exe` from `gameroot/bin`. It reads `gameroot/bin/gameconfig.json`:
 
-## Rendering
-- DirectX 12 renderer module  
-- Swap chain, command queue, render targets  
-- Clear + present rendering loop  
+```json
+{
+    "RendererModule": "",
+    "EditorUI": true
+}
+```
 
-## Scripting
-- Dual‑runtime scripting: CoreCLR + NativeAOT  
-- Unified `ScriptModule` interface  
-- Managed editor runtime  
-
-## Editor
-- Native editor kernel module  
-- Full ImGui integration  
-- Docking + multi‑viewport  
-- Viewport, Outliner, Properties, Timeline, Assets panels  
+| Key | Meaning |
+|---|---|
+| `RendererModule` | Renderer DLL to load. Keep it empty for now: the editor owns the window's swap chain. |
+| `EditorUI` | `true` shows the editor UI prototype; `false` shows an empty ImGui dockspace with the OS window frame. |
 
 ---
 
-# 🧩 Current Work‑In‑Progress (Core Architecture Initiative)
+## Architecture
 
-## 🌿 HSM — Hierarchical Script Modules
+```
+xgBase         → Base types, macros, logging, JSON, reflection, math (static lib)
+xgPlatform     → Platform backends (SDL3 window, Win32 files)
+xgCore         → Engine runtime: ScriptTree, systems, Messenger, codecs, ActorRegistry
+Renderers      → DX12 (very rough), Vulkan (planned)
+Script hosts   → CoreCLR (hostfxr), Native + NativeAOT
+Kernels        → xgEditorKernel (editor UI), xgGameKernel (scene graphs, actor exports)
+Kits           → xgSharedKit / xgEditorKit (native), xgSharedKit.Managed (C#)
+xge            → Launcher
+```
 
-XGE’s runtime is built around **HSM (Hierarchical Script Modules)** — a structured tree of ScriptModules that defines ownership, routing scope, and execution domains.
+### Module tree at runtime
 
-The system consists of:
+```
+root
+└── editor.kernel   xgEditorKernel.dll     (native)
+    └── game.kernel xgGameKernel.dll       (native)
+        ├── editor      xgEditor.CoreCLR.dll  (CoreCLR)
+        └── game.demo   GameDemoModule.dll    (NativeAOT)
+```
 
-- ~~ScriptTree — hierarchical tree of ScriptModules (HSM)~~ **(DONE)**
-- ~~System Tree - hierarchical scoping system~~ **(DONE - 2026/07/31)**
-- ~~SceneGraph — Scoped, Multi‑Purpose Graph System~~  **(DONE - 2026/07/31)**
-- ~~Messenger — message routing backbone~~ **(DONE)**
-- ~~Route Traversal — parent/child/sibling routing rules~~ **(DONE)**
-- ~~Codec Registry — dynamic message encoding/decoding~~ **(DONE)**
-- Dispatch Groups — thread‑affinity execution domains **(IN PROGRESS)**
+### Frame loop
 
-
-Together, these form XGE’s core runtime architecture.
-
----
-
-## 🌳 ScriptTree — Hierarchical Script Modules (HSM) **(DONE)**
-
-ScriptTree stores every ScriptModule in a strict hierarchy:
-
-- parent → child relationships  
-- sibling traversal  
-- domain grouping (Main, Worker, Pinned, Dedicated)  
-- deterministic update order  
-- scoped message routing  
-
-Each ScriptModule is a node in the tree, enabling:
-
-- hierarchical updates  
-- scoped messaging  
-- clean separation of systems  
-- future hot‑reload boundaries  
-- system scoping
+`Engine::Run` measures the frame delta (steady clock, capped at 0.25 s), polls window events, updates the ScriptTree (every module, parent before child), then updates actors and their components through `ActorRegistry::UpdateActors(dt)`.
 
 ---
 
-## 🧩 System Tree — Hierarchical System Scoping **(DONE - 2026/07/31)**
+## A taste of the API
 
-- Systems are registered per ScriptModule  
-- Lookup walks upward through parents  
-- Closest ancestor wins  
-- Children inherit unless they override  
-- No global systems; all systems are scoped
+### Systems
 
----
-
-### ⚙️ System Overview
-
-- A `System` is any overridable runtime service  
-- Declared with `XG_DECLARE_BASE_SYSTEM(Type)`  
-- Implemented with `XG_DECLARE_SYSTEM(Implementation, Type)`  
-- Resolved hierarchically through the ScriptTree  
-
----
-
-### 🛠️ Create, Register, Get a System  
-
-#### **1. General System Type**
 ```cpp
 struct SceneGraphFactory : public System {
     XG_DECLARE_BASE_SYSTEM(SceneGraphFactory)
 };
-```
 
-#### **2. Implementation Example**
-```cpp
 class SceneGraphFactoryImpl : public SceneGraphFactory {
     XG_DECLARE_SYSTEM(SceneGraphFactoryImpl, SceneGraphFactory)
 };
+
+engine->RegisterSystem(module, new SceneGraphFactoryImpl());       // scoped to module and its children
+auto* factory = engine->GetSystem<SceneGraphFactory>(module);      // closest ancestor wins
 ```
 
-#### **3. Register**
-```cpp
-engine->RegisterSystem(module, new SceneGraphFactoryImpl());
-```
-
-#### **4. Get**
-```cpp
-auto* factory = engine->GetSystem<SceneGraphFactory>(module);
-```
-
-#### **5. Override (example)**
-```cpp
-engine->RegisterSystem(childModule, new SceneGraphFactoryImpl());
-```
-
-
----
-
-## 🧩 SceneGraph — Scoped, Multi‑Purpose Graph System  **(DONE - 2026/07/31)**
-
-### **SceneGraph is a System**
-A `SceneGraph` is a first‑class **System**, which means:
-
-- It is **scope‑based**  
-- It is **registered per ScriptModule**  
-- It is **resolved hierarchically** through the ScriptTree  
-- The **closest ancestor SceneGraph** is used when requested  
-- A ScriptNode can override its parent’s SceneGraph by registering its own
-
-This makes SceneGraphs modular, replaceable, and context‑specific.
-
----
-
-### **Global ActorID Generation**
-ActorIDs are generated globally by the engine’s `ActorRegistry`.
-
-- ActorIDs are **unique across the entire engine**  
-- ActorIDs are **not owned** by any SceneGraph  
-- ActorIDs allow the same logical actor to appear in multiple graphs
-
-This enables multi‑representation and multi‑domain processing.
-
----
-
-### **Actors Can Exist in Multiple SceneGraphs**
-An `ActorID` can have **multiple representations**, one per SceneGraph.
-
-Examples of representations:
-
-- Transform hierarchy  
-- Physics bodies  
-- ECS entities  
-- Rendering nodes  
-- AI nodes  
-- Metadata nodes  
-
-Each SceneGraph stores its own representation of the same ActorID.
-
----
-
-### **SceneGraphs Are Purpose‑Specific**
-A SceneGraph is not a single “scene tree.”  
-It is a **domain‑specific graph** with a specialized purpose.
-
-Examples of specialized SceneGraphs:
-
-- **Physics SceneGraph** — rigid bodies, colliders, constraints  
-- **ECS SceneGraph** — entity/component relationships  
-- **Render SceneGraph** — drawable objects, materials, LODs  
-- **Transform SceneGraph** — parent/child transforms  
-- **Metadata SceneGraph** — editor properties, tags, names  
-
-Each SceneGraph defines its own storage, traversal, and rules.
-
----
-
-### **ScriptNodes Can Have Multiple SceneGraphs**
-A ScriptNode may register **multiple SceneGraphs**, each serving a different domain.
-
-For example, a ScriptNode may contain:
-
-- A Transform SceneGraph  
-- A Physics SceneGraph  
-- A Render SceneGraph  
-- A Metadata SceneGraph  
-
-All scoped to that ScriptNode and inherited by its children unless overridden.
-
----
-
-
-## 📡 Messenger — Central Message Router **(DONE)**
-
-Messenger delivers `ScriptMessage` objects across the ScriptTree using explicit `Route` objects.  
-Routing is deterministic and handled by ScriptTree; encoding/decoding is handled by the Codec Registry.
-
-### C++ Example — Sending Messages
-
-Messages are delivered by constructing a `Route` and passing it to `Messenger::Send`.
+### Messages
 
 ```cpp
-ScriptMessage msg{ PlayerDamaged{ .Amount = 10 } };
-
-// Direct message to a specific ScriptModule
-Messenger->Send(msg, Route::Direct("Player"));
-
-// Broadcast to all children of a ScriptModule
-Messenger->Send(msg, Route::ChildrenOf("UIRoot"));
-
-// Bubble upward to parents
-Messenger->Send(msg, Route::ParentOf("Inventory"));
-
-// Send to siblings
-Messenger->Send(msg, Route::SiblingsOf("EnemyAI"));
-
-// Filtered routing (predicate receives ScriptModule*)
-Messenger->Send(msg, Route::Filtered([](ScriptModule* m) {
-    return m->GetId() == "HUD";
-}));
-
-// Global broadcast
-Messenger->SendToAll(msg);
+Messenger* messenger = engine->GetSystem<Messenger>(this);
+messenger->Send(msg, Route::Direct("game.demo"));
+messenger->Send(msg, Route::ChildrenOf("editor.kernel"));
+messenger->SendToAll(msg);
 ```
 
-
----
-
-## 🛣️ Route Traversal — How Messages Move Through the Tree **(DONE)**
-
-Messages can be routed using simple rules:
-
-- ToParent — bubble upward  
-- ToChildren — broadcast downward  
-- ToSiblings — lateral routing  
-- ToDomain — cross‑thread dispatch  
-- ToSpecificNode — direct targeting  
-
-Example:
-
-```cpp
-Messenger->Send(msg, Route::ToParent);
-Messenger->Broadcast(msg, Route::ToChildren);
-Messenger->Send(msg, Route::ToDomain(Thread::Worker));
-```
-
----
-
-## 🔐 Codec Registry — Dynamic Message Encoding **(DONE)**
-
-The CodecRegistry is responsible for encoding and decoding all `ScriptMessage` payloads.  
-It supports both **native C++ types** and **dynamic types** (`DynamicObject`), using reflection metadata (`TypeSchema`) generated by the TypeRegistry.
-
-CodecRegistry provides:
-
-- native encoders/decoders (registered per typeName)
-- dynamic JSON encode/decode for `DynamicObject`
-- lookup of encoder/decoder functions
-- unified public `Encode` / `Decode` entry points
-- integration with Messenger and ScriptTree
-
-### Native Type Encoding
-
-Native types register their encoder/decoder functions:
-
-```cpp
-registry.RegisterEncoder("PlayerDamaged", Encode_PlayerDamaged);
-registry.RegisterDecoder("PlayerDamaged", Decode_PlayerDamaged);
-```
-
-When Messenger delivers a message, CodecRegistry selects the correct encoder based on the message’s `typeName`.
-
-### Dynamic Type Encoding
-
-Dynamic types (`DynamicObject`) do not register encoders.  
-CodecRegistry automatically falls back to JSON‑based dynamic encoding:
-
-- `EncodeDynamic(obj, outMessage)`
-- `DecodeDynamic(message, schema, outObj)`
-
-This allows:
-
-- editor inspection
-- flexible message formats
-- runtime‑generated message types
-- future network serialization
-
-### Public Encode/Decode API
-
-All message encoding flows through two entry points:
-
-```cpp
-bool Encode(const char* typeName,
-            const void* src,
-            const TypeSchema* schema,
-            ScriptMessage& outMessage) const;
-
-bool Decode(const char* typeName,
-            const ScriptMessage& message,
-            const TypeSchema* schema,
-            void* dst) const;
-```
-
-These functions:
-
-- select native or dynamic codec
-- serialize the payload into `ScriptMessage`
-- deserialize payload into native struct or `DynamicObject`
-
-### Integration with Messenger
-
-Messenger does not serialize messages itself.  
-Instead, before delivery:
-
-1. Messenger calls `CodecRegistry::Encode`
-2. ScriptTree routes the encoded message
-3. Receiving ScriptModule calls `CodecRegistry::Decode`
-4. The decoded object is passed to the handler method
-
-This ensures:
-
-- consistent message formats
-- reflection‑driven serialization
-- safe cross‑module communication
-- future network replication compatibility
-
-
-
-## 🧵 Dispatch Groups — Thread Affinity **(IN PROGRESS)**
-
-Dispatch groups define execution domains:
-
-- Input  
-- Gameplay  
-- Animation  
-- RenderPrep  
-- Async  
-- Custom  
-
-Modules declare dispatch groups via attributes (C#) or macros (C++).  
-The engine handles scheduling and thread affinity.
-
----
-
-## Summary
-
-The HSM + ScriptTree + Messenger + Route Traversal + Codec Registry + Dispatch Groups form XGE’s core runtime architecture.
-
-They provide:
-
-- deterministic module updates  
-- safe multi‑threaded messaging  
-- structured message encoding  
-- hierarchical routing  
-- clean separation of systems  
-- future‑proof foundations for AI, gameplay, editor tooling, and networking  
-
----
-
-# 🎨 Rendering Architecture
-
-## DirectX 12 (Current)
-Validates:
-- command queue + allocator  
-- descriptor heaps  
-- swap chain  
-- GPU/CPU sync  
-- render targets  
-
-## Vulkan (Planned)
-Will validate:
-- cross‑platform rendering  
-- explicit sync  
-- descriptor sets  
-- pipeline layout abstraction  
-- multi‑queue support  
-
-Both backends will share:
-- unified renderer interface  
-- FrameGraph  
-- resource abstractions  
-
----
-
-# 🌐 Network Serialization (Planned)
-
-## Reflection‑Driven Replication
-- enumerate fields  
-- identify replicated fields  
-- serialize only required fields  
-- apply deltas deterministically  
-
-## Delta Compression
-- compare previous vs current state  
-- emit only changed fields  
-
-## Bit‑Packed Serialization
-- primitive packing  
-- boolean compression  
-- enum packing  
-- optional string hashing  
-
-## Replication Policies
-
-```cpp
-XG_FIELD(meta=Replicated)
-XG_FIELD(meta=Replicated | Interpolated)
-```
-
-## RPCs (Future)
-- method lookup  
-- parameter serialization  
-- stub generation  
-
----
-
-# 🧩 Scripting Architecture
-
-## CoreCLR (Editor Mode)
-- hot reload  
-- reflection  
-- dynamic assembly loading  
-- debugging  
-- full .NET ecosystem  
-
-## NativeAOT (Runtime)
-- zero dependencies  
-- instant startup  
-- no JIT  
-- native debugging  
-- predictable performance  
-
-Both runtimes implement:
-
-```cpp
-class ScriptModule {
-public:
-    virtual bool Init(ScriptEngine* engine) = 0;
-    virtual void Update(float dt) = 0;
-    virtual void Shutdown() = 0;
-    virtual bool IsValid() const = 0;
-};
-```
-
----
-
-# 📂 Repository Structure
-
-```
-XGE/
-├── docs/                     # Documentation, diagrams, design notes
-├── gameroot/                 # Runtime deployment root
-│   ├── bin/                  # Native binaries (engine + modules)
-│   ├── editor/               # Editor assets (fonts, UI resources)
-│   └── coreclr/              # CoreCLR runtime + managed assemblies
-│       └── Microsoft.NETCore.App/
-│           └── 10.0.8/
-├── xgEngine/                 # Engine source tree
-│   ├── 3rdparty/             # External libraries (SDL, ImGui, etc.)
-│   ├── tools/                # Engine tools (reflection generator, etc.)
-│   │   └── xgReflectGen/
-│   ├── xgBase/               # Base types, macros, platform detection
-│   │   └── math/
-│   ├── xgCore/               # Core engine runtime
-│   ├── xgEditor.CoreCLR/     # Editor module
-│   ├── xgEditorKit/          # Shared Editor utilities
-│   ├── xgPlatform/           # Platform backends (Win32, SDL)
-│   ├── xgRendererDX12/       # DirectX 12 renderer module
-│   ├── xgScriptCoreCLR/      # CoreCLR scripting host module
-│   ├── xgScriptNative/       # NativeAOT scripting host module
-│   │   └── interop/
-│   ├── xgSharedKit/          # Shared Editor/Runtime library
-│   ├── xgSharedKit.Managed/  # Managed Shared Editor/Runtime library
-│   ├── xgEditorKernel/       # Native editor kernel module
-│   ├── xgUtility/            # Utility layer (platform helpers, etc.)
-│   │   └── platform/
-│   └── xge/                  # Engine executable (launcher)
-```
-
----
-
-# 🧬 Reflection System
-
-- Tree‑sitter C++  
-- generates `.generated.h`  
-- produces `RawFieldInfo` arrays  
-- supports bool/int/float/const char*  
-- uses `offsetof()`  
-
-Example:
+### Reflection
 
 ```cpp
 XG_SERIALIZABLE()
-struct EngineConfig {
+struct EngineConfig
+{
+    XG_DECLARE_TYPE_NAME(EngineConfig);
+
     XG_FIELD()
     const char* RendererModule = nullptr;
+
+    XG_FIELD()
+    bool EditorUI = true;
 };
+
+const TypeSchema* schema = engine.GetTypeRegistry()->Get(EngineConfig::TypeName);
+```
+
+### C# components and logging
+
+```csharp
+public class EnemyComponent : IComponentUpdate<EnemyComponent>
+{
+    public float ElapsedTime;
+    public static void OnUpdate(EnemyComponent c, float dt) => c.ElapsedTime += dt;
+}
+
+var enemy = Actor.Create("enemy").AddComponent<EnemyComponent>();
+Debug.Log("enemy spawned");
+```
+
+`OnUpdate` is static and resolved through CRTP, so each component type is updated by a direct call through one function pointer per type. That keeps it devirtualized and NativeAOT-friendly.
+
+---
+
+## Repository structure
+
+```
+XGE/
+├── docs/                     # Design notes, diagrams
+├── gameroot/                 # Runtime deployment root
+│   ├── bin/                  # Engine, modules, gameconfig.json
+│   ├── editor/               # Editor assets (fonts, icon)
+│   └── coreclr/              # Bundled .NET runtime for the CoreCLR host
+└── xgEngine/                 # Engine source (XGE.slnx)
+    ├── 3rdparty/             # SDL3, Dear ImGui (docking), nlohmann/json, DirectXMath, Tree-sitter
+    ├── tools/xgReflectGen/   # Reflection code generator
+    ├── verify/               # Math test suites (native + managed)
+    ├── xgBase/               # Base types, macros, logging, JSON, reflection, math
+    ├── xgPlatform/           # Platform backends
+    ├── xgCore/               # Engine runtime
+    ├── xgUtility/            # SDL ⇄ xgEvent helpers
+    ├── xgRendererDX12/       # DirectX 12 renderer module (very rough)
+    ├── xgScriptCoreCLR/      # CoreCLR script host
+    ├── xgScriptNative/       # Native / NativeAOT script host + C interop exports
+    ├── xgEditorKernel/       # Editor kernel module (ImGui)
+    ├── xgGameKernel/         # Game kernel module (scene graphs, actor API)
+    ├── xgSharedKit/          # Shared native editor/runtime library
+    ├── xgSharedKit.Managed/  # Shared C# library (runtime, actors, components, math, Debug)
+    ├── xgEditorKit/          # Editor utilities (placeholder)
+    ├── xgEditor.CoreCLR/     # Managed editor module
+    ├── GameDemoModule/       # NativeAOT sample module
+    └── xge/                  # Launcher executable
 ```
 
 ---
 
-# 📄 JSON Serialization
+## Documentation
 
-- custom wrapper over nlohmann::json  
-- STL only in `.cpp`  
-- reflection‑driven serialization  
+- [Runtime architecture](docs/xge-architecture.md) — HSM, scoped systems, script hosts, Messenger, reflection, logging
+- [SceneGraph and actors](docs/xge-scenegraph.md) — ActorRegistry, scene graphs, node mixins
+- [Actors and components (C#)](docs/xge-components.md) — Actor API, CRTP behaviour components, data components
+- [Component graphs](docs/xge-components2.md) — per-type component storage as scoped systems
+- [Hybrid component sample](docs/xge-component-sample.md)
+- [Design notes](docs/xge-design-notes.md) — codecs, dispatch groups, rendering and networking plans
 
----
-
-# 🔁 Runtime Flow
-
-## Startup
-- load config  
-- load renderer module  
-- load scripting module  
-- initialize systems  
-
-## Main Loop
-- fixed update  
-- variable rendering  
-- ScriptHost update  
-- module updates  
-
-## Shutdown
-- ScriptHost shutdown  
-- renderer shutdown  
-- platform shutdown  
+Each document describes the current code and lists unbuilt work under "Future design".
 
 ---
 
-# 🛣️ Roadmap
+## Roadmap
 
-## High Priority
-- Dispatch Groups  
-- HSM tooling  
-- messaging inspector  
-- editor integration  
-- hot reload boundaries  
+**Near term**
+- Wire up dispatch groups (thread affinity)
+- Move the editor onto the engine renderer, keeping all DX12 code inside its module
+- Back the editor panels with real data (outliner → scene graph, properties → reflection)
 
-## Mid‑Term
-- scene graph  
-- component system  
-- property inspector  
-- enum/array reflection  
-- FrameGraph  
-- GPU‑driven rendering  
+**Mid term**
+- Transform propagation and one settled component model
+- FrameGraph and GPU resource abstractions
+- Arrays and nested types in reflection
 
-## Long‑Term
-- full editor  
-- shader graph  
-- hot‑reloadable C# gameplay  
-- network replication  
-- RPC system  
-- job system  
-- Vulkan parity  
+**Long term**
+- Vulkan backend
+- Network replication and RPC
+- Hot reload of C# gameplay modules
+- Visual scripting
 
 ---
 
-# 📝 License
-MIT License.
+## License
+
+[MIT](LICENSE)
