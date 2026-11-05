@@ -34,7 +34,29 @@ namespace xg {
         void SetEventQueue(EventQueue* q) override;
         void SetEventDispatcher(EventDispatcher* d) override;
 
+        void SetTitle(const char* title) override;
+        const char* GetTitle() const noexcept override;
+
+        void Minimize() override;
+        void Maximize() override;
+        void Restore() override;
+        bool IsMaximized() const noexcept override;
+        void RequestClose() override { _shouldClose = true; }
+
+        void SetCustomFrame(bool enabled) override;
+        bool HasCustomFrame() const noexcept override { return _customFrame; }
+        void SetDragRegions(const WindowRect* rects, int count) override;
+
+        int HitTestPoint(int x, int y) const noexcept;
+
     private:
+
+        static constexpr int ResizeBorder = 6;
+
+        bool _customFrame = false;
+        WindowRect _dragRects[MaxDragRegions] = {};
+        int _dragCount = 0;
+
         SDL_Window* _sdlWindow = nullptr;
 
         EventQueue* _queue = nullptr;

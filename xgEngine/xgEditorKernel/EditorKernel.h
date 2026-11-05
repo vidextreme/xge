@@ -6,7 +6,6 @@
 
 #include <memory>   // allowed (non‑public header)
 
-struct SDL_Renderer;   // forward declare, keep SDL out of the header
 struct SDL_Window;
 
 namespace xg
@@ -53,7 +52,7 @@ namespace xg
         ScriptModule* _editorModule = nullptr;
         ScriptModule* _gameKernel = nullptr;
         // Stored as void* to avoid SDL includes in the header
-        void* _sdlRenderer = nullptr;
+        void* _gpuDevice = nullptr;
 
         bool _isValid = true;
 

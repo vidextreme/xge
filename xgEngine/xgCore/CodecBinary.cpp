@@ -14,7 +14,7 @@ namespace xg
         auto ms = CreateMemoryStream(256);
         const uint8_t* base = reinterpret_cast<const uint8_t*>(object);
 
-        for (int i = 0; i < schema->FieldCount; ++i)
+        for (uint32_t i = 0; i < schema->FieldCount; ++i)
         {
             const FieldSchema& field = schema->Fields[i];
             const void* fieldPtr = base + field.Offset;
@@ -66,7 +66,7 @@ namespace xg
         auto ms = CreateMemoryStream(const_cast<void*>(msg.Payload), msg.PayloadSize);
         uint8_t* base = reinterpret_cast<uint8_t*>(outObject);
 
-        for (int i = 0; i < schema->FieldCount; ++i)
+        for (uint32_t i = 0; i < schema->FieldCount; ++i)
         {
             const FieldSchema& field = schema->Fields[i];
             void* fieldPtr = base + field.Offset;

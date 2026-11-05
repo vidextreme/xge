@@ -19,7 +19,7 @@ void _LogMsg(xg::MessageType _type, const char* _message)
 int main(int argc, char** argv)
 {
     xg::EngineConfig config;
-	config.RendererModule = "xgRendererDX12.dll";
+	//config.RendererModule = "xgRendererDX12.dll";
  //   xg::Json json;
 	//xg::Log(xg::MessageType::Info, "Loading gameconfig.json");
  //   auto file = xg::LoadFile(L"gameconfig.json", xg::FileAccessMode::Read);
