@@ -5,7 +5,13 @@
 
 XG_MODULE_EXPORT xg::Renderer* CreateRenderer(xg::Window& window)
 {
-    return new xg::RendererDX12(window);
+    auto* renderer = new xg::RendererDX12();
+    if (!renderer->Initialize(window))
+    {
+        delete renderer;
+        return nullptr;
+    }
+    return renderer;
 }
 
 XG_MODULE_EXPORT void DestroyRenderer(xg::Renderer* renderer)

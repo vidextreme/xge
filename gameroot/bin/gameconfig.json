@@ -1,4 +1,4 @@
 {
-    "RendererModule": "",
+    "RendererModule": "xgRendererDX12",
     "EditorUI": false
 }

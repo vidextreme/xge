@@ -140,7 +140,7 @@ Both runtimes sit behind the same `ScriptModule` interface, so a module can move
 ## Rendering (very rough / planned)
 
 ### DirectX 12 (very rough)
-The `xgRendererDX12` module creates a device, command queue, swap chain and render targets, and clears and presents. It is not yet called from the main loop; the editor draws through SDL GPU. The next step is to let the editor UI draw through the engine renderer while keeping all DX12 code inside its module.
+The `xgRendererDX12` module creates a device, command queue, swap chain and render targets, handles resize, and clears and presents every frame from `Engine::Run`. It also draws the editor UI: the editor converts ImGui draw data into the engine-neutral `UIDrawList` and texture calls on `xg::Renderer` (`xgEditorKernel/EditorUIBridge.cpp`), and the renderer draws them with its own small UI pipeline. No ImGui code lives in the renderer and no DX12 code lives in the editor. Floating editor windows (multi-viewport) still need the SDL GPU path.
 
 Intended to validate:
 - command queue + allocator

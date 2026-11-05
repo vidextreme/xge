@@ -47,7 +47,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
 | Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `verify/`. |
 | Editor UI | 🟡 Prototype | Docking layout with static panels (non-functional). Toggle with `EditorUI` in `gameconfig.json`. |
-| Renderer (DX12) | 🟠 Very rough | Device, swap chain and clear/present only. Not called in the main loop; the editor currently renders through SDL GPU. |
+| Renderer (DX12) | 🟠 Very rough | Device, swap chain, resize, and a UI pass that draws the editor through a generic `xg::Renderer` UI API (no ImGui in the renderer, no DX12 in the editor). No 3D rendering yet; multi-viewport is SDL GPU only. |
 | Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
 | Vulkan | ⚪ Planned | |
 | Network replication | ⚪ Planned | |
@@ -89,7 +89,7 @@ Run `xge.exe` from `gameroot/bin`. It reads `gameroot/bin/gameconfig.json`:
 
 | Key | Meaning |
 |---|---|
-| `RendererModule` | Renderer DLL to load. Keep it empty for now: the editor owns the window's swap chain. |
+| `RendererModule` | Renderer DLL to load, for example `xgRendererDX12`. When set, the editor UI draws through it; when empty, the editor draws through SDL GPU (with multi-viewport). |
 | `EditorUI` | `true` shows the editor UI prototype; `false` shows an empty ImGui dockspace with the OS window frame. |
 
 ---
@@ -233,7 +233,7 @@ Each document describes the current code and lists unbuilt work under "Future de
 
 **Near term**
 - Wire up dispatch groups (thread affinity)
-- Move the editor onto the engine renderer, keeping all DX12 code inside its module
+- Multi-viewport (floating windows) on the engine renderer
 - Back the editor panels with real data (outliner → scene graph, properties → reflection)
 
 **Mid term**

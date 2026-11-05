@@ -56,6 +56,8 @@ namespace xg
 
         bool _isValid = true;
         bool _prototypeUI = true;
+        bool _engineRendererUI = false;
+        bool _uiReady = false;
 
         // Modernized: EditorKernel owns its listener
         std::unique_ptr<EventListener> _eventListener;

@@ -444,8 +444,8 @@ namespace xg
             if (ActorRegistry* actors = GetSystem<ActorRegistry>())
                 actors->UpdateActors(dt);
 
-            // if (Renderer)
-            //     Renderer->Render();
+            if (Renderer)
+                Renderer->Render();
         }
     }
 
