@@ -28,6 +28,7 @@
 
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_sdlgpu3.h"
+#include "EditorUIBridge.h"
 
 // SDL3 only in this CPP
 #include <SDL3/SDL.h>
@@ -2436,6 +2437,9 @@ namespace xg
     //
     void EditorKernelModule::Update(float dt)
     {
+        if (!_uiReady)
+            return;
+
         BeginImGuiFrame();
 
         if (_prototypeUI)
@@ -2488,29 +2492,40 @@ namespace xg
         SDL_Window* window = static_cast<SDL_Window*>(engine->MainWindow->GetPlatformWindow());
 
         if (engine->Renderer.valid())
-            fprintf(stderr, "EditorKernel: an engine renderer owns the main window; the editor's swapchain may fail\n");
-
-        SDL_GPUDevice* device = SDL_CreateGPUDevice(
-            SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_METALLIB,
-            false, nullptr);
-        if (!device || !SDL_ClaimWindowForGPUDevice(device, window))
         {
-            fprintf(stderr, "EditorKernel: SDL GPU setup failed: %s\n", SDL_GetError());
-            if (device)
-                SDL_DestroyGPUDevice(device);
-            return;
+            _engineRendererUI = true;
+            io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
+            ImGui_ImplSDL3_InitForOther(window);
+            io.BackendRendererName = "xg::Renderer";
+            io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
+            engine->Renderer->SetClearColor(13.0f / 255.0f, 13.0f / 255.0f, 13.0f / 255.0f, 1.0f);
         }
-        SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
-        _gpuDevice = device;
+        else
+        {
+            SDL_GPUDevice* device = SDL_CreateGPUDevice(
+                SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_METALLIB,
+                false, nullptr);
+            if (!device || !SDL_ClaimWindowForGPUDevice(device, window))
+            {
+                xg::Log(xg::MessageType::Error, "EditorKernel: SDL GPU setup failed, editor UI disabled: %s", SDL_GetError());
+                if (device)
+                    SDL_DestroyGPUDevice(device);
+                ImGui::DestroyContext();
+                return;
+            }
+            SDL_SetGPUSwapchainParameters(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
+            _gpuDevice = device;
 
-        ImGui_ImplSDL3_InitForSDLGPU(window);
-        ImGui_ImplSDLGPU3_InitInfo initInfo = {};
-        initInfo.Device = device;
-        initInfo.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
-        initInfo.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
-        initInfo.SwapchainComposition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
-        initInfo.PresentMode = SDL_GPU_PRESENTMODE_VSYNC;
-        ImGui_ImplSDLGPU3_Init(&initInfo);
+            ImGui_ImplSDL3_InitForSDLGPU(window);
+            ImGui_ImplSDLGPU3_InitInfo initInfo = {};
+            initInfo.Device = device;
+            initInfo.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
+            initInfo.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
+            initInfo.SwapchainComposition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+            initInfo.PresentMode = SDL_GPU_PRESENTMODE_VSYNC;
+            ImGui_ImplSDLGPU3_Init(&initInfo);
+        }
+        _uiReady = true;
 
         SDL_Surface* icon = SDL_LoadBMP("../editor/xge-icon.bmp");
         if (icon)
@@ -2524,6 +2539,29 @@ namespace xg
 
     void EditorKernelModule::ShutdownImGui()
     {
+        if (!_uiReady)
+            return;
+        _uiReady = false;
+
+        if (_engineRendererUI)
+        {
+            if (ui::s_appIcon)
+            {
+                ImGui::UnregisterUserTexture(ui::s_appIcon);
+                IM_DELETE(ui::s_appIcon);
+                ui::s_appIcon = nullptr;
+            }
+            Engine* engine = static_cast<Engine*>(_engine);
+            if (engine && engine->Renderer.valid())
+            {
+                ui_bridge::DestroyAllTextures(*engine->Renderer);
+                engine->Renderer->SubmitUI(nullptr);
+            }
+            ImGui_ImplSDL3_Shutdown();
+            ImGui::DestroyContext();
+            return;
+        }
+
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(_gpuDevice);
         if (device)
         {
@@ -2557,7 +2595,8 @@ namespace xg
     //
     void EditorKernelModule::BeginImGuiFrame()
     {
-        ImGui_ImplSDLGPU3_NewFrame();
+        if (!_engineRendererUI)
+            ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
     }
@@ -2565,6 +2604,18 @@ namespace xg
     void EditorKernelModule::EndImGuiFrame()
     {
         ImGui::Render();
+
+        if (_engineRendererUI)
+        {
+            Engine* engine = static_cast<Engine*>(_engine);
+            if (engine && engine->Renderer.valid())
+            {
+                ImDrawData* drawData = ImGui::GetDrawData();
+                ui_bridge::ProcessTextures(*engine->Renderer, drawData);
+                ui_bridge::SubmitDrawData(*engine->Renderer, drawData);
+            }
+            return;
+        }
 
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(_gpuDevice);
         if (!device)
@@ -2606,6 +2657,8 @@ namespace xg
     //
     void EditorKernelModule::OnEvent(const xgEvent& e)
     {
+        if (!_uiReady)
+            return;
         if (e.Native)
         {
             ImGui_ImplSDL3_ProcessEvent(static_cast<const SDL_Event*>(e.Native));
