@@ -76,6 +76,8 @@ namespace xg
             xg::Log(MessageType::Error, "Failed to resolve hostfxr exports.");
             return false;
         }
+
+        return true;
     }
 
     bool ScriptHostCoreCLR::InitializeRuntime(const char* engineRoot)

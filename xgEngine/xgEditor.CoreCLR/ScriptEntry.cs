@@ -106,7 +106,7 @@ namespace xgEditor.CoreCLR
         public class TestType
         {
             public int Health { get; set; }
-            public string Name { get; set; }
+            public string Name { get; set; } = string.Empty;
         }
 
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -157,7 +157,8 @@ namespace xgEditor.CoreCLR
                 if (typeNameStr == "TestType")
                 {
                     var obj2 = JsonSerializer.Deserialize<TestType>(json);
-                    ScriptRuntime.DispatchMessage(typeNameStr, obj2);
+                    if (obj2 is not null)
+                        ScriptRuntime.DispatchMessage(typeNameStr, obj2);
                 }
                 else
                 {

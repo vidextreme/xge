@@ -16,7 +16,7 @@ namespace xg {
         int Height;
     };
 
-    XG_API class Window {
+    class Window {
     public:
         virtual ~Window() = default;
 

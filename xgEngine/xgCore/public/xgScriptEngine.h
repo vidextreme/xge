@@ -17,8 +17,8 @@ namespace xg
 	class TypeRegistry;
     class CodecRegistry;
 	class DynamicObject;
-	class TypeSchema;
-    class System;
+	struct TypeSchema;
+    struct System;
 	class SceneGraph;
     XG_ENUM(inherit = byte)
         enum class ScriptBackendType : uint8_t

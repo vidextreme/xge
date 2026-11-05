@@ -111,7 +111,7 @@ namespace xg
             internal static string GetActorName(ActorID id)
             {
                 nint ptr = XGGetActorName(ScriptRuntime._enginePtr, id);
-                return Marshal.PtrToStringUTF8(ptr);
+                return Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
             }
 
             internal static void SetActorName(ActorID id, string newName)

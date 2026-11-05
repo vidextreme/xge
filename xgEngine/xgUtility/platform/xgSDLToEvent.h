@@ -68,8 +68,8 @@ namespace xg
 
         case SDL_EVENT_MOUSE_MOTION:
             e.Type = xgEventType::MouseMove;
-            e.MouseMove.X = sdl.motion.x;
-            e.MouseMove.Y = sdl.motion.y;
+            e.MouseMove.X = static_cast<int>(sdl.motion.x);
+            e.MouseMove.Y = static_cast<int>(sdl.motion.y);
             break;
 
         case SDL_EVENT_MOUSE_BUTTON_DOWN:

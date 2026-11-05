@@ -9,7 +9,7 @@
 #include "xgBase.h"
 namespace xg
 {
-    class System;
+    struct System;
     class ScriptNode
     {
     public:
