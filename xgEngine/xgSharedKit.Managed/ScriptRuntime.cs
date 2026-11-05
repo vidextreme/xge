@@ -40,6 +40,15 @@ namespace xg
         {
             try
             {
+                RemoveAllLogCallbacks();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+
+            try
+            {
                 ActorRegistry.Detach(_enginePtr);
             }
             catch (Exception e)
@@ -55,6 +64,12 @@ namespace xg
         [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
             EntryPoint = "XGAddLogCallbackForEngine")]
         private static extern void XGAddLogCallbackForEngine(
+            nint enginePtr,
+            LogCallback callback);
+
+        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "XGRemoveLogCallbackForEngine")]
+        private static extern void XGRemoveLogCallbackForEngine(
             nint enginePtr,
             LogCallback callback);
 
@@ -97,12 +112,35 @@ namespace xg
         // Logging
         // ------------------------------------------------------------
 
+        private static readonly List<LogCallback> s_logCallbacks = new();
+
+        // Registered delegates stay referenced here until Shutdown, so the GC can't collect
+        // a callback the engine still holds
         public static void AddLogCallback(LogCallback cb)
         {
             if (_enginePtr == 0)
                 throw new InvalidOperationException("ScriptRuntime not initialized.");
 
+            s_logCallbacks.Add(cb);
             XGAddLogCallbackForEngine(_enginePtr, cb);
+        }
+
+        public static void RemoveLogCallback(LogCallback cb)
+        {
+            if (_enginePtr == 0 || !s_logCallbacks.Remove(cb))
+                return;
+
+            XGRemoveLogCallbackForEngine(_enginePtr, cb);
+        }
+
+        private static void RemoveAllLogCallbacks()
+        {
+            if (_enginePtr != 0)
+            {
+                foreach (LogCallback cb in s_logCallbacks)
+                    XGRemoveLogCallbackForEngine(_enginePtr, cb);
+            }
+            s_logCallbacks.Clear();
         }
 
         // ------------------------------------------------------------

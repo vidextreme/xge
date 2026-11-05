@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include "xgJson.h"
+#include "xgReflectJson.h"
 
 #include "xgStream.h"
 #include "xgEngine.h"
@@ -16,36 +17,47 @@ void _LogMsg(xg::MessageType _type, const char* _message)
     fflush(stdout);
 }
 
+static bool LoadGameConfig(xg::Engine& engine, const wchar_t* path, xg::EngineConfig& config, xg::ReflectStringStore& strings)
+{
+    const xg::TypeSchema* schema = engine.GetTypeRegistry()->Get(xg::EngineConfig::TypeName);
+    if (!schema)
+    {
+        xg::Log(xg::MessageType::Warning, "%s is not registered, using default config", xg::EngineConfig::TypeName);
+        return false;
+    }
+
+    xg::FileUnique file = xg::LoadFile(path, xg::FileAccessMode::Read);
+    if (!file)
+    {
+        xg::Log(xg::MessageType::Warning, "%ls not found, using default config", path);
+        return false;
+    }
+
+    xg::Json json;
+    const bool loaded = json.Load(*file);
+    file->Close();
+    if (!loaded)
+    {
+        xg::Log(xg::MessageType::Warning, "%ls is not valid JSON, using default config", path);
+        return false;
+    }
+
+    xg::ReadReflected(json, *schema, &config, strings);
+    xg::Log(xg::MessageType::Info, "%ls: %s", path, xg::DescribeReflected(*schema, &config).c_str());
+    return true;
+}
+
 int main(int argc, char** argv)
 {
-    xg::EngineConfig config;
-	//config.RendererModule = "xgRendererDX12.dll";
- //   xg::Json json;
-	//xg::Log(xg::MessageType::Info, "Loading gameconfig.json");
- //   auto file = xg::LoadFile(L"gameconfig.json", xg::FileAccessMode::Read);
- //   if (!file)
- //   {
-	//	//TODO: default config if file doesn't exist
-	//	xg::Log(xg::MessageType::Error, "gameconfig.json not found, using default config");
- //       return -1;
- //   }
-	//json.Load(*file);
-	//xg::JsonDeserializer deser(json);
-	//xg::Deserialize(deser, config);
-	//file->Close();
-
-    //xg::JsonSerializer ser(json);
-    //xg::Serialize(ser, config);
-
-    //std::string out = json.ToString();
-	//auto file = xg::LoadFile(L"gameconfig.json", xg::FileAccessMode::Create | xg::FileAccessMode::Write);
-    //json.Save(*file);
-    //file->Close();
-    //printf("Serialized JSON:\n%s\n", out.c_str());
-    
     xg::Engine engine;
     engine.AddLogCallback(_LogMsg);
-	engine.MainWindow = xg::NewWindow("xgEngine", 1280, 720);
+    xg::SetLogger(engine.GetLogger());
+
+    xg::ReflectStringStore configStrings;
+    xg::EngineConfig config;
+    LoadGameConfig(engine, L"gameconfig.json", config, configStrings);
+
+    engine.MainWindow = xg::NewWindow("xgEngine", 1280, 720);
     if (!engine.Initialize(config))
         return -1;
 

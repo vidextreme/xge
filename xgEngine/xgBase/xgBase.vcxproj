@@ -140,6 +140,7 @@
     <ClInclude Include="public\xgHandles.h" />
     <ClInclude Include="public\xgID.h" />
     <ClInclude Include="public\xgJson.h" />
+    <ClInclude Include="public\xgReflectJson.h" />
     <ClInclude Include="public\xgLog.h" />
     <ClInclude Include="public\xgPathUtils.h" />
     <ClInclude Include="public\xgRoute.h" />
@@ -162,6 +163,7 @@
     <ClCompile Include="xgDynamicObject.cpp" />
     <ClCompile Include="xgID.cpp" />
     <ClCompile Include="xgJson.cpp" />
+    <ClCompile Include="xgReflectJson.cpp" />
     <ClCompile Include="xgLog.cpp" />
     <ClCompile Include="MemoryStreamImpl.cpp" />
     <ClCompile Include="xgPathUtils.cpp" />

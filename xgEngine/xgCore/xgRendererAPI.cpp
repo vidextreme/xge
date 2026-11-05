@@ -20,6 +20,8 @@ namespace xg
         // Extract raw pointer before reset
 
         XG_MODULE_PROCEDURE(xg, Renderer, DestroyRenderer);
+        if (!XG_MODULE_CALL(DestroyRenderer))
+            return;
         XG_MODULE_CALL(DestroyRenderer)(renderer);
     }
     void DestroyRenderer(RendererUnique& renderer)
@@ -36,6 +38,11 @@ namespace xg
         EnsureRendererLoaded();
 
         XG_MODULE_PROCEDURE(xg, Renderer, CreateRenderer);
+        if (!XG_MODULE_CALL(CreateRenderer))
+        {
+            xg::Log(xg::MessageType::Error, "Renderer DLL has no CreateRenderer export: %s", xg::RendererDLL ? xg::RendererDLL : "(null)");
+            return RendererUnique(XG_EMPTY_UNIQUE_HANDLE());
+        }
         xgUniqueHandle handle = xgUniqueHandle({ XG_MODULE_CALL(CreateRenderer)(window), (void(*)(void*)) &DestroyRendererRaw});
 
         return RendererUnique(handle);

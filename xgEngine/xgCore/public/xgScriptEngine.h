@@ -19,6 +19,7 @@ namespace xg
 	class DynamicObject;
 	struct TypeSchema;
     struct System;
+    struct EngineConfig;
 	class SceneGraph;
     XG_ENUM(inherit = byte)
         enum class ScriptBackendType : uint8_t
@@ -96,5 +97,6 @@ namespace xg
 
     public:
         virtual Logger* GetLogger() = 0;
+        virtual const EngineConfig* GetEngineConfig() const = 0;
     };
 }

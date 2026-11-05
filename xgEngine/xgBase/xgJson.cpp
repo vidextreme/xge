@@ -61,30 +61,34 @@ namespace xg
 
     bool Json::GetBool(const char* key, bool defaultValue) const
     {
-        if (impl->Data.contains(key))
-            return impl->Data[key].get<bool>();
+        auto it = impl->Data.find(key);
+        if (it != impl->Data.end() && it->is_boolean())
+            return it->get<bool>();
         return defaultValue;
     }
 
     int Json::GetInt(const char* key, int defaultValue) const
     {
-        if (impl->Data.contains(key))
-            return impl->Data[key].get<int>();
+        auto it = impl->Data.find(key);
+        if (it != impl->Data.end() && it->is_number())
+            return it->get<int>();
         return defaultValue;
     }
 
     float Json::GetFloat(const char* key, float defaultValue) const
     {
-        if (impl->Data.contains(key))
-            return impl->Data[key].get<float>();
+        auto it = impl->Data.find(key);
+        if (it != impl->Data.end() && it->is_number())
+            return it->get<float>();
         return defaultValue;
     }
 
     const char* Json::GetString(const char* key, const char* defaultValue) const
     {
-        if (impl->Data.contains(key))
+        auto it = impl->Data.find(key);
+        if (it != impl->Data.end() && it->is_string())
         {
-            impl->TempString = impl->Data[key].get<std::string>();
+            impl->TempString = it->get<std::string>();
             return impl->TempString.c_str();
         }
         return defaultValue;

@@ -263,6 +263,11 @@ constexpr std::uint64_t fnv1a(const char* str) {
     return hash;
 }
 
+// Declares the type's own name and its fnv1a hash, for registry lookups without string literals
+#define XG_DECLARE_TYPE_NAME(Type)                              \
+    static constexpr const char* TypeName = #Type;              \
+    static constexpr ::TypeID StaticTypeID = ::fnv1a(#Type)
+
 #define XG_DECLARE_SYSTEM(Type, Parent)                     \
 public:\
     static constexpr const char* TypeName = #Type;          \

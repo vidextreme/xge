@@ -59,6 +59,9 @@
     <ClInclude Include="public\xgJson.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgReflectJson.h">
+      <Filter>public</Filter>
+    </ClInclude>
     <ClInclude Include="public\xgRoute.h">
       <Filter>public</Filter>
     </ClInclude>
@@ -203,6 +206,9 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="xgJson.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="xgReflectJson.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="MemoryStreamImpl.cpp">

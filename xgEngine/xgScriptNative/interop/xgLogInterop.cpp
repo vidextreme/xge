@@ -15,6 +15,16 @@ XG_MODULE_EXPORT void XGAddLogCallbackForEngine(
     engine->AddLogCallback(callback);
 }
 
+XG_MODULE_EXPORT void XGRemoveLogCallbackForEngine(
+    xg::ScriptEngine* engine,
+    xg::LogCallback callback)
+{
+    if (!engine || !callback)
+        return;
+
+    engine->RemoveLogCallback(callback);
+}
+
 XG_MODULE_EXPORT void XGLogForEngine(
     xg::ScriptEngine* engine,
     int32_t type,

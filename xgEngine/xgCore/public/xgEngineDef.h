@@ -10,8 +10,13 @@ namespace xg
     XG_SERIALIZABLE()
     struct EngineConfig
     {
+        XG_DECLARE_TYPE_NAME(EngineConfig);
+
         XG_FIELD()
         const char* RendererModule = nullptr;
+
+        XG_FIELD()
+        bool EditorUI = true;
     };
 
     XG_ENUM(inherit = byte)
