@@ -172,7 +172,9 @@ namespace xg
     {
         if (_managedShutdown)
         {
-            _managedShutdown();
+            auto shutdown = _managedShutdown;
+            _managedShutdown = nullptr;
+            shutdown();
         }
 
         if (_fxrHandle )

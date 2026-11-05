@@ -55,6 +55,7 @@ namespace xg
         void* _gpuDevice = nullptr;
 
         bool _isValid = true;
+        bool _prototypeUI = true;
 
         // Modernized: EditorKernel owns its listener
         std::unique_ptr<EventListener> _eventListener;

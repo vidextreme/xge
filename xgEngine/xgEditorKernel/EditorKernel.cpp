@@ -2309,6 +2309,8 @@ namespace xg
             return false;
 
         _engine = engine;
+        if (const EngineConfig* config = engine->GetEngineConfig())
+            _prototypeUI = config->EditorUI;
 
         //
         // Create event listener (modernized)
@@ -2436,8 +2438,15 @@ namespace xg
     {
         BeginImGuiFrame();
 
-        DrawMainDockspace(static_cast<Engine*>(_engine)->MainWindow.get());
-        DrawEditorPanels();
+        if (_prototypeUI)
+        {
+            DrawMainDockspace(static_cast<Engine*>(_engine)->MainWindow.get());
+            DrawEditorPanels();
+        }
+        else
+        {
+            ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+        }
 
         EndImGuiFrame();
     }
@@ -2466,10 +2475,16 @@ namespace xg
         io.Fonts->AddFontFromFileTTF("../editor/fonts/DejaVuSans.ttf", 13.0f);
         io.Fonts->AddFontFromFileTTF("../editor/fonts/DejaVuSans-Bold.ttf", 13.0f);
 
-        ui::ApplyTheme();
-
         auto* engine = static_cast<Engine*>(_engine);
-        engine->MainWindow->SetCustomFrame(true);
+        if (_prototypeUI)
+        {
+            ui::ApplyTheme();
+            engine->MainWindow->SetCustomFrame(true);
+        }
+        else
+        {
+            ImGui::StyleColorsDark();
+        }
         SDL_Window* window = static_cast<SDL_Window*>(engine->MainWindow->GetPlatformWindow());
 
         if (engine->Renderer.valid())
@@ -2501,7 +2516,8 @@ namespace xg
         if (icon)
         {
             SDL_SetWindowIcon(window, icon);
-            ui::s_appIcon = ui::CreateIconTexture(icon, ui::AppIconSize);
+            if (_prototypeUI)
+                ui::s_appIcon = ui::CreateIconTexture(icon, ui::AppIconSize);
             SDL_DestroySurface(icon);
         }
     }

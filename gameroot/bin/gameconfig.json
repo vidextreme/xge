@@ -1,3 +1,4 @@
 {
-    "RendererModule": "xgRendererDX12.dll"
+    "RendererModule": "",
+    "EditorUI": false
 }

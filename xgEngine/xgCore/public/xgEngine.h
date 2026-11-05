@@ -56,6 +56,7 @@ namespace xg
         void AddLogCallback(LogCallback cb) override;
         void RemoveLogCallback(LogCallback cb) override;
         Logger* GetLogger() override;
+        const EngineConfig* GetEngineConfig() const override { return &_config; }
 
 		CodecRegistry* GetCodecRegistry(ScriptBackendType backendType) const override;
 		PayloadMode GetPayloadMode() const override { return PayloadMode::JSON; }
@@ -82,6 +83,7 @@ namespace xg
         std::unordered_map<TypeID, System*> _systems;
 
         LoggerImpl* _logger = nullptr;
+        EngineConfig _config;
 
         uint32_t _nextModuleId = 0;
         void* _rendererLib = nullptr;

@@ -210,7 +210,7 @@ class Program
                     "int32_t" => "ValueType::Int32",
                     "uint32_t" => "ValueType::UInt32",
                     "float" => "ValueType::Float",
-                    "const char*" => "ValueType::String",
+                    "const char*" or "char*" => "ValueType::String",
                     _ => "ValueType::None"
                 };
 

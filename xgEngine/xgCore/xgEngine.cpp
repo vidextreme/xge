@@ -116,6 +116,8 @@ namespace xg
 
     bool Engine::Initialize(const EngineConfig& config)
     {
+        _config = config;
+
         // TODO: look for a better place for this!
         xg::ScriptCoreCLRDLL = "xgScriptCoreCLR.dll";
         xg::ScriptNativeDLL = "xgScriptNative.dll";
@@ -297,7 +299,6 @@ namespace xg
                 return nullptr;
             }
 
-            host->AddRef();
             RegisterHostInGroup(resolvedGroup, backend, host);
         }
 
@@ -311,6 +312,8 @@ namespace xg
                 id, path);
             return nullptr;
         }
+
+        host->AddRef();
 
         xg::Log(xg::MessageType::Info,
             "Loaded script module: %s - %s (group: %s)",
@@ -333,6 +336,7 @@ namespace xg
                 "ScriptTree failed to attach module: %s", id);
             storage->Modules.erase(id);
             delete module;
+            XG_RELEASE_ONE(host);
             return nullptr;
         }
 
@@ -344,6 +348,7 @@ namespace xg
 
             module->Shutdown();
             delete module;
+            XG_RELEASE_ONE(host);
             return nullptr;
         }
 
@@ -382,13 +387,14 @@ namespace xg
             ScriptModule* module = it->second;
             if (module)
             {
+                storage->Modules.erase(it);
                 _scriptTree->RemoveModule(module);
 
                 ScriptHost* host = module->GetHost();
-                XG_RELEASE_ONE(host);
-
                 module->Shutdown();
                 delete module;
+                XG_RELEASE_ONE(host);
+                return;
             }
 
             storage->Modules.erase(it);
@@ -445,25 +451,34 @@ namespace xg
 
     void Engine::Shutdown()
     {
-        _scriptTree->Shutdown();
-
-        // Shutdown modules
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
 
+        std::vector<ScriptModule*> modules;
+        modules.reserve(storage->Modules.size());
         for (auto& pair : storage->Modules)
         {
-            ScriptModule* module = pair.second;
-            if (module)
-            {
-                ScriptHost* host = module->GetHost();
-                XG_RELEASE_ONE(host);
-
-                module->Shutdown();
-                delete module;
-            }
+            if (pair.second)
+                modules.push_back(pair.second);
         }
-		
         storage->Modules.clear();
+
+        std::sort(modules.begin(), modules.end(), [](ScriptModule* a, ScriptModule* b)
+            {
+                return a->GetModuleId() > b->GetModuleId();
+            });
+
+        for (ScriptModule* module : modules)
+        {
+            if (ScriptNode* node = _scriptTree->FindNode(module))
+                node->ShutdownAllSystems();
+
+            ScriptHost* host = module->GetHost();
+            module->Shutdown();
+            delete module;
+            XG_RELEASE_ONE(host);
+        }
+
+        _scriptTree->Shutdown();
 
         // Destroy hosts
         auto* hosts = static_cast<HostStorage*>(_hostStorage);
