@@ -26,6 +26,14 @@ namespace xg.imui
         StartClosed = 1 << 2,
     }
 
+    // Mirrors xg::imui::FontStyle. Order is part of the ABI: append only.
+    public enum FontStyle
+    {
+        Default = 0,
+        Bold,
+        Mono,
+    }
+
     // Mirrors xg::imui::DrawLayer.
     public enum DrawLayer
     {
@@ -119,6 +127,29 @@ namespace xg.imui
         public readonly bool Active => (Flags & SceneViewFlags.Active) != 0;
         public readonly int PixelWidth => (int)PixelSize.x;
         public readonly int PixelHeight => (int)PixelSize.y;
+    }
+
+    // Mirrors xg::imui::ListFlags.
+    [Flags]
+    public enum ListFlags : byte
+    {
+        None = 0,
+        ScrollToBottom = 1 << 0,
+        AtBottom = 1 << 1,
+    }
+
+    // Mirrors xg::imui::ListState. Set Count and RowHeight (and ScrollToBottom) before Gui.List; read First, Last and AtBottom after.
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ListState
+    {
+        public uint Size;
+        public int Count;
+        public float RowHeight;
+        public int First;
+        public int Last;
+        public ListFlags Flags;
+
+        public readonly bool AtBottom => (Flags & ListFlags.AtBottom) != 0;
     }
 
     // Theme colors resolved by the native kit.

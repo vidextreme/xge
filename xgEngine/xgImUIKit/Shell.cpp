@@ -237,7 +237,7 @@ namespace xg::imui::detail
                 ImGui::EndMenu();
             }
             ImGui::Separator();
-            for (const char* panel : { "Scene", "Game", "Inspector", "Lighting", "Hierarchy", "Project", "Console" })
+            for (const char* panel : { "Scene", "Game", "Inspector", "Lighting", "Hierarchy", "Project" })
                 if (ImGui::MenuItem(panel))
                     ImGui::SetWindowFocus(panel);
             DrawRegisteredPanelsMenu();
@@ -370,7 +370,6 @@ namespace xg::imui::detail
             ImGui::DockBuilderDockWindow("Inspector", dockInspector);
             ImGui::DockBuilderDockWindow("Lighting", dockInspector);
             ImGui::DockBuilderDockWindow("Project", dockProject);
-            ImGui::DockBuilderDockWindow("Console", dockProject);
             detail::_selectDefaultTabs = 2;
             DockRegisteredPanels(dockMain, dockHierarchy, dockInspector, dockProject);
 
@@ -394,7 +393,6 @@ namespace xg::imui::detail
         detail::DrawInspector();
         detail::DrawLighting();
         detail::DrawProject();
-        detail::DrawConsole();
         if (detail::_selectDefaultTabs > 0 && --detail::_selectDefaultTabs == 0)
             ImGui::SetWindowFocus("Scene");
     }

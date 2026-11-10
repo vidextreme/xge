@@ -20,6 +20,7 @@
     <Compile Include="Native.cs" />
     <Compile Include="Types.cs" />
     <Compile Include="Utf8.cs" />
+    <Compile Include="TextBuffer.cs" />
     <Compile Include="Gui.cs" />
     <Compile Include="Painter.cs" />
     <Compile Include="Texture.cs" />

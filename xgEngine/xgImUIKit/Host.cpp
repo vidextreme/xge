@@ -6,10 +6,13 @@
 #include "backends/UIPlatformBackend.h"
 #include "backends/UIRenderBackend.h"
 #include "xgEvent.h"
+#include "xgLog.h"
 #include "xgUIDraw.h"
 #include "xgWindow.h"
+#include "misc/freetype/imgui_freetype.h"
 
 #include <cstddef>
+#include <cstdio>
 #include <string>
 
 namespace
@@ -28,6 +31,36 @@ namespace
     bool PrototypeShell()
     {
         return HasFlag(_hostState.Flags, xg::imui::HostFlags::PrototypeShell);
+    }
+
+    bool FileExists(const std::string& path)
+    {
+        FILE* file = nullptr;
+        if (fopen_s(&file, path.c_str(), "rb") != 0 || !file)
+            return false;
+        std::fclose(file);
+        return true;
+    }
+
+    ImFont* LoadFont(const std::string& directory, const char* file, const char* fallback, float size)
+    {
+        ImFontConfig config;
+        config.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
+        ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+        const std::string path = directory + "/" + file;
+        if (FileExists(path))
+            return atlas->AddFontFromFileTTF(path.c_str(), size, &config);
+
+        const std::string fallbackPath = directory + "/" + fallback;
+        if (FileExists(fallbackPath))
+        {
+            xg::Log(xg::MessageType::Warning, "xgImUIKit: font %s not found, using %s", path.c_str(), fallback);
+            return atlas->AddFontFromFileTTF(fallbackPath.c_str(), size, &config);
+        }
+
+        xg::Log(xg::MessageType::Warning, "xgImUIKit: font %s not found, using the built-in font", path.c_str());
+        config.SizePixels = size;
+        return atlas->AddFontDefault(&config);
     }
 
     void ReleaseAppIcon()
@@ -85,9 +118,10 @@ namespace xg
         }
 
         const std::string fonts = desc->FontDirectory;
-        io.Fonts->AddFontFromFileTTF((fonts + "/DejaVuSans.ttf").c_str(), 14.0f);
-        io.Fonts->AddFontFromFileTTF((fonts + "/DejaVuSans.ttf").c_str(), 13.0f);
-        io.Fonts->AddFontFromFileTTF((fonts + "/DejaVuSans-Bold.ttf").c_str(), 13.0f);
+        LoadFont(fonts, "NotoSans-Regular.ttf", "DejaVuSans.ttf", 14.0f);
+        LoadFont(fonts, "NotoSans-Regular.ttf", "DejaVuSans.ttf", 13.0f);
+        LoadFont(fonts, "NotoSans-Bold.ttf", "DejaVuSans-Bold.ttf", 13.0f);
+        LoadFont(fonts, "NotoSansMono-Regular.ttf", "DejaVuSans.ttf", 13.0f);
 
         if (PrototypeShell())
         {
@@ -105,6 +139,7 @@ namespace xg
             _hostState = {};
             return false;
         }
+        ImGui::GetStyle().ScaleAllSizes(imui::detail::platform::DisplayScale());
 
         io.BackendRendererName = "xg::UIRenderTarget";
         io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;

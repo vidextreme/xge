@@ -56,6 +56,17 @@ namespace xg::imui
         int CanvasDepth = 0;
         DrawLayer Layer = DrawLayer::Panel;
 
+        static constexpr int MaxListDepth = 4;
+        struct ListFrame
+        {
+            int Count = 0;
+            int Last = 0;
+            float RowHeight = 0.0f;
+            bool ScrollToBottom = false;
+        };
+        ListFrame Lists[MaxListDepth];
+        int ListDepth = 0;
+
         ImVec2 Origin() const { return CanvasDepth > 0 ? CanvasOrigins[CanvasDepth - 1] : ContentOrigin; }
         ImVec2 ToScreen(const Vec2& v) const { const ImVec2 o = Origin(); return ImVec2(o.x + v.x, o.y + v.y); }
         ImDrawList* DrawList() const
@@ -523,6 +534,216 @@ namespace xg
         const imui::Result result = ItemResult(changed);
         ImGui::PopID();
         return result;
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIToggleButton(imui::Context* ctx, const char* label, bool* on)
+    {
+        if (!ctx || !on)
+            return imui::Result::None;
+        const bool pressed = imui::detail::FlatButton(label ? label : "", *on);
+        if (pressed)
+            *on = !*on;
+        return ItemResult(pressed);
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIIconToggle(imui::Context* ctx, const char* id, imui::Icon icon, bool* on, Color32 color, const char* text)
+    {
+        if (!ctx || !on)
+            return imui::Result::None;
+        const ImU32 col = ToImU32(color);
+        const imui::detail::Icon drawIcon = (icon > imui::Icon::None && icon < imui::Icon::Count) ? static_cast<imui::detail::Icon>(icon) : imui::detail::Icon::None;
+        ImGui::PushID(id ? id : "##icontoggle");
+        const bool pressed = imui::detail::IconButton("##toggle", drawIcon, false, imui::detail::SegButtonSize, *on ? col : imui::detail::WithAlpha(col, 0.3f));
+        if (pressed)
+            *on = !*on;
+        const imui::Result result = ItemResult(pressed);
+        if (text && *text)
+        {
+            ImGui::SameLine(0.0f, 2.0f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(imui::detail::ToVec4(*on ? imui::detail::TextColor : imui::detail::TextDim), "%s", text);
+        }
+        ImGui::PopID();
+        return result;
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUISearchField(imui::Context* ctx, const char* id, char* buffer, int capacity, float width)
+    {
+        if (!ctx || !buffer || capacity <= 0)
+            return imui::Result::None;
+        const bool changed = imui::detail::SearchField(id ? id : "##search", buffer, static_cast<size_t>(capacity), width > 0.0f ? width : 200.0f);
+        return ItemResult(changed);
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size)
+    {
+        if (!ctx)
+            return imui::Result::None;
+        const char* value = text ? text : "";
+        const Vec2 requested = LoadVec2(size);
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+        const ImVec2 areaSize(requested.x > 0.0f ? requested.x : avail.x, requested.y > 0.0f ? requested.y : avail.y);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::AreaBg);
+        ImGui::InputTextMultiline(id ? id : "##textarea", const_cast<char*>(value), std::strlen(value) + 1, areaSize, ImGuiInputTextFlags_ReadOnly);
+        ImGui::PopStyleColor();
+        return ItemResult(false);
+    }
+
+    // ------------------------------------------------------------
+    // Fonts
+    // ------------------------------------------------------------
+    XG_MODULE_EXPORT void XG_ImUIPushFont(imui::Context* ctx, imui::FontStyle style)
+    {
+        if (!ctx)
+            return;
+        static constexpr int FontIndex[] = { 0, 2, 3 };
+        const int slot = (style >= imui::FontStyle::Default && style <= imui::FontStyle::Mono) ? FontIndex[static_cast<int>(style)] : 0;
+        ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+        ImFont* font = slot < atlas->Fonts.Size ? atlas->Fonts[slot] : ImGui::GetFont();
+        ImGui::PushFont(font, font ? font->LegacySize : 0.0f);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIPopFont(imui::Context* ctx)
+    {
+        if (ctx)
+            ImGui::PopFont();
+    }
+
+    // ------------------------------------------------------------
+    // Layout
+    // ------------------------------------------------------------
+    XG_MODULE_EXPORT void XG_ImUIBeginToolbar(imui::Context* ctx)
+    {
+        if (ctx)
+            imui::detail::BeginHeader();
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndToolbar(imui::Context* ctx)
+    {
+        if (ctx)
+            imui::detail::EndHeader();
+    }
+
+    XG_MODULE_EXPORT void XG_ImUISameLine(imui::Context* ctx, float spacing)
+    {
+        if (ctx)
+            ImGui::SameLine(0.0f, spacing < 0.0f ? -1.0f : spacing);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIAlignRight(imui::Context* ctx, float width)
+    {
+        if (ctx)
+            imui::detail::AlignRight(width);
+    }
+
+    XG_MODULE_EXPORT interop::Vec2Abi XG_ImUIAvailableSize(imui::Context* ctx)
+    {
+        if (!ctx)
+            return interop::ToAbi(Vec2());
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+        return interop::ToAbi(Vec2(avail.x, avail.y));
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUISplitter(imui::Context* ctx, const char* id, float* size, float minSize, float maxSize)
+    {
+        if (!ctx || !size)
+            return imui::Result::None;
+        constexpr float Thickness = 4.0f;
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
+        ImGui::InvisibleButton(id ? id : "##splitter", ImVec2(width, Thickness));
+        bool changed = false;
+        if (ImGui::IsItemActive())
+        {
+            const float next = (std::clamp)(*size - ImGui::GetIO().MouseDelta.y, minSize, (std::max)(minSize, maxSize));
+            changed = next != *size;
+            *size = next;
+        }
+        const imui::Result result = ItemResult(changed);
+        const bool hot = ImGui::IsItemHovered() || ImGui::IsItemActive();
+        if (hot)
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        const float y = p.y + Thickness * 0.5f;
+        ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x, y), ImVec2(p.x + width, y), hot ? imui::detail::Accent : imui::detail::Outline, hot ? 2.0f : 1.0f);
+        return result;
+    }
+
+    // ------------------------------------------------------------
+    // Virtualized lists
+    // ------------------------------------------------------------
+    XG_MODULE_EXPORT bool XG_ImUIBeginList(imui::Context* ctx, const char* id, const Vec2* size, imui::ListState* state)
+    {
+        if (!ctx || !state || state->Size < sizeof(imui::ListState) || ctx->ListDepth >= imui::Context::MaxListDepth)
+            return false;
+
+        const Vec2 requested = LoadVec2(size);
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+        const ImVec2 listSize(requested.x > 0.0f ? requested.x : avail.x, (std::max)(requested.y > 0.0f ? requested.y : avail.y, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, imui::detail::AreaBg);
+        ImGui::BeginChild(id ? id : "##list", listSize, ImGuiChildFlags_None, ImGuiWindowFlags_None);
+        ImGui::PopStyleColor();
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
+
+        const int count = (std::max)(state->Count, 0);
+        const float rowHeight = (std::max)(state->RowHeight, 1.0f);
+        const float scrollY = ImGui::GetScrollY();
+        const float viewHeight = ImGui::GetWindowHeight();
+        const int first = (std::clamp)(static_cast<int>(scrollY / rowHeight), 0, count);
+        const int last = (std::clamp)(static_cast<int>((scrollY + viewHeight) / rowHeight) + 1, first, count);
+        const bool atBottom = ImGui::GetScrollMaxY() <= 0.0f || scrollY >= ImGui::GetScrollMaxY() - 1.0f;
+
+        state->First = first;
+        state->Last = last;
+        const bool scrollToBottom = HasFlag(state->Flags, imui::ListFlags::ScrollToBottom);
+        state->Flags = atBottom ? imui::ListFlags::AtBottom : imui::ListFlags::None;
+
+        imui::Context::ListFrame& frame = ctx->Lists[ctx->ListDepth++];
+        frame.Count = count;
+        frame.Last = last;
+        frame.RowHeight = rowHeight;
+        frame.ScrollToBottom = scrollToBottom;
+
+        if (first > 0)
+            ImGui::Dummy(ImVec2(1.0f, first * rowHeight));
+        return true;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndList(imui::Context* ctx)
+    {
+        if (!ctx || ctx->ListDepth <= 0)
+            return;
+        const imui::Context::ListFrame frame = ctx->Lists[--ctx->ListDepth];
+        if (frame.Count > frame.Last)
+            ImGui::Dummy(ImVec2(1.0f, (frame.Count - frame.Last) * frame.RowHeight));
+        if (frame.ScrollToBottom)
+            ImGui::SetScrollHereY(1.0f);
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIBeginListRow(imui::Context* ctx, int index, bool selected)
+    {
+        if (!ctx || ctx->ListDepth <= 0 || ctx->CanvasDepth >= imui::Context::MaxCanvasDepth)
+            return imui::Result::None;
+        const float rowHeight = ctx->Lists[ctx->ListDepth - 1].RowHeight;
+        const ImVec2 rowMin = ImGui::GetCursorScreenPos();
+        const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
+        const ImVec2 rowMax(rowMin.x + width, rowMin.y + rowHeight);
+        if (index % 2 && !selected)
+            ImGui::GetWindowDrawList()->AddRectFilled(rowMin, rowMax, imui::detail::RowAltBg);
+        ImGui::PushID(index);
+        const bool pressed = ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(width, rowHeight));
+        const imui::Result result = ItemResult(pressed);
+        ImGui::PopID();
+
+        ctx->CanvasOrigins[ctx->CanvasDepth++] = rowMin;
+        ImGui::GetWindowDrawList()->PushClipRect(rowMin, rowMax, true);
+        return result;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndListRow(imui::Context* ctx)
+    {
+        XG_ImUIEndCanvas(ctx);
     }
 
     // ------------------------------------------------------------

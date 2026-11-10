@@ -112,7 +112,7 @@ namespace xg::imui::detail
         return open;
     }
 
-    void SearchField(const char* id, char* buffer, size_t size, float width)
+    bool SearchField(const char* id, char* buffer, size_t size, float width)
     {
         ImVec2 p = ImGui::GetCursorScreenPos();
         ImGui::PushStyleColor(ImGuiCol_FrameBg, DropdownBg);
@@ -122,10 +122,11 @@ namespace xg::imui::detail
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(22.0f, 3.0f));
         ImGui::SetNextItemWidth(width);
-        ImGui::InputTextWithHint(id, "Search", buffer, size);
+        const bool changed = ImGui::InputTextWithHint(id, "Search", buffer, size);
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor(4);
         DrawIcon(ImGui::GetWindowDrawList(), Icon::Search, ImVec2(p.x + 12.0f, p.y + ImGui::GetFrameHeight() * 0.5f), 11.0f, TextDim);
+        return changed;
     }
 
     bool FlatButton(const char* label, bool active)

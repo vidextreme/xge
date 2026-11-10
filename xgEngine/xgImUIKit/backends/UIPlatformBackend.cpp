@@ -6,7 +6,9 @@
 #include "xgWindow.h"
 #include "xgPlatformServices.h"
 
+#include <algorithm>
 #include <cfloat>
+#include <cstdlib>
 
 namespace xg::imui::detail::platform
 {
@@ -21,6 +23,7 @@ namespace xg::imui::detail::platform
             Window* HoveredWindow = nullptr;
             int ButtonsDown = 0;
             int PendingLeaveFrame = 0;
+            float DpiOverride = 0.0f;
         };
 
         BackendData* GetData()
@@ -167,6 +170,36 @@ namespace xg::imui::detail::platform
         {
             ViewportData* data = viewport ? static_cast<ViewportData*>(viewport->PlatformUserData) : nullptr;
             return data ? data->PlatformWindow : nullptr;
+        }
+
+        float ScaleOf(const BackendData* bd, const Window* window)
+        {
+            if (bd && bd->DpiOverride > 0.0f)
+                return bd->DpiOverride;
+            const float scale = window ? window->GetDisplayScale() : 1.0f;
+            return (std::clamp)(scale, 0.5f, 4.0f);
+        }
+
+        float GetViewportDpiScale(ImGuiViewport* viewport)
+        {
+            BackendData* bd = GetData();
+            Window* window = WindowOf(viewport);
+            if (!window && bd && viewport == ImGui::GetMainViewport())
+                window = bd->MainWindow;
+            return ScaleOf(bd, window);
+        }
+
+        float ReadDpiOverride()
+        {
+            char* value = nullptr;
+            size_t length = 0;
+            float scale = 0.0f;
+            if (_dupenv_s(&value, &length, "XG_UI_DPI_SCALE") == 0 && value)
+            {
+                scale = std::strtof(value, nullptr);
+                free(value);
+            }
+            return scale > 0.0f ? (std::clamp)(scale, 0.5f, 4.0f) : 0.0f;
         }
 
         void CreateViewportWindow(ImGuiViewport* viewport)
@@ -341,7 +374,10 @@ namespace xg::imui::detail::platform
         BackendData* bd = IM_NEW(BackendData)();
         bd->MainWindow = window;
         bd->Services = services;
+        bd->DpiOverride = ReadDpiOverride();
         io.BackendPlatformUserData = bd;
+        io.ConfigDpiScaleFonts = true;
+        io.ConfigDpiScaleViewports = services != nullptr;
         io.BackendPlatformName = "xg::Window";
         io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 
@@ -349,6 +385,7 @@ namespace xg::imui::detail::platform
         pio.Platform_GetClipboardTextFn = GetClipboardText;
         pio.Platform_SetClipboardTextFn = SetClipboardText;
         pio.Platform_SetImeDataFn = SetImeData;
+        pio.Platform_GetWindowDpiScale = GetViewportDpiScale;
 
         ImGuiViewport* mainViewport = ImGui::GetMainViewport();
         mainViewport->PlatformHandleRaw = window->GetNativeHandle();
@@ -377,6 +414,12 @@ namespace xg::imui::detail::platform
             UpdateMonitors(bd);
         }
         return true;
+    }
+
+    float DisplayScale()
+    {
+        BackendData* bd = GetData();
+        return bd ? ScaleOf(bd, bd->MainWindow) : 1.0f;
     }
 
     void Shutdown()

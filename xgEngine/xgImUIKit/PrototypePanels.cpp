@@ -636,75 +636,6 @@ namespace xg::imui::detail
         ImGui::EndChild();
     }
 
-    void DrawConsoleTab()
-    {
-        enum Level { LevelInfo, LevelWarning, LevelError };
-        struct Entry { Level Kind; const char* Text; };
-        static const Entry entries[] = {
-            { LevelInfo,    "[12:00:01] XGE editor started" },
-            { LevelInfo,    "[12:00:01] Loaded module game.kernel (xgGameKernel.dll)" },
-            { LevelInfo,    "[12:00:02] Loaded module editor (xgEditor.CoreCLR.dll)" },
-            { LevelWarning, "[12:00:02] Shader 'Default-Material' compiled with fallback" },
-            { LevelInfo,    "[12:00:03] Scene 'SampleScene' opened" },
-            { LevelError,   "[12:00:05] NullReferenceException in CameraFollow.Update()" },
-        };
-        static bool collapse = false, errorPause = false;
-        static bool show[3] = { true, true, true };
-        static int selected = -1;
-        const Icon icons[3] = { Icon::Info, Icon::Warning, Icon::Error };
-        const ImU32 colors[3] = { IconColor, IconWarning, IconMaterial };
-        int counts[3] = {};
-        for (const Entry& e : entries)
-            ++counts[e.Kind];
-
-        BeginHeader();
-        FlatButton("Clear");
-        ImGui::SameLine();
-        if (FlatButton("Collapse", collapse))
-            collapse = !collapse;
-        ImGui::SameLine();
-        if (FlatButton("Error Pause", errorPause))
-            errorPause = !errorPause;
-        ImGui::SameLine();
-        const float countW = ImGui::CalcTextSize("0").x;
-        AlignRight(3.0f * (SegButtonSize + 2.0f + countW) + 2.0f * 8.0f);
-        for (int i = 0; i < 3; ++i)
-        {
-            ImGui::PushID(i);
-            if (IconButton("##level", icons[i], false, SegButtonSize, show[i] ? colors[i] : WithAlpha(colors[i], 0.3f)))
-                show[i] = !show[i];
-            ImGui::PopID();
-            ImGui::SameLine(0.0f, 2.0f);
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(ToVec4(show[i] ? TextColor : TextDim), "%d", counts[i]);
-            if (i < 2)
-                ImGui::SameLine(0.0f, 8.0f);
-        }
-        EndHeader();
-
-        BeginBody("##log", ImVec2(0.0f, 2.0f));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        int row = 0;
-        for (int i = 0; i < IM_ARRAYSIZE(entries); ++i)
-        {
-            const Entry& e = entries[i];
-            if (!show[e.Kind])
-                continue;
-            ImGui::PushID(i);
-            ImVec2 rowMin = ImGui::GetCursorScreenPos();
-            if (row++ % 2)
-                dl->AddRectFilled(rowMin, Offset(rowMin, ImGui::GetContentRegionAvail().x, 22.0f), RowAltBg);
-            if (ImGui::Selectable("##entry", selected == i, 0, ImVec2(0.0f, 22.0f)))
-                selected = i;
-            DrawIcon(dl, icons[e.Kind], ImVec2(rowMin.x + 16.0f, rowMin.y + 11.0f), 14.0f, colors[e.Kind]);
-            dl->AddText(ImVec2(rowMin.x + 30.0f, rowMin.y + 11.0f - ImGui::GetFontSize() * 0.5f), selected == i ? TextSelected : TextColor, e.Text);
-            ImGui::PopID();
-        }
-        ImGui::PopStyleVar();
-        ImGui::EndChild();
-    }
-
     void DrawProject()
     {
         if (BeginStyledPanel("Project", AreaBg, true))
@@ -712,10 +643,4 @@ namespace xg::imui::detail
         ImGui::End();
     }
 
-    void DrawConsole()
-    {
-        if (BeginStyledPanel("Console", AreaBg))
-            DrawConsoleTab();
-        ImGui::End();
-    }
 }
