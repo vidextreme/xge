@@ -8,7 +8,18 @@
 #include <SDL3/SDL.h>
 #include "platform/xgSDLToEvent.h"
 
+#include <unordered_map>
+
 namespace xg {
+    namespace
+    {
+        std::unordered_map<SDL_WindowID, WindowSDL*>& Registry()
+        {
+            static std::unordered_map<SDL_WindowID, WindowSDL*> windows;
+            return windows;
+        }
+    }
+
     static SDL_HitTestResult SDLCALL WindowHitTest(SDL_Window*, const SDL_Point* point, void* data)
     {
         return static_cast<SDL_HitTestResult>(static_cast<const WindowSDL*>(data)->HitTestPoint(point->x, point->y));
@@ -23,9 +34,47 @@ namespace xg {
         : _width(w)
         , _height(h)
     {
+        SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
         SDL_Init(SDL_INIT_VIDEO);
 
         _sdlWindow = SDL_CreateWindow(title, _width, _height, SDL_WINDOW_RESIZABLE);
+        Register();
+    }
+
+    WindowSDL::WindowSDL(const WindowDesc& desc)
+        : _secondary(true)
+        , _width(desc.Width)
+        , _height(desc.Height)
+    {
+        SDL_WindowFlags flags = 0;
+        if (desc.Flags & WindowCreateFlagsHidden)
+            flags |= SDL_WINDOW_HIDDEN;
+        if (desc.Flags & WindowCreateFlagsBorderless)
+            flags |= SDL_WINDOW_BORDERLESS;
+        if (desc.Flags & WindowCreateFlagsNoTaskbar)
+            flags |= SDL_WINDOW_UTILITY;
+        if (desc.Flags & WindowCreateFlagsTopMost)
+            flags |= SDL_WINDOW_ALWAYS_ON_TOP;
+
+        _sdlWindow = SDL_CreateWindow(desc.Title ? desc.Title : "", (std::max)(desc.Width, 1), (std::max)(desc.Height, 1), flags);
+        if (_sdlWindow)
+            SDL_SetWindowPosition(_sdlWindow, desc.X, desc.Y);
+        _focused = false;
+        Register();
+    }
+
+    void WindowSDL::Register()
+    {
+        if (_sdlWindow)
+            Registry()[SDL_GetWindowID(_sdlWindow)] = this;
+    }
+
+    WindowSDL* WindowSDL::Find(SDL_Window* window)
+    {
+        if (!window)
+            return nullptr;
+        auto it = Registry().find(SDL_GetWindowID(window));
+        return it == Registry().end() ? nullptr : it->second;
     }
 
     // ------------------------------------------------------------
@@ -33,59 +82,82 @@ namespace xg {
     // ------------------------------------------------------------
     WindowSDL::~WindowSDL()
     {
+        for (SDL_Cursor*& cursor : _cursors)
+        {
+            if (cursor)
+                SDL_DestroyCursor(cursor);
+            cursor = nullptr;
+        }
+
         if (_sdlWindow)
         {
+            Registry().erase(SDL_GetWindowID(_sdlWindow));
             SDL_DestroyWindow(_sdlWindow);
             _sdlWindow = nullptr;
         }
 
-        SDL_Quit();
+        if (!_secondary)
+            SDL_Quit();
     }
 
     // ------------------------------------------------------------
     // PollEvents
     // ------------------------------------------------------------
+    void WindowSDL::ApplyEvent(const SDL_Event& sdl)
+    {
+        switch (sdl.type)
+        {
+        case SDL_EVENT_WINDOW_RESIZED:
+            _width = sdl.window.data1;
+            _height = sdl.window.data2;
+            break;
+
+        case SDL_EVENT_WINDOW_MINIMIZED:
+            _minimized = true;
+            break;
+
+        case SDL_EVENT_WINDOW_RESTORED:
+            _minimized = false;
+            break;
+
+        case SDL_EVENT_WINDOW_FOCUS_GAINED:
+            _focused = true;
+            break;
+
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            _focused = false;
+            break;
+
+        case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+            _closeRequested = true;
+            if (!_secondary)
+                _shouldClose = true;
+            break;
+        }
+    }
+
     void WindowSDL::PollEvents()
     {
+        if (_secondary)
+            return;
+
         SDL_Event sdl;
         while (SDL_PollEvent(&sdl))
         {
             SDL_Window* source = SDL_GetWindowFromEvent(&sdl);
-            const bool foreign = source && source != _sdlWindow;
+            WindowSDL* owner = Find(source);
+            if (source && !owner)
+                continue;
 
-            // Update internal window state
-            if (!foreign)
-            switch (sdl.type)
-            {
-            case SDL_EVENT_QUIT:
+            if (sdl.type == SDL_EVENT_QUIT)
                 _shouldClose = true;
-                break;
+            if (owner)
+                owner->ApplyEvent(sdl);
 
-            case SDL_EVENT_WINDOW_RESIZED:
-                _width = sdl.window.data1;
-                _height = sdl.window.data2;
-                break;
+            xgEvent e = xg::FromSDL(sdl);
+            e.Source = owner;
 
-            case SDL_EVENT_WINDOW_MINIMIZED:
-                _minimized = true;
-                break;
-
-            case SDL_EVENT_WINDOW_RESTORED:
-                _minimized = false;
-                break;
-
-            case SDL_EVENT_WINDOW_FOCUS_GAINED:
-                _focused = true;
-                break;
-
-            case SDL_EVENT_WINDOW_FOCUS_LOST:
-                _focused = false;
-                break;
-            }
-
-            xgEvent e = foreign ? xgEvent{} : xg::FromSDL(sdl);
-
-            if (_queue && e.Type != xgEventType::None)
+            if (_queue && e.Type != xgEventType::None && (owner == this || !owner))
                 _queue->Push(e);
 
             if (_dispatcher)
@@ -183,6 +255,129 @@ namespace xg {
         for (int i = 0; i < count; ++i)
             _dragRects[i] = rects[i];
         _dragCount = count;
+    }
+
+    void WindowSDL::SetCursorShape(CursorShape shape)
+    {
+        if (shape == _cursorShape)
+            return;
+        _cursorShape = shape;
+
+        if (shape == CursorShape::Hidden)
+        {
+            SDL_HideCursor();
+            return;
+        }
+
+        static constexpr SDL_SystemCursor systemCursors[CursorCount] =
+        {
+            SDL_SYSTEM_CURSOR_DEFAULT,
+            SDL_SYSTEM_CURSOR_TEXT,
+            SDL_SYSTEM_CURSOR_MOVE,
+            SDL_SYSTEM_CURSOR_NS_RESIZE,
+            SDL_SYSTEM_CURSOR_EW_RESIZE,
+            SDL_SYSTEM_CURSOR_NESW_RESIZE,
+            SDL_SYSTEM_CURSOR_NWSE_RESIZE,
+            SDL_SYSTEM_CURSOR_POINTER,
+            SDL_SYSTEM_CURSOR_WAIT,
+            SDL_SYSTEM_CURSOR_PROGRESS,
+            SDL_SYSTEM_CURSOR_NOT_ALLOWED,
+        };
+
+        const int index = static_cast<int>(shape);
+        if (index < 0 || index >= CursorCount)
+            return;
+        if (!_cursors[index])
+            _cursors[index] = SDL_CreateSystemCursor(systemCursors[index]);
+        if (_cursors[index])
+            SDL_SetCursor(_cursors[index]);
+        SDL_ShowCursor();
+    }
+
+    void WindowSDL::SetClipboardText(const char* text)
+    {
+        SDL_SetClipboardText(text ? text : "");
+    }
+
+    const char* WindowSDL::GetClipboardText()
+    {
+        char* text = SDL_GetClipboardText();
+        _clipboard = text ? text : "";
+        SDL_free(text);
+        return _clipboard.c_str();
+    }
+
+    void WindowSDL::StartTextInput()
+    {
+        SDL_StartTextInput(_sdlWindow);
+    }
+
+    void WindowSDL::StopTextInput()
+    {
+        SDL_StopTextInput(_sdlWindow);
+    }
+
+    void WindowSDL::SetTextInputArea(const WindowRect& rect, int cursorX)
+    {
+        const SDL_Rect area = { rect.X, rect.Y, rect.Width, rect.Height };
+        SDL_SetTextInputArea(_sdlWindow, &area, cursorX);
+    }
+
+    float WindowSDL::GetDisplayScale() const noexcept
+    {
+        const float scale = SDL_GetWindowDisplayScale(_sdlWindow);
+        return scale > 0.0f ? scale : 1.0f;
+    }
+
+    void WindowSDL::SetIconRGBA(const void* rgba, int width, int height)
+    {
+        if (!rgba || width <= 0 || height <= 0)
+            return;
+        SDL_Surface* surface = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32, const_cast<void*>(rgba), width * 4);
+        if (!surface)
+            return;
+        SDL_SetWindowIcon(_sdlWindow, surface);
+        SDL_DestroySurface(surface);
+    }
+
+    void WindowSDL::SetPosition(int x, int y)
+    {
+        SDL_SetWindowPosition(_sdlWindow, x, y);
+    }
+
+    void WindowSDL::GetPosition(int* x, int* y) const noexcept
+    {
+        int px = 0, py = 0;
+        SDL_GetWindowPosition(_sdlWindow, &px, &py);
+        if (x) *x = px;
+        if (y) *y = py;
+    }
+
+    void WindowSDL::SetSize(int width, int height)
+    {
+        SDL_SetWindowSize(_sdlWindow, (std::max)(width, 1), (std::max)(height, 1));
+    }
+
+    void WindowSDL::Show()
+    {
+        SDL_ShowWindow(_sdlWindow);
+    }
+
+    void WindowSDL::ShowWithoutActivation()
+    {
+        SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
+        SDL_ShowWindow(_sdlWindow);
+        SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "1");
+    }
+
+    void WindowSDL::Focus()
+    {
+        SDL_RaiseWindow(_sdlWindow);
+    }
+
+    void WindowSDL::SetOpacity(float opacity)
+    {
+        SDL_SetWindowOpacity(_sdlWindow, opacity);
     }
 
     int WindowSDL::HitTestPoint(int x, int y) const noexcept

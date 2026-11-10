@@ -4,50 +4,37 @@
 #include <cstdint>
 #include "xgHandles.h"
 #include "xgModules.h"
+#include "xgUIDraw.h"
+#include "xgVec3.h"
 
 namespace xg {
 
     class Window;
 
-    struct UIVertex
+    // Camera for an offscreen render view. Y is up; FovY is in radians.
+    // Crosses into managed code (xgEditorKernel scene view exports): 80 bytes, Vec3 and Color are 16-byte aligned.
+    struct RenderViewCamera
     {
-        float X, Y;
-        float U, V;
-        uint32_t Color;
+        Vec3 Eye;
+        Vec3 Target;
+        Vec3 Up;
+        float FovY;
+        float NearZ;
+        float FarZ;
+        Color ClearColor;
     };
+    static_assert(sizeof(RenderViewCamera) == 80, "RenderViewCamera layout is mirrored in managed code");
 
-    struct UIDrawCommand
-    {
-        float ClipMinX, ClipMinY, ClipMaxX, ClipMaxY;
-        uint64_t TextureId;
-        uint32_t IndexOffset;
-        uint32_t VertexOffset;
-        uint32_t IndexCount;
-    };
-
-    struct UIDrawList
-    {
-        const UIVertex* Vertices;
-        uint32_t VertexCount;
-        const uint16_t* Indices;
-        uint32_t IndexCount;
-        const UIDrawCommand* Commands;
-        uint32_t CommandCount;
-        float DisplayX, DisplayY, DisplayWidth, DisplayHeight;
-        float ScaleX, ScaleY;
-    };
-
-    class Renderer {
+    class Renderer : public UIRenderTarget {
     public:
-        virtual ~Renderer() = default;
         virtual void Render() = 0;
         virtual void* GetNativeHandle() const = 0;
 
-        virtual uint64_t CreateUITexture(int32_t width, int32_t height, const void* rgba) = 0;
-        virtual void UpdateUITexture(uint64_t id, int32_t x, int32_t y, int32_t width, int32_t height, const void* rgba, int32_t pitch) = 0;
-        virtual void DestroyUITexture(uint64_t id) = 0;
-        virtual void SubmitUI(const UIDrawList* list) = 0;
-        virtual void SetClearColor(float r, float g, float b, float a) = 0;
+        // Offscreen 3D views. The returned id is also a valid UI texture id (draw it in a panel).
+        virtual uint64_t CreateRenderView(int32_t width, int32_t height) = 0;
+        virtual bool ResizeRenderView(uint64_t id, int32_t width, int32_t height) = 0;
+        virtual void DestroyRenderView(uint64_t id) = 0;
+        virtual void SetRenderViewCamera(uint64_t id, const RenderViewCamera* camera) = 0;
     };
 
     XG_DECLARE_MODULE_FUNCTION(CreateRenderer, Renderer*, Window&);

@@ -153,6 +153,9 @@
     <ClInclude Include="public\xgStream.h" />
     <ClInclude Include="public\xgSystem.h" />
     <ClInclude Include="public\xgTypeRegistry.h" />
+    <ClInclude Include="public\xgImage.h" />
+    <ClInclude Include="public\xgPlatformServices.h" />
+    <ClInclude Include="public\xgUIDraw.h" />
     <ClInclude Include="public\xgWindow.h" />
   </ItemGroup>
   <ItemGroup>

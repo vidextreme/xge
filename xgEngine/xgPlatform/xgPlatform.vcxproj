@@ -59,7 +59,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\SDL3\include;..\xgUtility</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;..\3rdparty\SDL3\include;..\xgUtility</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -86,7 +86,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgCore\public;..\3rdparty\SDL3\include;..\xgUtility</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;..\3rdparty\SDL3\include;..\xgUtility</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -106,6 +106,12 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="WindowSDL.h" />
     <ClInclude Include="FileWin.h" />
+    <ClInclude Include="UIRenderTargetSDLGPU.h" />
+    <ClInclude Include="shaders\UIShaderBlobs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\UIShader.hlsl" />
+    <None Include="shaders\compile_ui_shaders.ps1" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -116,6 +122,9 @@
     <ClCompile Include="WindowFactory.cpp" />
     <ClCompile Include="WindowSDL.cpp" />
     <ClCompile Include="FileWin.cpp" />
+    <ClCompile Include="UIRenderTargetSDLGPU.cpp" />
+    <ClCompile Include="ImageSDL.cpp" />
+    <ClCompile Include="PlatformServicesSDL.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\xgBase\xgBase.vcxproj">

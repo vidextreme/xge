@@ -87,8 +87,10 @@ float4 PSMain(PSInput input) : SV_Target
         if (_commandQueue && _fence && _fenceEvent)
             WaitForGPU();
 
+        _surfaces.clear();
+        _renderViews.clear();
         _textures.clear();
-        ReleaseRenderTargets();
+        ReleaseRenderTargets(_main);
 
         if (_fenceEvent)
         {
@@ -107,27 +109,24 @@ float4 PSMain(PSInput input) : SV_Target
 
     bool RendererDX12::Initialize(Window& window)
     {
-        _hwnd = static_cast<HWND>(window.GetNativeHandle());
-        if (!_hwnd)
+        _main.Hwnd = static_cast<HWND>(window.GetNativeHandle());
+        if (!_main.Hwnd)
         {
             xg::Log(xg::MessageType::Error, "RendererDX12: window has no native handle");
             return false;
         }
 
-        RECT rect = {};
-        GetClientRect(_hwnd, &rect);
-        _width = static_cast<UINT>((std::max)(1L, rect.right - rect.left));
-        _height = static_cast<UINT>((std::max)(1L, rect.bottom - rect.top));
-
-        if (!CreateDeviceAndSwapChain() || !CreateRenderTargets() || !CreateCommandObjects()
+        if (!CreateDevice() || !CreateSwapChain(_main) || !CreateCommandObjects()
             || !CreateFenceObjects() || !CreateUIPipeline())
             return false;
+        if (!CreateScenePipeline())
+            xg::Log(xg::MessageType::Warning, "RendererDX12: scene pipeline unavailable, render views disabled");
 
-        xg::Log(xg::MessageType::Success, "RendererDX12: initialized (%ux%u)", _width, _height);
+        xg::Log(xg::MessageType::Success, "RendererDX12: initialized (%ux%u)", _main.Width, _main.Height);
         return true;
     }
 
-    bool RendererDX12::CreateDeviceAndSwapChain()
+    bool RendererDX12::CreateDevice()
     {
         UINT dxgiFlags = 0;
 #ifdef _DEBUG
@@ -159,53 +158,63 @@ float4 PSMain(PSInput input) : SV_Target
         if (!Check(_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_commandQueue)), "CreateCommandQueue"))
             return false;
 
+        _rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        return true;
+    }
+
+    bool RendererDX12::CreateSwapChain(Surface& surface)
+    {
+        RECT rect = {};
+        GetClientRect(surface.Hwnd, &rect);
+        surface.Width = static_cast<UINT>((std::max)(1L, rect.right - rect.left));
+        surface.Height = static_cast<UINT>((std::max)(1L, rect.bottom - rect.top));
+
         DXGI_SWAP_CHAIN_DESC1 swapDesc = {};
         swapDesc.BufferCount = FrameCount;
-        swapDesc.Width = _width;
-        swapDesc.Height = _height;
+        swapDesc.Width = surface.Width;
+        swapDesc.Height = surface.Height;
         swapDesc.Format = BackBufferFormat;
         swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapDesc.SampleDesc.Count = 1;
 
         ComPtr<IDXGISwapChain1> swapChain1;
-        if (!Check(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), _hwnd, &swapDesc, nullptr, nullptr, &swapChain1), "CreateSwapChainForHwnd"))
+        if (!Check(_factory->CreateSwapChainForHwnd(_commandQueue.Get(), surface.Hwnd, &swapDesc, nullptr, nullptr, &swapChain1), "CreateSwapChainForHwnd"))
             return false;
-        _factory->MakeWindowAssociation(_hwnd, DXGI_MWA_NO_ALT_ENTER);
+        _factory->MakeWindowAssociation(surface.Hwnd, DXGI_MWA_NO_ALT_ENTER);
 
-        if (!Check(swapChain1.As(&_swapChain), "IDXGISwapChain3 query"))
+        if (!Check(swapChain1.As(&surface.SwapChain), "IDXGISwapChain3 query"))
             return false;
-        _frameIndex = _swapChain->GetCurrentBackBufferIndex();
-        return true;
+        surface.FrameIndex = surface.SwapChain->GetCurrentBackBufferIndex();
+        return CreateRenderTargets(surface);
     }
 
-    bool RendererDX12::CreateRenderTargets()
+    bool RendererDX12::CreateRenderTargets(Surface& surface)
     {
-        if (!_rtvHeap)
+        if (!surface.RtvHeap)
         {
             D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
             heapDesc.NumDescriptors = FrameCount;
             heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-            if (!Check(_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_rtvHeap)), "CreateDescriptorHeap (RTV)"))
+            if (!Check(_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&surface.RtvHeap)), "CreateDescriptorHeap (RTV)"))
                 return false;
-            _rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
         }
 
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = surface.RtvHeap->GetCPUDescriptorHandleForHeapStart();
         for (UINT i = 0; i < FrameCount; ++i)
         {
-            if (!Check(_swapChain->GetBuffer(i, IID_PPV_ARGS(&_renderTargets[i])), "GetBuffer"))
+            if (!Check(surface.SwapChain->GetBuffer(i, IID_PPV_ARGS(&surface.RenderTargets[i])), "GetBuffer"))
                 return false;
-            _device->CreateRenderTargetView(_renderTargets[i].Get(), nullptr, rtvHandle);
+            _device->CreateRenderTargetView(surface.RenderTargets[i].Get(), nullptr, rtvHandle);
             rtvHandle.ptr += _rtvDescriptorSize;
         }
         return true;
     }
 
-    void RendererDX12::ReleaseRenderTargets()
+    void RendererDX12::ReleaseRenderTargets(Surface& surface)
     {
         for (UINT i = 0; i < FrameCount; ++i)
-            _renderTargets[i].Reset();
+            surface.RenderTargets[i].Reset();
     }
 
     bool RendererDX12::CreateCommandObjects()
@@ -303,8 +312,8 @@ float4 PSMain(PSInput input) : SV_Target
 
         static_assert(sizeof(UIVertex) == 20, "UIVertex layout must match the UI input layout");
         D3D12_INPUT_ELEMENT_DESC layout[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(UIVertex, X),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(UIVertex, U),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(UIVertex, Position),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(UIVertex, UV),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(UIVertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
 
@@ -369,11 +378,12 @@ float4 PSMain(PSInput input) : SV_Target
         return true;
     }
 
-    bool RendererDX12::ResizeIfNeeded(bool& skipFrame)
+    bool RendererDX12::ResizeIfNeeded(Surface& surface, bool& skipFrame)
     {
         skipFrame = false;
         RECT rect = {};
-        if (IsIconic(_hwnd) || !GetClientRect(_hwnd, &rect) || rect.right <= rect.left || rect.bottom <= rect.top)
+        if (IsIconic(surface.Hwnd) || !GetClientRect(surface.Hwnd, &rect)
+            || rect.right <= rect.left || rect.bottom <= rect.top)
         {
             skipFrame = true;
             return true;
@@ -381,64 +391,64 @@ float4 PSMain(PSInput input) : SV_Target
 
         const UINT width = static_cast<UINT>(rect.right - rect.left);
         const UINT height = static_cast<UINT>(rect.bottom - rect.top);
-        if (width == _width && height == _height)
+        if (width == surface.Width && height == surface.Height)
             return true;
 
         if (!WaitForGPU())
             return false;
-        ReleaseRenderTargets();
-        if (!Check(_swapChain->ResizeBuffers(FrameCount, width, height, BackBufferFormat, 0), "ResizeBuffers"))
+        ReleaseRenderTargets(surface);
+        if (!Check(surface.SwapChain->ResizeBuffers(FrameCount, width, height, BackBufferFormat, 0), "ResizeBuffers"))
             return false;
-        _width = width;
-        _height = height;
-        _frameIndex = _swapChain->GetCurrentBackBufferIndex();
-        return CreateRenderTargets();
+        surface.Width = width;
+        surface.Height = height;
+        surface.FrameIndex = surface.SwapChain->GetCurrentBackBufferIndex();
+        return CreateRenderTargets(surface);
     }
 
-    bool RendererDX12::EnsureUIBuffers(size_t vertexCount, size_t indexCount)
+    bool RendererDX12::EnsureUIBuffers(Surface& surface, size_t vertexCount, size_t indexCount)
     {
-        if (vertexCount > _vertexCapacity)
+        if (vertexCount > surface.VertexCapacity)
         {
             const size_t capacity = vertexCount + 5000;
-            if (!CreateUploadBuffer(_device.Get(), capacity * sizeof(UIVertex), _vertexBuffer))
+            if (!CreateUploadBuffer(_device.Get(), capacity * sizeof(UIVertex), surface.VertexBuffer))
                 return Check(E_OUTOFMEMORY, "UI vertex buffer");
-            _vertexCapacity = capacity;
+            surface.VertexCapacity = capacity;
         }
-        if (indexCount > _indexCapacity)
+        if (indexCount > surface.IndexCapacity)
         {
             const size_t capacity = indexCount + 10000;
-            if (!CreateUploadBuffer(_device.Get(), capacity * sizeof(uint16_t), _indexBuffer))
+            if (!CreateUploadBuffer(_device.Get(), capacity * sizeof(uint16_t), surface.IndexBuffer))
                 return Check(E_OUTOFMEMORY, "UI index buffer");
-            _indexCapacity = capacity;
+            surface.IndexCapacity = capacity;
         }
         return true;
     }
 
-    void RendererDX12::RecordUI()
+    void RendererDX12::RecordUI(Surface& surface)
     {
-        if (_uiCommands.empty() || _uiVertices.empty() || _uiIndices.empty())
+        if (surface.Commands.empty() || surface.Vertices.empty() || surface.Indices.empty())
             return;
-        if (_uiDisplay[2] <= 0.0f || _uiDisplay[3] <= 0.0f)
+        if (surface.Display[2] <= 0.0f || surface.Display[3] <= 0.0f)
             return;
-        if (!EnsureUIBuffers(_uiVertices.size(), _uiIndices.size()))
+        if (!EnsureUIBuffers(surface, surface.Vertices.size(), surface.Indices.size()))
             return;
 
         void* mapped = nullptr;
         D3D12_RANGE noRead = { 0, 0 };
-        if (FAILED(_vertexBuffer->Map(0, &noRead, &mapped)))
+        if (FAILED(surface.VertexBuffer->Map(0, &noRead, &mapped)))
             return;
-        std::memcpy(mapped, _uiVertices.data(), _uiVertices.size() * sizeof(UIVertex));
-        _vertexBuffer->Unmap(0, nullptr);
+        std::memcpy(mapped, surface.Vertices.data(), surface.Vertices.size() * sizeof(UIVertex));
+        surface.VertexBuffer->Unmap(0, nullptr);
 
-        if (FAILED(_indexBuffer->Map(0, &noRead, &mapped)))
+        if (FAILED(surface.IndexBuffer->Map(0, &noRead, &mapped)))
             return;
-        std::memcpy(mapped, _uiIndices.data(), _uiIndices.size() * sizeof(uint16_t));
-        _indexBuffer->Unmap(0, nullptr);
+        std::memcpy(mapped, surface.Indices.data(), surface.Indices.size() * sizeof(uint16_t));
+        surface.IndexBuffer->Unmap(0, nullptr);
 
-        const float left = _uiDisplay[0];
-        const float right = _uiDisplay[0] + _uiDisplay[2];
-        const float top = _uiDisplay[1];
-        const float bottom = _uiDisplay[1] + _uiDisplay[3];
+        const float left = surface.Display[0];
+        const float right = surface.Display[0] + surface.Display[2];
+        const float top = surface.Display[1];
+        const float bottom = surface.Display[1] + surface.Display[3];
         const float projection[4][4] =
         {
             { 2.0f / (right - left),           0.0f,                            0.0f, 0.0f },
@@ -447,21 +457,21 @@ float4 PSMain(PSInput input) : SV_Target
             { (right + left) / (left - right), (top + bottom) / (bottom - top), 0.5f, 1.0f },
         };
 
-        const float viewportWidth = (std::min)(_uiDisplay[2] * _uiScale[0], static_cast<float>(_width));
-        const float viewportHeight = (std::min)(_uiDisplay[3] * _uiScale[1], static_cast<float>(_height));
+        const float viewportWidth = (std::min)(surface.Display[2] * surface.Scale[0], static_cast<float>(surface.Width));
+        const float viewportHeight = (std::min)(surface.Display[3] * surface.Scale[1], static_cast<float>(surface.Height));
 
-        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, _uiDisplay[2] * _uiScale[0], _uiDisplay[3] * _uiScale[1], 0.0f, 1.0f };
+        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, surface.Display[2] * surface.Scale[0], surface.Display[3] * surface.Scale[1], 0.0f, 1.0f };
         _commandList->RSSetViewports(1, &viewport);
 
         D3D12_VERTEX_BUFFER_VIEW vbv = {};
-        vbv.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
-        vbv.SizeInBytes = static_cast<UINT>(_uiVertices.size() * sizeof(UIVertex));
+        vbv.BufferLocation = surface.VertexBuffer->GetGPUVirtualAddress();
+        vbv.SizeInBytes = static_cast<UINT>(surface.Vertices.size() * sizeof(UIVertex));
         vbv.StrideInBytes = sizeof(UIVertex);
         _commandList->IASetVertexBuffers(0, 1, &vbv);
 
         D3D12_INDEX_BUFFER_VIEW ibv = {};
-        ibv.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
-        ibv.SizeInBytes = static_cast<UINT>(_uiIndices.size() * sizeof(uint16_t));
+        ibv.BufferLocation = surface.IndexBuffer->GetGPUVirtualAddress();
+        ibv.SizeInBytes = static_cast<UINT>(surface.Indices.size() * sizeof(uint16_t));
         ibv.Format = DXGI_FORMAT_R16_UINT;
         _commandList->IASetIndexBuffer(&ibv);
         _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -477,15 +487,15 @@ float4 PSMain(PSInput input) : SV_Target
         _commandList->OMSetBlendFactor(blendFactor);
 
         const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = _srvHeap->GetGPUDescriptorHandleForHeapStart();
-        for (const UIDrawCommand& command : _uiCommands)
+        for (const UIDrawCommand& command : surface.Commands)
         {
             if (command.IndexCount == 0 || !FindTexture(command.TextureId))
                 continue;
 
-            const float minX = (std::max)(0.0f, (command.ClipMinX - _uiDisplay[0]) * _uiScale[0]);
-            const float minY = (std::max)(0.0f, (command.ClipMinY - _uiDisplay[1]) * _uiScale[1]);
-            const float maxX = (std::min)(viewportWidth, (command.ClipMaxX - _uiDisplay[0]) * _uiScale[0]);
-            const float maxY = (std::min)(viewportHeight, (command.ClipMaxY - _uiDisplay[1]) * _uiScale[1]);
+            const float minX = (std::max)(0.0f, (command.Clip.min.x - surface.Display[0]) * surface.Scale[0]);
+            const float minY = (std::max)(0.0f, (command.Clip.min.y - surface.Display[1]) * surface.Scale[1]);
+            const float maxX = (std::min)(viewportWidth, (command.Clip.max.x - surface.Display[0]) * surface.Scale[0]);
+            const float maxY = (std::min)(viewportHeight, (command.Clip.max.y - surface.Display[1]) * surface.Scale[1]);
             if (maxX <= minX || maxY <= minY)
                 continue;
 
@@ -499,18 +509,34 @@ float4 PSMain(PSInput input) : SV_Target
         }
     }
 
+    void RendererDX12::RecordSurface(Surface& surface)
+    {
+        ID3D12Resource* backBuffer = surface.RenderTargets[surface.FrameIndex].Get();
+        D3D12_RESOURCE_BARRIER toTarget = Transition(backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        _commandList->ResourceBarrier(1, &toTarget);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = surface.RtvHeap->GetCPUDescriptorHandleForHeapStart();
+        rtvHandle.ptr += static_cast<SIZE_T>(surface.FrameIndex) * _rtvDescriptorSize;
+        _commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+        _commandList->ClearRenderTargetView(rtvHandle, _clearColor, 0, nullptr);
+
+        RecordUI(surface);
+
+        D3D12_RESOURCE_BARRIER toPresent = Transition(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        _commandList->ResourceBarrier(1, &toPresent);
+    }
+
     void RendererDX12::Render()
     {
         if (_failed)
             return;
 
-        bool skipFrame = false;
-        if (!ResizeIfNeeded(skipFrame))
+        if (!ResizeIfNeeded(_main, _main.Skip))
         {
             _failed = true;
             return;
         }
-        if (skipFrame)
+        if (_main.Skip)
             return;
 
         if (!Check(_commandAllocator->Reset(), "CommandAllocator Reset")
@@ -520,19 +546,8 @@ float4 PSMain(PSInput input) : SV_Target
             return;
         }
 
-        ID3D12Resource* backBuffer = _renderTargets[_frameIndex].Get();
-        D3D12_RESOURCE_BARRIER toTarget = Transition(backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        _commandList->ResourceBarrier(1, &toTarget);
-
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
-        rtvHandle.ptr += static_cast<SIZE_T>(_frameIndex) * _rtvDescriptorSize;
-        _commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-        _commandList->ClearRenderTargetView(rtvHandle, _clearColor, 0, nullptr);
-
-        RecordUI();
-
-        D3D12_RESOURCE_BARRIER toPresent = Transition(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        _commandList->ResourceBarrier(1, &toPresent);
+        RecordRenderViews();
+        RecordSurface(_main);
 
         if (!Check(_commandList->Close(), "CommandList Close"))
         {
@@ -543,13 +558,35 @@ float4 PSMain(PSInput input) : SV_Target
         ID3D12CommandList* lists[] = { _commandList.Get() };
         _commandQueue->ExecuteCommandLists(1, lists);
 
-        const HRESULT presentResult = _swapChain->Present(1, 0);
+        const HRESULT presentResult = _main.SwapChain->Present(1, 0);
         if (!Check(presentResult, "Present") || !WaitForGPU())
         {
             _failed = true;
             return;
         }
-        _frameIndex = _swapChain->GetCurrentBackBufferIndex();
+        _main.FrameIndex = _main.SwapChain->GetCurrentBackBufferIndex();
+    }
+
+    void RendererDX12::PresentSurfaceNow(Surface& surface)
+    {
+        if (_failed)
+            return;
+        bool skip = false;
+        if (!ResizeIfNeeded(surface, skip) || skip)
+            return;
+
+        if (!Check(_commandAllocator->Reset(), "CommandAllocator Reset (surface)")
+            || !Check(_commandList->Reset(_commandAllocator.Get(), nullptr), "CommandList Reset (surface)"))
+            return;
+        RecordSurface(surface);
+        if (!Check(_commandList->Close(), "CommandList Close (surface)"))
+            return;
+
+        ID3D12CommandList* lists[] = { _commandList.Get() };
+        _commandQueue->ExecuteCommandLists(1, lists);
+        surface.SwapChain->Present(0, 0);
+        WaitForGPU();
+        surface.FrameIndex = surface.SwapChain->GetCurrentBackBufferIndex();
     }
 
     void* RendererDX12::GetNativeHandle() const
@@ -679,7 +716,7 @@ float4 PSMain(PSInput input) : SV_Target
     void RendererDX12::DestroyUITexture(uint64_t id)
     {
         UITexture* texture = FindTexture(id);
-        if (!texture)
+        if (!texture || FindRenderView(id))
             return;
         WaitForGPU();
         texture->Resource.Reset();
@@ -688,35 +725,83 @@ float4 PSMain(PSInput input) : SV_Target
         _freeTextureSlots.push_back(static_cast<UINT>(id - 1));
     }
 
-    void RendererDX12::SubmitUI(const UIDrawList* list)
+    void RendererDX12::StoreDrawList(Surface& surface, const UIDrawList* list)
     {
-        _uiVertices.clear();
-        _uiIndices.clear();
-        _uiCommands.clear();
+        surface.Vertices.clear();
+        surface.Indices.clear();
+        surface.Commands.clear();
         if (!list)
             return;
 
         if (list->Vertices && list->VertexCount)
-            _uiVertices.assign(list->Vertices, list->Vertices + list->VertexCount);
+            surface.Vertices.assign(list->Vertices, list->Vertices + list->VertexCount);
         if (list->Indices && list->IndexCount)
-            _uiIndices.assign(list->Indices, list->Indices + list->IndexCount);
+            surface.Indices.assign(list->Indices, list->Indices + list->IndexCount);
         if (list->Commands && list->CommandCount)
-            _uiCommands.assign(list->Commands, list->Commands + list->CommandCount);
+            surface.Commands.assign(list->Commands, list->Commands + list->CommandCount);
 
-        _uiDisplay[0] = list->DisplayX;
-        _uiDisplay[1] = list->DisplayY;
-        _uiDisplay[2] = list->DisplayWidth;
-        _uiDisplay[3] = list->DisplayHeight;
-        _uiScale[0] = list->ScaleX > 0.0f ? list->ScaleX : 1.0f;
-        _uiScale[1] = list->ScaleY > 0.0f ? list->ScaleY : 1.0f;
+        surface.Display[0] = list->DisplayPos.x;
+        surface.Display[1] = list->DisplayPos.y;
+        surface.Display[2] = list->DisplaySize.x;
+        surface.Display[3] = list->DisplaySize.y;
+        surface.Scale[0] = list->FramebufferScale.x > 0.0f ? list->FramebufferScale.x : 1.0f;
+        surface.Scale[1] = list->FramebufferScale.y > 0.0f ? list->FramebufferScale.y : 1.0f;
     }
 
-    void RendererDX12::SetClearColor(float r, float g, float b, float a)
+    void RendererDX12::SubmitUI(const UIDrawList* list)
     {
-        _clearColor[0] = r;
-        _clearColor[1] = g;
-        _clearColor[2] = b;
-        _clearColor[3] = a;
+        StoreDrawList(_main, list);
+    }
+
+    RendererDX12::Surface* RendererDX12::FindSurface(uint64_t id)
+    {
+        for (auto& surface : _surfaces)
+            if (surface->Id == id)
+                return surface.get();
+        return nullptr;
+    }
+
+    uint64_t RendererDX12::CreateUISurface(Window& window)
+    {
+        if (_failed)
+            return 0;
+        auto surface = std::make_unique<Surface>();
+        surface->Hwnd = static_cast<HWND>(window.GetNativeHandle());
+        if (!surface->Hwnd || !CreateSwapChain(*surface))
+            return 0;
+        surface->Id = _nextSurfaceId++;
+        const uint64_t id = surface->Id;
+        _surfaces.push_back(std::move(surface));
+        return id;
+    }
+
+    void RendererDX12::DestroyUISurface(uint64_t surface)
+    {
+        for (auto it = _surfaces.begin(); it != _surfaces.end(); ++it)
+        {
+            if ((*it)->Id != surface)
+                continue;
+            WaitForGPU();
+            _surfaces.erase(it);
+            return;
+        }
+    }
+
+    void RendererDX12::SubmitUISurface(uint64_t surface, const UIDrawList* list)
+    {
+        if (Surface* target = FindSurface(surface))
+        {
+            StoreDrawList(*target, list);
+            PresentSurfaceNow(*target);
+        }
+    }
+
+    void RendererDX12::SetClearColor(const Color& color)
+    {
+        _clearColor[0] = color.r;
+        _clearColor[1] = color.g;
+        _clearColor[2] = color.b;
+        _clearColor[3] = color.a;
     }
 
 }

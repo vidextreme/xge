@@ -61,7 +61,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\3rdparty\SDL3\include;..\xgBase\public;..\xgCore\public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\3rdparty\SDL3\include;..\xgBase\public;..\xgBase\math;..\xgCore\public;..\xgCore\Generated</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -85,7 +85,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\3rdparty\SDL3\include;..\xgBase\public;..\xgCore\public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\3rdparty\SDL3\include;..\xgBase\public;..\xgBase\math;..\xgCore\public;..\xgCore\Generated</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>

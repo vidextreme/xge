@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>xg.imui</RootNamespace>
+
+    <OutputPath>..\..\gameroot\bin\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendConfigurationToOutputPath>false</AppendConfigurationToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Native.cs" />
+    <Compile Include="Types.cs" />
+    <Compile Include="Utf8.cs" />
+    <Compile Include="Gui.cs" />
+    <Compile Include="Painter.cs" />
+    <Compile Include="Texture.cs" />
+    <Compile Include="Panel.cs" />
+    <Compile Include="Menu.cs" />
+    <Compile Include="ImUI.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
+  </ItemGroup>
+
+</Project>
