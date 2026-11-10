@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 3;
+    inline constexpr uint32_t ApiVersion = 5;
 
     struct Context;
     struct PanelEntry;
@@ -66,6 +66,14 @@ namespace xg::imui
         StartClosed = 1 << 2,
     };
     XG_ENABLE_FLAGS(PanelFlags)
+
+    // Kit fonts: Noto Sans, Noto Sans Bold and Noto Sans Mono. Order is part of the ABI: append only.
+    enum class FontStyle : int32_t
+    {
+        Default = 0,
+        Bold,
+        Mono,
+    };
 
     enum class DrawLayer : int32_t
     {
@@ -187,6 +195,28 @@ namespace xg::imui
         int PixelWidth() const noexcept { return static_cast<int>(PixelSize.x); }
         int PixelHeight() const noexcept { return static_cast<int>(PixelSize.y); }
     };
+
+    enum class ListFlags : uint8_t
+    {
+        None           = 0,
+        ScrollToBottom = 1 << 0,
+        AtBottom       = 1 << 1,
+    };
+    XG_ENABLE_FLAGS(ListFlags)
+
+    // Virtualized list input/output. Set Count and RowHeight (and ScrollToBottom) before BeginList; read First, Last
+    // and AtBottom after. Submit rows First..Last-1 with BeginListRow/EndListRow; the rest is padded, not laid out.
+    struct ListState
+    {
+        uint32_t Size = sizeof(ListState);
+        int32_t Count = 0;
+        float RowHeight = 22.0f;
+        int32_t First = 0;
+        int32_t Last = 0;
+        ListFlags Flags = ListFlags::None;
+
+        bool AtBottom() const noexcept { return HasFlag(Flags, ListFlags::AtBottom); }
+    };
 }
 
 namespace xg
@@ -222,6 +252,35 @@ namespace xg
     XG_MODULE_EXPORT imui::Result XG_ImUILabel(imui::Context* ctx, const char* text);
     XG_MODULE_EXPORT imui::Result XG_ImUIButton(imui::Context* ctx, const char* label);
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldFloat(imui::Context* ctx, const char* label, float* value, float speed);
+    XG_MODULE_EXPORT imui::Result XG_ImUIToggleButton(imui::Context* ctx, const char* label, bool* on);
+    // Icon toggle with optional text after it (e.g. a count). Dimmed while off.
+    XG_MODULE_EXPORT imui::Result XG_ImUIIconToggle(imui::Context* ctx, const char* id, imui::Icon icon, bool* on, Color32 color, const char* text);
+    // Single-line search box editing a UTF-8 buffer in place. Returns Changed when the text changed.
+    XG_MODULE_EXPORT imui::Result XG_ImUISearchField(imui::Context* ctx, const char* id, char* buffer, int capacity, float width);
+    // Read-only, selectable multi-line text (Ctrl+A / Ctrl+C copy). size <= 0 fills the available space.
+    XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size);
+
+    // Fonts: affects widgets and Painter text until the matching PopFont.
+    XG_MODULE_EXPORT void XG_ImUIPushFont(imui::Context* ctx, imui::FontStyle style);
+    XG_MODULE_EXPORT void XG_ImUIPopFont(imui::Context* ctx);
+
+    // Layout
+    XG_MODULE_EXPORT void XG_ImUIBeginToolbar(imui::Context* ctx);
+    XG_MODULE_EXPORT void XG_ImUIEndToolbar(imui::Context* ctx);
+    // Places the next item on the same line. spacing < 0 uses the default spacing.
+    XG_MODULE_EXPORT void XG_ImUISameLine(imui::Context* ctx, float spacing);
+    // Moves the cursor so the next width pixels of items end at the right edge.
+    XG_MODULE_EXPORT void XG_ImUIAlignRight(imui::Context* ctx, float width);
+    XG_MODULE_EXPORT interop::Vec2Abi XG_ImUIAvailableSize(imui::Context* ctx);
+    // Horizontal bar; dragging it changes *size (the height of the area below it), clamped to [minSize, maxSize].
+    XG_MODULE_EXPORT imui::Result XG_ImUISplitter(imui::Context* ctx, const char* id, float* size, float minSize, float maxSize);
+
+    // Virtualized lists
+    XG_MODULE_EXPORT bool XG_ImUIBeginList(imui::Context* ctx, const char* id, const Vec2* size, imui::ListState* state);
+    XG_MODULE_EXPORT void XG_ImUIEndList(imui::Context* ctx);
+    // One full-width row; Painter draws in row space ((0,0) = row top-left) until EndListRow.
+    XG_MODULE_EXPORT imui::Result XG_ImUIBeginListRow(imui::Context* ctx, int index, bool selected);
+    XG_MODULE_EXPORT void XG_ImUIEndListRow(imui::Context* ctx);
 
     // Immediate drawing
     XG_MODULE_EXPORT imui::Result XG_ImUIBeginCanvas(imui::Context* ctx, const char* id, const Vec2* size, Rect* outRect);

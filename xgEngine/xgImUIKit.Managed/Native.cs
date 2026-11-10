@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 3;
+        public const uint ApiVersion = 5;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -83,6 +83,54 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldFloat")]
         public static partial Result FieldFloat(nint ctx, byte* label, float* value, float speed);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIToggleButton")]
+        public static partial Result ToggleButton(nint ctx, byte* label, byte* on);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIIconToggle")]
+        public static partial Result IconToggle(nint ctx, byte* id, Icon icon, byte* on, Color32 color, byte* text);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISearchField")]
+        public static partial Result SearchField(nint ctx, byte* id, byte* buffer, int capacity, float width);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUITextArea")]
+        public static partial Result TextArea(nint ctx, byte* id, byte* text, Vector2* size);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPushFont")]
+        public static partial void PushFont(nint ctx, FontStyle style);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPopFont")]
+        public static partial void PopFont(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginToolbar")]
+        public static partial void BeginToolbar(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndToolbar")]
+        public static partial void EndToolbar(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISameLine")]
+        public static partial void SameLine(nint ctx, float spacing);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIAlignRight")]
+        public static partial void AlignRight(nint ctx, float width);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIAvailableSize")]
+        public static partial Vector2 AvailableSize(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISplitter")]
+        public static partial Result Splitter(nint ctx, byte* id, float* size, float minSize, float maxSize);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginList")]
+        public static partial byte BeginList(nint ctx, byte* id, Vector2* size, ListState* state);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndList")]
+        public static partial void EndList(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginListRow")]
+        public static partial Result BeginListRow(nint ctx, int index, byte selected);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndListRow")]
+        public static partial void EndListRow(nint ctx);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginCanvas")]
         public static partial Result BeginCanvas(nint ctx, byte* id, Vector2* size, Rect* outRect);

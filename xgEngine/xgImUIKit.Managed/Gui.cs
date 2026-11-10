@@ -125,6 +125,105 @@ namespace xg.imui
 
         public static Painter Draw => new(Context);
 
+        // ------------------------------------------------------------
+        // Toggles, search and text
+        // ------------------------------------------------------------
+        public static bool Toggle(string label, ref bool on)
+        {
+            byte value = on ? (byte)1 : (byte)0;
+            Result result;
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+                result = Native.ToggleButton(Context, p, &value);
+            on = value != 0;
+            return (result & Result.Changed) != 0;
+        }
+
+        public static bool IconToggle(string id, Icon icon, ref bool on, Color32 color, string? text = null)
+        {
+            byte value = on ? (byte)1 : (byte)0;
+            Result result;
+            fixed (byte* p = Utf8.Encode(id.AsSpan(), 0))
+            fixed (byte* t = Utf8.Encode(text, 1))
+                result = Native.IconToggle(Context, p, icon, &value, color, t);
+            on = value != 0;
+            return (result & Result.Changed) != 0;
+        }
+
+        public static bool SearchField(string id, TextBuffer text, float width = 200.0f)
+        {
+            Result result;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+            fixed (byte* buffer = text.Buffer)
+                result = Native.SearchField(Context, p, buffer, text.Buffer.Length, width);
+            bool changed = (result & Result.Changed) != 0;
+            if (changed)
+                text.MarkEdited();
+            return changed;
+        }
+
+        // Read-only, selectable text; size <= 0 fills the available space.
+        public static Result TextArea(string id, string text, Vector2 size = default)
+        {
+            fixed (byte* p = Utf8.Encode(id.AsSpan(), 0))
+            fixed (byte* t = Utf8.Encode(text.AsSpan(), 1))
+                return Native.TextArea(Context, p, t, &size);
+        }
+
+        // ------------------------------------------------------------
+        // Layout
+        // ------------------------------------------------------------
+        // using (Gui.Font(FontStyle.Mono)) { ... }: widgets and Painter text use the font until disposed.
+        public static FontScope Font(FontStyle style)
+        {
+            nint ctx = Context;
+            Native.PushFont(ctx, style);
+            return new FontScope(ctx);
+        }
+
+        public static ToolbarScope Toolbar()
+        {
+            nint ctx = Context;
+            Native.BeginToolbar(ctx);
+            return new ToolbarScope(ctx);
+        }
+
+        public static void SameLine(float spacing = -1.0f) => Native.SameLine(Context, spacing);
+
+        public static void AlignRight(float width) => Native.AlignRight(Context, width);
+
+        public static Vector2 AvailableSize => Native.AvailableSize(Context);
+
+        // Horizontal bar; dragging it changes size (the height of the area below it).
+        public static bool Splitter(string id, ref float size, float minSize, float maxSize)
+        {
+            Result result;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+            fixed (float* s = &size)
+                result = Native.Splitter(Context, p, s, minSize, maxSize);
+            return (result & Result.Changed) != 0;
+        }
+
+        // ------------------------------------------------------------
+        // Virtualized lists: using (Gui.List("log", ref state)) for (int i = state.First; i < state.Last; ++i) { using var row = Gui.ListRow(i, sel); }
+        // ------------------------------------------------------------
+        public static ListScope List(string id, ref ListState state, Vector2 size = default)
+        {
+            nint ctx = Context;
+            state.Size = (uint)sizeof(ListState);
+            byte open;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+            fixed (ListState* s = &state)
+                open = Native.BeginList(ctx, p, &size, s);
+            return new ListScope(ctx, open != 0);
+        }
+
+        public static ListRowScope ListRow(int index, bool selected)
+        {
+            nint ctx = Context;
+            Result result = Native.BeginListRow(ctx, index, selected ? (byte)1 : (byte)0);
+            return new ListRowScope(ctx, result);
+        }
+
         public static Vector2 MeasureText(string text)
         {
             fixed (byte* p = Utf8.Encode(text.AsSpan()))
@@ -142,6 +241,73 @@ namespace xg.imui
         {
             if (_ctx != 0)
                 Native.PopID(_ctx);
+        }
+    }
+
+    public readonly ref struct FontScope
+    {
+        private readonly nint _ctx;
+
+        internal FontScope(nint ctx) => _ctx = ctx;
+
+        public void Dispose()
+        {
+            if (_ctx != 0)
+                Native.PopFont(_ctx);
+        }
+    }
+
+    public readonly ref struct ToolbarScope
+    {
+        private readonly nint _ctx;
+
+        internal ToolbarScope(nint ctx) => _ctx = ctx;
+
+        public void Dispose()
+        {
+            if (_ctx != 0)
+                Native.EndToolbar(_ctx);
+        }
+    }
+
+    public readonly ref struct ListScope
+    {
+        private readonly nint _ctx;
+
+        internal ListScope(nint ctx, bool open)
+        {
+            _ctx = ctx;
+            IsOpen = open;
+        }
+
+        public bool IsOpen { get; }
+
+        public void Dispose()
+        {
+            if (_ctx != 0 && IsOpen)
+                Native.EndList(_ctx);
+        }
+    }
+
+    // One list row. Draw in row space: (0,0) is the row top-left.
+    public readonly ref struct ListRowScope
+    {
+        private readonly nint _ctx;
+
+        internal ListRowScope(nint ctx, Result interaction)
+        {
+            _ctx = ctx;
+            Interaction = interaction;
+        }
+
+        public Result Interaction { get; }
+        public bool Clicked => (Interaction & Result.Clicked) != 0;
+        public Painter Draw => new(_ctx);
+
+        public void Dispose()
+        {
+            if (_ctx != 0)
+                Native.EndListRow(_ctx);
         }
     }
 

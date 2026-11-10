@@ -18,4 +18,6 @@ namespace xg::imui::detail::platform
     void ProcessEvent(const xgEvent& e);
     // Shows viewport windows ImGui asked to show this frame, after they have been rendered once.
     void ShowPendingWindows();
+    // Content scale of the main window (or the XG_UI_DPI_SCALE override); 1 before Init.
+    float DisplayScale();
 }

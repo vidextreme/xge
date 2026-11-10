@@ -167,7 +167,7 @@ namespace xg::imui::detail
     bool BeginAnchoredPopup(const char* id, bool openNow, ImVec2 pos);
     float DropdownWidth(const char* label, Icon icon = Icon::None);
     bool BeginDropdown(const char* id, const char* label, Icon icon = Icon::None, float width = 0.0f, ImU32 iconCol = IconColor);
-    void SearchField(const char* id, char* buffer, size_t size, float width);
+    bool SearchField(const char* id, char* buffer, size_t size, float width);
     bool FlatButton(const char* label, bool active = false);
     void AlignRight(float width);
     bool BeginStyledPanel(const char* name, ImU32 bodyCol, bool defaultTab = false);
@@ -196,9 +196,7 @@ namespace xg::imui::detail
     void DrawInspector();
     void DrawLighting();
     void DrawProjectTab();
-    void DrawConsoleTab();
     void DrawProject();
-    void DrawConsole();
     void DrawMainToolbar();
     void DrawTitleBarControls(Window* window, const ImRect& bar, float dragStartX);
     void DrawMenus(Window* mainWindow);

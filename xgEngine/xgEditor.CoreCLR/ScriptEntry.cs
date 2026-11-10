@@ -25,6 +25,7 @@ namespace xgEditor.CoreCLR
         public static int Init(nint enginePtr, uint moduleID)
         {
             ScriptRuntime.Initialize(enginePtr, moduleID);
+            EditorLog.Attach();
 
             // Example: register a managed log callback
             ScriptRuntime.AddLogCallback(OnLog);
@@ -64,6 +65,13 @@ namespace xgEditor.CoreCLR
             }
             Debug.Assert(ActorRegistry.Count == 2, "expected two actors");
             Debug.Log(null);
+
+            ConsolePanel console = xg.imui.Panel.Open<ConsolePanel>();
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "console")
+            {
+                console.Focus();
+                console.SelectLatestError();
+            }
 
             _testWindow = xg.imui.Panel.Open<ManagedTestWindow>();
             xg.imui.Panel.Open<ManagedFloatingWindow>();
@@ -114,6 +122,7 @@ namespace xgEditor.CoreCLR
         public static void Shutdown()
         {
             xg.imui.ImUI.ShutdownAll();
+            EditorLog.Detach();
             ScriptRuntime.Shutdown();
         }
 

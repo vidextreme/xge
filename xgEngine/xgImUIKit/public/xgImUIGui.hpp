@@ -138,6 +138,83 @@ namespace xg::imui
 
         Painter Draw() const { return Painter(_ctx); }
 
+        bool Toggle(const char* label, bool& on) const { return Changed(XG_ImUIToggleButton(_ctx, label, &on)); }
+        bool IconToggle(const char* id, imui::Icon icon, bool& on, Color32 color, const char* text = nullptr) const
+        {
+            return Changed(XG_ImUIIconToggle(_ctx, id, icon, &on, color, text));
+        }
+        bool SearchField(const char* id, char* buffer, int capacity, float width = 200.0f) const
+        {
+            return Changed(XG_ImUISearchField(_ctx, id, buffer, capacity, width));
+        }
+        Result TextArea(const char* id, const char* text, const Vec2& size = Vec2(0.0f, 0.0f)) const { return XG_ImUITextArea(_ctx, id, text, &size); }
+
+        void SameLine(float spacing = -1.0f) const { XG_ImUISameLine(_ctx, spacing); }
+        void AlignRight(float width) const { XG_ImUIAlignRight(_ctx, width); }
+        Vec2 AvailableSize() const { const interop::Vec2Abi v = XG_ImUIAvailableSize(_ctx); return Vec2(v.x, v.y); }
+        bool Splitter(const char* id, float& size, float minSize, float maxSize) const { return Changed(XG_ImUISplitter(_ctx, id, &size, minSize, maxSize)); }
+
+        class FontScope
+        {
+        public:
+            FontScope(Context* ctx, FontStyle style) : _ctx(ctx) { XG_ImUIPushFont(_ctx, style); }
+            ~FontScope() { if (_ctx) XG_ImUIPopFont(_ctx); }
+            FontScope(const FontScope&) = delete;
+            FontScope& operator=(const FontScope&) = delete;
+            FontScope(FontScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)) {}
+        private:
+            Context* _ctx;
+        };
+
+        class ToolbarScope
+        {
+        public:
+            explicit ToolbarScope(Context* ctx) : _ctx(ctx) { XG_ImUIBeginToolbar(_ctx); }
+            ~ToolbarScope() { if (_ctx) XG_ImUIEndToolbar(_ctx); }
+            ToolbarScope(const ToolbarScope&) = delete;
+            ToolbarScope& operator=(const ToolbarScope&) = delete;
+            ToolbarScope(ToolbarScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)) {}
+        private:
+            Context* _ctx;
+        };
+
+        class ListRowScope
+        {
+        public:
+            ListRowScope(Context* ctx, int index, bool selected) : _ctx(ctx), _result(XG_ImUIBeginListRow(ctx, index, selected)) {}
+            ~ListRowScope() { if (_ctx) XG_ImUIEndListRow(_ctx); }
+            ListRowScope(const ListRowScope&) = delete;
+            ListRowScope& operator=(const ListRowScope&) = delete;
+            ListRowScope(ListRowScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _result(o._result) {}
+
+            Result Interaction() const { return _result; }
+            Painter Draw() const { return Painter(_ctx); }
+        private:
+            Context* _ctx;
+            Result _result = Result::None;
+        };
+
+        class ListScope
+        {
+        public:
+            ListScope(Context* ctx, const char* id, const Vec2& size, ListState& state)
+                : _ctx(ctx), _open(XG_ImUIBeginList(ctx, id, &size, &state)) {}
+            ~ListScope() { if (_ctx && _open) XG_ImUIEndList(_ctx); }
+            ListScope(const ListScope&) = delete;
+            ListScope& operator=(const ListScope&) = delete;
+            ListScope(ListScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _open(o._open) {}
+
+            bool IsOpen() const { return _open; }
+            [[nodiscard]] ListRowScope Row(int index, bool selected) const { return ListRowScope(_ctx, index, selected); }
+        private:
+            Context* _ctx;
+            bool _open = false;
+        };
+
+        [[nodiscard]] ToolbarScope Toolbar() const { return ToolbarScope(_ctx); }
+        [[nodiscard]] FontScope Font(FontStyle style) const { return FontScope(_ctx, style); }
+        [[nodiscard]] ListScope List(const char* id, ListState& state, const Vec2& size = Vec2(0.0f, 0.0f)) const { return ListScope(_ctx, id, size, state); }
+
     private:
         Context* _ctx;
     };
