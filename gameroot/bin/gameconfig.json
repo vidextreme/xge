@@ -1,4 +1,5 @@
 {
     "RendererModule": "xgRendererDX12",
-    "EditorUI": false
+    "EditorUI": false,
+    "EditorMultiViewport": true
 }

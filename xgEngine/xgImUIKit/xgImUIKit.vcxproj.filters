@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="public">
+      <UniqueIdentifier>{6f1d6a40-3c55-4b0e-9a8e-1c1f6b1d7a01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{6f1d6a40-3c55-4b0e-9a8e-1c1f6b1d7a02}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="backends">
+      <UniqueIdentifier>{6f1d6a40-3c55-4b0e-9a8e-1c1f6b1d7a03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{6f1d6a40-3c55-4b0e-9a8e-1c1f6b1d7a04}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="public\xgImUI.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgImUIGui.hpp">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="ImUIInternal.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="ImUIHost.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="backends\UIPlatformBackend.h">
+      <Filter>backends</Filter>
+    </ClInclude>
+    <ClInclude Include="backends\UIRenderBackend.h">
+      <Filter>backends</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imconfig.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_rectpack.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rdparty\imgui-docking\imstb_truetype.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Api.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="Host.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="Theme.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="Icons.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="Widgets.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneViewDraw.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="PrototypePanels.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="backends\UIPlatformBackend.cpp">
+      <Filter>backends</Filter>
+    </ClCompile>
+    <ClCompile Include="backends\UIRenderBackend.cpp">
+      <Filter>backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_demo.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdparty\imgui-docking\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

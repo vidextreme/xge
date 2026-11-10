@@ -30,6 +30,20 @@
     <ClInclude Include="FileWin.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="UIRenderTargetSDLGPU.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\UIShaderBlobs.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\UIShader.hlsl">
+      <Filter>private\source</Filter>
+    </None>
+    <None Include="shaders\compile_ui_shaders.ps1">
+      <Filter>private\source</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -45,6 +59,15 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="PlatformFactory.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="UIRenderTargetSDLGPU.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageSDL.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="PlatformServicesSDL.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

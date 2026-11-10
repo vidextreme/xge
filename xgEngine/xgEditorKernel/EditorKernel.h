@@ -3,15 +3,17 @@
 #pragma once
 #include "xgScriptModule.h"
 #include "xgEvent.h"
+#include "xgUIDraw.h"
 
 #include <memory>   // allowed (non‑public header)
-
-struct SDL_Window;
 
 namespace xg
 {
     class ScriptEngine;
     class EventListener;
+    class NativeTestWindow;
+    class NativeFloatingWindow;
+    class SceneViewWindow;
 
     XG_SERIALIZABLE()
         struct PlayerState
@@ -38,11 +40,9 @@ namespace xg
 
         SceneGraph* GetSceneGraph() override;
     private:
-        // ImGui lifecycle
-        void InitImGui();
-        void ShutdownImGui();
-        void BeginImGuiFrame();
-        void EndImGuiFrame();
+        // Editor UI lifecycle (xgImUIKit host)
+        void InitUI();
+        void ShutdownUI();
 
         // Platform event handler (called by EventDispatcher)
         void OnEvent(const xgEvent& e);
@@ -51,15 +51,18 @@ namespace xg
         ScriptEngine* _engine = nullptr;
         ScriptModule* _editorModule = nullptr;
         ScriptModule* _gameKernel = nullptr;
-        // Stored as void* to avoid SDL includes in the header
-        void* _gpuDevice = nullptr;
+        UIRenderTargetUnique _ownedUITarget;
+        UIRenderTarget* _uiTarget = nullptr;
 
         bool _isValid = true;
         bool _prototypeUI = true;
-        bool _engineRendererUI = false;
+        bool _multiViewport = true;
         bool _uiReady = false;
 
         // Modernized: EditorKernel owns its listener
         std::unique_ptr<EventListener> _eventListener;
+        std::unique_ptr<NativeTestWindow> _nativeTestWindow;
+        std::unique_ptr<NativeFloatingWindow> _nativeFloatingWindow;
+        std::unique_ptr<SceneViewWindow> _sceneViewWindows[2];
     };
 }

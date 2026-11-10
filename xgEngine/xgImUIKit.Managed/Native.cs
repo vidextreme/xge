@@ -1,0 +1,150 @@
+﻿// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
+
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using xg.math;
+
+[assembly: DisableRuntimeMarshalling]
+
+namespace xg.imui
+{
+    // Mirrors xg::imui::PanelDesc.
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe struct NativePanelDesc
+    {
+        public uint Size;
+        public byte* Title;
+        public byte* MenuPath;
+        public DockSlot Slot;
+        public Icon PanelIcon;
+        public PanelFlags Flags;
+        public delegate* unmanaged<nint, nint, void> OnGUI;
+        public delegate* unmanaged<nint, void> OnOpen;
+        public delegate* unmanaged<nint, void> OnClose;
+        public nint User;
+        public Rect InitialRect;
+    }
+
+    // 1:1 bindings to xgImUI.h. Every XG_ImUI export used by managed code is declared here.
+    // C++ bool crosses as byte; struct arguments cross by pointer.
+    internal static unsafe partial class Native
+    {
+        private const string DLL = "xgImUIKit";
+        public const uint ApiVersion = 3;
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
+        public static partial uint GetApiVersion();
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIRegisterPanel")]
+        public static partial nint RegisterPanel(NativePanelDesc* desc);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIUnregisterPanel")]
+        public static partial void UnregisterPanel(nint panel);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIOpenPanel")]
+        public static partial void OpenPanel(nint panel);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIClosePanel")]
+        public static partial void ClosePanel(nint panel);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIIsPanelOpen")]
+        public static partial byte IsPanelOpen(nint panel);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFocusPanel")]
+        public static partial void FocusPanel(nint panel);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIRequestRepaint")]
+        public static partial void RequestRepaint(nint panel);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIRegisterMenuItem")]
+        public static partial nint RegisterMenuItem(byte* path, byte* shortcut, delegate* unmanaged<nint, void> callback, nint user);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIUnregisterMenuItem")]
+        public static partial void UnregisterMenuItem(nint item);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPushID")]
+        public static partial void PushID(nint ctx, byte* id);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPushIDPtr")]
+        public static partial void PushIDPtr(nint ctx, nint id);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPushIDInt")]
+        public static partial void PushIDInt(nint ctx, int id);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPopID")]
+        public static partial void PopID(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUILabel")]
+        public static partial Result Label(nint ctx, byte* text);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIButton")]
+        public static partial Result Button(nint ctx, byte* label);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldFloat")]
+        public static partial Result FieldFloat(nint ctx, byte* label, float* value, float speed);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginCanvas")]
+        public static partial Result BeginCanvas(nint ctx, byte* id, Vector2* size, Rect* outRect);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndCanvas")]
+        public static partial void EndCanvas(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISetDrawLayer")]
+        public static partial void SetDrawLayer(nint ctx, DrawLayer layer);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPushClipRect")]
+        public static partial void PushClipRect(nint ctx, Rect* rect, byte intersectWithCurrent);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPopClipRect")]
+        public static partial void PopClipRect(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawLine")]
+        public static partial void DrawLine(nint ctx, Vector2* from, Vector2* to, Color32 color, float thickness);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawRect")]
+        public static partial void DrawRect(nint ctx, Rect* rect, Color32 color, float rounding, float thickness);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawRectFilled")]
+        public static partial void DrawRectFilled(nint ctx, Rect* rect, Color32 color, float rounding);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawCircle")]
+        public static partial void DrawCircle(nint ctx, Vector2* center, float radius, Color32 color, float thickness);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawCircleFilled")]
+        public static partial void DrawCircleFilled(nint ctx, Vector2* center, float radius, Color32 color);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawTriangleFilled")]
+        public static partial void DrawTriangleFilled(nint ctx, Vector2* a, Vector2* b, Vector2* c, Color32 color);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawPolyline")]
+        public static partial void DrawPolyline(nint ctx, Vector2* points, int count, Color32 color, byte closed, float thickness);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawText")]
+        public static partial void DrawText(nint ctx, Vector2* position, Color32 color, byte* text);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawIcon")]
+        public static partial void DrawIcon(nint ctx, Icon icon, Vector2* center, float size, Color32 color);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawImage")]
+        public static partial void DrawImage(nint ctx, nint texture, Rect* rect, Vector2* uv0, Vector2* uv1, Color32 tint);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawExternalTexture")]
+        public static partial void DrawExternalTexture(nint ctx, ulong textureId, Rect* rect, Vector2* uv0, Vector2* uv1, Color32 tint);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISceneView")]
+        public static partial Result SceneView(nint ctx, byte* id, Vector2* size, SceneViewState* state);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIStyleToColor")]
+        public static partial void StyleToColor(StyleColor token, Color32* outColor);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIMeasureText")]
+        public static partial Vector2 MeasureText(byte* text);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUICreateTexture")]
+        public static partial nint CreateTexture(byte* rgba, int width, int height);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDestroyTexture")]
+        public static partial void DestroyTexture(nint texture);
+    }
+}

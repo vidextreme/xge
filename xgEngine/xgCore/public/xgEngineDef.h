@@ -17,6 +17,9 @@ namespace xg
 
         XG_FIELD()
         bool EditorUI = true;
+
+        XG_FIELD()
+        bool EditorMultiViewport = true;
     };
 
     XG_ENUM(inherit = byte)

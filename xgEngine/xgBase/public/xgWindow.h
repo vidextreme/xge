@@ -16,6 +16,22 @@ namespace xg {
         int Height;
     };
 
+    enum class CursorShape : int
+    {
+        Arrow,
+        TextInput,
+        ResizeAll,
+        ResizeNS,
+        ResizeEW,
+        ResizeNESW,
+        ResizeNWSE,
+        Hand,
+        Wait,
+        Progress,
+        NotAllowed,
+        Hidden,
+    };
+
     class Window {
     public:
         virtual ~Window() = default;
@@ -56,6 +72,33 @@ namespace xg {
 
         static constexpr int MaxDragRegions = 8;
         virtual void SetDragRegions(const WindowRect* rects, int count) = 0;
+
+        virtual void SetCursorShape(CursorShape shape) = 0;
+
+        virtual void SetClipboardText(const char* text) = 0;
+        // Valid until the next call on this window.
+        virtual const char* GetClipboardText() = 0;
+
+        virtual void StartTextInput() = 0;
+        virtual void StopTextInput() = 0;
+        virtual void SetTextInputArea(const WindowRect& rect, int cursorX) = 0;
+
+        virtual float GetDisplayScale() const noexcept = 0;
+
+        virtual void SetIconRGBA(const void* rgba, int width, int height) = 0;
+
+        // Desktop position of the client area, in logical pixels.
+        virtual void SetPosition(int x, int y) = 0;
+        virtual void GetPosition(int* x, int* y) const noexcept = 0;
+        virtual void SetSize(int width, int height) = 0;
+        virtual void Show() = 0;
+        virtual void Focus() = 0;
+        virtual void SetOpacity(float opacity) = 0;
+        // True once the OS asked to close this window. Secondary windows never quit the app.
+        virtual bool RequestedClose() const noexcept = 0;
+
+        // Shows the window without taking keyboard focus (e.g. a window spawned mid-drag).
+        virtual void ShowWithoutActivation() = 0;
     };
 
     // Factory implemented in xgPlatform

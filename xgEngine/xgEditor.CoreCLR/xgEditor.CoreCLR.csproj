@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
+    <ProjectReference Include="..\xgImUIKit.Managed\xgImUIKit.Managed.csproj" />
   </ItemGroup>
 
 </Project>

@@ -54,8 +54,17 @@ namespace xgEditor.CoreCLR
             }
             Debug.Assert(ActorRegistry.Count == 2, "expected two actors");
             Debug.Log(null);
+
+            s_testWindow = xg.imui.Panel.Open<ManagedTestWindow>();
+            xg.imui.Panel.Open<ManagedFloatingWindow>();
+            xg.imui.Panel.Open<ManagedSceneViewWindow>();
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "managed")
+                s_testWindow.Focus();
+            Debug.Log($"[Debug] Managed Test registered: {s_testWindow.IsRegistered}, xgImUIKit API {xg.imui.ImUI.NativeApiVersion}");
             return 1;
         }
+
+        static ManagedTestWindow s_testWindow = null!;
 
         static PlayerComponent s_player = null!;
         static xg.Actor s_temporary = null!;
@@ -94,6 +103,7 @@ namespace xgEditor.CoreCLR
         [UnmanagedCallersOnly]
         public static void Shutdown()
         {
+            xg.imui.ImUI.ShutdownAll();
             ScriptRuntime.Shutdown();
         }
 

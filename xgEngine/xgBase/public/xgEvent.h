@@ -36,6 +36,49 @@ namespace xg {
         GamepadAxisMotion,
 
         Platform,
+
+        MouseLeave,
+
+        WindowMoved,
+        WindowCloseRequested,
+    };
+
+    //
+    // Platform-neutral key codes (filled by the platform layer)
+    //
+    enum class xgKey : uint16_t
+    {
+        None = 0,
+
+        Tab, Left, Right, Up, Down, PageUp, PageDown, Home, End, Insert, Delete,
+        Backspace, Space, Enter, Escape,
+
+        LeftCtrl, LeftShift, LeftAlt, LeftSuper, RightCtrl, RightShift, RightAlt, RightSuper, Menu,
+
+        Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+
+        A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+
+        F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+
+        Apostrophe, Comma, Minus, Period, Slash, Semicolon, Equal,
+        LeftBracket, Backslash, RightBracket, GraveAccent,
+
+        CapsLock, ScrollLock, NumLock, PrintScreen, Pause,
+
+        Keypad0, Keypad1, Keypad2, Keypad3, Keypad4, Keypad5, Keypad6, Keypad7, Keypad8, Keypad9,
+        KeypadDecimal, KeypadDivide, KeypadMultiply, KeypadSubtract, KeypadAdd, KeypadEnter, KeypadEqual,
+
+        Count
+    };
+
+    enum xgKeyMod : uint16_t
+    {
+        xgKeyModNone  = 0,
+        xgKeyModCtrl  = 1 << 0,
+        xgKeyModShift = 1 << 1,
+        xgKeyModAlt   = 1 << 2,
+        xgKeyModSuper = 1 << 3,
     };
 
     //
@@ -61,6 +104,8 @@ namespace xg {
         int Scancode;
         uint16_t Mod;
         bool Repeat;
+        xgKey Code;
+        uint16_t Mods;
     };
 
     struct xgTextInputEvent { char Text[32]; };
@@ -103,6 +148,9 @@ namespace xg {
         };
 
         const void* Native = nullptr;
+
+        // Window that produced the event (main or secondary). Null for app-level events such as Quit.
+        class Window* Source = nullptr;
     };
 
 } // namespace xg

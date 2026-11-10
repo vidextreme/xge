@@ -26,6 +26,15 @@
     <ClInclude Include="public\xgWindow.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgUIDraw.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgImage.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgPlatformServices.h">
+      <Filter>public</Filter>
+    </ClInclude>
     <ClInclude Include="public\xgPathUtils.h">
       <Filter>public</Filter>
     </ClInclude>
