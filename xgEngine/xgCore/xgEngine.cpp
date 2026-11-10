@@ -63,17 +63,17 @@ namespace xg
         _rootModule = AddScriptModule("root", nullptr, nullptr, "core");
 		_rootNode = _scriptTree->FindNode(_rootModule);
         //auto ha = MessengerImpl::SuperTypeID;
-		RegisterSystem(_rootModule, new MessengerImpl(_scriptTree));
-        RegisterSystem(_rootModule, new ActorRegistryImpl());
+		RegisterSubsystem(_rootModule, new MessengerImpl(_scriptTree));
+        RegisterSubsystem(_rootModule, new ActorRegistryImpl());
         
         auto eventDispatcher = new EventDispatcherImpl();
-        RegisterSystem(_rootModule, eventDispatcher);
+        RegisterSubsystem(_rootModule, eventDispatcher);
 
 		auto sceneGraphFactory = new SceneGraphFactoryImpl();
-        RegisterSystem(_rootModule, sceneGraphFactory);
+        RegisterSubsystem(_rootModule, sceneGraphFactory);
 
 		auto queue = new EventQueueImpl();
-        RegisterSystem(_rootModule, queue);
+        RegisterSubsystem(_rootModule, queue);
 
         sceneGraphFactory->RegisterType("tree",
             [](ActorRegistry& reg) -> SceneGraph*
@@ -124,8 +124,8 @@ namespace xg
 
         if (MainWindow)
         {
-            MainWindow->SetEventQueue(GetSystem<EventQueue>());
-            MainWindow->SetEventDispatcher(GetSystem<EventDispatcher>());
+            MainWindow->SetEventQueue(GetSubsystem<EventQueue>());
+            MainWindow->SetEventDispatcher(GetSubsystem<EventDispatcher>());
         }
 
         CodecRegistry* registry = GetCodecRegistry(ScriptBackendType::CoreCLR);
@@ -234,42 +234,51 @@ namespace xg
         hosts->Hosts.push_back(std::move(entry));
     }
 
-    System* Engine::GetSystemImpl(TypeID id, ScriptModule* module)
+    Subsystem* Engine::GetSubsystemImpl(TypeID id, ScriptModule* module)
     {
         if (module == nullptr)
-            return _rootNode->GetSystem(id);
+            return _rootNode->GetSubsystem(id);
 
-        System* system = nullptr;
+        Subsystem* system = nullptr;
         ScriptNode* node = _scriptTree->FindNode(module);
         if (node)
         {
-            system = node->GetSystem(id);
+            system = node->GetSubsystem(id);
             if(system == nullptr)
-                system = node->GetParent()->GetSystem(id);
+                system = node->GetParent()->GetSubsystem(id);
         }
         return system;
     }
 
-    System* Engine::GetSystemImpl(TypeID id, const char* moduleID)
+    Subsystem* Engine::GetSubsystemImpl(TypeID id, const char* moduleID)
     {
 		ScriptModule* module = GetScriptModule(moduleID);       
 
-        return GetSystemImpl(id, module);
+        return GetSubsystemImpl(id, module);
     }
 
-    void Engine::RegisterSystemImpl(ScriptModule* module, TypeID id, System* system)
+    void Engine::RegisterSubsystemImpl(ScriptModule* module, TypeID id, Subsystem* system)
     {
         if (module == nullptr)
         {
-            _rootNode->RegisterSystem(id, system);
+            _rootNode->RegisterSubsystem(id, system);
             return;
         }
 
         ScriptNode* node = _scriptTree->FindNode(module);
         if (node)
         {
-            node->RegisterSystem(id, system);
+            node->RegisterSubsystem(id, system);
         }
+    }
+
+    bool Engine::UnregisterSubsystemImpl(ScriptModule* module, TypeID id)
+    {
+        if (module == nullptr)
+            return _rootNode->ShutdownSubsystem(id);
+
+        ScriptNode* node = _scriptTree->FindNode(module);
+        return node ? node->ShutdownSubsystem(id) : false;
     }
 
     ScriptModule* Engine::AddScriptModule(const char* id,
@@ -354,7 +363,7 @@ namespace xg
 
         _scriptTree->ForEachNodeRecursive(node, [](ScriptNode* n)
             {
-                n->ForEachSystem([](System* system)
+                n->ForEachSubsystem([](Subsystem* system)
                     {
                         system->Initialize();
                     });
@@ -421,7 +430,7 @@ namespace xg
         static constexpr float MaxDeltaTime = 0.25f;
 
         using Clock = std::chrono::steady_clock;
-        EventQueue* eventQueue = GetSystem<EventQueue>();
+        EventQueue* eventQueue = GetSubsystem<EventQueue>();
         Clock::time_point last = Clock::now();
 
         while (!MainWindow->ShouldClose())
@@ -441,7 +450,7 @@ namespace xg
 
             _scriptTree->Update(dt);
 
-            if (ActorRegistry* actors = GetSystem<ActorRegistry>())
+            if (ActorRegistry* actors = GetSubsystem<ActorRegistry>())
                 actors->UpdateActors(dt);
 
             if (Renderer)
@@ -470,7 +479,7 @@ namespace xg
         for (ScriptModule* module : modules)
         {
             if (ScriptNode* node = _scriptTree->FindNode(module))
-                node->ShutdownAllSystems();
+                node->ShutdownAllSubsystems();
 
             ScriptHost* host = module->GetHost();
             module->Shutdown();

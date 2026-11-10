@@ -82,17 +82,17 @@ namespace xg
             &EditorKernelModule::OnEvent
         );
 
-        engine->GetSystem<EventDispatcher>()->AddListener(_eventListener.get());
+        engine->GetSubsystem<EventDispatcher>()->AddListener(_eventListener.get());
 
         //
         // Editor UI setup
         //
         InitUI();
 
-		/*auto sceneGraphFactory = engine->GetSystem<SceneGraphFactory>(this);
-		auto actorRegistry = engine->GetSystem<ActorRegistry>(this);
+		/*auto sceneGraphFactory = engine->GetSubsystem<SceneGraphFactory>(this);
+		auto actorRegistry = engine->GetSubsystem<ActorRegistry>(this);
         auto sceneGraph = sceneGraphFactory->Create("tree", *actorRegistry);
-		engine->RegisterSystem<SceneGraph>(nullptr, sceneGraph);
+		engine->RegisterSubsystem<SceneGraph>(nullptr, sceneGraph);
 
         auto sceneRoot = xg::CreateNode<HierarchyNode>(*sceneGraph);
         sceneRoot->Name = "mr root";*/
@@ -106,7 +106,7 @@ namespace xg
 
        /* auto componentSG = sceneGraphFactory->Create("compset", *actorRegistry);
         auto componentSet = static_cast<ComponentSceneGraph*>(componentSG);
-        engine->RegisterSystemWithAlias(nullptr, componentSet, "PlayerComponent");
+        engine->RegisterSubsystemWithAlias(nullptr, componentSet, "PlayerComponent");
         
         componentSet->InitializeComponentSet("PlayerComponent", 12);
         ComponentSetNode* co = componentSet->CreateComponent<ComponentSetNode>(55);*/
@@ -153,7 +153,7 @@ namespace xg
 
 		//TODO release dynamic object
 
-        _engine->GetSystem<Messenger>(this)->SendToAll(msg);
+        _engine->GetSubsystem<Messenger>(this)->SendToAll(msg);
         return true;
     }
 
@@ -167,7 +167,7 @@ namespace xg
         //
         if (_engine)
         {
-            if (auto dispatcher = _engine->GetSystem<EventDispatcher>())
+            if (auto dispatcher = _engine->GetSubsystem<EventDispatcher>())
                 dispatcher->RemoveListener(_eventListener.get());
         }
 
@@ -205,7 +205,7 @@ namespace xg
 
     SceneGraph* EditorKernelModule::GetSceneGraph()
     {
-        return _engine->GetSystem<SceneGraph>(this);
+        return _engine->GetSubsystem<SceneGraph>(this);
     }
 
     //

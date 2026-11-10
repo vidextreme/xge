@@ -33,7 +33,7 @@
     <ClInclude Include="ScriptModuleNative.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="InteropSystem.h">
+    <ClInclude Include="InteropSubsystem.h">
       <Filter>private\headers</Filter>
     </ClInclude>
   </ItemGroup>
@@ -74,10 +74,10 @@
     <ClCompile Include="CompositeComponent.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="NativeSystem.cpp">
+    <ClCompile Include="NativeSubsystem.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="InteropSystem.cpp">
+    <ClCompile Include="InteropSubsystem.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

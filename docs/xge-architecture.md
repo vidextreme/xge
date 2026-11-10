@@ -2,12 +2,12 @@
 
 > Status: current implementation (2026-11). Future design is listed at the end. See the [README](../README.md) for build steps and the overall status table.
 
-This document covers the runtime backbone: the module tree (HSM), scoped systems, script hosts, messaging, reflection and logging.
+This document covers the runtime backbone: the module tree (HSM), scoped subsystems, script hosts, messaging, reflection and logging.
 
 | Piece | State |
 |---|---|
 | ScriptTree (HSM) | Working |
-| Scoped systems | Working |
+| Scoped subsystems | Working |
 | Messenger + routes | Working (native); the managed route API is incomplete |
 | Codec registry | Working for numbers and bools; string fields need work |
 | Reflection (`xgReflectGen`) | Working for scalar fields and enums |
@@ -18,12 +18,12 @@ This document covers the runtime backbone: the module tree (HSM), scoped systems
 
 ## Hierarchical Script Modules (HSM)
 
-Every script module lives in one tree, the **ScriptTree**. A node's position defines its update order and the scope of the systems it sees.
+Every script module lives in one tree, the **ScriptTree**. A node's position defines its update order and the scope of the subsystems it sees.
 
 The tree as it loads today:
 
 ```
-root                    (null host; owns the engine systems)
+root                    (null host; owns the engine subsystems)
 └── editor.kernel       xgEditorKernel.dll     native
     └── game.kernel     xgGameKernel.dll       native
         ├── editor      xgEditor.CoreCLR.dll   CoreCLR
@@ -55,25 +55,25 @@ Modules talk to the engine only through `ScriptEngine*` (`xgCore/public/xgScript
 
 ---
 
-## Scoped systems
+## Scoped subsystems
 
-A **system** is any overridable runtime service. Systems are registered on a module, and lookup walks up the tree until it finds one: the closest ancestor wins, and children inherit unless they override.
+A **subsystem** is any overridable runtime service. Subsystems are registered on a module, and lookup walks up the tree until it finds one: the closest ancestor wins, and children inherit unless they override.
 
 ```cpp
-struct SceneGraphFactory : public System {
-    XG_DECLARE_BASE_SYSTEM(SceneGraphFactory)
+struct SceneGraphFactory : public Subsystem {
+    XG_DECLARE_BASE_SUBSYSTEM(SceneGraphFactory)
 };
 
 class SceneGraphFactoryImpl : public SceneGraphFactory {
-    XG_DECLARE_SYSTEM(SceneGraphFactoryImpl, SceneGraphFactory)
+    XG_DECLARE_SUBSYSTEM(SceneGraphFactoryImpl, SceneGraphFactory)
 };
 
-engine->RegisterSystem(module, new SceneGraphFactoryImpl());
-auto* factory = engine->GetSystem<SceneGraphFactory>(module);
+engine->RegisterSubsystem(module, new SceneGraphFactoryImpl());
+auto* factory = engine->GetSubsystem<SceneGraphFactory>(module);
 ```
 
-- The system's type id is the FNV-1a hash of the base type name (`SuperTypeID`).
-- `RegisterSystemWithAlias(module, system, "name")` / `GetSystemWithAlias(module, "name")` register several systems of the same type on one module, for example one component graph per component type.
+- The subsystem's type id is the FNV-1a hash of the base type name (`SuperTypeID`).
+- `RegisterSubsystemWithAlias(module, subsystem, "name")` / `GetSubsystemWithAlias(module, "name")` register several subsystems of the same type on one module, for example one component graph per component type.
 - Passing `nullptr` as the module registers on the root.
 - The engine registers these on the root at startup: `Messenger`, `ActorRegistry`, `EventDispatcher`, `SceneGraphFactory` and `EventQueue`. `game.kernel` currently registers its scene graphs on the root too.
 
@@ -144,7 +144,7 @@ public:
         ScriptMessage msg{};
         _engine->GetCodecRegistry(ScriptBackendType::Native)->Encode(EnemySpotted::TypeName, &evt, schema, msg);
 
-        _engine->GetSystem<Messenger>(this)->Send(msg, Route::SiblingsOf(GetId()));
+        _engine->GetSubsystem<Messenger>(this)->Send(msg, Route::SiblingsOf(GetId()));
     }
 
 private:

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 namespace xg
 {
     enum class SystemPhase : uint8_t
@@ -14,11 +14,11 @@ namespace xg
     using ManagedFn = void(*)(void* instance);
     using ManagedUpdateFn = void(*)(void* instance, float dt);
     //using ManagedDispatchFn = void(*)(SystemPhase phase, float dt);
-	class InteropSystem : public System
+	class InteropSubsystem : public Subsystem
 	{
-		XG_DECLARE_BASE_SYSTEM(InteropSystem)
+		XG_DECLARE_BASE_SUBSYSTEM(InteropSubsystem)
 	public:
-        InteropSystem(void* instance, ManagedFn initFunc, ManagedFn shutdownFunc, ManagedUpdateFn updateFunc);
+        InteropSubsystem(void* instance, ManagedFn initFunc, ManagedFn shutdownFunc, ManagedUpdateFn updateFunc);
         void Initialize() override;
         void Shutdown() override;
         void Update();
@@ -28,5 +28,6 @@ namespace xg
         ManagedFn _shutdownFunc;
 
         ManagedUpdateFn _updateFunc;
+        bool _initialized = false;
 	};
 }

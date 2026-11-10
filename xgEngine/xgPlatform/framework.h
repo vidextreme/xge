@@ -16,7 +16,7 @@
 #include "xgEventDispatcher.h"
 #include "xgLog.h"
 #include "xgBase.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 
 // Platform-specific utility headers
 #include "platform/xgEventToSDL.h"

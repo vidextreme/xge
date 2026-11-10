@@ -13,7 +13,7 @@ namespace xg {
 
     namespace
     {
-        const char* s_uiShaderSource = R"(
+        const char* _uiShaderSource = R"(
 cbuffer Constants : register(b0)
 {
     float4x4 ProjectionMatrix;
@@ -296,14 +296,14 @@ float4 PSMain(PSInput input) : SV_Target
 
         ComPtr<ID3DBlob> vertexShader;
         ComPtr<ID3DBlob> pixelShader;
-        const size_t sourceLength = std::strlen(s_uiShaderSource);
-        if (FAILED(D3DCompile(s_uiShaderSource, sourceLength, "xgUI", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, &error)))
+        const size_t sourceLength = std::strlen(_uiShaderSource);
+        if (FAILED(D3DCompile(_uiShaderSource, sourceLength, "xgUI", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, &error)))
         {
             xg::Log(xg::MessageType::Error, "RendererDX12: UI vertex shader: %s",
                 error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
             return false;
         }
-        if (FAILED(D3DCompile(s_uiShaderSource, sourceLength, "xgUI", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, &error)))
+        if (FAILED(D3DCompile(_uiShaderSource, sourceLength, "xgUI", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, &error)))
         {
             xg::Log(xg::MessageType::Error, "RendererDX12: UI pixel shader: %s",
                 error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");

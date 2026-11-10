@@ -7,7 +7,7 @@ namespace xg
 {
 	class ComponentSceneGraph : public SceneGraph
 	{
-		XG_DECLARE_BASE_SYSTEM(ComponentSceneGraph)
+		XG_DECLARE_BASE_SUBSYSTEM(ComponentSceneGraph)
 	public:
 		void SetParent(SceneNode* child, SceneNode* parent) override {}
 		virtual void InitializeComponentSet(const char* contextName, size_t strideSize) = 0;

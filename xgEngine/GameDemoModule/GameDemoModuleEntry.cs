@@ -15,21 +15,21 @@ namespace GameDemoModule
             ScriptRuntime.AddLogCallback(OnLog);
             Console.WriteLine("wow");
 
-            s_enemy = Actor.Create("demo enemy").AddComponent<EnemyComponent>();
+            _enemy = Actor.Create("demo enemy").AddComponent<EnemyComponent>();
             return 1;
         }
 
-        static EnemyComponent s_enemy = null!;
-        static bool s_reported;
+        static EnemyComponent _enemy = null!;
+        static bool _reported;
 
         [UnmanagedCallersOnly(EntryPoint = "xg:Update")]
         public static void Update(float dt)
         {
             long frames = ActorRegistry.FrameCount;
-            if (!s_reported && frames >= 60)
+            if (!_reported && frames >= 60)
             {
-                s_reported = true;
-                Debug.Log($"[Actors] NativeAOT: {ActorRegistry.Count} actor(s) after {frames} actor frames: EnemyComponent updated {s_enemy.UpdateCount} times");
+                _reported = true;
+                Debug.Log($"[Actors] NativeAOT: {ActorRegistry.Count} actor(s) after {frames} actor frames: EnemyComponent updated {_enemy.UpdateCount} times");
             }
         }
 

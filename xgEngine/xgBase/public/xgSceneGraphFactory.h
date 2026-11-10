@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgSceneGraph.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 
 namespace xg
 {
@@ -14,9 +14,9 @@ namespace xg
     // Users and engine can register SceneGraph types by name.
     // ScriptEngine can request new SceneGraphs by type name.
     //
-    class SceneGraphFactory : public System
+    class SceneGraphFactory : public Subsystem
     {
-        XG_DECLARE_BASE_SYSTEM(SceneGraphFactory)
+        XG_DECLARE_BASE_SUBSYSTEM(SceneGraphFactory)
 
     public:
         virtual ~SceneGraphFactory() = default;

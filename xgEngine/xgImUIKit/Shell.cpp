@@ -30,14 +30,14 @@ namespace xg::imui::detail
         const float playW = SegmentWidth(3);
         ImGui::SetCursorPosX(ImMax(ImGui::GetCursorPosX(), ImFloor((ImGui::GetWindowWidth() - playW) * 0.5f)));
         BeginSegment(3, TopBarBg);
-        if (SegButton("##play", Icon::Play, s_playing, s_playing ? "Stop" : "Play"))
+        if (SegButton("##play", Icon::Play, _playing, _playing ? "Stop" : "Play"))
         {
-            s_playing = !s_playing;
-            if (!s_playing)
-                s_paused = false;
+            _playing = !_playing;
+            if (!_playing)
+                _paused = false;
         }
-        if (SegButton("##pause", Icon::Pause, s_paused, "Pause"))
-            s_paused = !s_paused;
+        if (SegButton("##pause", Icon::Pause, _paused, "Pause"))
+            _paused = !_paused;
         SegButton("##step", Icon::Step, false, "Step");
         EndSegment();
 
@@ -58,10 +58,10 @@ namespace xg::imui::detail
         if (BeginDropdown("##layout", "Layout"))
         {
             if (ImGui::MenuItem("Default"))
-                s_resetLayout = true;
+                _resetLayout = true;
             ImGui::Separator();
             if (ImGui::MenuItem("Reset All Layouts"))
-                s_resetLayout = true;
+                _resetLayout = true;
             ImGui::EndPopup();
         }
 
@@ -233,7 +233,7 @@ namespace xg::imui::detail
             if (ImGui::BeginMenu("Layouts"))
             {
                 if (ImGui::MenuItem("Reset Layout"))
-                    s_resetLayout = true;
+                    _resetLayout = true;
                 ImGui::EndMenu();
             }
             ImGui::Separator();
@@ -267,7 +267,7 @@ namespace xg::imui::detail
             const float midY = p.y + ImGui::GetTextLineHeight() * 0.5f;
             DrawIcon(ImGui::GetWindowDrawList(), Icon::Info, ImVec2(p.x + 6.0f, midY), 12.0f, TextDim);
             ImGui::SetCursorScreenPos(Offset(p, 18.0f, 0.0f));
-            ImGui::TextColored(ToVec4(TextDim), "%s", s_playing ? (s_paused ? "Paused" : "Playing") : "Ready");
+            ImGui::TextColored(ToVec4(TextDim), "%s", _playing ? (_paused ? "Paused" : "Playing") : "Ready");
 
             const char* version = "XGE 0.1";
             ImGui::SameLine();
@@ -317,10 +317,10 @@ namespace xg::imui::detail
             const float barCenterY = ImFloor((bar.Min.y + bar.Max.y) * 0.5f);
             const float iconX = bar.Min.x + 8.0f;
             const float iconSize = static_cast<float>(detail::AppIconSize);
-            if (detail::s_appIcon)
+            if (detail::_appIcon)
             {
                 const ImVec2 i0(iconX, ImFloor(barCenterY - iconSize * 0.5f));
-                dl->AddImage(detail::s_appIcon->GetTexRef(),
+                dl->AddImage(detail::_appIcon->GetTexRef(),
                     i0, detail::Offset(i0, iconSize, iconSize), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), detail::TextColor);
             }
             else
@@ -351,9 +351,9 @@ namespace xg::imui::detail
         ImGui::SetCursorScreenPos(dockPos);
         ImGui::DockSpace(dockspaceID, dockSize, ImGuiDockNodeFlags_None);
 
-        if (detail::s_resetLayout)
+        if (detail::_resetLayout)
         {
-            detail::s_resetLayout = false;
+            detail::_resetLayout = false;
             ImGui::DockBuilderRemoveNode(dockspaceID);
             ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
             ImGui::DockBuilderSetNodeSize(dockspaceID, dockSize);
@@ -371,7 +371,7 @@ namespace xg::imui::detail
             ImGui::DockBuilderDockWindow("Lighting", dockInspector);
             ImGui::DockBuilderDockWindow("Project", dockProject);
             ImGui::DockBuilderDockWindow("Console", dockProject);
-            detail::s_selectDefaultTabs = 2;
+            detail::_selectDefaultTabs = 2;
             DockRegisteredPanels(dockMain, dockHierarchy, dockInspector, dockProject);
 
             ImGui::DockBuilderFinish(dockspaceID);
@@ -395,7 +395,7 @@ namespace xg::imui::detail
         detail::DrawLighting();
         detail::DrawProject();
         detail::DrawConsole();
-        if (detail::s_selectDefaultTabs > 0 && --detail::s_selectDefaultTabs == 0)
+        if (detail::_selectDefaultTabs > 0 && --detail::_selectDefaultTabs == 0)
             ImGui::SetWindowFocus("Scene");
     }
 }

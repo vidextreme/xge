@@ -2,12 +2,12 @@
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgEvent.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 namespace xg
 {
-    class EventQueue : public System
+    class EventQueue : public Subsystem
     {
-        XG_DECLARE_BASE_SYSTEM(EventQueue)
+        XG_DECLARE_BASE_SUBSYSTEM(EventQueue)
     public:
         virtual ~EventQueue() = default;
 

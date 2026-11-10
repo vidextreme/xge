@@ -64,10 +64,10 @@ namespace xg::imui::detail
     inline constexpr float WindowButtonWidth  = 46.0f;
     inline constexpr int   AppIconSize        = 18;
 
-    inline bool s_resetLayout = true;
-    inline bool s_playing = false;
-    inline bool s_paused = false;
-    inline ImTextureData* s_appIcon = nullptr;
+    inline bool _resetLayout = true;
+    inline bool _playing = false;
+    inline bool _paused = false;
+    inline ImTextureData* _appIcon = nullptr;
 
     inline ImU32 WithAlpha(ImU32 c, float a)
     {
@@ -89,11 +89,11 @@ namespace xg::imui::detail
         WinMinimize, WinMaximize, WinRestore, WinClose,
     };
 
-    inline ImVec2 s_segmentStart;
-    inline int s_segmentIndex = 0;
+    inline ImVec2 _segmentStart;
+    inline int _segmentIndex = 0;
     inline float SegmentWidth(int count) { return count * SegButtonSize + (count + 1) * 1.0f; }
     inline ImVec2 BelowLastItem() { return ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y + 3.0f); }
-    inline int s_selectDefaultTabs = 0;
+    inline int _selectDefaultTabs = 0;
 
     struct ViewCamera
     {

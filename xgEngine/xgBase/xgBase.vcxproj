@@ -151,7 +151,7 @@
     <ClInclude Include="public\xgSceneNodeEngine.h" />
     <ClInclude Include="public\xgScriptMessage.h" />
     <ClInclude Include="public\xgStream.h" />
-    <ClInclude Include="public\xgSystem.h" />
+    <ClInclude Include="public\xgSubsystem.h" />
     <ClInclude Include="public\xgTypeRegistry.h" />
     <ClInclude Include="public\xgImage.h" />
     <ClInclude Include="public\xgPlatformServices.h" />

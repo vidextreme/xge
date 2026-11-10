@@ -70,11 +70,11 @@ namespace
     using namespace xg;
     using namespace xg::imui;
 
-    std::vector<PanelEntry*> s_panels;
-    std::vector<MenuItemEntry*> s_menuItems;
-    std::vector<TextureEntry*> s_textures;
-    bool s_drawing = false;
-    ImGuiID s_dockIds[5] = {};
+    std::vector<PanelEntry*> _panels;
+    std::vector<MenuItemEntry*> _menuItems;
+    std::vector<TextureEntry*> _textures;
+    bool _drawing = false;
+    ImGuiID _dockIds[5] = {};
 
     ImU32 ToImU32(Color32 c) { return IM_COL32(c.r, c.g, c.b, c.a); }
     Color32 ToColor32(ImU32 c)
@@ -88,22 +88,22 @@ namespace
 
     void FlushRemoved()
     {
-        for (auto it = s_panels.begin(); it != s_panels.end();)
+        for (auto it = _panels.begin(); it != _panels.end();)
         {
             if ((*it)->Removed)
             {
                 delete *it;
-                it = s_panels.erase(it);
+                it = _panels.erase(it);
             }
             else
                 ++it;
         }
-        for (auto it = s_menuItems.begin(); it != s_menuItems.end();)
+        for (auto it = _menuItems.begin(); it != _menuItems.end();)
         {
             if ((*it)->Removed)
             {
                 delete *it;
-                it = s_menuItems.erase(it);
+                it = _menuItems.erase(it);
             }
             else
                 ++it;
@@ -117,7 +117,7 @@ namespace
 
     bool IsRegistered(PanelHandle panel)
     {
-        return std::find(s_panels.begin(), s_panels.end(), panel) != s_panels.end();
+        return std::find(_panels.begin(), _panels.end(), panel) != _panels.end();
     }
 
     Result ItemResult(bool changed)
@@ -150,9 +150,9 @@ namespace
     void DrawPanel(PanelEntry* entry)
     {
         const int slot = static_cast<int>(entry->Slot);
-        if (entry->Slot != DockSlot::Floating && s_dockIds[slot] != 0)
-            ImGui::SetNextWindowDockID(s_dockIds[slot], ImGuiCond_FirstUseEver);
-        if (entry->FocusRequest && imui::detail::s_selectDefaultTabs == 0)
+        if (entry->Slot != DockSlot::Floating && _dockIds[slot] != 0)
+            ImGui::SetNextWindowDockID(_dockIds[slot], ImGuiCond_FirstUseEver);
+        if (entry->FocusRequest && imui::detail::_selectDefaultTabs == 0)
         {
             ImGui::SetNextWindowFocus();
             entry->FocusRequest = false;
@@ -263,39 +263,39 @@ namespace xg::imui::detail
 {
     void DrawRegisteredPanels()
     {
-        s_drawing = true;
-        for (size_t i = 0; i < s_panels.size(); ++i)
+        _drawing = true;
+        for (size_t i = 0; i < _panels.size(); ++i)
         {
-            PanelEntry* entry = s_panels[i];
+            PanelEntry* entry = _panels[i];
             if (!entry->Removed && entry->Open)
                 DrawPanel(entry);
         }
-        s_drawing = false;
+        _drawing = false;
         FlushRemoved();
     }
 
     void DockRegisteredPanels(ImGuiID center, ImGuiID left, ImGuiID right, ImGuiID bottom)
     {
-        s_dockIds[static_cast<int>(DockSlot::Center)] = center;
-        s_dockIds[static_cast<int>(DockSlot::Left)] = left;
-        s_dockIds[static_cast<int>(DockSlot::Right)] = right;
-        s_dockIds[static_cast<int>(DockSlot::Bottom)] = bottom;
-        for (PanelEntry* entry : s_panels)
+        _dockIds[static_cast<int>(DockSlot::Center)] = center;
+        _dockIds[static_cast<int>(DockSlot::Left)] = left;
+        _dockIds[static_cast<int>(DockSlot::Right)] = right;
+        _dockIds[static_cast<int>(DockSlot::Bottom)] = bottom;
+        for (PanelEntry* entry : _panels)
             if (!entry->Removed && entry->Slot != DockSlot::Floating)
-                ImGui::DockBuilderDockWindow(entry->Title.c_str(), s_dockIds[static_cast<int>(entry->Slot)]);
+                ImGui::DockBuilderDockWindow(entry->Title.c_str(), _dockIds[static_cast<int>(entry->Slot)]);
     }
 
     void SetDefaultDockSpace(ImGuiID id)
     {
-        for (ImGuiID& dock : s_dockIds)
+        for (ImGuiID& dock : _dockIds)
             dock = id;
-        s_dockIds[static_cast<int>(DockSlot::Floating)] = 0;
+        _dockIds[static_cast<int>(DockSlot::Floating)] = 0;
     }
 
     void DrawRegisteredPanelsMenu()
     {
         bool separated = false;
-        for (PanelEntry* entry : s_panels)
+        for (PanelEntry* entry : _panels)
         {
             if (entry->Removed)
                 continue;
@@ -319,9 +319,9 @@ namespace xg::imui::detail
     void DrawRegisteredMenuItems(const char* topLevel)
     {
         bool separated = false;
-        for (size_t i = 0; i < s_menuItems.size(); ++i)
+        for (size_t i = 0; i < _menuItems.size(); ++i)
         {
-            MenuItemEntry* item = s_menuItems[i];
+            MenuItemEntry* item = _menuItems[i];
             if (item->Removed || item->TopLevel != topLevel)
                 continue;
             if (!separated)
@@ -339,7 +339,7 @@ namespace xg::imui::detail
     void DrawExtraTopLevelMenus(const char* const* builtIn, int builtInCount)
     {
         std::vector<std::string> extra;
-        for (MenuItemEntry* item : s_menuItems)
+        for (MenuItemEntry* item : _menuItems)
         {
             if (item->Removed)
                 continue;
@@ -360,7 +360,7 @@ namespace xg::imui::detail
     void ReleaseUserTextures()
     {
         UIRenderTarget* target = HostRenderTarget();
-        for (TextureEntry* texture : s_textures)
+        for (TextureEntry* texture : _textures)
         {
             if (texture->Data)
             {
@@ -398,7 +398,7 @@ namespace xg
         if (desc->Size >= offsetof(imui::PanelDesc, InitialRect) + sizeof(Rect))
             entry->InitialRect = interop::Load(&desc->InitialRect);
         entry->Open = !HasFlag(desc->Flags, imui::PanelFlags::StartClosed);
-        s_panels.push_back(entry);
+        _panels.push_back(entry);
 
         if (entry->Open && entry->OnOpen)
             entry->OnOpen(entry->User);
@@ -410,7 +410,7 @@ namespace xg
         if (!IsRegistered(panel) || panel->Removed)
             return;
         panel->Removed = true;
-        if (!s_drawing)
+        if (!_drawing)
             FlushRemoved();
     }
 
@@ -452,14 +452,14 @@ namespace xg
         item->Shortcut = shortcut ? shortcut : "";
         item->Callback = callback;
         item->User = user;
-        s_menuItems.push_back(item);
+        _menuItems.push_back(item);
         return item;
     }
 
     XG_MODULE_EXPORT void XG_ImUIUnregisterMenuItem(imui::MenuItemHandle item)
     {
-        auto it = std::find(s_menuItems.begin(), s_menuItems.end(), item);
-        if (it == s_menuItems.end() || item->Removed)
+        auto it = std::find(_menuItems.begin(), _menuItems.end(), item);
+        if (it == _menuItems.end() || item->Removed)
             return;
         item->Removed = true;
         if (!InFrame())
@@ -752,14 +752,14 @@ namespace xg
         for (int y = 0; y < height; ++y)
             std::memcpy(entry->Data->GetPixelsAt(0, y), rgba + static_cast<size_t>(y) * width * 4, static_cast<size_t>(width) * 4);
         ImGui::RegisterUserTexture(entry->Data);
-        s_textures.push_back(entry);
+        _textures.push_back(entry);
         return entry;
     }
 
     XG_MODULE_EXPORT void XG_ImUIDestroyTexture(imui::TextureHandle texture)
     {
-        auto it = std::find(s_textures.begin(), s_textures.end(), texture);
-        if (it == s_textures.end())
+        auto it = std::find(_textures.begin(), _textures.end(), texture);
+        if (it == _textures.end())
             return;
         if (texture->Data && ImGui::GetCurrentContext())
         {
@@ -770,7 +770,7 @@ namespace xg
             ImGui::UnregisterUserTexture(texture->Data);
             IM_DELETE(texture->Data);
         }
-        s_textures.erase(it);
+        _textures.erase(it);
         delete texture;
     }
 }

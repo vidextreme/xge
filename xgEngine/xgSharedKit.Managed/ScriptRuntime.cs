@@ -6,7 +6,7 @@ namespace xg
 {
     public delegate void LogCallback(MessageType type, IntPtr message);
 
-    public sealed class ScriptRuntime
+    public sealed partial class ScriptRuntime
     {
         public static uint ModuleID { get; private set; }
         internal static nint _enginePtr;
@@ -49,6 +49,15 @@ namespace xg
 
             try
             {
+                Subsystem.UnregisterAll();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+
+            try
+            {
                 ActorRegistry.Detach(_enginePtr);
             }
             catch (Exception e)
@@ -61,58 +70,54 @@ namespace xg
         // Native interop
         // ------------------------------------------------------------
 
-        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
-            EntryPoint = "XGAddLogCallbackForEngine")]
-        private static extern void XGAddLogCallbackForEngine(
-            nint enginePtr,
-            LogCallback callback);
+        private const string NativeLib = "xgScriptNative";
 
-        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
-            EntryPoint = "XGRemoveLogCallbackForEngine")]
-        private static extern void XGRemoveLogCallbackForEngine(
-            nint enginePtr,
-            LogCallback callback);
+        // Mirrors xg::Route (xgBase/public/xgRoute.h).
+        [StructLayout(LayoutKind.Sequential)]
+        private unsafe struct RouteAbi
+        {
+            public RouteType Type;
+            public byte* Id;
+            public int DepthLimit;
+            public nint Predicate;
+        }
 
-        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
-            EntryPoint = "XGSendMessageToEngine")]
-        private static extern void XGSendMessageToEngine(
-            nint enginePtr,
-            string typeName,
-            byte[] payload,
-            int payloadSize,
-            uint sourceID);
+        [LibraryImport(NativeLib, EntryPoint = "XGAddLogCallbackForEngine")]
+        private static partial void XGAddLogCallbackForEngine(nint enginePtr, nint callback);
 
-        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
-            EntryPoint = "XGSendMessageToEngine_Route")]
-        private static extern void XGSendMessageToEngine_Route(
-            nint enginePtr,
-            string typeName,
-            byte[] payload,
-            int payloadSize,
-            uint sourceID,
-            Route route);
+        [LibraryImport(NativeLib, EntryPoint = "XGRemoveLogCallbackForEngine")]
+        private static partial void XGRemoveLogCallbackForEngine(nint enginePtr, nint callback);
 
-        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl)]
-        private static extern PayloadMode XGGetPayloadMode(nint enginePtr);
+        [LibraryImport(NativeLib, EntryPoint = "XGSendMessageToEngine", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial void XGSendMessageToEngine(nint enginePtr, string typeName, byte[] payload, int payloadSize, uint sourceID);
+
+        [LibraryImport(NativeLib, EntryPoint = "XGSendMessageToEngine_Route", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial void XGSendMessageToEngine_Route(nint enginePtr, string typeName, byte[] payload, int payloadSize, uint sourceID, RouteAbi route);
+
+        [LibraryImport(NativeLib, EntryPoint = "XGGetPayloadMode")]
+        private static partial PayloadMode XGGetPayloadMode(nint enginePtr);
 
         public static PayloadMode PayloadMode => XGGetPayloadMode(_enginePtr);
 
-        [DllImport("xgScriptNative", CallingConvention = CallingConvention.Cdecl,
-         EntryPoint = "XGAllocateComponent")]
-        private static extern IntPtr XGAllocateComponent(nint enginePtr, ulong actorID, string componentType, uint size);
+        [LibraryImport(NativeLib, EntryPoint = "XGAllocateComponent", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial IntPtr XGAllocateComponent(nint enginePtr, ulong actorID, string componentType, uint size);
 
-        [DllImport("xgScriptNative", EntryPoint = "XGRegiterSystemWithAlias")]
-        public static extern unsafe IntPtr RegisterSystemWithAlias(nint engine, uint moduleID, nint instancePtr,
-                                        string systemName,
+        [LibraryImport(NativeLib, EntryPoint = "XG_RegisterSubsystemWithAlias", StringMarshalling = StringMarshalling.Utf8)]
+        public static unsafe partial IntPtr RegisterSubsystemWithAlias(nint engine, uint moduleID, nint instancePtr,
+                                        string subsystemName,
                                         delegate* unmanaged<nint, void> initFn,
                                         delegate* unmanaged<nint, void> shutdownFn,
                                         delegate* unmanaged<nint, float, void> updateFn);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_UnregisterSubsystemWithAlias", StringMarshalling = StringMarshalling.Utf8)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static partial bool UnregisterSubsystemWithAlias(nint engine, uint moduleID, string subsystemName);
 
         // ------------------------------------------------------------
         // Logging
         // ------------------------------------------------------------
 
-        private static readonly List<LogCallback> s_logCallbacks = new();
+        private static readonly List<LogCallback> _logCallbacks = new();
 
         // Registered delegates stay referenced here until Shutdown, so the GC can't collect
         // a callback the engine still holds
@@ -121,26 +126,26 @@ namespace xg
             if (_enginePtr == 0)
                 throw new InvalidOperationException("ScriptRuntime not initialized.");
 
-            s_logCallbacks.Add(cb);
-            XGAddLogCallbackForEngine(_enginePtr, cb);
+            _logCallbacks.Add(cb);
+            XGAddLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
         }
 
         public static void RemoveLogCallback(LogCallback cb)
         {
-            if (_enginePtr == 0 || !s_logCallbacks.Remove(cb))
+            if (_enginePtr == 0 || !_logCallbacks.Remove(cb))
                 return;
 
-            XGRemoveLogCallbackForEngine(_enginePtr, cb);
+            XGRemoveLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
         }
 
         private static void RemoveAllLogCallbacks()
         {
             if (_enginePtr != 0)
             {
-                foreach (LogCallback cb in s_logCallbacks)
-                    XGRemoveLogCallbackForEngine(_enginePtr, cb);
+                foreach (LogCallback cb in _logCallbacks)
+                    XGRemoveLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
             }
-            s_logCallbacks.Clear();
+            _logCallbacks.Clear();
         }
 
         // ------------------------------------------------------------
@@ -158,7 +163,7 @@ namespace xg
             XGSendMessageToEngine(_enginePtr, typeName, bytes, bytes.Length, ModuleID);
         }
 
-        public static void SendMessage(string typeName, object obj, Route route)
+        public static unsafe void SendMessage(string typeName, object obj, Route route)
         {
             if (_enginePtr == 0)
                 throw new InvalidOperationException("ScriptRuntime not initialized.");
@@ -166,7 +171,18 @@ namespace xg
             string json = System.Text.Json.JsonSerializer.Serialize(obj);
             byte[] bytes = Encoding.UTF8.GetBytes(json);
 
-            XGSendMessageToEngine_Route(_enginePtr, typeName, bytes, bytes.Length, ModuleID, route);
+            byte[]? id = route.Id is null ? null : Encoding.UTF8.GetBytes(route.Id + "\0");
+            fixed (byte* idPtr = id)
+            {
+                RouteAbi abi = new()
+                {
+                    Type = route.Type,
+                    Id = idPtr,
+                    DepthLimit = route.DepthLimit,
+                    Predicate = route.Predicate,
+                };
+                XGSendMessageToEngine_Route(_enginePtr, typeName, bytes, bytes.Length, ModuleID, abi);
+            }
         }
 
         // ------------------------------------------------------------

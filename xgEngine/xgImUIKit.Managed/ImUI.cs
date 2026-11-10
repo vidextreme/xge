@@ -11,8 +11,8 @@ namespace xg.imui
     public static class ImUI
     {
         internal static readonly List<Panel> Panels = new();
-        private static readonly List<IDisposable> s_resources = new();
-        private static bool? s_compatible;
+        private static readonly List<IDisposable> _resources = new();
+        private static bool? _compatible;
 
         static ImUI()
         {
@@ -25,26 +25,26 @@ namespace xg.imui
 
         internal static bool EnsureCompatible()
         {
-            if (s_compatible is bool known)
+            if (_compatible is bool known)
                 return known;
             uint version = Native.GetApiVersion();
-            s_compatible = version >= Native.ApiVersion;
-            if (s_compatible != true)
+            _compatible = version >= Native.ApiVersion;
+            if (_compatible != true)
                 Debug.LogError($"xgImUIKit API version {version} is older than xgImUIKit.Managed requires ({Native.ApiVersion}); immediate UI disabled.");
-            return s_compatible.Value;
+            return _compatible.Value;
         }
 
-        internal static void Track(IDisposable resource) => s_resources.Add(resource);
-        internal static void Untrack(IDisposable resource) => s_resources.Remove(resource);
+        internal static void Track(IDisposable resource) => _resources.Add(resource);
+        internal static void Untrack(IDisposable resource) => _resources.Remove(resource);
 
         public static void ShutdownAll()
         {
             for (int i = Panels.Count - 1; i >= 0; --i)
                 Panels[i].Unregister();
-            for (int i = s_resources.Count - 1; i >= 0; --i)
-                s_resources[i].Dispose();
+            for (int i = _resources.Count - 1; i >= 0; --i)
+                _resources[i].Dispose();
             Panels.Clear();
-            s_resources.Clear();
+            _resources.Clear();
         }
     }
 }

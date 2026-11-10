@@ -7,42 +7,42 @@
 
 namespace
 {
-    xg::Renderer* s_sceneRenderer = nullptr;
+    xg::Renderer* _sceneRenderer = nullptr;
 }
 
 namespace xg
 {
     void SetSceneViewRenderer(Renderer* renderer)
     {
-        s_sceneRenderer = renderer;
+        _sceneRenderer = renderer;
     }
 }
 
 XG_MODULE_EXPORT int XG_EditorHasSceneRenderer(void)
 {
-    return s_sceneRenderer ? 1 : 0;
+    return _sceneRenderer ? 1 : 0;
 }
 
 XG_MODULE_EXPORT uint64_t XG_EditorCreateSceneView(int32_t width, int32_t height)
 {
-    return s_sceneRenderer ? s_sceneRenderer->CreateRenderView(width, height) : 0;
+    return _sceneRenderer ? _sceneRenderer->CreateRenderView(width, height) : 0;
 }
 
 XG_MODULE_EXPORT int XG_EditorResizeSceneView(uint64_t id, int32_t width, int32_t height)
 {
-    return s_sceneRenderer && s_sceneRenderer->ResizeRenderView(id, width, height) ? 1 : 0;
+    return _sceneRenderer && _sceneRenderer->ResizeRenderView(id, width, height) ? 1 : 0;
 }
 
 XG_MODULE_EXPORT void XG_EditorDestroySceneView(uint64_t id)
 {
-    if (s_sceneRenderer)
-        s_sceneRenderer->DestroyRenderView(id);
+    if (_sceneRenderer)
+        _sceneRenderer->DestroyRenderView(id);
 }
 
 XG_MODULE_EXPORT void XG_EditorSetSceneViewCamera(uint64_t id, const xg::RenderViewCamera* camera)
 {
-    if (!s_sceneRenderer || !camera)
+    if (!_sceneRenderer || !camera)
         return;
     const xg::RenderViewCamera local = xg::interop::Load(camera);
-    s_sceneRenderer->SetRenderViewCamera(id, &local);
+    _sceneRenderer->SetRenderViewCamera(id, &local);
 }

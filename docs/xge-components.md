@@ -98,7 +98,7 @@ See the [hybrid component sample](xge-component-sample.md) for a component that 
 - `XGAllocateComponent(engine, actorID, componentType, size)` allocates a block for an actor.
 - Pointers into the pool aren't stable yet (the buffer can grow, and removal moves other actors' data), which is why the managed data components aren't bound to it.
 
-See [Component graphs](xge-components2.md) for how per-type component graphs fit the scoped system model.
+See [Component graphs](xge-components2.md) for how per-type component graphs fit the scoped subsystem model.
 
 ---
 

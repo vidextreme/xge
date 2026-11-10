@@ -1,11 +1,11 @@
 #pragma once
 namespace xg
 {
-	struct System
+	struct Subsystem
 	{
-		XG_DECLARE_BASE_SYSTEM(System)
+		XG_DECLARE_BASE_SUBSYSTEM(Subsystem)
 	public:
-		virtual ~System() = default;
+		virtual ~Subsystem() = default;
 
 		virtual void Initialize() {}
 		virtual void Shutdown() {}

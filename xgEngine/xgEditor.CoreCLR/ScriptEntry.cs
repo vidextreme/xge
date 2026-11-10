@@ -9,6 +9,16 @@ using xg.math;
 
 namespace xgEditor.CoreCLR
 {
+    // Test hook: a managed subsystem registered through xg.Subsystem. Logs its lifecycle.
+    internal sealed class SampleSubsystem : ISubsystem
+    {
+        public string Name { get; set; } = "sample";
+
+        public void Initialize() => Debug.Log($"[Debug] Subsystem {Name}: initialized");
+        public void Update(float dt) { }
+        public void Shutdown() => Debug.Log($"[Debug] Subsystem {Name}: shutdown");
+    }
+
     public static unsafe class ScriptEntry
     {
         [UnmanagedCallersOnly]
@@ -24,21 +34,21 @@ namespace xgEditor.CoreCLR
             TestQuaternion();
             TestMatrix4x4();
             
-            xgSystem system = new();
-            GCHandle handle = GCHandle.Alloc(system, GCHandleType.Normal);
-            IntPtr instancePtr = GCHandle.ToIntPtr(handle);
-            ScriptRuntime.RegisterSystemWithAlias(enginePtr, moduleID, (nint)instancePtr, "managed.system", &SystemBridge.Initialize, &SystemBridge.Shutdown, &SystemBridge.Update);
+            Subsystem.Register<SampleSubsystem>("managed.system").Name = "managed.system";
+            Subsystem.Register(new SampleSubsystem { Name = "managed.temp" }, "managed.temp");
+            Debug.Log($"[Debug] Subsystem managed.temp unregistered: {Subsystem.Unregister("managed.temp")}, registered: [{string.Join(", ", Subsystem.Names)}]");
+            Subsystem.Register<SampleSubsystem>("managed.system");
 
             var actor = xg.Actor.Create("walaweh!");
             Console.WriteLine(actor.Name);
             actor.Name = "REALLY AWWESOMEH!!!";
             Console.WriteLine(actor.Name);
 
-            s_player = actor.AddComponent<PlayerComponent>();
-            s_player.Data.Stats.Health = 100;
+            _player = actor.AddComponent<PlayerComponent>();
+            _player.Data.Stats.Health = 100;
 
-            s_temporary = xg.Actor.Create("temporary");
-            s_temporaryEnemy = s_temporary.AddComponent<EnemyComponent>();
+            _temporary = xg.Actor.Create("temporary");
+            _temporaryEnemy = _temporary.AddComponent<EnemyComponent>();
 
             Debug.Log("[Debug] editor module initialized", actor);
             Debug.LogSuccess("[Debug] success level");
@@ -50,51 +60,51 @@ namespace xgEditor.CoreCLR
             }
             catch (Exception e)
             {
-                Debug.LogException(e, s_temporary);
+                Debug.LogException(e, _temporary);
             }
             Debug.Assert(ActorRegistry.Count == 2, "expected two actors");
             Debug.Log(null);
 
-            s_testWindow = xg.imui.Panel.Open<ManagedTestWindow>();
+            _testWindow = xg.imui.Panel.Open<ManagedTestWindow>();
             xg.imui.Panel.Open<ManagedFloatingWindow>();
             xg.imui.Panel.Open<ManagedSceneViewWindow>();
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "managed")
-                s_testWindow.Focus();
-            Debug.Log($"[Debug] Managed Test registered: {s_testWindow.IsRegistered}, xgImUIKit API {xg.imui.ImUI.NativeApiVersion}");
+                _testWindow.Focus();
+            Debug.Log($"[Debug] Managed Test registered: {_testWindow.IsRegistered}, xgImUIKit API {xg.imui.ImUI.NativeApiVersion}");
             return 1;
         }
 
-        static ManagedTestWindow s_testWindow = null!;
+        static ManagedTestWindow _testWindow = null!;
 
-        static PlayerComponent s_player = null!;
-        static xg.Actor s_temporary = null!;
-        static EnemyComponent s_temporaryEnemy = null!;
-        static bool s_reported;
+        static PlayerComponent _player = null!;
+        static xg.Actor _temporary = null!;
+        static EnemyComponent _temporaryEnemy = null!;
+        static bool _reported;
 
-        static readonly System.Diagnostics.Stopwatch s_clock = new();
-        static float s_elapsedAtStart;
+        static readonly System.Diagnostics.Stopwatch _clock = new();
+        static float _elapsedAtStart;
 
         [UnmanagedCallersOnly]
         public static void Update(float dt)
         {
             long frames = ActorRegistry.FrameCount;
-            if (frames == 1 && !s_clock.IsRunning)
+            if (frames == 1 && !_clock.IsRunning)
             {
-                s_elapsedAtStart = s_player.ElapsedTime;
-                s_clock.Start();
+                _elapsedAtStart = _player.ElapsedTime;
+                _clock.Start();
             }
-            if (s_temporary.IsValid && frames >= 30)
+            if (_temporary.IsValid && frames >= 30)
             {
-                s_temporary.Destroy();
-                Debug.Log($"[Actors] destroyed 'temporary' after {frames} actor frames (EnemyComponent updated {s_temporaryEnemy.UpdateCount} times)");
+                _temporary.Destroy();
+                Debug.Log($"[Actors] destroyed 'temporary' after {frames} actor frames (EnemyComponent updated {_temporaryEnemy.UpdateCount} times)");
             }
-            if (!s_reported && frames >= 61)
+            if (!_reported && frames >= 61)
             {
-                s_reported = true;
-                double wall = s_clock.Elapsed.TotalSeconds;
-                double summed = s_player.ElapsedTime - s_elapsedAtStart;
+                _reported = true;
+                double wall = _clock.Elapsed.TotalSeconds;
+                double summed = _player.ElapsedTime - _elapsedAtStart;
                 Debug.Log($"[Actors] CoreCLR: {ActorRegistry.Count} actor(s) after {frames} actor frames: " +
-                    $"PlayerComponent updated {s_player.UpdateCount} times, destroyed actor's EnemyComponent {s_temporaryEnemy.UpdateCount} times");
+                    $"PlayerComponent updated {_player.UpdateCount} times, destroyed actor's EnemyComponent {_temporaryEnemy.UpdateCount} times");
                 Debug.Log($"[Actors] delta time over 60 frames: summed dt {summed:F4} s, wall clock {wall:F4} s, " +
                     $"difference {(summed - wall) * 1000.0:F2} ms, average frame {wall / 60.0 * 1000.0:F2} ms");
             }

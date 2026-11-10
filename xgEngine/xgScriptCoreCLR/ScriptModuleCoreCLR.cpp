@@ -210,7 +210,7 @@ namespace xg
     
     SceneGraph* ScriptModuleCoreCLR::GetSceneGraph()
     {
-        return _engine->GetSystem<SceneGraph>(this);
+        return _engine->GetSubsystem<SceneGraph>(this);
     }
 
     bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* typeName, const wchar_t* entryPointName, void** func)

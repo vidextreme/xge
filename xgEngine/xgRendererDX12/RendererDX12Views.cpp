@@ -15,7 +15,7 @@ namespace xg {
 
     namespace
     {
-        const char* s_sceneShaderSource = R"(
+        const char* _sceneShaderSource = R"(
 cbuffer Constants : register(b0)
 {
     row_major float4x4 ViewProjection;
@@ -160,9 +160,9 @@ float4 PSMain(PSInput input) : SV_Target
 
         ComPtr<ID3DBlob> vertexShader;
         ComPtr<ID3DBlob> pixelShader;
-        const size_t sourceLength = std::strlen(s_sceneShaderSource);
-        if (FAILED(D3DCompile(s_sceneShaderSource, sourceLength, "xgScene", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, &error))
-            || FAILED(D3DCompile(s_sceneShaderSource, sourceLength, "xgScene", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, &error)))
+        const size_t sourceLength = std::strlen(_sceneShaderSource);
+        if (FAILED(D3DCompile(_sceneShaderSource, sourceLength, "xgScene", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, &error))
+            || FAILED(D3DCompile(_sceneShaderSource, sourceLength, "xgScene", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, &error)))
         {
             xg::Log(xg::MessageType::Error, "RendererDX12: scene shader: %s",
                 error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");

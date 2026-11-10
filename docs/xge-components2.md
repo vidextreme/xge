@@ -2,7 +2,7 @@
 
 > Status: current implementation (2026-11). Future design is listed at the end. See the [README](../README.md) for the overall status table.
 
-In XGE, **SceneGraphs are systems**: they are scoped, overridable and resolved through the module tree (see [Scoped systems](xge-architecture.md#scoped-systems)). Component storage builds on that: each component type gets its own graph, registered under an alias, and every graph keys its data by the same global `ActorID`.
+In XGE, **SceneGraphs are subsystems**: they are scoped, overridable and resolved through the module tree (see [Scoped subsystems](xge-architecture.md#scoped-subsystems)). Component storage builds on that: each component type gets its own graph, registered under an alias, and every graph keys its data by the same global `ActorID`.
 
 ---
 
@@ -13,7 +13,7 @@ The dynamic component graph is `CompositeSceneGraph`, created through the `Scene
 ```cpp
 class ComponentSceneGraph : public SceneGraph
 {
-    XG_DECLARE_BASE_SYSTEM(ComponentSceneGraph)
+    XG_DECLARE_BASE_SUBSYSTEM(ComponentSceneGraph)
 public:
     virtual void InitializeComponentSet(const char* contextName, size_t strideSize) = 0;
 
@@ -24,14 +24,14 @@ public:
 
 - Each instance stores one component type in a `StridePool`: a dense byte buffer with `stride = sizeof(data)`, plus a parallel array of owner ActorIDs.
 - Components are nodes (`ComponentSetNode`) carrying the `SceneNodeComponentSet` mixin (`Context`, `Size`, `Data`).
-- Because every graph is a system of the same base type, a module tells them apart by **alias**:
+- Because every graph is a subsystem of the same base type, a module tells them apart by **alias**:
 
 ```cpp
 auto* players = static_cast<ComponentSceneGraph*>(factory->Create("compset", *actorRegistry));
-engine->RegisterSystemWithAlias(module, players, "PlayerComponent");
+engine->RegisterSubsystemWithAlias(module, players, "PlayerComponent");
 players->InitializeComponentSet("PlayerComponent", 12);
 
-auto* lookup = engine->GetSystemWithAlias<ComponentSceneGraph>(module, "PlayerComponent");
+auto* lookup = engine->GetSubsystemWithAlias<ComponentSceneGraph>(module, "PlayerComponent");
 ```
 
 `game.kernel` registers a `"PlayerComponent"` graph like this today, on the root.
@@ -50,7 +50,7 @@ From C#, `XGAllocateComponent(engine, actorID, componentType, size)` allocates a
 
 ## Scoping
 
-Because component graphs are systems:
+Because component graphs are subsystems:
 
 - a module can register several of them (one per alias),
 - children inherit them unless they register their own under the same alias,

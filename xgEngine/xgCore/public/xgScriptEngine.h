@@ -18,7 +18,7 @@ namespace xg
     class CodecRegistry;
 	class DynamicObject;
 	struct TypeSchema;
-    struct System;
+    struct Subsystem;
     struct EngineConfig;
 	class SceneGraph;
     XG_ENUM(inherit = byte)
@@ -64,39 +64,54 @@ namespace xg
         virtual DynamicObjectUnique CreateDynamic(const TypeSchema* schema) = 0;
 
         template<typename T>
-        T* GetSystem(ScriptModule* module = nullptr) {
-            return static_cast<T*>(GetSystemImpl(T::SuperTypeID, module));
+        T* GetSubsystem(ScriptModule* module = nullptr) {
+            return static_cast<T*>(GetSubsystemImpl(T::SuperTypeID, module));
         }
 
         template<typename T>
-        T* GetSystemWithAlias(ScriptModule* module, const char* systemAlias) {
-            return static_cast<T*>(GetSystemImpl(fnv1a(systemAlias), module));
+        T* GetSubsystemWithAlias(ScriptModule* module, const char* subsystemAlias) {
+            return static_cast<T*>(GetSubsystemImpl(fnv1a(subsystemAlias), module));
         }
 
         template<typename T>
-        T* GetSystem(const char* moduleID) {
-            return static_cast<T*>(GetSystemImpl(T::SuperTypeID, moduleID));
+        T* GetSubsystem(const char* moduleID) {
+            return static_cast<T*>(GetSubsystemImpl(T::SuperTypeID, moduleID));
         }
 
         template<typename T>
-        void RegisterSystem(ScriptModule* module, T* system)
+        void RegisterSubsystem(ScriptModule* module, T* system)
         {
-			return RegisterSystemImpl(module, T::SuperTypeID, system);
+			return RegisterSubsystemImpl(module, T::SuperTypeID, system);
         }
 
         template<typename T>
-        void RegisterSystemWithAlias(ScriptModule* module, T* system, const char* systemAlias)
+        void RegisterSubsystemWithAlias(ScriptModule* module, T* system, const char* subsystemAlias)
         {
-            return RegisterSystemImpl(module, fnv1a(systemAlias), system);
+            return RegisterSubsystemImpl(module, fnv1a(subsystemAlias), system);
+        }
+
+        // Shuts down and destroys the subsystem registered on the module's own node (root when module is null).
+        template<typename T>
+        bool UnregisterSubsystem(ScriptModule* module)
+        {
+            return UnregisterSubsystemImpl(module, T::SuperTypeID);
+        }
+
+        bool UnregisterSubsystemWithAlias(ScriptModule* module, const char* subsystemAlias)
+        {
+            return UnregisterSubsystemImpl(module, fnv1a(subsystemAlias));
         }
 
     protected:
-        virtual System* GetSystemImpl(TypeID id, ScriptModule* module) = 0;
-        virtual System* GetSystemImpl(TypeID id, const char* moduleID) = 0;
-        virtual void RegisterSystemImpl(ScriptModule* module, TypeID id, System* system) = 0;
+        virtual Subsystem* GetSubsystemImpl(TypeID id, ScriptModule* module) = 0;
+        virtual Subsystem* GetSubsystemImpl(TypeID id, const char* moduleID) = 0;
+        virtual void RegisterSubsystemImpl(ScriptModule* module, TypeID id, Subsystem* system) = 0;
 
     public:
         virtual Logger* GetLogger() = 0;
         virtual const EngineConfig* GetEngineConfig() const = 0;
+
+    protected:
+        virtual bool UnregisterSubsystemImpl(ScriptModule* module, TypeID id) = 0;
     };
 }

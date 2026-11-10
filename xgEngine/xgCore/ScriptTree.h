@@ -9,7 +9,7 @@
 #include "xgBase.h"
 namespace xg
 {
-    struct System;
+    struct Subsystem;
     class ScriptNode
     {
     public:
@@ -28,37 +28,37 @@ namespace xg
         void        Update(float dt);
 
         
-        void RegisterSystem(TypeID typeID, System* system);
+        void RegisterSubsystem(TypeID typeID, Subsystem* system);
 
-        void ShutdownSystem(TypeID typeID);
+        bool ShutdownSubsystem(TypeID typeID);
        
-        void ForEachSystem(const std::function<void(System*)>& callback);
+        void ForEachSubsystem(const std::function<void(Subsystem*)>& callback);
 
-		System* GetSystem(TypeID typeID)
+		Subsystem* GetSubsystem(TypeID typeID)
 		{
-			auto it = _systems.find(typeID);
-			if (it != _systems.end())
-				return static_cast<System*>(it->second);
+			auto it = _subsystems.find(typeID);
+			if (it != _subsystems.end())
+				return static_cast<Subsystem*>(it->second);
 			if (_parent)
-				return _parent->GetSystem(typeID);
+				return _parent->GetSubsystem(typeID);
 			return nullptr;
 		}
 
         template<typename T>
-        T* GetSystem()
+        T* GetSubsystem()
         {
             auto typeID = T::SuperTypeID;
-            auto system = GetSystem(typeID);
+            auto system = GetSubsystem(typeID);
             if (typeID != nullptr)
                 return static_cast<T*>(system);
 
             if (_parent)
-                return _parent->GetSystem(typeID);
+                return _parent->GetSubsystem(typeID);
 
             return nullptr;
         }
 
-        void ShutdownAllSystems();
+        void ShutdownAllSubsystems();
     private:
         ScriptModule* _module;
         ThreadDomain  _domain;
@@ -66,7 +66,7 @@ namespace xg
         ScriptNode* _parent;
         std::vector<std::unique_ptr<ScriptNode>> _children;
 
-        std::unordered_map<TypeID, System*> _systems;
+        std::unordered_map<TypeID, Subsystem*> _subsystems;
 
         friend class ScriptTree;
     };

@@ -18,10 +18,10 @@ namespace xg::imui::detail::render
 {
     namespace
     {
-        std::vector<UIVertex> s_vertices;
-        std::vector<uint16_t> s_indices;
-        std::vector<UIDrawCommand> s_commands;
-        std::vector<uint8_t> s_scratch;
+        std::vector<UIVertex> _vertices;
+        std::vector<uint16_t> _indices;
+        std::vector<UIDrawCommand> _commands;
+        std::vector<uint8_t> _scratch;
 
         const void* ToRGBA(ImTextureData* tex, int x, int y, int width, int height, int& pitch)
         {
@@ -31,11 +31,11 @@ namespace xg::imui::detail::render
                 return tex->GetPixelsAt(x, y);
             }
 
-            s_scratch.resize(static_cast<size_t>(width) * height * 4);
+            _scratch.resize(static_cast<size_t>(width) * height * 4);
             for (int row = 0; row < height; ++row)
             {
                 const uint8_t* source = static_cast<const uint8_t*>(tex->GetPixelsAt(x, y + row));
-                uint8_t* destination = s_scratch.data() + static_cast<size_t>(row) * width * 4;
+                uint8_t* destination = _scratch.data() + static_cast<size_t>(row) * width * 4;
                 for (int column = 0; column < width; ++column)
                 {
                     destination[column * 4 + 0] = 255;
@@ -45,7 +45,7 @@ namespace xg::imui::detail::render
                 }
             }
             pitch = width * 4;
-            return s_scratch.data();
+            return _scratch.data();
         }
 
         void DestroyTexture(UIRenderTarget& renderer, ImTextureData* tex)
@@ -100,39 +100,39 @@ namespace xg::imui::detail::render
 
     namespace
     {
-        UIRenderTarget* s_viewportTarget = nullptr;
+        UIRenderTarget* _viewportTarget = nullptr;
 
         void BuildDrawList(ImDrawData* drawData, UIDrawList& list);
 
         void CreateViewportSurface(ImGuiViewport* viewport)
         {
             Window* window = static_cast<Window*>(viewport->PlatformHandle);
-            const uint64_t surface = s_viewportTarget && window ? s_viewportTarget->CreateUISurface(*window) : 0;
+            const uint64_t surface = _viewportTarget && window ? _viewportTarget->CreateUISurface(*window) : 0;
             viewport->RendererUserData = reinterpret_cast<void*>(static_cast<uintptr_t>(surface));
         }
 
         void DestroyViewportSurface(ImGuiViewport* viewport)
         {
             const uint64_t surface = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(viewport->RendererUserData));
-            if (s_viewportTarget && surface != 0)
-                s_viewportTarget->DestroyUISurface(surface);
+            if (_viewportTarget && surface != 0)
+                _viewportTarget->DestroyUISurface(surface);
             viewport->RendererUserData = nullptr;
         }
 
         void RenderViewportSurface(ImGuiViewport* viewport, void*)
         {
             const uint64_t surface = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(viewport->RendererUserData));
-            if (!s_viewportTarget || surface == 0)
+            if (!_viewportTarget || surface == 0)
                 return;
             UIDrawList list = {};
             BuildDrawList(viewport->DrawData, list);
-            s_viewportTarget->SubmitUISurface(surface, &list);
+            _viewportTarget->SubmitUISurface(surface, &list);
         }
     }
 
     void InitViewports(UIRenderTarget& renderer)
     {
-        s_viewportTarget = &renderer;
+        _viewportTarget = &renderer;
         ImGui::GetIO().BackendFlags |= ImGuiBackendFlags_RendererHasViewports;
         ImGuiPlatformIO& pio = ImGui::GetPlatformIO();
         pio.Renderer_CreateWindow = CreateViewportSurface;
@@ -147,7 +147,7 @@ namespace xg::imui::detail::render
         pio.Renderer_DestroyWindow = nullptr;
         pio.Renderer_RenderWindow = nullptr;
         ImGui::GetIO().BackendFlags &= ~ImGuiBackendFlags_RendererHasViewports;
-        s_viewportTarget = nullptr;
+        _viewportTarget = nullptr;
     }
 
     void SubmitDrawData(UIRenderTarget& renderer, ImDrawData* drawData)
@@ -161,23 +161,23 @@ namespace xg::imui::detail::render
     {
         void BuildDrawList(ImDrawData* drawData, UIDrawList& list)
         {
-            s_vertices.clear();
-            s_indices.clear();
-            s_commands.clear();
+            _vertices.clear();
+            _indices.clear();
+            _commands.clear();
 
             list = {};
             if (drawData && drawData->Valid && drawData->TotalVtxCount > 0)
             {
-                s_vertices.reserve(static_cast<size_t>(drawData->TotalVtxCount));
-                s_indices.reserve(static_cast<size_t>(drawData->TotalIdxCount));
+                _vertices.reserve(static_cast<size_t>(drawData->TotalVtxCount));
+                _indices.reserve(static_cast<size_t>(drawData->TotalIdxCount));
 
                 for (const ImDrawList* drawList : drawData->CmdLists)
                 {
-                    const uint32_t vertexBase = static_cast<uint32_t>(s_vertices.size());
-                    const uint32_t indexBase = static_cast<uint32_t>(s_indices.size());
+                    const uint32_t vertexBase = static_cast<uint32_t>(_vertices.size());
+                    const uint32_t indexBase = static_cast<uint32_t>(_indices.size());
                     const UIVertex* vertices = reinterpret_cast<const UIVertex*>(drawList->VtxBuffer.Data);
-                    s_vertices.insert(s_vertices.end(), vertices, vertices + drawList->VtxBuffer.Size);
-                    s_indices.insert(s_indices.end(), drawList->IdxBuffer.Data, drawList->IdxBuffer.Data + drawList->IdxBuffer.Size);
+                    _vertices.insert(_vertices.end(), vertices, vertices + drawList->VtxBuffer.Size);
+                    _indices.insert(_indices.end(), drawList->IdxBuffer.Data, drawList->IdxBuffer.Data + drawList->IdxBuffer.Size);
 
                     for (const ImDrawCmd& cmd : drawList->CmdBuffer)
                     {
@@ -189,16 +189,16 @@ namespace xg::imui::detail::render
                         command.IndexOffset = indexBase + cmd.IdxOffset;
                         command.VertexOffset = vertexBase + cmd.VtxOffset;
                         command.IndexCount = cmd.ElemCount;
-                        s_commands.push_back(command);
+                        _commands.push_back(command);
                     }
                 }
 
-                list.Vertices = s_vertices.data();
-                list.VertexCount = static_cast<uint32_t>(s_vertices.size());
-                list.Indices = s_indices.data();
-                list.IndexCount = static_cast<uint32_t>(s_indices.size());
-                list.Commands = s_commands.data();
-                list.CommandCount = static_cast<uint32_t>(s_commands.size());
+                list.Vertices = _vertices.data();
+                list.VertexCount = static_cast<uint32_t>(_vertices.size());
+                list.Indices = _indices.data();
+                list.IndexCount = static_cast<uint32_t>(_indices.size());
+                list.Commands = _commands.data();
+                list.CommandCount = static_cast<uint32_t>(_commands.size());
                 list.DisplayPos = Vec2(drawData->DisplayPos.x, drawData->DisplayPos.y);
                 list.DisplaySize = Vec2(drawData->DisplaySize.x, drawData->DisplaySize.y);
                 list.FramebufferScale = Vec2(drawData->FramebufferScale.x, drawData->FramebufferScale.y);

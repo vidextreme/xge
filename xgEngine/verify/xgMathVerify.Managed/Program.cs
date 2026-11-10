@@ -14,35 +14,35 @@ using xg.math;
 
 internal static class Program
 {
-    private static int s_checks;
-    private static int s_failures;
+    private static int _checks;
+    private static int _failures;
 
     private static void Check(bool condition, string what, [CallerLineNumber] int line = 0)
     {
-        s_checks++;
+        _checks++;
         if (!condition)
         {
-            s_failures++;
+            _failures++;
             Console.WriteLine($"FAIL line {line}: {what}");
         }
     }
 
     private static void Near(double actual, double expected, double eps, [CallerArgumentExpression(nameof(actual))] string what = "", [CallerLineNumber] int line = 0)
     {
-        s_checks++;
+        _checks++;
         if (!(Math.Abs(actual - expected) <= eps))
         {
-            s_failures++;
+            _failures++;
             Console.WriteLine($"FAIL line {line}: {what} = {actual:G9}, expected {expected:G9} (eps {eps})");
         }
     }
 
     private static void NearV(Vector3 a, Vector3 b, float eps, [CallerLineNumber] int line = 0)
     {
-        s_checks++;
+        _checks++;
         if (MathF.Abs(a.x - b.x) > eps || MathF.Abs(a.y - b.y) > eps || MathF.Abs(a.z - b.z) > eps)
         {
-            s_failures++;
+            _failures++;
             Console.WriteLine($"FAIL line {line}: {a} != {b}");
         }
     }
@@ -67,8 +67,8 @@ internal static class Program
         Run(nameof(TestExistingInterop), TestExistingInterop);
         Run(nameof(TestGeometryInterop), TestGeometryInterop);
 
-        Console.WriteLine($"{s_checks} checks, {s_failures} failures");
-        return s_failures == 0 ? 0 : 1;
+        Console.WriteLine($"{_checks} checks, {_failures} failures");
+        return _failures == 0 ? 0 : 1;
     }
 
     // ------------------------------------------------------------

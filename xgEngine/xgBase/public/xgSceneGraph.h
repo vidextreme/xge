@@ -2,15 +2,15 @@
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgSceneNode.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 #include "xgActorRegistry.h"
 
 namespace xg
 {
 	class ActorRegistry;
-    class SceneGraph : public System
+    class SceneGraph : public Subsystem
     {
-        XG_DECLARE_BASE_SYSTEM(SceneGraph)
+        XG_DECLARE_BASE_SUBSYSTEM(SceneGraph)
     public:
 
         virtual ~SceneGraph() = default;

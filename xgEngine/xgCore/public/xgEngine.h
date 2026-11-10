@@ -20,7 +20,7 @@ namespace xg
     class Messenger;
 	class CodecRegistry;
     class ScriptNode;
-    struct System;
+    struct Subsystem;
     class LoggerImpl;
 
 #ifdef _MSC_VER
@@ -76,11 +76,12 @@ namespace xg
             ScriptHost* host);
 
 	protected:
-		System* GetSystemImpl(TypeID id, ScriptModule* module) override;
-		System* GetSystemImpl(TypeID id, const char* moduleID) override;
-		void RegisterSystemImpl(ScriptModule* module, TypeID id, System* system) override;
+		Subsystem* GetSubsystemImpl(TypeID id, ScriptModule* module) override;
+		Subsystem* GetSubsystemImpl(TypeID id, const char* moduleID) override;
+		void RegisterSubsystemImpl(ScriptModule* module, TypeID id, Subsystem* system) override;
+		bool UnregisterSubsystemImpl(ScriptModule* module, TypeID id) override;
     private:
-        std::unordered_map<TypeID, System*> _systems;
+        std::unordered_map<TypeID, Subsystem*> _subsystems;
 
         LoggerImpl* _logger = nullptr;
         EngineConfig _config;
