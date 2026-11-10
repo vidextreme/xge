@@ -4,16 +4,16 @@
 #include "public/xgLog.h"
 namespace xg
 {
-    static Logger* s_logger = nullptr;
+    static Logger* _logger = nullptr;
 
     void SetLogger(Logger* logger)
     {
-        s_logger = logger;
+        _logger = logger;
     }
 
     Logger* GetLogger()
     {
-        return s_logger;
+        return _logger;
     }
 
     void Log(MessageType type, const char* message, ...)
@@ -25,8 +25,8 @@ namespace xg
         vsnprintf(msgBuffer, sizeof(msgBuffer), message, args);
         va_end(args);
 
-        if (s_logger)
-            s_logger->Write(static_cast<int32_t>(type), msgBuffer);
+        if (_logger)
+            _logger->Write(static_cast<int32_t>(type), msgBuffer);
         else
             std::fprintf(stderr, "[xg] %s\n", msgBuffer);
     }

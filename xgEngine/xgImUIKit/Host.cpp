@@ -23,20 +23,20 @@ namespace
         bool Viewports = false;
     };
 
-    HostState s_hostState;
+    HostState _hostState;
 
     bool PrototypeShell()
     {
-        return HasFlag(s_hostState.Flags, xg::imui::HostFlags::PrototypeShell);
+        return HasFlag(_hostState.Flags, xg::imui::HostFlags::PrototypeShell);
     }
 
     void ReleaseAppIcon()
     {
-        if (!xg::imui::detail::s_appIcon)
+        if (!xg::imui::detail::_appIcon)
             return;
-        ImGui::UnregisterUserTexture(xg::imui::detail::s_appIcon);
-        IM_DELETE(xg::imui::detail::s_appIcon);
-        xg::imui::detail::s_appIcon = nullptr;
+        ImGui::UnregisterUserTexture(xg::imui::detail::_appIcon);
+        IM_DELETE(xg::imui::detail::_appIcon);
+        xg::imui::detail::_appIcon = nullptr;
     }
 }
 
@@ -44,7 +44,7 @@ namespace xg::imui::detail
 {
     UIRenderTarget* HostRenderTarget()
     {
-        return s_hostState.Target;
+        return _hostState.Target;
     }
 
     bool HostPrototypeShell()
@@ -62,15 +62,15 @@ namespace xg
 
     XG_MODULE_EXPORT bool XG_ImUIHostInit(const imui::HostDesc* desc)
     {
-        if (s_hostState.Ready || !desc || desc->Size < offsetof(imui::HostDesc, Platform) || !desc->MainWindow || !desc->RenderTarget
+        if (_hostState.Ready || !desc || desc->Size < offsetof(imui::HostDesc, Platform) || !desc->MainWindow || !desc->RenderTarget
             || !desc->FontDirectory)
             return false;
 
-        s_hostState.Window = desc->MainWindow;
-        s_hostState.Target = desc->RenderTarget;
-        s_hostState.Flags = desc->Flags;
+        _hostState.Window = desc->MainWindow;
+        _hostState.Target = desc->RenderTarget;
+        _hostState.Flags = desc->Flags;
         PlatformServices* services = desc->Size >= sizeof(imui::HostDesc) ? desc->Platform : nullptr;
-        s_hostState.Viewports = HasFlag(desc->Flags, imui::HostFlags::MultiViewport) && services && desc->RenderTarget->SupportsSurfaces();
+        _hostState.Viewports = HasFlag(desc->Flags, imui::HostFlags::MultiViewport) && services && desc->RenderTarget->SupportsSurfaces();
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -78,7 +78,7 @@ namespace xg
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigErrorRecoveryEnableAssert = false;
-        if (s_hostState.Viewports)
+        if (_hostState.Viewports)
         {
             io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
             io.ConfigViewportsNoTaskBarIcon = true;
@@ -92,39 +92,39 @@ namespace xg
         if (PrototypeShell())
         {
             imui::detail::ApplyTheme();
-            s_hostState.Window->SetCustomFrame(true);
+            _hostState.Window->SetCustomFrame(true);
         }
         else
         {
             ImGui::StyleColorsDark();
         }
 
-        if (!imui::detail::platform::Init(s_hostState.Window, s_hostState.Viewports ? services : nullptr))
+        if (!imui::detail::platform::Init(_hostState.Window, _hostState.Viewports ? services : nullptr))
         {
             ImGui::DestroyContext();
-            s_hostState = {};
+            _hostState = {};
             return false;
         }
 
         io.BackendRendererName = "xg::UIRenderTarget";
         io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
-        if (s_hostState.Viewports)
-            imui::detail::render::InitViewports(*s_hostState.Target);
-        s_hostState.Target->SetClearColor(Color(13.0f / 255.0f, 13.0f / 255.0f, 13.0f / 255.0f, 1.0f));
-        s_hostState.Ready = true;
+        if (_hostState.Viewports)
+            imui::detail::render::InitViewports(*_hostState.Target);
+        _hostState.Target->SetClearColor(Color(13.0f / 255.0f, 13.0f / 255.0f, 13.0f / 255.0f, 1.0f));
+        _hostState.Ready = true;
         return true;
     }
 
     XG_MODULE_EXPORT void XG_ImUIHostEvent(const xgEvent* e)
     {
-        if (!s_hostState.Ready || !e)
+        if (!_hostState.Ready || !e)
             return;
         imui::detail::platform::ProcessEvent(*e);
     }
 
     XG_MODULE_EXPORT void XG_ImUIHostFrame(float deltaTime)
     {
-        if (!s_hostState.Ready)
+        if (!_hostState.Ready)
             return;
 
         imui::detail::platform::NewFrame(deltaTime);
@@ -132,7 +132,7 @@ namespace xg
 
         if (PrototypeShell())
         {
-            imui::detail::DrawMainDockspace(s_hostState.Window);
+            imui::detail::DrawMainDockspace(_hostState.Window);
             imui::detail::DrawPrototypePanels();
         }
         else
@@ -143,10 +143,10 @@ namespace xg
 
         ImGui::Render();
         ImDrawData* drawData = ImGui::GetDrawData();
-        imui::detail::render::ProcessTextures(*s_hostState.Target, drawData);
-        imui::detail::render::SubmitDrawData(*s_hostState.Target, drawData);
+        imui::detail::render::ProcessTextures(*_hostState.Target, drawData);
+        imui::detail::render::SubmitDrawData(*_hostState.Target, drawData);
 
-        if (s_hostState.Viewports)
+        if (_hostState.Viewports)
         {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
@@ -156,33 +156,33 @@ namespace xg
 
     XG_MODULE_EXPORT void XG_ImUIHostSetAppIcon(const uint8_t* rgba, int width, int height)
     {
-        if (!s_hostState.Ready || !rgba || width <= 0 || height <= 0)
+        if (!_hostState.Ready || !rgba || width <= 0 || height <= 0)
             return;
-        s_hostState.Window->SetIconRGBA(rgba, width, height);
+        _hostState.Window->SetIconRGBA(rgba, width, height);
         if (PrototypeShell())
         {
             ReleaseAppIcon();
-            imui::detail::s_appIcon = imui::detail::CreateIconTexture(rgba, width, height, imui::detail::AppIconSize);
+            imui::detail::_appIcon = imui::detail::CreateIconTexture(rgba, width, height, imui::detail::AppIconSize);
         }
     }
 
     XG_MODULE_EXPORT void XG_ImUIHostShutdown()
     {
-        if (!s_hostState.Ready)
+        if (!_hostState.Ready)
             return;
-        s_hostState.Ready = false;
+        _hostState.Ready = false;
 
-        if (s_hostState.Viewports)
+        if (_hostState.Viewports)
         {
             ImGui::DestroyPlatformWindows();
             imui::detail::render::ShutdownViewports();
         }
         ReleaseAppIcon();
         imui::detail::ReleaseUserTextures();
-        imui::detail::render::DestroyAllTextures(*s_hostState.Target);
-        s_hostState.Target->SubmitUI(nullptr);
+        imui::detail::render::DestroyAllTextures(*_hostState.Target);
+        _hostState.Target->SubmitUI(nullptr);
         imui::detail::platform::Shutdown();
         ImGui::DestroyContext();
-        s_hostState = {};
+        _hostState = {};
     }
 }

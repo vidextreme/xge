@@ -48,7 +48,7 @@ ActorID XGCreateActor(ScriptEngine* engine)
 
 ActorID XGCreateActorWithName(ScriptEngine* engine, const char* actorName)
 {
-    SceneGraph* sceneGraph = engine->GetSystem<SceneGraph>();
+    SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
     HierarchyNode* node = CreateNode<HierarchyNode>(*sceneGraph);
     node->TypeMask = HierarchyNode::Mask;
     _SetActorName(node, actorName);
@@ -57,7 +57,7 @@ ActorID XGCreateActorWithName(ScriptEngine* engine, const char* actorName)
 
 const char* XGGetActorName(ScriptEngine* engine, ActorID id)
 {
-	SceneGraph* sceneGraph = engine->GetSystem<SceneGraph>();
+	SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
 	SceneNode* node = sceneGraph->GetNode(id);
 	HierarchyNode* hNode = node->Get<HierarchyNode>();
 	return hNode->Name;
@@ -65,7 +65,7 @@ const char* XGGetActorName(ScriptEngine* engine, ActorID id)
 
 void XGSetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newName)
 {
-    SceneGraph* sceneGraph = engine->GetSystem<SceneGraph>();
+    SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
     SceneNode* node = sceneGraph->GetNode(id);
     HierarchyNode* hNode = node->Get<HierarchyNode>();
 
@@ -74,7 +74,7 @@ void XGSetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newNam
 
 void XGDestroyActor(xg::ScriptEngine* engine, xg::ActorID id)
 {
-    SceneGraph* sceneGraph = engine->GetSystem<SceneGraph>();
+    SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
     SceneNode* node = sceneGraph ? sceneGraph->GetNode(id) : nullptr;
     if (!node)
         return;
@@ -91,12 +91,12 @@ void XGDestroyActor(xg::ScriptEngine* engine, xg::ActorID id)
 
 void XGRegisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId, void (*update)(float dt))
 {
-    if (ActorRegistry* actors = engine->GetSystem<ActorRegistry>())
+    if (ActorRegistry* actors = engine->GetSubsystem<ActorRegistry>())
         actors->AddUpdateCallback(moduleId, update);
 }
 
 void XGUnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId)
 {
-    if (ActorRegistry* actors = engine->GetSystem<ActorRegistry>())
+    if (ActorRegistry* actors = engine->GetSubsystem<ActorRegistry>())
         actors->RemoveUpdateCallback(moduleId);
 }

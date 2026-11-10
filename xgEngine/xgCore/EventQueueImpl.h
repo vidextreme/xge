@@ -7,7 +7,7 @@ namespace xg
 {
 	class EventQueueImpl : public EventQueue
     {
-        XG_DECLARE_SYSTEM(EventQueueImpl, EventQueue)
+        XG_DECLARE_SUBSYSTEM(EventQueueImpl, EventQueue)
     public:
         EventQueueImpl();
         ~EventQueueImpl();

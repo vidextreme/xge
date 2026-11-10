@@ -11,7 +11,7 @@ namespace xg.imui
     {
         private const int SlotCount = 4;
 
-        [ThreadStatic] private static byte[]?[]? s_slots;
+        [ThreadStatic] private static byte[]?[]? _slots;
 
         public static byte[]? Encode(string? text, int slot = 0) => text is null ? null : Encode(text.AsSpan(), slot);
 
@@ -33,12 +33,12 @@ namespace xg.imui
 
         private static byte[] Rent(int size, int slot)
         {
-            s_slots ??= new byte[]?[SlotCount];
-            byte[]? buffer = s_slots[slot];
+            _slots ??= new byte[]?[SlotCount];
+            byte[]? buffer = _slots[slot];
             if (buffer is null || buffer.Length < size)
             {
                 buffer = new byte[Math.Max(size, buffer is null ? 256 : buffer.Length * 2)];
-                s_slots[slot] = buffer;
+                _slots[slot] = buffer;
             }
             return buffer;
         }

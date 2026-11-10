@@ -16,7 +16,7 @@ namespace xg
     {
         public static readonly ComponentUpdateGroup<T> Instance = new();
 
-        private static readonly delegate* managed<T, float, void> s_update = &T.OnUpdate;
+        private static readonly delegate* managed<T, float, void> _update = &T.OnUpdate;
 
         private readonly List<T?> _components = new();
         private int _removed;
@@ -54,7 +54,7 @@ namespace xg
             {
                 T? component = _components[i];
                 if (component is not null)
-                    s_update(component, deltaTime);
+                    _update(component, deltaTime);
             }
         }
 

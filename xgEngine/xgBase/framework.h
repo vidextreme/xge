@@ -26,5 +26,5 @@
 #include "xgSceneNode.h"
 #include "xgSceneNodeEngine.h"
 #include "xgStream.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 #include "xgTypeRegistry.h"

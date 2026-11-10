@@ -5,7 +5,7 @@
 #include "xgLog.h"
 #include "xgMemberCallback.h"
 #include <cstring>
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 namespace xg
 {
     ScriptNode::ScriptNode(ScriptModule* module, ThreadDomain domain)
@@ -38,42 +38,46 @@ namespace xg
             c->Update(dt);
     }
 
-    void ScriptNode::RegisterSystem(TypeID typeID, System* system)
+    void ScriptNode::RegisterSubsystem(TypeID typeID, Subsystem* system)
     {
-        xg::Log(xg::MessageType::Info, "Registering system %llu for module %s",
+        xg::Log(xg::MessageType::Info, "Registering subsystem %llu for module %s",
             typeID, _module ? _module->GetId() : "<null>");
-        _systems[typeID] = system;
+        if (_subsystems.find(typeID) != _subsystems.end())
+            xg::Log(xg::MessageType::Warning, "Subsystem %llu replaced on module %s; the previous instance is not shut down",
+                typeID, _module ? _module->GetId() : "<null>");
+        _subsystems[typeID] = system;
     }
 
-    void ScriptNode::ShutdownSystem(TypeID typeID)
+    bool ScriptNode::ShutdownSubsystem(TypeID typeID)
     {
-        auto it = _systems.find(typeID);
-        if (it != _systems.end())
-        {
-            auto* system = it->second;
-            system->Shutdown();
-            delete system;
-            _systems.erase(it);
-        }
+        auto it = _subsystems.find(typeID);
+        if (it == _subsystems.end())
+            return false;
+
+        Subsystem* system = it->second;
+        _subsystems.erase(it);
+        system->Shutdown();
+        XG_DELETE(system);
+        return true;
     }
 
-    void ScriptNode::ForEachSystem(const std::function<void(System*)>& callback)
+    void ScriptNode::ForEachSubsystem(const std::function<void(Subsystem*)>& callback)
     {
-        for (auto& [id, system] : _systems)
+        for (auto& [id, system] : _subsystems)
         {
             callback(system);
         }
     }
 
-    void ScriptNode::ShutdownAllSystems()
+    void ScriptNode::ShutdownAllSubsystems()
     {
-        for (auto& pair : _systems)
+        for (auto& pair : _subsystems)
         {
-            System* system = pair.second;
+            Subsystem* system = pair.second;
 			system->Shutdown();
             XG_DELETE(system);
         }
-        _systems.clear();
+        _subsystems.clear();
     }
 
     ScriptTree::ScriptTree() : _root(nullptr) {}
@@ -147,17 +151,17 @@ namespace xg
     bool ScriptTree::RemoveRecursive(ScriptNode* parent, ScriptModule* module)
     {
         auto& children = parent->_children;
-        parent->ShutdownAllSystems();
+        parent->ShutdownAllSubsystems();
         for (size_t i = 0; i < children.size(); ++i)
         {
             ScriptNode* child = children[i].get();
 
             if (child->GetModule() == module)
             {
-                child->ShutdownAllSystems();
+                child->ShutdownAllSubsystems();
 
                 for (auto& gc : child->_children)
-                    gc->ShutdownAllSystems();
+                    gc->ShutdownAllSubsystems();
 
                 children.erase(children.begin() + i);
                 return true;
@@ -256,7 +260,7 @@ namespace xg
     {
         ForEachNodeRecursive(_root, [&](ScriptNode* node) 
             { 
-                node->ShutdownAllSystems();
+                node->ShutdownAllSubsystems();
             });
     }
 

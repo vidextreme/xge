@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgSceneNode.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 
 namespace xg
 {
@@ -16,9 +16,9 @@ namespace xg
 
     using ActorUpdateFn = void (*)(float dt);
 
-    class ActorRegistry : public System
+    class ActorRegistry : public Subsystem
     {
-        XG_DECLARE_BASE_SYSTEM(ActorRegistry)
+        XG_DECLARE_BASE_SUBSYSTEM(ActorRegistry)
 
     public:
         virtual ~ActorRegistry() = default;

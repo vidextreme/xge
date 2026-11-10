@@ -10,28 +10,28 @@ namespace xg.imui
     // Mirrors the native xg::imui::Gui; the Unity-style layout layer will be added on top of this class.
     public static unsafe class Gui
     {
-        [ThreadStatic] private static nint s_context;
+        [ThreadStatic] private static nint _context;
 
         internal static nint Context
         {
             get
             {
-                if (s_context == 0)
+                if (_context == 0)
                     throw new InvalidOperationException("xg.imui.Gui can only be used inside Panel.OnGUI.");
-                return s_context;
+                return _context;
             }
         }
 
         internal static nint Enter(nint context)
         {
-            nint previous = s_context;
-            s_context = context;
+            nint previous = _context;
+            _context = context;
             return previous;
         }
 
-        internal static void Leave(nint previous) => s_context = previous;
+        internal static void Leave(nint previous) => _context = previous;
 
-        public static bool IsAvailable => s_context != 0;
+        public static bool IsAvailable => _context != 0;
 
         // ------------------------------------------------------------
         // Widgets

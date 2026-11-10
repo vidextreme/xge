@@ -5,7 +5,7 @@ namespace xg
 {
     class ActorRegistryImpl : public ActorRegistry
     {
-        XG_DECLARE_SYSTEM(ActorRegistryImpl, ActorRegistry)
+        XG_DECLARE_SUBSYSTEM(ActorRegistryImpl, ActorRegistry)
     public:
         ActorRegistryImpl(uint16_t machineID = 1);
         ~ActorRegistryImpl() override;

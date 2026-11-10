@@ -47,6 +47,6 @@ namespace xg
     }
     SceneGraph* ScriptModuleNull::GetSceneGraph()
     {
-        return _engine->GetSystem<SceneGraph>(this);
+        return _engine->GetSubsystem<SceneGraph>(this);
     }
 }

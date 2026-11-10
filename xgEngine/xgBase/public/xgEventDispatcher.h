@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
 #include "xgEvent.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"
 namespace xg
 {
     class EventListener
@@ -12,9 +12,9 @@ namespace xg
         virtual void OnEvent(const xgEvent& e) = 0;
     };
 
-    class EventDispatcher : public System
+    class EventDispatcher : public Subsystem
     {
-        XG_DECLARE_BASE_SYSTEM(EventDispatcher)
+        XG_DECLARE_BASE_SUBSYSTEM(EventDispatcher)
     public:
         virtual ~EventDispatcher() = default;
 

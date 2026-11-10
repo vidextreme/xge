@@ -7,7 +7,7 @@ namespace xg
 {
     class TreeSceneGraph : public SceneGraph
     {
-        XG_DECLARE_SYSTEM(TreeSceneGraph, SceneGraph)
+        XG_DECLARE_SUBSYSTEM(TreeSceneGraph, SceneGraph)
     public:
         explicit TreeSceneGraph(ActorRegistry& registry);
 

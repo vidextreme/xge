@@ -269,14 +269,14 @@ constexpr std::uint64_t fnv1a(const char* str) {
     static constexpr const char* TypeName = #Type;              \
     static constexpr ::TypeID StaticTypeID = ::fnv1a(#Type)
 
-#define XG_DECLARE_SYSTEM(Type, Parent)                     \
+#define XG_DECLARE_SUBSYSTEM(Type, Parent)                     \
 public:\
     static constexpr const char* TypeName = #Type;          \
     static constexpr const char* ParentTypeName = #Parent;  \
     static constexpr TypeID SuperTypeID = fnv1a(#Parent);
 
 
-#define XG_DECLARE_BASE_SYSTEM(Type)                     \
+#define XG_DECLARE_BASE_SUBSYSTEM(Type)                     \
 public:\
     static constexpr const char* TypeName = #Type;          \
     static constexpr TypeID SuperTypeID = fnv1a(#Type);

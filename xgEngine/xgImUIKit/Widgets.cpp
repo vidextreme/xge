@@ -50,13 +50,13 @@ namespace xg::imui::detail
         ImVec2 p = ImGui::GetCursorScreenPos();
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(p.x, p.y - 1.0f), ImVec2(p.x + SegmentWidth(count), p.y + SegButtonSize + 1.0f), bg, 4.0f);
         ImGui::SetCursorScreenPos(ImVec2(p.x + 1.0f, p.y));
-        s_segmentStart = p;
-        s_segmentIndex = 0;
+        _segmentStart = p;
+        _segmentIndex = 0;
     }
 
     bool SegButton(const char* id, Icon icon, bool on, const char* tip, bool hasMenu)
     {
-        if (s_segmentIndex++ > 0)
+        if (_segmentIndex++ > 0)
             ImGui::SameLine(0.0f, 1.0f);
         return StateButton(id, icon, on, tip, SegButtonSize, hasMenu);
     }
@@ -161,7 +161,7 @@ namespace xg::imui::detail
         ImGui::PopStyleVar();
 
         ImGuiWindow* window = ImGui::GetCurrentWindow();
-        if (defaultTab && s_selectDefaultTabs > 0 && window->DockNode && window->DockNode->TabBar)
+        if (defaultTab && _selectDefaultTabs > 0 && window->DockNode && window->DockNode->TabBar)
             window->DockNode->TabBar->NextSelectedTabId = window->TabId;
         if (open)
         {

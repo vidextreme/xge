@@ -5,7 +5,7 @@ namespace xg
 {
     class CompositeSceneGraph : public ComponentSceneGraph
     {
-        XG_DECLARE_SYSTEM(CompositeSceneGraph, ComponentSceneGraph)
+        XG_DECLARE_SUBSYSTEM(CompositeSceneGraph, ComponentSceneGraph)
 
     public:
         explicit CompositeSceneGraph(ActorRegistry& registry)

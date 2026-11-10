@@ -14,4 +14,4 @@
 #include "xgWindow.h"
 #include "xgRenderer.h"
 #include "xgBase.h"
-#include "xgSystem.h"
+#include "xgSubsystem.h"

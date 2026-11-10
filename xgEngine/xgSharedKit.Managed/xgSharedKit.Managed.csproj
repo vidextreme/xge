@@ -42,7 +42,7 @@
     <Compile Include="Debug.cs" />
     <Compile Include="Matrix4x4Interop.cs" />
     <Compile Include="QuaternionInterop.cs" />
-    <Compile Include="System.cs" />
+    <Compile Include="Subsystem.cs" />
     <Compile Include="TestCode.cs" />
     <Compile Include="Vector2Interop.cs" />
     <Compile Include="Vector3Interop.cs" />

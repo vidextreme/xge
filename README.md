@@ -24,7 +24,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 ## Highlights
 
 - **HSM (Hierarchical Script Modules):** every module (native DLL, CoreCLR or NativeAOT) is a node in one ScriptTree with deterministic parent → child updates.
-- **Scoped systems:** services are registered per module and resolved by walking up the tree, so children inherit or override them.
+- **Scoped subsystems:** services are registered per module and resolved by walking up the tree, so children inherit or override them.
 - **Dual C# scripting:** CoreCLR for the editor, NativeAOT for the runtime, both behind the same `ScriptModule` interface.
 - **Reflection codegen:** a Tree-sitter tool (`xgReflectGen`) generates type schemas from `XG_SERIALIZABLE` / `XG_FIELD` / `XG_ENUM` markers, used for JSON, message codecs and C# enums.
 - **Editor shell:** Dear ImGui (docking + multi-viewport) on SDL3.
@@ -37,7 +37,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Area | Status | Notes |
 |---|---|---|
 | ScriptTree / HSM | 🟢 Working | Native, CoreCLR and NativeAOT modules load into one tree. |
-| Scoped systems | 🟢 Working | Lookup walks up the tree; the closest ancestor wins. |
+| Scoped subsystems | 🟢 Working | Lookup walks up the tree; the closest ancestor wins. |
 | Messenger / routes | 🟢 Working | `Direct`, `ChildrenOf`, `ParentOf`, `SiblingsOf`, `Filtered`, `SendToAll`. The managed route API is still incomplete. |
 | Codec registry | 🟡 Partial | JSON and binary codecs work for numbers and bools; string fields need work. |
 | Reflection (`xgReflectGen`) | 🟡 Partial | bool / int / uint / float / `const char*` fields and enums. No arrays or nested types yet. |
@@ -99,7 +99,7 @@ Run `xge.exe` from `gameroot/bin`. It reads `gameroot/bin/gameconfig.json`:
 ```
 xgBase         → Base types, macros, logging, JSON, reflection, math (static lib)
 xgPlatform     → Platform backends (SDL3 window, Win32 files)
-xgCore         → Engine runtime: ScriptTree, systems, Messenger, codecs, ActorRegistry
+xgCore         → Engine runtime: ScriptTree, subsystems, Messenger, codecs, ActorRegistry
 Renderers      → DX12 (very rough), Vulkan (planned)
 Script hosts   → CoreCLR (hostfxr), Native + NativeAOT
 Kernels        → xgEditorKernel (editor UI), xgGameKernel (scene graphs, actor exports)
@@ -125,25 +125,25 @@ root
 
 ## A taste of the API
 
-### Systems
+### Subsystems
 
 ```cpp
-struct SceneGraphFactory : public System {
-    XG_DECLARE_BASE_SYSTEM(SceneGraphFactory)
+struct SceneGraphFactory : public Subsystem {
+    XG_DECLARE_BASE_SUBSYSTEM(SceneGraphFactory)
 };
 
 class SceneGraphFactoryImpl : public SceneGraphFactory {
-    XG_DECLARE_SYSTEM(SceneGraphFactoryImpl, SceneGraphFactory)
+    XG_DECLARE_SUBSYSTEM(SceneGraphFactoryImpl, SceneGraphFactory)
 };
 
-engine->RegisterSystem(module, new SceneGraphFactoryImpl());       // scoped to module and its children
-auto* factory = engine->GetSystem<SceneGraphFactory>(module);      // closest ancestor wins
+engine->RegisterSubsystem(module, new SceneGraphFactoryImpl());       // scoped to module and its children
+auto* factory = engine->GetSubsystem<SceneGraphFactory>(module);      // closest ancestor wins
 ```
 
 ### Messages
 
 ```cpp
-Messenger* messenger = engine->GetSystem<Messenger>(this);
+Messenger* messenger = engine->GetSubsystem<Messenger>(this);
 messenger->Send(msg, Route::Direct("game.demo"));
 messenger->Send(msg, Route::ChildrenOf("editor.kernel"));
 messenger->SendToAll(msg);
@@ -218,10 +218,10 @@ XGE/
 
 ## Documentation
 
-- [Runtime architecture](docs/xge-architecture.md) — HSM, scoped systems, script hosts, Messenger, reflection, logging
+- [Runtime architecture](docs/xge-architecture.md) — HSM, scoped subsystems, script hosts, Messenger, reflection, logging
 - [SceneGraph and actors](docs/xge-scenegraph.md) — ActorRegistry, scene graphs, node mixins
 - [Actors and components (C#)](docs/xge-components.md) — Actor API, CRTP behaviour components, data components
-- [Component graphs](docs/xge-components2.md) — per-type component storage as scoped systems
+- [Component graphs](docs/xge-components2.md) — per-type component storage as scoped subsystems
 - [Hybrid component sample](docs/xge-component-sample.md)
 - [Design notes](docs/xge-design-notes.md) — codecs, dispatch groups, rendering and networking plans
 

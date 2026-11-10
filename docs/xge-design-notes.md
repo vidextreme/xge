@@ -6,8 +6,8 @@
 
 ## SceneGraph — Scoped, Multi‑Purpose Graph System
 
-### SceneGraph is a System
-A `SceneGraph` is a first‑class **System**, which means:
+### SceneGraph is a Subsystem
+A `SceneGraph` is a first‑class **Subsystem**, which means:
 
 - It is **scope‑based**
 - It is **registered per ScriptModule**
@@ -50,7 +50,7 @@ A SceneGraph is not a single "scene tree." It is a **domain‑specific graph** w
 Each SceneGraph defines its own storage, traversal, and rules.
 
 ### ScriptNodes Can Have Multiple SceneGraphs
-A ScriptNode may register **multiple SceneGraphs** (via `RegisterSystemWithAlias`), each serving a different domain, for example a Transform, Physics, Render and Metadata graph. All are scoped to that ScriptNode and inherited by its children unless overridden.
+A ScriptNode may register **multiple SceneGraphs** (via `RegisterSubsystemWithAlias`), each serving a different domain, for example a Transform, Physics, Render and Metadata graph. All are scoped to that ScriptNode and inherited by its children unless overridden.
 
 ---
 
@@ -59,7 +59,7 @@ A ScriptNode may register **multiple SceneGraphs** (via `RegisterSystemWithAlias
 Messenger delivers `ScriptMessage` objects across the ScriptTree using explicit `Route` objects. Routing is handled by ScriptTree; encoding and decoding are handled by the Codec Registry.
 
 ```cpp
-Messenger* messenger = engine->GetSystem<Messenger>(this);
+Messenger* messenger = engine->GetSubsystem<Messenger>(this);
 
 messenger->Send(msg, Route::Direct("game.demo"));      // one module
 messenger->Send(msg, Route::ChildrenOf("editor.kernel")); // its subtree (optional depth limit)

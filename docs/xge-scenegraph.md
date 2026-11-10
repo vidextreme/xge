@@ -2,7 +2,7 @@
 
 > Status: current implementation (2026-11). Future design is listed at the end. See the [README](../README.md) for the overall status table.
 
-Actors are global identities. SceneGraphs are scoped systems that each hold their own representation of those identities. The C# side of actors and components is covered in [Components](xge-components.md).
+Actors are global identities. SceneGraphs are scoped subsystems that each hold their own representation of those identities. The C# side of actors and components is covered in [Components](xge-components.md).
 
 ---
 
@@ -14,7 +14,7 @@ Actors are global identities. SceneGraphs are scoped systems that each hold thei
 
 ### ActorRegistry
 
-`ActorRegistry` (`xgBase/public/xgActorRegistry.h`) is a root system created by the engine:
+`ActorRegistry` (`xgBase/public/xgActorRegistry.h`) is a root subsystem created by the engine:
 
 | Call | Purpose |
 |---|---|
@@ -43,12 +43,12 @@ XG_MODULE_EXPORT void XGUnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t
 
 ---
 
-## SceneGraph is a system
+## SceneGraph is a subsystem
 
-A `SceneGraph` is a scoped [system](xge-architecture.md#scoped-systems): it is registered on a module and resolved by walking up the module tree. A module can register several graphs by alias.
+A `SceneGraph` is a scoped [subsystem](xge-architecture.md#scoped-subsystems): it is registered on a module and resolved by walking up the module tree. A module can register several graphs by alias.
 
 ```cpp
-class SceneGraph : public System
+class SceneGraph : public Subsystem
 {
 public:
     virtual void RegisterNode(SceneNode* node) = 0;
@@ -70,10 +70,10 @@ Graphs are created by name through the root `SceneGraphFactory`:
 
 ```cpp
 auto sceneGraph = sceneGraphFactory->Create("tree", *actorRegistry);
-engine->RegisterSystem<SceneGraph>(nullptr, sceneGraph);
+engine->RegisterSubsystem<SceneGraph>(nullptr, sceneGraph);
 
 auto componentSet = static_cast<ComponentSceneGraph*>(sceneGraphFactory->Create("compset", *actorRegistry));
-engine->RegisterSystemWithAlias(nullptr, componentSet, "PlayerComponent");
+engine->RegisterSubsystemWithAlias(nullptr, componentSet, "PlayerComponent");
 componentSet->InitializeComponentSet("PlayerComponent", 12);
 ```
 

@@ -3,10 +3,10 @@
 ﻿using System.Text;
 using TreeSitter;
 
-class Program
+partial class Program
 {
-    [System.Runtime.InteropServices.DllImport("tree-sitter-cpp")]
-    public static extern IntPtr tree_sitter_cpp();
+    [System.Runtime.InteropServices.LibraryImport("tree-sitter-cpp")]
+    public static partial IntPtr tree_sitter_cpp();
 
     static bool IsGeneratedHeader(string path)
     {
