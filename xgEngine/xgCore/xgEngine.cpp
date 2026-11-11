@@ -281,6 +281,13 @@ namespace xg
         return node ? node->ShutdownSubsystem(id) : false;
     }
 
+    ScriptModule* Engine::GetParentScriptModule(ScriptModule* module) const
+    {
+        ScriptNode* node = module ? _scriptTree->FindNode(module) : nullptr;
+        ScriptNode* parent = node ? node->GetParent() : nullptr;
+        return parent ? parent->GetModule() : nullptr;
+    }
+
     ScriptModule* Engine::AddScriptModule(const char* id,
         const char* path,
         ScriptModule* parent,

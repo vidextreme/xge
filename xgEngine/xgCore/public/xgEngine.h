@@ -80,6 +80,8 @@ namespace xg
 		Subsystem* GetSubsystemImpl(TypeID id, const char* moduleID) override;
 		void RegisterSubsystemImpl(ScriptModule* module, TypeID id, Subsystem* system) override;
 		bool UnregisterSubsystemImpl(ScriptModule* module, TypeID id) override;
+    public:
+        ScriptModule* GetParentScriptModule(ScriptModule* module) const override;
     private:
         std::unordered_map<TypeID, Subsystem*> _subsystems;
 

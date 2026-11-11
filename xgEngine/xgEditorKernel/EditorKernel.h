@@ -28,6 +28,9 @@ namespace xg
 
     class EditorKernelModule : public ScriptModule
     {
+        // Id of the managed editor module in gameconfig.json "ScriptModules"; removed before the UI host shuts down.
+        static constexpr const char* EditorModuleId = "editor";
+
     public:
         EditorKernelModule(const char* id, int moduleID, ScriptHost* host, const char* group);
         ~EditorKernelModule() override;
@@ -44,16 +47,11 @@ namespace xg
         void InitUI();
         void ShutdownUI();
 
-        // Loads <project>/Library/Build/Editor/<Name>.CoreCLR.dll as "game.project" when a project is open.
-        void LoadProjectModule(const char* group);
-
         // Platform event handler (called by EventDispatcher)
         void OnEvent(const xgEvent& e);
         void OnMessage(const ScriptMessage& msg) override;
     private:
         ScriptEngine* _engine = nullptr;
-        ScriptModule* _editorModule = nullptr;
-        ScriptModule* _gameKernel = nullptr;
         UIRenderTargetUnique _ownedUITarget;
         UIRenderTarget* _uiTarget = nullptr;
 

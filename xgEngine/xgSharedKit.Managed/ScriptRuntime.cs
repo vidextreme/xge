@@ -108,6 +108,21 @@ namespace xg
         // False when xge.exe was started with --no-script-build (or gameconfig ProjectAutoBuild is false).
         public static bool ProjectAutoBuild => _enginePtr == 0 || XG_GetProjectAutoBuild(_enginePtr);
 
+        // Loads a script module under parentId (null = this module's parent) with group (null = the parent's group).
+        // Call it outside frame updates (for example during Init); returns false when loading fails.
+        public static bool AddScriptModule(string id, string path, string? parentId = null, string? group = null) =>
+            _enginePtr != 0 && XG_AddScriptModule(_enginePtr, ModuleID, id, path, parentId, group);
+
+        public static bool RemoveScriptModule(string id) => _enginePtr != 0 && XG_RemoveScriptModule(_enginePtr, id);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_AddScriptModule", StringMarshalling = StringMarshalling.Utf8)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_AddScriptModule(nint enginePtr, uint callerModuleId, string id, string path, string? parentId, string? group);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_RemoveScriptModule", StringMarshalling = StringMarshalling.Utf8)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_RemoveScriptModule(nint enginePtr, string id);
+
         [LibraryImport(NativeLib, EntryPoint = "XG_GetProjectAutoBuild")]
         [return: MarshalAs(UnmanagedType.U1)]
         private static partial bool XG_GetProjectAutoBuild(nint enginePtr);
