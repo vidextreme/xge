@@ -18,9 +18,12 @@ namespace xg
         std::deque<std::string> _strings;
     };
 
-    // Fills the fields of a reflected object from the JSON keys that match the schema's field names.
+    // Fills the fields of a reflected object from the JSON keys that match the schema's field names (exact match first,
+    // then ignoring case, so "path" fills a field named Path).
     // Fields without a matching key, or with a value of the wrong JSON type, keep their current value.
-    bool ReadReflected(const Json& json, const TypeSchema& schema, void* object, ReflectStringStore& strings);
+    // table names a sub-object to read (returns false, object unchanged, when it is missing or not an object);
+    // null reads the whole document.
+    bool ReadReflected(const Json& json, const TypeSchema& schema, void* object, ReflectStringStore& strings, const char* table = nullptr);
 
     // "Field=value Field=value ..." for the primitive and string fields of a reflected object
     std::string DescribeReflected(const TypeSchema& schema, const void* object);

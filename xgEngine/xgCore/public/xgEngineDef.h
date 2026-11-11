@@ -34,6 +34,27 @@ namespace xg
         bool ProjectAutoBuild = true;
     };
 
+    // One entry of gameconfig.json "ScriptModules" (each entry may have nested "Children" loaded under it).
+    XG_SERIALIZABLE()
+    struct ScriptModuleDesc
+    {
+        XG_DECLARE_TYPE_NAME(ScriptModuleDesc);
+
+        XG_FIELD()
+        const char* Id = nullptr;
+
+        XG_FIELD()
+        const char* Path = nullptr;
+
+        // Script host group (modules in one group share a host, e.g. one CoreCLR runtime).
+        XG_FIELD()
+        const char* Group = nullptr;
+
+        // Dispatch group for scheduling; reserved, not used yet.
+        XG_FIELD()
+        const char* DispatchGroup = nullptr;
+    };
+
     XG_ENUM(inherit = byte)
     enum class ThreadDomain : uint8_t
     {

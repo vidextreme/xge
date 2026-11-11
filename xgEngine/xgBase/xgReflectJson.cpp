@@ -3,6 +3,7 @@
 #include "pch.h"
 #include "xgReflectJson.h"
 #include <cstring>
+#include <string>
 
 namespace xg
 {
@@ -12,17 +13,30 @@ namespace xg
         return _strings.back().c_str();
     }
 
-    bool ReadReflected(const Json& json, const TypeSchema& schema, void* object, ReflectStringStore& strings)
+    bool ReadReflected(const Json& json, const TypeSchema& schema, void* object, ReflectStringStore& strings, const char* table)
     {
         if (!object)
             return false;
+        if (table)
+        {
+            Json section;
+            if (!json.GetTable(table, section))
+                return false;
+            return ReadReflected(section, schema, object, strings, nullptr);
+        }
 
         uint8_t* base = static_cast<uint8_t*>(object);
         for (uint32_t i = 0; i < schema.FieldCount; ++i)
         {
             const FieldSchema& field = schema.Fields[i];
-            if (!json.Has(field.Name))
-                continue;
+            std::string key = field.Name;
+            if (!json.Has(key.c_str()))
+            {
+                const char* match = json.FindKey(field.Name);
+                if (!match)
+                    continue;
+                key = match;
+            }
 
             void* fieldPtr = base + field.Offset;
             switch (field.ValueKind)
@@ -30,31 +44,31 @@ namespace xg
             case ValueType::Bool:
             {
                 bool& value = *static_cast<bool*>(fieldPtr);
-                value = json.GetBool(field.Name, value);
+                value = json.GetBool(key.c_str(), value);
                 break;
             }
             case ValueType::Int32:
             {
                 int32_t& value = *static_cast<int32_t*>(fieldPtr);
-                value = json.GetInt(field.Name, value);
+                value = json.GetInt(key.c_str(), value);
                 break;
             }
             case ValueType::UInt32:
             {
                 uint32_t& value = *static_cast<uint32_t*>(fieldPtr);
-                value = static_cast<uint32_t>(json.GetInt(field.Name, static_cast<int>(value)));
+                value = static_cast<uint32_t>(json.GetInt(key.c_str(), static_cast<int>(value)));
                 break;
             }
             case ValueType::Float:
             {
                 float& value = *static_cast<float*>(fieldPtr);
-                value = json.GetFloat(field.Name, value);
+                value = json.GetFloat(key.c_str(), value);
                 break;
             }
             case ValueType::String:
             {
                 const char*& value = *static_cast<const char**>(fieldPtr);
-                const char* text = json.GetString(field.Name, nullptr);
+                const char* text = json.GetString(key.c_str(), nullptr);
                 if (text)
                     value = text[0] ? strings.Store(text) : nullptr;
                 break;

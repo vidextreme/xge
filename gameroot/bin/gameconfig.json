@@ -1,5 +1,15 @@
 {
-    "RendererModule": "xgRendererDX12",
-    "EditorUI": false,
-    "EditorMultiViewport": true
+    "EngineConfig": {
+        "RendererModule": "xgRendererDX12",
+        "EditorUI": false,
+        "EditorMultiViewport": true
+    },
+    "ScriptModules": {
+        "editor.kernel": { "path": "xgEditorKernel.dll", "group": "group.main", "dispatchgroup": "main", "children": {
+            "game.kernel": { "path": "xgGameKernel.dll", "children": {
+                "editor": "xgEditor.CoreCLR.dll",
+                "game.demo": "GameDemoModule.dll"
+            } }
+        } }
+    }
 }

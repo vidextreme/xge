@@ -113,5 +113,9 @@ namespace xg
 
     protected:
         virtual bool UnregisterSubsystemImpl(ScriptModule* module, TypeID id) = 0;
+
+    public:
+        // Parent of module in the script tree; null for a root module or one that is not in the tree.
+        virtual ScriptModule* GetParentScriptModule(ScriptModule* module) const = 0;
     };
 }

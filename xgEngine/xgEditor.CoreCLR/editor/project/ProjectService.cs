@@ -18,6 +18,9 @@ namespace xgEditor.CoreCLR
     {
         private const int BuildTimeoutMilliseconds = 120_000;
 
+        // Script module id of the open project's scripts.
+        public const string ProjectModuleId = "game.project";
+
         private static int _building;
 
         public static ProjectInfo? Current { get; private set; }
@@ -41,13 +44,32 @@ namespace xgEditor.CoreCLR
             Menu.Add("Assets/Build Scripts", () => BuildScripts());
             Debug.Log($"[Project] Opened {Current.Name} ({Current.Root})");
 
-            if (!ScriptRuntime.ProjectAutoBuild)
+            if (ScriptRuntime.ProjectAutoBuild)
+            {
+                string? stale = ScriptsStaleReason(Current);
+                if (stale is null)
+                    Debug.Log($"[Project] {Current.Name} scripts are up to date");
+                else
+                    BuildNow(Current, stale);
+            }
+            LoadScriptModule(Current);
+        }
+
+        // Loads the project's script assembly as "game.project", a sibling of this editor module.
+        private static void LoadScriptModule(ProjectInfo project)
+        {
+            if (!File.Exists(project.ScriptAssemblyPath))
+            {
+                Debug.LogWarning($"[Project] {project.Name}: no script build at {project.ScriptAssemblyPath} (see the Console for build errors, or use Assets > Build Scripts).");
                 return;
-            string? stale = ScriptsStaleReason(Current);
-            if (stale is null)
-                Debug.Log($"[Project] {Current.Name} scripts are up to date");
+            }
+            if (File.Exists(project.BuildFailedMarkerPath))
+                Debug.LogWarning($"[Project] {project.Name}: the latest script build failed; loading the last successful build.");
+
+            if (ScriptRuntime.AddScriptModule(ProjectModuleId, project.ScriptAssemblyPath))
+                Debug.LogSuccess($"[Project] {project.Name}: loaded scripts from {project.ScriptAssemblyPath}");
             else
-                BuildNow(Current, stale);
+                Debug.LogError($"[Project] {project.Name}: failed to load {project.ScriptAssemblyPath}");
         }
 
         public static void OpenCSharpProject()
