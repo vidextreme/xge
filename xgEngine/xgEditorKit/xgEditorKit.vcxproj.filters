@@ -27,12 +27,18 @@
     <ClInclude Include="pch.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgUIHostSession.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xgEditorKit.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="UIHostSession.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
   </ItemGroup>

@@ -67,6 +67,9 @@
     <ClCompile Include="ImageSDL.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
+    <ClCompile Include="DialogSDL.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
     <ClCompile Include="PlatformServicesSDL.cpp">
       <Filter>private\source</Filter>
     </ClCompile>

@@ -56,7 +56,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;public;..\xgCore\Generated;..\xgEditorKit\public;..\xgImUIKit\public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -64,7 +64,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>xgBase.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>xgBase.lib;xgEditorKit.lib;xgImUIKit.lib;xgPlatform.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -79,7 +79,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;public;..\xgCore\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;public;..\xgCore\Generated;..\xgEditorKit\public;..\xgImUIKit\public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -87,7 +87,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>..\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>xgBase.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>xgBase.lib;xgEditorKit.lib;xgImUIKit.lib;xgPlatform.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -96,6 +96,7 @@
     <ClCompile Include="InteropSubsystem.cpp" />
     <ClCompile Include="interop\xgLogInterop.cpp" />
     <ClCompile Include="interop\xgProjectInterop.cpp" />
+    <ClCompile Include="interop\xgUIHostInterop.cpp" />
     <ClCompile Include="interop\xgMat4x4Interop.cpp" />
     <ClCompile Include="interop\xgQuatInterop.cpp" />
     <ClCompile Include="interop\xgScriptMessageInterop.cpp" />

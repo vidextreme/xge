@@ -59,7 +59,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;..\xgCore\Generated;..\xgUtility;..\xgSharedKit\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;..\xgCore\Generated;..\xgUtility;..\xgSharedKit\Generated;..\xgImUIKit\public;public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -83,7 +83,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;..\xgCore\Generated;..\xgUtility;..\xgSharedKit\Generated</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\xgBase\public;..\xgBase\math;..\xgCore\public;..\xgCore\Generated;..\xgUtility;..\xgSharedKit\Generated;..\xgImUIKit\public;public</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -98,6 +98,7 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="public\xgUIHostSession.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -105,6 +106,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="xgEditorKit.cpp" />
+    <ClCompile Include="UIHostSession.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

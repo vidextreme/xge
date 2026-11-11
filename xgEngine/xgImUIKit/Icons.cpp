@@ -331,6 +331,20 @@ namespace xg::imui::detail
             dl->AddLine(ImVec2(c.x - h, c.y - h), ImVec2(c.x + h, c.y + h), col, 1.1f);
             dl->AddLine(ImVec2(c.x + h, c.y - h), ImVec2(c.x - h, c.y + h), col, 1.1f);
             break;
+        case Icon::Image:
+            dl->AddRect(ImVec2(c.x - h * 0.9f, c.y - h * 0.7f), ImVec2(c.x + h * 0.9f, c.y + h * 0.7f), col, 1.5f, 0, 1.3f);
+            dl->AddCircleFilled(ImVec2(c.x + h * 0.4f, c.y - h * 0.3f), h * 0.16f, col);
+            dl->AddTriangleFilled(ImVec2(c.x - h * 0.7f, c.y + h * 0.5f), ImVec2(c.x - h * 0.2f, c.y - h * 0.15f), ImVec2(c.x + h * 0.3f, c.y + h * 0.5f), col);
+            dl->AddTriangleFilled(ImVec2(c.x, c.y + h * 0.5f), ImVec2(c.x + h * 0.35f, c.y + h * 0.1f), ImVec2(c.x + h * 0.7f, c.y + h * 0.5f), col);
+            break;
+        case Icon::Trash:
+            dl->AddLine(ImVec2(c.x - h * 0.85f, c.y - h * 0.55f), ImVec2(c.x + h * 0.85f, c.y - h * 0.55f), col, 1.4f);
+            dl->AddRectFilled(ImVec2(c.x - h * 0.3f, c.y - h * 0.85f), ImVec2(c.x + h * 0.3f, c.y - h * 0.6f), col, 1.0f);
+            dl->AddQuad(ImVec2(c.x - h * 0.65f, c.y - h * 0.4f), ImVec2(c.x + h * 0.65f, c.y - h * 0.4f),
+                ImVec2(c.x + h * 0.5f, c.y + h * 0.85f), ImVec2(c.x - h * 0.5f, c.y + h * 0.85f), col, 1.3f);
+            dl->AddLine(ImVec2(c.x - h * 0.2f, c.y - h * 0.15f), ImVec2(c.x - h * 0.17f, c.y + h * 0.6f), col, 1.2f);
+            dl->AddLine(ImVec2(c.x + h * 0.2f, c.y - h * 0.15f), ImVec2(c.x + h * 0.17f, c.y + h * 0.6f), col, 1.2f);
+            break;
         }
     }
 }

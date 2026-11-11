@@ -161,6 +161,68 @@ namespace xg.imui
             return changed;
         }
 
+        // Single-line text box; hint shows while empty. width <= 0 fills the line.
+        public static bool TextField(string id, TextBuffer text, string? hint = null, float width = 0.0f)
+        {
+            Result result;
+            fixed (byte* p = Utf8.Encode(id.AsSpan(), 0))
+            fixed (byte* h = Utf8.Encode(hint, 1))
+            fixed (byte* buffer = text.Buffer)
+                result = Native.TextField(Context, p, h, buffer, text.Buffer.Length, width);
+            bool changed = (result & Result.Changed) != 0;
+            if (changed)
+                text.MarkEdited();
+            return changed;
+        }
+
+        // Square flat icon button laid out inline. size <= 0 uses the frame height.
+        public static bool IconButton(string id, Icon icon, float size, Color32 color)
+        {
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                return (Native.IconButton(Context, p, icon, null, size, color) & Result.Clicked) != 0;
+        }
+
+        // Icon button placed at position in the current draw space (row or canvas space, like Painter), over the row.
+        public static bool IconButton(string id, Icon icon, Vector2 position, float size, Color32 color)
+        {
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                return (Native.IconButton(Context, p, icon, &position, size, color) & Result.Clicked) != 0;
+        }
+
+        // Invisible interactive rectangle in the current draw space: Hovered, Clicked, DoubleClicked, RightClicked.
+        public static Result HitArea(string id, Rect rect)
+        {
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                return Native.HitArea(Context, p, &rect);
+        }
+
+        // Tooltip shown while the previous item is hovered.
+        public static void Tooltip(string text)
+        {
+            fixed (byte* p = Utf8.Encode(text.AsSpan()))
+                Native.ItemTooltip(Context, p);
+        }
+
+        // Modals: Gui.OpenPopup(id) once, then every frame: using (var m = Gui.Modal(id, title)) { if (m.IsOpen) { ... } }.
+        public static void OpenPopup(string id)
+        {
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                Native.OpenPopup(Context, p);
+        }
+
+        // Centered on the main window, dims it; size.y <= 0 fits the content. Escape closes it.
+        public static ModalScope Modal(string id, string title, Vector2 size = default)
+        {
+            nint ctx = Context;
+            byte open;
+            fixed (byte* p = Utf8.Encode(id.AsSpan(), 0))
+            fixed (byte* t = Utf8.Encode(title.AsSpan(), 1))
+                open = Native.BeginModal(ctx, p, t, &size);
+            return new ModalScope(ctx, open != 0);
+        }
+
+        public static void CloseModal() => Native.CloseModal(Context);
+
         // Read-only, selectable text; size <= 0 fills the available space.
         public static Result TextArea(string id, string text, Vector2 size = default)
         {
@@ -262,6 +324,25 @@ namespace xg.imui
         {
             if (_ctx != 0)
                 Native.PopFont(_ctx);
+        }
+    }
+
+    public readonly ref struct ModalScope
+    {
+        private readonly nint _ctx;
+
+        internal ModalScope(nint ctx, bool open)
+        {
+            _ctx = ctx;
+            IsOpen = open;
+        }
+
+        public bool IsOpen { get; }
+
+        public void Dispose()
+        {
+            if (_ctx != 0 && IsOpen)
+                Native.EndModal(_ctx);
         }
     }
 

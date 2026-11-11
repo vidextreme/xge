@@ -32,6 +32,16 @@ namespace xg
         // Build the project's scripts when it opens and they are stale (xge.exe --no-script-build or gameconfig false to skip).
         XG_FIELD()
         bool ProjectAutoBuild = true;
+
+        // Main window title and initial client size.
+        XG_FIELD()
+        const char* WindowTitle = nullptr;
+
+        XG_FIELD()
+        int WindowWidth = 1280;
+
+        XG_FIELD()
+        int WindowHeight = 720;
     };
 
     // One entry of gameconfig.json "ScriptModules" (each entry may have nested "Children" loaded under it).

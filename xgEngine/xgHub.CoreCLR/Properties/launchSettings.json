@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "XGE (default config)": {
+      "commandName": "Executable",
+      "executablePath": "$(TargetDir)xge.exe",
+      "workingDirectory": "$(TargetDir)",
+      "nativeDebugging": true
+    },
+    "XGE Project Hub": {
+      "commandName": "Executable",
+      "executablePath": "$(TargetDir)xge.exe",
+      "commandLineArgs": "--config hub.config",
+      "workingDirectory": "$(TargetDir)",
+      "nativeDebugging": true
+    }
+  }
+}

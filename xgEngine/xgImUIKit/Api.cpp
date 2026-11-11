@@ -55,6 +55,8 @@ namespace xg::imui
         ImVec2 CanvasOrigins[MaxCanvasDepth];
         int CanvasDepth = 0;
         DrawLayer Layer = DrawLayer::Panel;
+        int ToolbarCount = 0;
+        int ToolbarDepth = 0;
 
         static constexpr int MaxListDepth = 4;
         struct ListFrame
@@ -131,6 +133,14 @@ namespace
         return std::find(_panels.begin(), _panels.end(), panel) != _panels.end();
     }
 
+    // Rows report Hovered while the mouse is anywhere over them, including over items placed on top of the row.
+    Result RowHoverResult(const ImVec2& rowMin, const ImVec2& rowMax)
+    {
+        const bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)
+            && ImGui::IsMouseHoveringRect(rowMin, rowMax, true);
+        return hovered ? Result::Hovered : Result::None;
+    }
+
     Result ItemResult(bool changed)
     {
         Result result = changed ? Result::Changed : Result::None;
@@ -158,8 +168,63 @@ namespace
             entry->OnClose(entry->User);
     }
 
+    void DrawPanelBody(PanelEntry* entry)
+    {
+        ImGuiWindowFlags bodyFlags = ImGuiWindowFlags_None;
+        if (HasFlag(entry->Flags, PanelFlags::NoScrollbar))
+            bodyFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+        const ImVec2 padding = HasFlag(entry->Flags, PanelFlags::NoPadding) ? ImVec2(0.0f, 0.0f) : ImVec2(8.0f, 6.0f);
+        imui::detail::BeginBody("##imui_body", padding, bodyFlags);
+
+        if (entry->OnGUI)
+        {
+            Context ctx;
+            ctx.Panel = entry;
+            ctx.ContentOrigin = ImGui::GetCursorScreenPos();
+
+            ImGuiErrorRecoveryState state;
+            ImGui::ErrorRecoveryStoreState(&state);
+            ImDrawList* bodyList = ImGui::GetWindowDrawList();
+            const int clipDepth = bodyList->_ClipRectStack.Size;
+            entry->OnGUI(&ctx, entry->User);
+            ImGui::ErrorRecoveryTryToRecoverState(&state);
+            while (bodyList->_ClipRectStack.Size > clipDepth)
+                bodyList->PopClipRect();
+            ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
+            while (foreground->_ClipRectStack.Size > 1)
+                foreground->PopClipRect();
+        }
+        ImGui::EndChild();
+    }
+
+    void DrawFillViewportPanel(PanelEntry* entry)
+    {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+        const bool visible = ImGui::Begin(entry->Title.c_str(), nullptr, flags);
+        ImGui::PopStyleVar(3);
+        if (visible)
+            DrawPanelBody(entry);
+        ImGui::End();
+    }
+
     void DrawPanel(PanelEntry* entry)
     {
+        if (HasFlag(entry->Flags, PanelFlags::FillViewport))
+        {
+            entry->FocusRequest = false;
+            DrawFillViewportPanel(entry);
+            return;
+        }
+
         const int slot = static_cast<int>(entry->Slot);
         if (entry->Slot != DockSlot::Floating && _dockIds[slot] != 0)
             ImGui::SetNextWindowDockID(_dockIds[slot], ImGuiCond_FirstUseEver);
@@ -204,32 +269,7 @@ namespace
                 const ImRect r = ImGui::GetCurrentWindow()->InnerRect;
                 ImGui::GetWindowDrawList()->AddRectFilled(r.Min, r.Max, imui::detail::HeaderBg, imui::detail::AreaRounding, ImDrawFlags_RoundCornersBottom);
             }
-
-            ImGuiWindowFlags bodyFlags = ImGuiWindowFlags_None;
-            if (HasFlag(entry->Flags, PanelFlags::NoScrollbar))
-                bodyFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-            const ImVec2 padding = HasFlag(entry->Flags, PanelFlags::NoPadding) ? ImVec2(0.0f, 0.0f) : ImVec2(8.0f, 6.0f);
-            imui::detail::BeginBody("##imui_body", padding, bodyFlags);
-
-            if (entry->OnGUI)
-            {
-                Context ctx;
-                ctx.Panel = entry;
-                ctx.ContentOrigin = ImGui::GetCursorScreenPos();
-
-                ImGuiErrorRecoveryState state;
-                ImGui::ErrorRecoveryStoreState(&state);
-                ImDrawList* bodyList = ImGui::GetWindowDrawList();
-                const int clipDepth = bodyList->_ClipRectStack.Size;
-                entry->OnGUI(&ctx, entry->User);
-                ImGui::ErrorRecoveryTryToRecoverState(&state);
-                while (bodyList->_ClipRectStack.Size > clipDepth)
-                    bodyList->PopClipRect();
-                ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
-                while (foreground->_ClipRectStack.Size > 1)
-                    foreground->PopClipRect();
-            }
-            ImGui::EndChild();
+            DrawPanelBody(entry);
         }
         ImGui::End();
 
@@ -511,6 +551,8 @@ namespace xg
     {
         if (!ctx)
             return imui::Result::None;
+        if (ctx->ToolbarDepth > 0)
+            ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(text ? text : "");
         return ItemResult(false);
     }
@@ -575,6 +617,118 @@ namespace xg
         return ItemResult(changed);
     }
 
+    XG_MODULE_EXPORT imui::Result XG_ImUITextField(imui::Context* ctx, const char* id, const char* hint, char* buffer, int capacity, float width)
+    {
+        if (!ctx || !buffer || capacity <= 0)
+            return imui::Result::None;
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::DropdownBg);
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, imui::detail::DropdownHover);
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, imui::detail::DropdownBg);
+        ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
+        ImGui::SetNextItemWidth(width > 0.0f ? width : -FLT_MIN);
+        const bool changed = ImGui::InputTextWithHint(id ? id : "##textfield", hint ? hint : "", buffer, static_cast<size_t>(capacity));
+        const imui::Result result = ItemResult(changed);
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(4);
+        return result;
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIIconButton(imui::Context* ctx, const char* id, imui::Icon icon, const Vec2* position, float size, Color32 color)
+    {
+        if (!ctx)
+            return imui::Result::None;
+        const float side = size > 0.0f ? size : ImGui::GetFrameHeight();
+        const ImVec2 restore = ImGui::GetCursorScreenPos();
+        if (position)
+            ImGui::SetCursorScreenPos(ctx->ToScreen(interop::Load(position)));
+        ImGui::InvisibleButton(id ? id : "##iconbutton", ImVec2(side, side));
+        const imui::Result result = ItemResult(false);
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        if (ImGui::IsItemActive())
+            dl->AddRectFilled(min, max, imui::detail::WithAlpha(IM_COL32_WHITE, 0.16f), 4.0f);
+        else if (ImGui::IsItemHovered())
+            dl->AddRectFilled(min, max, imui::detail::WithAlpha(IM_COL32_WHITE, 0.09f), 4.0f);
+        if (icon > imui::Icon::None && icon < imui::Icon::Count)
+            imui::detail::DrawIcon(dl, static_cast<imui::detail::Icon>(icon), ImVec2((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f),
+                side * 0.62f, ToImU32(color));
+        if (position)
+            ImGui::SetCursorScreenPos(restore);
+        return HasFlag(result, imui::Result::Clicked) ? result | imui::Result::Changed : result;
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIHitArea(imui::Context* ctx, const char* id, const Rect* rect)
+    {
+        if (!ctx || !rect)
+            return imui::Result::None;
+        const Rect r = interop::Load(rect);
+        if (r.Width() <= 0.0f || r.Height() <= 0.0f)
+            return imui::Result::None;
+        const ImVec2 restore = ImGui::GetCursorScreenPos();
+        ImGui::SetCursorScreenPos(ctx->ToScreen(r.min));
+        ImGui::SetNextItemAllowOverlap();
+        ImGui::InvisibleButton(id ? id : "##hitarea", ImVec2(r.Width(), r.Height()),
+            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+        const imui::Result result = ItemResult(false);
+        ImGui::SetCursorScreenPos(restore);
+        return result;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIItemTooltip(imui::Context* ctx, const char* text)
+    {
+        if (ctx && text && *text)
+            ImGui::SetItemTooltip("%s", text);
+    }
+
+    // ------------------------------------------------------------
+    // Modals
+    // ------------------------------------------------------------
+    XG_MODULE_EXPORT void XG_ImUIOpenPopup(imui::Context* ctx, const char* id)
+    {
+        if (ctx && id)
+            ImGui::OpenPopup((std::string("###") + id).c_str());
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIBeginModal(imui::Context* ctx, const char* id, const char* title, const Vec2* size)
+    {
+        if (!ctx || !id)
+            return false;
+        std::string name = title ? title : "";
+        name += "###";
+        name += id;
+        const Vec2 requested = LoadVec2(size);
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2((std::max)(requested.x, 0.0f), (std::max)(requested.y, 0.0f)), ImGuiCond_Appearing);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.0f, 12.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 6.0f));
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, imui::detail::DropdownBg);
+        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, IM_COL32(0, 0, 0, 120));
+        const bool open = ImGui::BeginPopupModal(name.c_str(), nullptr,
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse
+            | (requested.y <= 0.0f ? ImGuiWindowFlags_AlwaysAutoResize : ImGuiWindowFlags_None));
+        ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(2);
+        if (open && ImGui::IsKeyPressed(ImGuiKey_Escape) && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+            ImGui::CloseCurrentPopup();
+        return open;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndModal(imui::Context* ctx)
+    {
+        if (ctx)
+            ImGui::EndPopup();
+    }
+
+    XG_MODULE_EXPORT void XG_ImUICloseModal(imui::Context* ctx)
+    {
+        if (ctx)
+            ImGui::CloseCurrentPopup();
+    }
+
     XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size)
     {
         if (!ctx)
@@ -614,14 +768,20 @@ namespace xg
     // ------------------------------------------------------------
     XG_MODULE_EXPORT void XG_ImUIBeginToolbar(imui::Context* ctx)
     {
-        if (ctx)
-            imui::detail::BeginHeader();
+        if (!ctx)
+            return;
+        ImGui::PushID(ctx->ToolbarCount++);
+        imui::detail::BeginHeader();
+        ++ctx->ToolbarDepth;
     }
 
     XG_MODULE_EXPORT void XG_ImUIEndToolbar(imui::Context* ctx)
     {
-        if (ctx)
-            imui::detail::EndHeader();
+        if (!ctx || ctx->ToolbarDepth <= 0)
+            return;
+        --ctx->ToolbarDepth;
+        imui::detail::EndHeader();
+        ImGui::PopID();
     }
 
     XG_MODULE_EXPORT void XG_ImUISameLine(imui::Context* ctx, float spacing)
@@ -732,8 +892,8 @@ namespace xg
         if (index % 2 && !selected)
             ImGui::GetWindowDrawList()->AddRectFilled(rowMin, rowMax, imui::detail::RowAltBg);
         ImGui::PushID(index);
-        const bool pressed = ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(width, rowHeight));
-        const imui::Result result = ItemResult(pressed);
+        const bool pressed = ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_AllowOverlap, ImVec2(width, rowHeight));
+        const imui::Result result = ItemResult(pressed) | RowHoverResult(rowMin, rowMax);
         ImGui::PopID();
 
         ctx->CanvasOrigins[ctx->CanvasDepth++] = rowMin;
@@ -763,7 +923,7 @@ namespace xg
 
         ImGui::PushID(index);
         ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_AllowOverlap, ImVec2(width, rowHeight));
-        imui::Result result = ItemResult(false);
+        imui::Result result = ItemResult(false) | RowHoverResult(rowMin, rowMax);
 
         const float arrowX = rowMin.x + 4.0f + (std::max)(depth, 0) * Indent;
         const float cy = rowMin.y + rowHeight * 0.5f;
@@ -802,6 +962,7 @@ namespace xg
         const Vec2 requested = LoadVec2(size);
         const ImVec2 avail = ImGui::GetContentRegionAvail();
         const ImVec2 canvasSize((std::max)(requested.x > 0.0f ? requested.x : avail.x, 1.0f), (std::max)(requested.y > 0.0f ? requested.y : avail.y, 1.0f));
+        ImGui::SetNextItemAllowOverlap();
         ImGui::InvisibleButton(id ? id : "##canvas", canvasSize,
             ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);
         const imui::Result result = ItemResult(false);

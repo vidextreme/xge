@@ -87,6 +87,7 @@ namespace xg::imui::detail
         Scene, Camera, Light, Mesh, Object, Component, Physics, Data, Material, Script,
         Info, Warning, Error,
         WinMinimize, WinMaximize, WinRestore, WinClose,
+        Image, Trash,
     };
 
     inline ImVec2 _segmentStart;

@@ -115,6 +115,16 @@ namespace xg
 
         public static bool RemoveScriptModule(string id) => _enginePtr != 0 && XG_RemoveScriptModule(_enginePtr, id);
 
+        // Closes the main window at the end of the frame; the engine then shuts down normally.
+        public static void RequestQuit()
+        {
+            if (_enginePtr != 0)
+                XG_RequestQuit(_enginePtr);
+        }
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_RequestQuit")]
+        private static partial void XG_RequestQuit(nint enginePtr);
+
         [LibraryImport(NativeLib, EntryPoint = "XG_AddScriptModule", StringMarshalling = StringMarshalling.Utf8)]
         [return: MarshalAs(UnmanagedType.U1)]
         private static partial bool XG_AddScriptModule(nint enginePtr, uint callerModuleId, string id, string path, string? parentId, string? group);

@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 6;
+        public const uint ApiVersion = 8;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -92,6 +92,30 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUISearchField")]
         public static partial Result SearchField(nint ctx, byte* id, byte* buffer, int capacity, float width);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIIconButton")]
+        public static partial Result IconButton(nint ctx, byte* id, Icon icon, Vector2* position, float size, Color32 color);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIHitArea")]
+        public static partial Result HitArea(nint ctx, byte* id, Rect* rect);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIItemTooltip")]
+        public static partial void ItemTooltip(nint ctx, byte* text);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIOpenPopup")]
+        public static partial void OpenPopup(nint ctx, byte* id);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginModal")]
+        public static partial byte BeginModal(nint ctx, byte* id, byte* title, Vector2* size);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndModal")]
+        public static partial void EndModal(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUICloseModal")]
+        public static partial void CloseModal(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUITextField")]
+        public static partial Result TextField(nint ctx, byte* id, byte* hint, byte* buffer, int capacity, float width);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUITextArea")]
         public static partial Result TextArea(nint ctx, byte* id, byte* text, Vector2* size);

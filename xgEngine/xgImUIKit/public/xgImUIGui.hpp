@@ -147,7 +147,43 @@ namespace xg::imui
         {
             return Changed(XG_ImUISearchField(_ctx, id, buffer, capacity, width));
         }
+
+        bool TextField(const char* id, const char* hint, char* buffer, int capacity, float width = 0.0f) const
+        {
+            return Changed(XG_ImUITextField(_ctx, id, hint, buffer, capacity, width));
+        }
         Result TextArea(const char* id, const char* text, const Vec2& size = Vec2(0.0f, 0.0f)) const { return XG_ImUITextArea(_ctx, id, text, &size); }
+
+        bool IconButton(const char* id, imui::Icon icon, float size, Color32 color) const
+        {
+            return Clicked(XG_ImUIIconButton(_ctx, id, icon, nullptr, size, color));
+        }
+        // Placed at position in the current draw space (row or canvas space), over the row.
+        bool IconButton(const char* id, imui::Icon icon, const Vec2& position, float size, Color32 color) const
+        {
+            return Clicked(XG_ImUIIconButton(_ctx, id, icon, &position, size, color));
+        }
+        Result HitArea(const char* id, const xg::Rect& rect) const { return XG_ImUIHitArea(_ctx, id, &rect); }
+        void Tooltip(const char* text) const { XG_ImUIItemTooltip(_ctx, text); }
+
+        class ModalScope
+        {
+        public:
+            ModalScope(Context* ctx, const char* id, const char* title, const Vec2& size)
+                : _ctx(ctx), _open(XG_ImUIBeginModal(ctx, id, title, &size)) {}
+            ~ModalScope() { if (_ctx && _open) XG_ImUIEndModal(_ctx); }
+            ModalScope(const ModalScope&) = delete;
+            ModalScope& operator=(const ModalScope&) = delete;
+            ModalScope(ModalScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _open(o._open) {}
+            explicit operator bool() const { return _open; }
+        private:
+            Context* _ctx;
+            bool _open;
+        };
+
+        void OpenPopup(const char* id) const { XG_ImUIOpenPopup(_ctx, id); }
+        [[nodiscard]] ModalScope Modal(const char* id, const char* title, const Vec2& size = Vec2(0.0f, 0.0f)) const { return ModalScope(_ctx, id, title, size); }
+        void CloseModal() const { XG_ImUICloseModal(_ctx); }
 
         void SameLine(float spacing = -1.0f) const { XG_ImUISameLine(_ctx, spacing); }
         void AlignRight(float width) const { XG_ImUIAlignRight(_ctx, width); }

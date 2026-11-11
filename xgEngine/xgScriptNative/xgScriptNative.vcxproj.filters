@@ -56,6 +56,9 @@
     <ClCompile Include="interop\xgProjectInterop.cpp">
       <Filter>interop</Filter>
     </ClCompile>
+    <ClCompile Include="interop\xgUIHostInterop.cpp">
+      <Filter>interop</Filter>
+    </ClCompile>
     <ClCompile Include="interop\xgScriptMessageInterop.cpp">
       <Filter>interop</Filter>
     </ClCompile>
