@@ -20,6 +20,18 @@ namespace xg
 
         XG_FIELD()
         bool EditorMultiViewport = true;
+
+        // Game project folder to open (xge.exe --project <path> or gameconfig "ProjectPath"); empty for none.
+        XG_FIELD()
+        const char* ProjectPath = nullptr;
+
+        // Set by xge.exe --new-project <path>: the editor creates the project there, then opens it.
+        XG_FIELD()
+        const char* NewProjectPath = nullptr;
+
+        // Build the project's scripts when it opens and they are stale (xge.exe --no-script-build or gameconfig false to skip).
+        XG_FIELD()
+        bool ProjectAutoBuild = true;
     };
 
     XG_ENUM(inherit = byte)

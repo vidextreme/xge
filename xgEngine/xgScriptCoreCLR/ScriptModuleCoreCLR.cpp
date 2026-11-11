@@ -102,15 +102,17 @@ namespace xg
             return false;
 
         // Derive assembly + type name from the DLL path
-        std::string assemblyName = std::filesystem::path(path).stem().string();
-        std::string runtimeCfg = assemblyName + ".runtimeconfig.json";
+        const std::filesystem::path assemblyFile(GetFullPath(path));
+        std::string assemblyName = assemblyFile.stem().string();
+        std::string assemblyPath = assemblyFile.string();
+        std::string runtimeCfg = (assemblyFile.parent_path() / (assemblyName + ".runtimeconfig.json")).string();
         hostfxr_handle ctx = nullptr;
 		std::wstring runtimeCfgW = ToWide(runtimeCfg);
         xg::Log(MessageType::Info, "hostfxr Initialize for runtime config [%s]", runtimeCfg.c_str());
 
         int rc = _coreclrHost->GetInitializeRuntimeConfigFunc()(runtimeCfgW.c_str(), nullptr, &ctx);
 
-        if (rc != 0 || ctx == nullptr)
+        if (rc < 0 || ctx == nullptr)
         {
 			xg::Log(MessageType::Error, "hostfxr Initialize failed with error code: %d", rc);
             return false;
@@ -136,10 +138,10 @@ namespace xg
 
         std::string typeName = assemblyName + "." + XG_SCRIPTENTRY_TYPE;
 
-        if(!LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Init", (void**)& _managedInit)
-            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Update", (void**)& _managedUpdate)
-            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"Shutdown", (void**)& _managedShutdown)
-            || !LoadEntryPoints(assemblyName.c_str(), typeName.c_str(), L"OnMessage", (void**)&_managedOnMessageMethod))
+        if(!LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"Init", (void**)& _managedInit)
+            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"Update", (void**)& _managedUpdate)
+            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"Shutdown", (void**)& _managedShutdown)
+            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"OnMessage", (void**)&_managedOnMessageMethod))
         {
             return false;
         }
@@ -213,7 +215,7 @@ namespace xg
         return _engine->GetSubsystem<SceneGraph>(this);
     }
 
-    bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* typeName, const wchar_t* entryPointName, void** func)
+    bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* assemblyPath, const char* typeName, const wchar_t* entryPointName, void** func)
     {
         if (!func)return true;
 
@@ -221,7 +223,7 @@ namespace xg
             return false;
 
 		std::string assemblyNameStr(assemblyName);
-        std::string asmPath = GetFullPath(assemblyName) + ".dll";
+        std::string asmPath = assemblyPath;
         std::wstring asmPathW = ToWide(asmPath);
 
         const char_t* asmPathT = ToCharT(asmPathW);               

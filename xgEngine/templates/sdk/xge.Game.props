@@ -1,0 +1,32 @@
+<!--
+  XGE game project SDK (props). Imported by a generated <Name>.csproj before Microsoft.NET.Sdk.
+  The generated project defines XgeProjectName and XgeSdkDir (this folder, with a trailing slash).
+  Scripts build as <Name>.CoreCLR.dll: the ".CoreCLR." infix makes the engine load them with the CoreCLR host.
+-->
+<Project>
+
+  <PropertyGroup>
+    <XgeSdkVersion>1</XgeSdkVersion>
+    <BaseIntermediateOutputPath>$(MSBuildProjectDirectory)\Library\obj\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>$(XgeProjectName).CoreCLR</AssemblyName>
+    <RootNamespace>$(XgeProjectName)</RootNamespace>
+
+    <OutputPath>$(MSBuildProjectDirectory)\Library\Build\Editor\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendConfigurationToOutputPath>false</AppendConfigurationToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

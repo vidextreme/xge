@@ -3,6 +3,9 @@
 #include "pch.h"
 #include "EditorKernel.h"
 #include "xgEngine.h"
+#include "xgJson.h"
+#include "xgStream.h"
+#include <filesystem>
 #include "xgScriptHost.h"
 #include "xgScriptModule.h"
 #include "xgMemberCallback.h"
@@ -103,6 +106,7 @@ namespace xg
         _gameKernel = _engine->AddScriptModule("game.kernel", "xgGameKernel.dll", this, group);
         _editorModule = _engine->AddScriptModule("editor", "xgEditor.CoreCLR.dll", _gameKernel, group);
         _engine->AddScriptModule("game.demo", "GameDemoModule.dll", _gameKernel, group);
+        LoadProjectModule(group);
 
        /* auto componentSG = sceneGraphFactory->Create("compset", *actorRegistry);
         auto componentSet = static_cast<ComponentSceneGraph*>(componentSG);
@@ -155,6 +159,59 @@ namespace xg
 
         _engine->GetSubsystem<Messenger>(this)->SendToAll(msg);
         return true;
+    }
+
+    void EditorKernelModule::LoadProjectModule(const char* group)
+    {
+        const EngineConfig* config = _engine->GetEngineConfig();
+        if (!config || !config->ProjectPath || !*config->ProjectPath)
+            return;
+
+        namespace fs = std::filesystem;
+        std::error_code error;
+        const fs::path root(reinterpret_cast<const char8_t*>(config->ProjectPath));
+        fs::path manifest;
+        for (const fs::directory_entry& entry : fs::directory_iterator(root, error))
+        {
+            if (entry.is_regular_file() && entry.path().extension() == ".xgproject")
+            {
+                manifest = entry.path();
+                break;
+            }
+        }
+        if (manifest.empty())
+        {
+            xg::Log(xg::MessageType::Warning, "Project: no .xgproject manifest in %s", config->ProjectPath);
+            return;
+        }
+
+        std::string name = manifest.stem().string();
+        if (FileUnique file = LoadFile(manifest.wstring().c_str(), FileAccessMode::Read))
+        {
+            Json json;
+            if (json.Load(*file))
+            {
+                const char* manifestName = json.GetString("Name", "");
+                if (manifestName && *manifestName)
+                    name = manifestName;
+            }
+            file->Close();
+        }
+
+        const fs::path assembly = root / "Library" / "Build" / "Editor" / (name + ".CoreCLR.dll");
+        if (!fs::exists(assembly, error))
+        {
+            xg::Log(xg::MessageType::Warning, "Project %s: no script build at %s (see the Console for build errors, or use Assets > Build Scripts).",
+                name.c_str(), assembly.string().c_str());
+            return;
+        }
+        if (fs::exists(assembly.parent_path() / "build-failed", error))
+            xg::Log(xg::MessageType::Warning, "Project %s: the latest script build failed; loading the last successful build.", name.c_str());
+
+        if (!_engine->AddScriptModule("game.project", assembly.string().c_str(), _gameKernel, group))
+            xg::Log(xg::MessageType::Error, "Project %s: failed to load %s", name.c_str(), assembly.string().c_str());
+        else
+            xg::Log(xg::MessageType::Success, "Project %s: loaded scripts from %s", name.c_str(), assembly.string().c_str());
     }
 
     void EditorKernelModule::Shutdown()

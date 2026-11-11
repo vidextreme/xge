@@ -1,0 +1,26 @@
+<!--
+  XGE game project SDK (targets). Imported by a generated <Name>.csproj after Microsoft.NET.Sdk.
+  Every *.cs under Assets\ is compiled (globbed, so new scripts need no project regeneration), plus the editor-generated
+  Library\Generated\*.g.cs (the ScriptEntry the engine calls). The engine API comes from the installed SDK, not source.
+-->
+<Project>
+
+  <ItemGroup>
+    <Compile Include="Assets\**\*.cs" />
+    <Compile Include="Library\Generated\**\*.cs" />
+    <None Include="Assets\**\*" Exclude="Assets\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="xgSharedKit.Managed">
+      <HintPath>$(XgeSdkDir)lib\xgSharedKit.Managed.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="XgeCheckSdk" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(XgeSdkDir)lib\xgSharedKit.Managed.dll')"
+           Text="XGE SDK not found at '$(XgeSdkDir)'. Build XGE.slnx (it installs gameroot\sdk) or regenerate the project from the editor." />
+  </Target>
+
+</Project>
