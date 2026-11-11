@@ -56,7 +56,6 @@ namespace xgEditor.CoreCLR
         private readonly Dictionary<(MessageType, string, string), Row> _collapsed = new();
         private readonly TextBuffer _search = new(256);
         private readonly bool[] _visible = new bool[_levels.Length];
-        private readonly string[] _countText = new string[_levels.Length];
         private ListState _list;
         private int _seenVersion = -1;
         private bool _dirty = true;
@@ -108,9 +107,8 @@ namespace xgEditor.CoreCLR
             Vector2 avail = Gui.AvailableSize;
             float maxDetail = Math.Max(MinPaneHeight, avail.y - MinPaneHeight - SplitterHeight);
             _detailHeight = Math.Clamp(_detailHeight, MinPaneHeight, maxDetail);
-            float listHeight = Math.Max(MinPaneHeight, avail.y - _detailHeight - SplitterHeight);
 
-            DrawList(new Vector2(0.0f, listHeight), avail.x, grew);
+            DrawList(avail.x, grew);
             Gui.Splitter("##console_split", ref _detailHeight, MinPaneHeight, maxDetail);
             using (Gui.Font(FontStyle.Mono))
                 Gui.TextArea("##console_detail", _detail, new Vector2(0.0f, _detailHeight));
@@ -125,42 +123,35 @@ namespace xgEditor.CoreCLR
                     EditorLog.Clear();
                     Select(null);
                 }
-                Gui.SameLine();
                 if (Gui.Toggle("Collapse", ref _collapse))
                     _dirty = true;
-                Gui.SameLine();
                 Gui.Toggle("Timestamps", ref _timestamps);
-                Gui.SameLine(12.0f);
+                Gui.Space(8.0f);
                 if (Gui.SearchField("##console_search", _search, 220.0f))
                     _dirty = true;
+                Gui.FlexibleSpace();
 
-                float width = (_levels.Length - 1) * ToggleSpacing;
-                for (int i = 0; i < _levels.Length; ++i)
+                using (Gui.Horizontal(ToggleSpacing))
                 {
-                    _countText[i] = EditorLog.CountOf(_levels[i].Type).ToString();
-                    width += 20.0f + 2.0f + Gui.MeasureText(_countText[i]).x;
-                }
-                Gui.SameLine();
-                Gui.AlignRight(width);
-                for (int i = 0; i < _levels.Length; ++i)
-                {
-                    if (i > 0)
-                        Gui.SameLine(ToggleSpacing);
-                    LevelStyle level = _levels[i];
-                    if (Gui.IconToggle(level.Id, level.Icon, ref _visible[i], Style.Color(level.Color), _countText[i]))
-                        _dirty = true;
+                    for (int i = 0; i < _levels.Length; ++i)
+                    {
+                        LevelStyle level = _levels[i];
+                        string count = EditorLog.CountOf(level.Type).ToString();
+                        if (Gui.IconToggle(level.Id, level.Icon, ref _visible[i], Style.Color(level.Color), count))
+                            _dirty = true;
+                    }
                 }
             }
         }
 
-        private void DrawList(Vector2 size, float width, bool grew)
+        private void DrawList(float width, bool grew)
         {
             bool scrollToBottom = _follow && grew;
             _list.Count = _rows.Count;
             _list.RowHeight = RowHeight;
             _list.Flags = scrollToBottom ? ListFlags.ScrollToBottom : ListFlags.None;
 
-            using ListScope list = Gui.List("##console_list", ref _list, size);
+            using ListScope list = Gui.List("##console_list", ref _list);
             if (!list.IsOpen)
                 return;
             if (!scrollToBottom)

@@ -214,6 +214,34 @@ namespace xg::imui
             Context* _ctx;
         };
 
+        // auto row = gui.Horizontal(); ... items left to right until the scope ends.
+        class LayoutScope
+        {
+        public:
+            LayoutScope(Context* ctx, bool horizontal, float spacing) : _ctx(ctx), _horizontal(horizontal)
+            {
+                if (horizontal)
+                    XG_ImUIBeginHorizontal(_ctx, spacing);
+                else
+                    XG_ImUIBeginVertical(_ctx);
+            }
+            ~LayoutScope()
+            {
+                if (!_ctx)
+                    return;
+                if (_horizontal)
+                    XG_ImUIEndHorizontal(_ctx);
+                else
+                    XG_ImUIEndVertical(_ctx);
+            }
+            LayoutScope(const LayoutScope&) = delete;
+            LayoutScope& operator=(const LayoutScope&) = delete;
+            LayoutScope(LayoutScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _horizontal(o._horizontal) {}
+        private:
+            Context* _ctx;
+            bool _horizontal;
+        };
+
         class ListRowScope
         {
         public:
@@ -267,6 +295,10 @@ namespace xg::imui
         };
 
         [[nodiscard]] ToolbarScope Toolbar() const { return ToolbarScope(_ctx); }
+        [[nodiscard]] LayoutScope Horizontal(float spacing = -1.0f) const { return LayoutScope(_ctx, true, spacing); }
+        [[nodiscard]] LayoutScope Vertical() const { return LayoutScope(_ctx, false, -1.0f); }
+        void FlexibleSpace() const { XG_ImUIFlexibleSpace(_ctx); }
+        void Space(float pixels) const { XG_ImUISpace(_ctx, pixels); }
         [[nodiscard]] FontScope Font(FontStyle style) const { return FontScope(_ctx, style); }
         [[nodiscard]] ListScope List(const char* id, ListState& state, const Vec2& size = Vec2(0.0f, 0.0f)) const { return ListScope(_ctx, id, size, state); }
 

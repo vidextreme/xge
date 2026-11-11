@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 8;
+    inline constexpr uint32_t ApiVersion = 9;
 
     struct Context;
     struct PanelEntry;
@@ -297,9 +297,22 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUIPushFont(imui::Context* ctx, imui::FontStyle style);
     XG_MODULE_EXPORT void XG_ImUIPopFont(imui::Context* ctx);
 
-    // Layout
+    // Layout. The panel body (and each modal) is a vertical layout; Begin/EndHorizontal make rows and
+    // Begin/EndVertical columns, so items are placed without SameLine. A size of 0 on TextField, SearchField,
+    // TextArea, Canvas and List fills: inside a row (width) or column (height) the item shares the space left after
+    // the fixed items with FlexibleSpace; elsewhere it takes the available size. Shares use the previous frame's
+    // measurements, so a new layout settles one frame after it appears.
+    // Toolbars are rows with header styling. spacing < 0 uses the style's item spacing.
     XG_MODULE_EXPORT void XG_ImUIBeginToolbar(imui::Context* ctx);
     XG_MODULE_EXPORT void XG_ImUIEndToolbar(imui::Context* ctx);
+    XG_MODULE_EXPORT void XG_ImUIBeginHorizontal(imui::Context* ctx, float spacing);
+    XG_MODULE_EXPORT void XG_ImUIEndHorizontal(imui::Context* ctx);
+    XG_MODULE_EXPORT void XG_ImUIBeginVertical(imui::Context* ctx);
+    XG_MODULE_EXPORT void XG_ImUIEndVertical(imui::Context* ctx);
+    // Takes the leftover space of the current row or column (several share it equally).
+    XG_MODULE_EXPORT void XG_ImUIFlexibleSpace(imui::Context* ctx);
+    // Extra gap of pixels before the next item in a row, or a vertical gap in a column.
+    XG_MODULE_EXPORT void XG_ImUISpace(imui::Context* ctx, float pixels);
     // Places the next item on the same line. spacing < 0 uses the default spacing.
     XG_MODULE_EXPORT void XG_ImUISameLine(imui::Context* ctx, float spacing);
     // Moves the cursor so the next width pixels of items end at the right edge.

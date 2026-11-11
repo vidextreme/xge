@@ -242,12 +242,38 @@ namespace xg.imui
             return new FontScope(ctx);
         }
 
+        // Toolbars are rows: items go left to right without SameLine.
         public static ToolbarScope Toolbar()
         {
             nint ctx = Context;
             Native.BeginToolbar(ctx);
             return new ToolbarScope(ctx);
         }
+
+        // Layout groups. The panel body (and each modal) is already a column.
+        //   using (Gui.Horizontal()) { Gui.Label("Name"); Gui.TextField("##name", name); }   // field fills the rest
+        //   using (Gui.Horizontal()) { Gui.FlexibleSpace(); Gui.Button("OK"); Gui.Button("Cancel"); }  // right-aligned
+        // Size 0 on TextField, SearchField, TextArea, Canvas and List fills: in a row (width) or column (height) the item
+        // shares the space left after the fixed items with FlexibleSpace. Shares use the previous frame's measurements.
+        public static LayoutScope Horizontal(float spacing = -1.0f)
+        {
+            nint ctx = Context;
+            Native.BeginHorizontal(ctx, spacing);
+            return new LayoutScope(ctx, true);
+        }
+
+        public static LayoutScope Vertical()
+        {
+            nint ctx = Context;
+            Native.BeginVertical(ctx);
+            return new LayoutScope(ctx, false);
+        }
+
+        // Takes the leftover space of the current row or column; several share it equally.
+        public static void FlexibleSpace() => Native.FlexibleSpace(Context);
+
+        // Extra gap before the next item in a row, or a vertical gap in a column.
+        public static void Space(float pixels) => Native.Space(Context, pixels);
 
         public static void SameLine(float spacing = -1.0f) => Native.SameLine(Context, spacing);
 
@@ -324,6 +350,28 @@ namespace xg.imui
         {
             if (_ctx != 0)
                 Native.PopFont(_ctx);
+        }
+    }
+
+    public readonly ref struct LayoutScope
+    {
+        private readonly nint _ctx;
+        private readonly bool _horizontal;
+
+        internal LayoutScope(nint ctx, bool horizontal)
+        {
+            _ctx = ctx;
+            _horizontal = horizontal;
+        }
+
+        public void Dispose()
+        {
+            if (_ctx == 0)
+                return;
+            if (_horizontal)
+                Native.EndHorizontal(_ctx);
+            else
+                Native.EndVertical(_ctx);
         }
     }
 

@@ -66,7 +66,7 @@ namespace xgEditor.CoreCLR
         protected override void OnGUI()
         {
             using (Gui.Toolbar())
-                Gui.SearchField("##hierarchy_search", _search, Math.Max(80.0f, Gui.AvailableSize.x - 4.0f));
+                Gui.SearchField("##hierarchy_search", _search, 0.0f);
 
             Rebuild();
             DrawTree();
