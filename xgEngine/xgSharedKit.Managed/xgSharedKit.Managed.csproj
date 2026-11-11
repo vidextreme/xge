@@ -33,6 +33,7 @@
     <Compile Include="ActorID.cs" />
     <Compile Include="Actor.cs" />
     <Compile Include="ActorTree.cs" />
+    <Compile Include="GameScript.cs" />
     <Compile Include="ActorRegistry.cs" />
     <Compile Include="Component.cs" />
     <Compile Include="ComponentUpdateGroup.cs" />
@@ -77,5 +78,21 @@
       <ExcludeFromClean>true</ExcludeFromClean>
     </Folder>
   </ItemGroup>
+
+  <!-- Installs the game-project SDK (props/targets, this assembly, project templates) into gameroot\sdk. -->
+  <Target Name="XgeInstallSdk" AfterTargets="Build">
+    <PropertyGroup>
+      <XgeSdkInstallDir>$(MSBuildThisFileDirectory)..\..\gameroot\sdk\</XgeSdkInstallDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <XgeSdkFiles Include="$(MSBuildThisFileDirectory)..\templates\sdk\*.props;$(MSBuildThisFileDirectory)..\templates\sdk\*.targets" />
+      <XgeSdkLib Include="$(TargetPath)" />
+      <XgeSdkLib Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+      <XgeSdkTemplates Include="$(MSBuildThisFileDirectory)..\templates\**\*" Exclude="$(MSBuildThisFileDirectory)..\templates\sdk\**" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XgeSdkFiles)" DestinationFolder="$(XgeSdkInstallDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(XgeSdkLib)" DestinationFolder="$(XgeSdkInstallDir)lib\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(XgeSdkTemplates)" DestinationFiles="@(XgeSdkTemplates->'$(XgeSdkInstallDir)templates\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

@@ -10,6 +10,8 @@
 
 #include "xgStream.h"
 #include "xgEngine.h"
+#include <cstdlib>
+#include <cstring>
 
 void _LogMsg(xg::MessageType _type, const char* _message)
 {
@@ -47,6 +49,12 @@ static bool LoadGameConfig(xg::Engine& engine, const wchar_t* path, xg::EngineCo
     return true;
 }
 
+static std::string AbsolutePath(const char* path)
+{
+    char buffer[4096];
+    return _fullpath(buffer, path, sizeof(buffer)) ? std::string(buffer) : std::string(path);
+}
+
 int main(int argc, char** argv)
 {
     xg::Engine engine;
@@ -56,6 +64,29 @@ int main(int argc, char** argv)
     xg::ReflectStringStore configStrings;
     xg::EngineConfig config;
     LoadGameConfig(engine, L"gameconfig.json", config, configStrings);
+
+    std::string projectPath = config.ProjectPath ? config.ProjectPath : "";
+    std::string newProjectPath;
+    for (int i = 1; i + 1 < argc; ++i)
+    {
+        if (std::strcmp(argv[i], "--project") == 0)
+            projectPath = argv[++i];
+        else if (std::strcmp(argv[i], "--new-project") == 0)
+            newProjectPath = projectPath = argv[++i];
+    }
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::strcmp(argv[i], "--no-script-build") == 0)
+            config.ProjectAutoBuild = false;
+    }
+    if (!projectPath.empty())
+        projectPath = AbsolutePath(projectPath.c_str());
+    if (!newProjectPath.empty())
+        newProjectPath = projectPath;
+    config.ProjectPath = projectPath.empty() ? nullptr : projectPath.c_str();
+    config.NewProjectPath = newProjectPath.empty() ? nullptr : newProjectPath.c_str();
+    if (config.ProjectPath)
+        xg::Log(xg::MessageType::Info, "Project: %s%s", config.ProjectPath, config.NewProjectPath ? " (new)" : "");
 
     engine.MainWindow = xg::NewWindow("xgEngine", 1280, 720);
     if (!engine.Initialize(config))

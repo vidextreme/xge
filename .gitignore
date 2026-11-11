@@ -68,3 +68,5 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+# Game-project SDK installed by the engine build (xgSharedKit.Managed XgeInstallSdk target)
+gameroot/sdk/

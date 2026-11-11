@@ -99,6 +99,25 @@ namespace xg
 
         public static PayloadMode PayloadMode => XG_GetPayloadMode(_enginePtr);
 
+        // Absolute game project folder (xge.exe --project / gameconfig ProjectPath); empty when no project is open.
+        public static string ProjectPath => _enginePtr == 0 ? string.Empty : Marshal.PtrToStringUTF8(XG_GetProjectPath(_enginePtr)) ?? string.Empty;
+
+        // Set when xge.exe was started with --new-project: the editor should create the project at ProjectPath.
+        public static string NewProjectPath => _enginePtr == 0 ? string.Empty : Marshal.PtrToStringUTF8(XG_GetNewProjectPath(_enginePtr)) ?? string.Empty;
+
+        // False when xge.exe was started with --no-script-build (or gameconfig ProjectAutoBuild is false).
+        public static bool ProjectAutoBuild => _enginePtr == 0 || XG_GetProjectAutoBuild(_enginePtr);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_GetProjectAutoBuild")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_GetProjectAutoBuild(nint enginePtr);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_GetProjectPath")]
+        private static partial nint XG_GetProjectPath(nint enginePtr);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_GetNewProjectPath")]
+        private static partial nint XG_GetNewProjectPath(nint enginePtr);
+
         [LibraryImport(NativeLib, EntryPoint = "XG_AllocateComponent", StringMarshalling = StringMarshalling.Utf8)]
         private static partial IntPtr XG_AllocateComponent(nint enginePtr, ulong actorID, string componentType, uint size);
 

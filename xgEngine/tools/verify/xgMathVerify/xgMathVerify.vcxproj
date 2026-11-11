@@ -55,7 +55,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\..\xgBase\math;..\..\xgBase\public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\xgBase\math;..\..\..\xgBase\public</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4201;4324</DisableSpecificWarnings>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -74,7 +74,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\..\xgBase\math;..\..\xgBase\public</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\xgBase\math;..\..\..\xgBase\public</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4201;4324</DisableSpecificWarnings>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>

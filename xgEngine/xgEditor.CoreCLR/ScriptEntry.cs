@@ -26,6 +26,7 @@ namespace xgEditor.CoreCLR
         {
             ScriptRuntime.Initialize(enginePtr, moduleID);
             EditorLog.Attach();
+            ProjectService.Open();
 
             // Example: register a managed log callback
             ScriptRuntime.AddLogCallback(OnLog);

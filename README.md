@@ -45,7 +45,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Actors & components (C#) | 🟡 Partial | `Actor.Create`, `AddComponent<T>` / `GetComponent<T>` / `RemoveComponent<T>`, `Destroy`. Update logic uses **CRTP**: a component implements `IComponentUpdate<T>` with a `static abstract OnUpdate(T, float)`, and one `ComponentUpdateGroup<T>` per type calls it through a cached function pointer (no virtual call, boxing or reflection per frame). Removals are deferred until after the pass. Driven every frame by `ActorRegistry::UpdateActors(dt)` in both CoreCLR and NativeAOT modules. Data components (`ComponentData<TData>`, `IComponentDataUpdate<TData>`) and native component storage are prototypes. |
 | SceneGraph (native) | 🟡 Partial | ActorIDs are global 64-bit IDs; an actor can belong to several graphs. The tree graph works; transforms are not propagated yet. |
 | Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
-| Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `verify/`. |
+| Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `tools/verify/`. |
 | Editor UI | 🟡 Prototype | Docking layout with static panels (non-functional). Toggle with `EditorUI` in `gameconfig.json`. |
 | Renderer (DX12) | 🟠 Very rough | Device, swap chain, resize, and a UI pass that draws the editor through a generic `xg::Renderer` UI API (no ImGui in the renderer, no DX12 in the editor). No 3D rendering yet; multi-viewport is SDL GPU only. |
 | Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
@@ -196,7 +196,7 @@ XGE/
 └── xgEngine/                 # Engine source (XGE.slnx)
     ├── 3rdparty/             # SDL3, Dear ImGui (docking), nlohmann/json, DirectXMath, Tree-sitter
     ├── tools/xgReflectGen/   # Reflection code generator
-    ├── verify/               # Math test suites (native + managed)
+    ├── tools/verify/         # Math test suites (native + managed), ImUIParity.ps1
     ├── xgBase/               # Base types, macros, logging, JSON, reflection, math
     ├── xgPlatform/           # Platform backends
     ├── xgCore/               # Engine runtime

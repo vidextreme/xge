@@ -3,11 +3,11 @@
 #
 # Checks that every XG_ImUI* export of xgImUIKit.dll is bound in xgImUIKit.Managed (LibraryImport EntryPoint)
 # and wrapped in the native C++ layer (xgImUIGui.hpp). Host-only exports (XG_ImUIHost*) are exempt.
-# Usage: powershell -File verify\ImUIParity.ps1 [-Dll ..\gameroot\bin\xgImUIKit.dll]
+# Usage: powershell -File tools\verify\ImUIParity.ps1 [-Dll ..\gameroot\bin\xgImUIKit.dll]
 param([string]$Dll = "")
 
 $ErrorActionPreference = "Stop"
-$root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
 if (-not $Dll) { $Dll = Join-Path $root "..\gameroot\bin\xgImUIKit.dll" }
 
 $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"

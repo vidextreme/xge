@@ -44,6 +44,9 @@ namespace xg
         void InitUI();
         void ShutdownUI();
 
+        // Loads <project>/Library/Build/Editor/<Name>.CoreCLR.dll as "game.project" when a project is open.
+        void LoadProjectModule(const char* group);
+
         // Platform event handler (called by EventDispatcher)
         void OnEvent(const xgEvent& e);
         void OnMessage(const ScriptMessage& msg) override;

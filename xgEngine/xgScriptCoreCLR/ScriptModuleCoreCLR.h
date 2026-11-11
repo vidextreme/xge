@@ -25,6 +25,7 @@ namespace xg
         SceneGraph* GetSceneGraph() override;
     private:
         bool LoadEntryPoints(const char* assemblyName,
+            const char* assemblyPath,
             const char* typeName,
             const wchar_t* entryPointName,
             void** func);
