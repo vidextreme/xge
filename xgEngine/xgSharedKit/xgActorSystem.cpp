@@ -41,12 +41,12 @@ void _SetActorName(HierarchyNode* hNode, const char* newName)
     hNode->Name = buffer;
 }
 
-ActorID XGCreateActor(ScriptEngine* engine)
+ActorID XG_CreateActor(ScriptEngine* engine)
 {
-    return XGCreateActorWithName(engine, DEFAULT_ACTOR_NAME);
+    return XG_CreateActorWithName(engine, DEFAULT_ACTOR_NAME);
 }
 
-ActorID XGCreateActorWithName(ScriptEngine* engine, const char* actorName)
+ActorID XG_CreateActorWithName(ScriptEngine* engine, const char* actorName)
 {
     SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
     HierarchyNode* node = CreateNode<HierarchyNode>(*sceneGraph);
@@ -55,15 +55,74 @@ ActorID XGCreateActorWithName(ScriptEngine* engine, const char* actorName)
     return node->Id;
 }
 
-const char* XGGetActorName(ScriptEngine* engine, ActorID id)
+const char* XG_GetActorName(ScriptEngine* engine, ActorID id)
 {
-	SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
-	SceneNode* node = sceneGraph->GetNode(id);
-	HierarchyNode* hNode = node->Get<HierarchyNode>();
-	return hNode->Name;
+	SceneGraph* sceneGraph = engine ? engine->GetSubsystem<SceneGraph>() : nullptr;
+	SceneNode* node = sceneGraph ? sceneGraph->GetNode(id) : nullptr;
+	HierarchyNode* hNode = node ? node->Get<HierarchyNode>() : nullptr;
+	return hNode ? hNode->Name : nullptr;
 }
 
-void XGSetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newName)
+namespace
+{
+    SceneNodeHierarchy* HierarchyOf(SceneGraph* sceneGraph, ActorID id)
+    {
+        SceneNode* node = sceneGraph && id != 0 ? sceneGraph->GetNode(id) : nullptr;
+        return node ? node->Get<SceneNodeHierarchy>() : nullptr;
+    }
+}
+
+int XG_ActorGetRoots(ScriptEngine* engine, ActorID* out, int capacity)
+{
+    SceneGraph* sceneGraph = engine ? engine->GetSubsystem<SceneGraph>() : nullptr;
+    return sceneGraph ? sceneGraph->CopyRootIds(out, capacity) : 0;
+}
+
+int XG_ActorGetChildren(ScriptEngine* engine, ActorID id, ActorID* out, int capacity)
+{
+    SceneNodeHierarchy* node = HierarchyOf(engine ? engine->GetSubsystem<SceneGraph>() : nullptr, id);
+    if (!node)
+        return 0;
+    int count = 0;
+    for (SceneNodeHierarchy* child = node->FirstChild; child; child = child->NextSibling)
+    {
+        if (out && count < capacity)
+            out[count] = child->Owner->Id;
+        ++count;
+    }
+    return count;
+}
+
+ActorID XG_ActorGetParent(ScriptEngine* engine, ActorID id)
+{
+    SceneNodeHierarchy* node = HierarchyOf(engine ? engine->GetSubsystem<SceneGraph>() : nullptr, id);
+    return node && node->Parent ? node->Parent->Owner->Id : 0;
+}
+
+bool XG_ActorSetParent(ScriptEngine* engine, ActorID child, ActorID parent)
+{
+    SceneGraph* sceneGraph = engine ? engine->GetSubsystem<SceneGraph>() : nullptr;
+    SceneNodeHierarchy* childNode = HierarchyOf(sceneGraph, child);
+    if (!childNode)
+        return false;
+    if (parent == 0)
+    {
+        sceneGraph->SetParent(childNode->Owner, nullptr);
+        return true;
+    }
+    SceneNodeHierarchy* parentNode = HierarchyOf(sceneGraph, parent);
+    if (!parentNode)
+        return false;
+    for (SceneNodeHierarchy* walk = parentNode; walk; walk = walk->Parent)
+    {
+        if (walk == childNode)
+            return false;
+    }
+    sceneGraph->SetParent(childNode->Owner, parentNode->Owner);
+    return true;
+}
+
+void XG_SetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newName)
 {
     SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
     SceneNode* node = sceneGraph->GetNode(id);
@@ -72,7 +131,7 @@ void XGSetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newNam
     _SetActorName(hNode, newName);
 }
 
-void XGDestroyActor(xg::ScriptEngine* engine, xg::ActorID id)
+void XG_DestroyActor(xg::ScriptEngine* engine, xg::ActorID id)
 {
     SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
     SceneNode* node = sceneGraph ? sceneGraph->GetNode(id) : nullptr;
@@ -89,13 +148,13 @@ void XGDestroyActor(xg::ScriptEngine* engine, xg::ActorID id)
     sceneGraph->DestroyNode(node);
 }
 
-void XGRegisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId, void (*update)(float dt))
+void XG_RegisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId, void (*update)(float dt))
 {
     if (ActorRegistry* actors = engine->GetSubsystem<ActorRegistry>())
         actors->AddUpdateCallback(moduleId, update);
 }
 
-void XGUnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId)
+void XG_UnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId)
 {
     if (ActorRegistry* actors = engine->GetSubsystem<ActorRegistry>())
         actors->RemoveUpdateCallback(moduleId);

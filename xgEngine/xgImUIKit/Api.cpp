@@ -746,6 +746,51 @@ namespace xg
         XG_ImUIEndCanvas(ctx);
     }
 
+    XG_MODULE_EXPORT imui::Result XG_ImUIBeginTreeRow(imui::Context* ctx, int index, int depth, imui::TreeRowFlags flags)
+    {
+        if (!ctx || ctx->ListDepth <= 0 || ctx->CanvasDepth >= imui::Context::MaxCanvasDepth)
+            return imui::Result::None;
+        constexpr float Indent = 14.0f;
+        constexpr float ArrowWidth = 16.0f;
+        const float rowHeight = ctx->Lists[ctx->ListDepth - 1].RowHeight;
+        const ImVec2 rowMin = ImGui::GetCursorScreenPos();
+        const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
+        const ImVec2 rowMax(rowMin.x + width, rowMin.y + rowHeight);
+        const bool selected = HasFlag(flags, imui::TreeRowFlags::Selected);
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        if (index % 2 && !selected)
+            dl->AddRectFilled(rowMin, rowMax, imui::detail::RowAltBg);
+
+        ImGui::PushID(index);
+        ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_AllowOverlap, ImVec2(width, rowHeight));
+        imui::Result result = ItemResult(false);
+
+        const float arrowX = rowMin.x + 4.0f + (std::max)(depth, 0) * Indent;
+        const float cy = rowMin.y + rowHeight * 0.5f;
+        if (HasFlag(flags, imui::TreeRowFlags::HasChildren))
+        {
+            ImGui::SetCursorScreenPos(ImVec2(arrowX, rowMin.y));
+            if (ImGui::InvisibleButton("##arrow", ImVec2(ArrowWidth, rowHeight)))
+                result = result | imui::Result::Changed;
+            const ImU32 col = ImGui::IsItemHovered() ? imui::detail::TextColor : imui::detail::TextDim;
+            const float ax = arrowX + 4.0f;
+            if (HasFlag(flags, imui::TreeRowFlags::Expanded))
+                dl->AddTriangleFilled(ImVec2(ax, cy - 3.0f), ImVec2(ax + 8.0f, cy - 3.0f), ImVec2(ax + 4.0f, cy + 3.0f), col);
+            else
+                dl->AddTriangleFilled(ImVec2(ax + 1.0f, cy - 4.0f), ImVec2(ax + 7.0f, cy), ImVec2(ax + 1.0f, cy + 4.0f), col);
+        }
+        ImGui::PopID();
+
+        ctx->CanvasOrigins[ctx->CanvasDepth++] = ImVec2(arrowX + ArrowWidth, rowMin.y);
+        dl->PushClipRect(rowMin, rowMax, true);
+        return result;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndTreeRow(imui::Context* ctx)
+    {
+        XG_ImUIEndCanvas(ctx);
+    }
+
     // ------------------------------------------------------------
     // Immediate drawing
     // ------------------------------------------------------------

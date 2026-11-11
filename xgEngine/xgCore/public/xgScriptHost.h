@@ -56,11 +56,11 @@ namespace xg
 		virtual PayloadMode GetPayloadMode() const = 0;
     };
 
-    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostCoreCLR, ScriptHost*, ScriptEngine*, const char*);
+    XG_DECLARE_MODULE_FUNCTION(XG_CreateScriptHostCoreCLR, ScriptHost*, ScriptEngine*, const char*);
     XG_API ScriptHost* CreateScriptHostCoreCLR(ScriptEngine* engine, const char* path);
 
 
-    XG_DECLARE_MODULE_FUNCTION(CreateScriptHostNative, ScriptHost*, ScriptEngine*, const char*);
+    XG_DECLARE_MODULE_FUNCTION(XG_CreateScriptHostNative, ScriptHost*, ScriptEngine*, const char*);
     XG_API ScriptHost* CreateScriptHostNative(ScriptEngine* engine, const char* path);
 }
 

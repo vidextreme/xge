@@ -20,6 +20,7 @@ namespace xg
         void Traverse(SceneNode* root, void(*visitor)(SceneNode*)) override;
 
         SceneNode* GetNode(ActorID id) const override;
+        int CopyRootIds(ActorID* out, int capacity) const override;
 
     private:
 

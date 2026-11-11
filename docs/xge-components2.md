@@ -36,7 +36,7 @@ auto* lookup = engine->GetSubsystemWithAlias<ComponentSceneGraph>(module, "Playe
 
 `game.kernel` registers a `"PlayerComponent"` graph like this today, on the root.
 
-From C#, `XGAllocateComponent(engine, actorID, componentType, size)` allocates a block in the graph for that component type.
+From C#, `XG_AllocateComponent(engine, actorID, componentType, size)` allocates a block in the graph for that component type.
 
 ---
 

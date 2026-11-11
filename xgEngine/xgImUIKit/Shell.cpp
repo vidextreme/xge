@@ -237,7 +237,7 @@ namespace xg::imui::detail
                 ImGui::EndMenu();
             }
             ImGui::Separator();
-            for (const char* panel : { "Scene", "Game", "Inspector", "Lighting", "Hierarchy", "Project" })
+            for (const char* panel : { "Scene", "Game", "Inspector", "Lighting", "Project" })
                 if (ImGui::MenuItem(panel))
                     ImGui::SetWindowFocus(panel);
             DrawRegisteredPanelsMenu();
@@ -366,7 +366,6 @@ namespace xg::imui::detail
 
             ImGui::DockBuilderDockWindow("Scene", dockMain);
             ImGui::DockBuilderDockWindow("Game", dockMain);
-            ImGui::DockBuilderDockWindow("Hierarchy", dockHierarchy);
             ImGui::DockBuilderDockWindow("Inspector", dockInspector);
             ImGui::DockBuilderDockWindow("Lighting", dockInspector);
             ImGui::DockBuilderDockWindow("Project", dockProject);
@@ -387,7 +386,6 @@ namespace xg::imui::detail
 
     void DrawPrototypePanels()
     {
-        detail::DrawHierarchy();
         detail::DrawSceneView();
         detail::DrawGameView();
         detail::DrawInspector();

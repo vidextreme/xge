@@ -7,7 +7,7 @@
 #include "xgScriptMessage.h"
 namespace xg
 {
-    bool Encode_Binary_Generic(const void* object,
+    bool XG_Encode_Binary_Generic(const void* object,
         const TypeSchema* schema,
         ScriptMessage& out)
     {
@@ -59,7 +59,7 @@ namespace xg
     }
 
 
-    bool Decode_Binary_Generic(const ScriptMessage& msg,
+    bool XG_Decode_Binary_Generic(const ScriptMessage& msg,
         const TypeSchema* schema,
         void* outObject)
     {

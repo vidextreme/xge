@@ -19,10 +19,10 @@ namespace xg
 
         // Extract raw pointer before reset
 
-        XG_MODULE_PROCEDURE(xg, Renderer, DestroyRenderer);
-        if (!XG_MODULE_CALL(DestroyRenderer))
+        XG_MODULE_PROCEDURE(xg, Renderer, XG_DestroyRenderer);
+        if (!XG_MODULE_CALL(XG_DestroyRenderer))
             return;
-        XG_MODULE_CALL(DestroyRenderer)(renderer);
+        XG_MODULE_CALL(XG_DestroyRenderer)(renderer);
     }
     void DestroyRenderer(RendererUnique& renderer)
     {
@@ -37,13 +37,13 @@ namespace xg
     {
         EnsureRendererLoaded();
 
-        XG_MODULE_PROCEDURE(xg, Renderer, CreateRenderer);
-        if (!XG_MODULE_CALL(CreateRenderer))
+        XG_MODULE_PROCEDURE(xg, Renderer, XG_CreateRenderer);
+        if (!XG_MODULE_CALL(XG_CreateRenderer))
         {
-            xg::Log(xg::MessageType::Error, "Renderer DLL has no CreateRenderer export: %s", xg::RendererDLL ? xg::RendererDLL : "(null)");
+            xg::Log(xg::MessageType::Error, "Renderer DLL has no XG_CreateRenderer export: %s", xg::RendererDLL ? xg::RendererDLL : "(null)");
             return RendererUnique(XG_EMPTY_UNIQUE_HANDLE());
         }
-        xgUniqueHandle handle = xgUniqueHandle({ XG_MODULE_CALL(CreateRenderer)(window), (void(*)(void*)) &DestroyRendererRaw});
+        xgUniqueHandle handle = xgUniqueHandle({ XG_MODULE_CALL(XG_CreateRenderer)(window), (void(*)(void*)) &DestroyRendererRaw});
 
         return RendererUnique(handle);
     }

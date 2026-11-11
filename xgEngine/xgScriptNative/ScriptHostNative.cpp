@@ -43,7 +43,7 @@ namespace xg
 
         // First try the modern NativeAOT-style factory
         auto moduleFn = reinterpret_cast<ScriptModuleFunc>(
-            xg::GetSymbol(lib, "CreateScriptModule"));
+            xg::GetSymbol(lib, "XG_CreateScriptModule"));
 
         if (moduleFn)
         {
@@ -63,13 +63,13 @@ namespace xg
 
         // Fallback: legacy C ABI triple-function module
         InitFunc initFn = reinterpret_cast<InitFunc>(
-            xg::GetSymbol(lib, "xg:Init"));
+            xg::GetSymbol(lib, "XG_Init"));
         UpdateFunc updateFn = reinterpret_cast<UpdateFunc>(
-            xg::GetSymbol(lib, "xg:Update"));
+            xg::GetSymbol(lib, "XG_Update"));
         ShutdownFunc shutdownFn = reinterpret_cast<ShutdownFunc>(
-            xg::GetSymbol(lib, "xg:Shutdown"));
+            xg::GetSymbol(lib, "XG_Shutdown"));
         OnMessageFunc onMessageFn = reinterpret_cast<OnMessageFunc>(
-            xg::GetSymbol(lib, "xg:OnMessage"));
+            xg::GetSymbol(lib, "XG_OnMessage"));
 
         if (!initFn || !updateFn || !shutdownFn)
         {

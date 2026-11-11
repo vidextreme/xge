@@ -66,6 +66,24 @@ namespace xgEditor.CoreCLR
             Debug.Assert(ActorRegistry.Count == 2, "expected two actors");
             Debug.Log(null);
 
+            xg.Actor body = xg.Actor.Create("Body");
+            xg.Actor weapon = xg.Actor.Create("Weapon");
+            xg.Actor muzzle = xg.Actor.Create("Muzzle");
+            body.Parent = actor;
+            weapon.Parent = actor;
+            muzzle.Parent = weapon;
+            List<ActorID> children = new();
+            ActorTree.GetChildren(actor.ID, children);
+            Debug.Log($"[Debug] Hierarchy sample: {actor.Name} children [{string.Join(", ", children.Select(ActorTree.GetName))}], Muzzle parent {muzzle.Parent?.Name}");
+
+            HierarchyPanel hierarchy = xg.imui.Panel.Open<HierarchyPanel>();
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "hierarchy")
+            {
+                hierarchy.Focus();
+                hierarchy.ExpandAll();
+                hierarchy.SelectByName("Weapon");
+            }
+
             ConsolePanel console = xg.imui.Panel.Open<ConsolePanel>();
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "console")
             {

@@ -186,7 +186,6 @@ namespace xg::imui::detail
     void DrawSceneLight(ImDrawList* dl, const ViewCamera& view, const Vec3& pos);
     void DrawToolHandle(ImDrawList* dl, const ViewCamera& view, int tool);
     void DrawNavigationGizmo(ImDrawList* dl, const ViewCamera& view, ImVec2 center);
-    void DrawHierarchy();
     void DrawSceneTab();
     void DrawGameTab();
     void DrawSceneView();

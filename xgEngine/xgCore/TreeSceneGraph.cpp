@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "TreeSceneGraph.h"
+#include <algorithm>
+#include <vector>
 
 namespace xg
 {
@@ -52,11 +54,14 @@ namespace xg
 
     void TreeSceneGraph::SetParent(SceneNode* childNode, SceneNode* parentNode)
     {
-        auto* child = childNode->Get<SceneNodeHierarchy>();
-        auto* parent = parentNode->Get<SceneNodeHierarchy>();
+        auto* child = childNode ? childNode->Get<SceneNodeHierarchy>() : nullptr;
+        if (!child)
+            return;
+        auto* parent = parentNode ? parentNode->Get<SceneNodeHierarchy>() : nullptr;
 
         RemoveChild(child);
-        AddChild(parent, child);
+        if (parent)
+            AddChild(parent, child);
     }
 
     void TreeSceneGraph::Traverse(SceneNode* rootNode,
@@ -92,12 +97,34 @@ namespace xg
         return (it != _nodes.end()) ? it->second->Owner : nullptr;
     }
 
+    int TreeSceneGraph::CopyRootIds(ActorID* out, int capacity) const
+    {
+        std::vector<ActorID> roots;
+        roots.reserve(_nodes.size());
+        for (const auto& [id, node] : _nodes)
+        {
+            if (!node->Parent)
+                roots.push_back(id);
+        }
+        std::sort(roots.begin(), roots.end());
+        if (out)
+        {
+            const int count = (std::min)(capacity, static_cast<int>(roots.size()));
+            for (int i = 0; i < count; ++i)
+                out[i] = roots[i];
+        }
+        return static_cast<int>(roots.size());
+    }
+
     void TreeSceneGraph::AddChild(SceneNodeHierarchy* parent,
         SceneNodeHierarchy* child)
     {
         child->Parent = parent;
-        child->NextSibling = parent->FirstChild;
-        parent->FirstChild = child;
+        child->NextSibling = nullptr;
+        SceneNodeHierarchy** link = &parent->FirstChild;
+        while (*link)
+            link = &(*link)->NextSibling;
+        *link = child;
     }
 
     void TreeSceneGraph::RemoveChild(SceneNodeHierarchy* child)

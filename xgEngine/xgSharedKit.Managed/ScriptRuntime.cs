@@ -82,25 +82,25 @@ namespace xg
             public nint Predicate;
         }
 
-        [LibraryImport(NativeLib, EntryPoint = "XGAddLogCallbackForEngine")]
-        private static partial void XGAddLogCallbackForEngine(nint enginePtr, nint callback);
+        [LibraryImport(NativeLib, EntryPoint = "XG_AddLogCallbackForEngine")]
+        private static partial void XG_AddLogCallbackForEngine(nint enginePtr, nint callback);
 
-        [LibraryImport(NativeLib, EntryPoint = "XGRemoveLogCallbackForEngine")]
-        private static partial void XGRemoveLogCallbackForEngine(nint enginePtr, nint callback);
+        [LibraryImport(NativeLib, EntryPoint = "XG_RemoveLogCallbackForEngine")]
+        private static partial void XG_RemoveLogCallbackForEngine(nint enginePtr, nint callback);
 
-        [LibraryImport(NativeLib, EntryPoint = "XGSendMessageToEngine", StringMarshalling = StringMarshalling.Utf8)]
-        private static partial void XGSendMessageToEngine(nint enginePtr, string typeName, byte[] payload, int payloadSize, uint sourceID);
+        [LibraryImport(NativeLib, EntryPoint = "XG_SendMessageToEngine", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial void XG_SendMessageToEngine(nint enginePtr, string typeName, byte[] payload, int payloadSize, uint sourceID);
 
-        [LibraryImport(NativeLib, EntryPoint = "XGSendMessageToEngine_Route", StringMarshalling = StringMarshalling.Utf8)]
-        private static partial void XGSendMessageToEngine_Route(nint enginePtr, string typeName, byte[] payload, int payloadSize, uint sourceID, RouteAbi route);
+        [LibraryImport(NativeLib, EntryPoint = "XG_SendMessageToEngine_Route", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial void XG_SendMessageToEngine_Route(nint enginePtr, string typeName, byte[] payload, int payloadSize, uint sourceID, RouteAbi route);
 
-        [LibraryImport(NativeLib, EntryPoint = "XGGetPayloadMode")]
-        private static partial PayloadMode XGGetPayloadMode(nint enginePtr);
+        [LibraryImport(NativeLib, EntryPoint = "XG_GetPayloadMode")]
+        private static partial PayloadMode XG_GetPayloadMode(nint enginePtr);
 
-        public static PayloadMode PayloadMode => XGGetPayloadMode(_enginePtr);
+        public static PayloadMode PayloadMode => XG_GetPayloadMode(_enginePtr);
 
-        [LibraryImport(NativeLib, EntryPoint = "XGAllocateComponent", StringMarshalling = StringMarshalling.Utf8)]
-        private static partial IntPtr XGAllocateComponent(nint enginePtr, ulong actorID, string componentType, uint size);
+        [LibraryImport(NativeLib, EntryPoint = "XG_AllocateComponent", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial IntPtr XG_AllocateComponent(nint enginePtr, ulong actorID, string componentType, uint size);
 
         [LibraryImport(NativeLib, EntryPoint = "XG_RegisterSubsystemWithAlias", StringMarshalling = StringMarshalling.Utf8)]
         public static unsafe partial IntPtr RegisterSubsystemWithAlias(nint engine, uint moduleID, nint instancePtr,
@@ -127,7 +127,7 @@ namespace xg
                 throw new InvalidOperationException("ScriptRuntime not initialized.");
 
             _logCallbacks.Add(cb);
-            XGAddLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
+            XG_AddLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
         }
 
         public static void RemoveLogCallback(LogCallback cb)
@@ -135,7 +135,7 @@ namespace xg
             if (_enginePtr == 0 || !_logCallbacks.Remove(cb))
                 return;
 
-            XGRemoveLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
+            XG_RemoveLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
         }
 
         private static void RemoveAllLogCallbacks()
@@ -143,7 +143,7 @@ namespace xg
             if (_enginePtr != 0)
             {
                 foreach (LogCallback cb in _logCallbacks)
-                    XGRemoveLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
+                    XG_RemoveLogCallbackForEngine(_enginePtr, Marshal.GetFunctionPointerForDelegate(cb));
             }
             _logCallbacks.Clear();
         }
@@ -160,7 +160,7 @@ namespace xg
             string json = System.Text.Json.JsonSerializer.Serialize(obj);
             byte[] bytes = Encoding.UTF8.GetBytes(json);
 
-            XGSendMessageToEngine(_enginePtr, typeName, bytes, bytes.Length, ModuleID);
+            XG_SendMessageToEngine(_enginePtr, typeName, bytes, bytes.Length, ModuleID);
         }
 
         public static unsafe void SendMessage(string typeName, object obj, Route route)
@@ -181,7 +181,7 @@ namespace xg
                     DepthLimit = route.DepthLimit,
                     Predicate = route.Predicate,
                 };
-                XGSendMessageToEngine_Route(_enginePtr, typeName, bytes, bytes.Length, ModuleID, abi);
+                XG_SendMessageToEngine_Route(_enginePtr, typeName, bytes, bytes.Length, ModuleID, abi);
             }
         }
 
@@ -199,7 +199,7 @@ namespace xg
         {
             var componentType = typeof(T);
             T component = new();
-            IntPtr ptr = XGAllocateComponent(_enginePtr, id.Value, componentType.Name, (uint)component.DataSize);
+            IntPtr ptr = XG_AllocateComponent(_enginePtr, id.Value, componentType.Name, (uint)component.DataSize);
             var componentRef = new ComponentHandle<T>(ptr);
             componentRef.Bind(component);
             return componentRef;

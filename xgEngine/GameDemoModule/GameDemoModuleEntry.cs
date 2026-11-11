@@ -6,7 +6,7 @@ namespace GameDemoModule
 {
     public static class GameDemoModuleEntry
     {
-        [UnmanagedCallersOnly(EntryPoint = "xg:Init", CallConvs = new[] { typeof(CallConvCdecl) })]
+        [UnmanagedCallersOnly(EntryPoint = "XG_Init", CallConvs = new[] { typeof(CallConvCdecl) })]
         public static int Init(nint enginePtr, uint moduleID)
         {
             ScriptRuntime.Initialize(enginePtr, moduleID);
@@ -22,7 +22,7 @@ namespace GameDemoModule
         static EnemyComponent _enemy = null!;
         static bool _reported;
 
-        [UnmanagedCallersOnly(EntryPoint = "xg:Update")]
+        [UnmanagedCallersOnly(EntryPoint = "XG_Update")]
         public static void Update(float dt)
         {
             long frames = ActorRegistry.FrameCount;
@@ -33,7 +33,7 @@ namespace GameDemoModule
             }
         }
 
-        [UnmanagedCallersOnly(EntryPoint = "xg:Shutdown")]
+        [UnmanagedCallersOnly(EntryPoint = "XG_Shutdown")]
         public static void Shutdown()
         {
             ScriptRuntime.Shutdown();
@@ -45,7 +45,7 @@ namespace GameDemoModule
             // Console.WriteLine($"[{type}] {msg} waasdadsds");
         }
 
-        [UnmanagedCallersOnly(EntryPoint = "xg:OnMessage", CallConvs = new[] { typeof(CallConvCdecl) })]
+        [UnmanagedCallersOnly(EntryPoint = "XG_OnMessage", CallConvs = new[] { typeof(CallConvCdecl) })]
         public static void OnMessage(nint typeName, nint payload, int payloadSize)
         {
 

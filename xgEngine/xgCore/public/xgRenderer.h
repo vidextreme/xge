@@ -37,8 +37,8 @@ namespace xg {
         virtual void SetRenderViewCamera(uint64_t id, const RenderViewCamera* camera) = 0;
     };
 
-    XG_DECLARE_MODULE_FUNCTION(CreateRenderer, Renderer*, Window&);
-    XG_DECLARE_MODULE_FUNCTION(DestroyRenderer, void, Renderer*);
+    XG_DECLARE_MODULE_FUNCTION(XG_CreateRenderer, Renderer*, Window&);
+    XG_DECLARE_MODULE_FUNCTION(XG_DestroyRenderer, void, Renderer*);
 
 	XG_DECLARE_UNIQUE(Renderer)
 

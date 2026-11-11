@@ -17,14 +17,14 @@ namespace xg
 
         public static Actor Create()
         {
-            Actor actor = new() { ID = ActorUtils.XGCreateActor(ScriptRuntime._enginePtr) };
+            Actor actor = new() { ID = ActorUtils.XG_CreateActor(ScriptRuntime._enginePtr) };
             ActorRegistry.Register(actor);
             return actor;
         }
 
         public static Actor Create(string actorName)
         {
-            Actor actor = new() { ID = ActorUtils.XGCreateActorWithName(ScriptRuntime._enginePtr, actorName) };
+            Actor actor = new() { ID = ActorUtils.XG_CreateActorWithName(ScriptRuntime._enginePtr, actorName) };
             ActorRegistry.Register(actor);
             return actor;
         }
@@ -70,13 +70,37 @@ namespace xg
                 return;
             Release();
             ActorRegistry.Unregister(this);
-            ActorUtils.XGDestroyActor(ScriptRuntime._enginePtr, ID);
+            ActorUtils.XG_DestroyActor(ScriptRuntime._enginePtr, ID);
         }
 
         public string Name
         {
             get { ThrowIfDestroyed(); return ActorUtils.GetActorName(ID); }
             set { ThrowIfDestroyed(); ActorUtils.SetActorName(ID, value); }
+        }
+
+        // Parent in the actor hierarchy. The getter is null when there is no parent or the parent belongs to another
+        // module (use ActorTree.GetParent for ids across modules). Setting null makes the actor a root.
+        public Actor? Parent
+        {
+            get
+            {
+                ThrowIfDestroyed();
+                ActorID? parent = ActorTree.GetParent(ID);
+                return parent is ActorID id && ActorRegistry.TryGet(id, out Actor? actor) ? actor : null;
+            }
+            set
+            {
+                ThrowIfDestroyed();
+                if (!SetParent(value?.ID))
+                    throw new InvalidOperationException($"Actor {(ulong)ID} cannot be parented to {(value is null ? "null" : ((ulong)value.ID).ToString())}.");
+            }
+        }
+
+        public bool SetParent(ActorID? parent)
+        {
+            ThrowIfDestroyed();
+            return ActorTree.SetParent(ID, parent);
         }
 
         internal void Release()
@@ -102,31 +126,31 @@ namespace xg
 
         internal partial class ActorUtils
         {
-            [LibraryImport("xgGameKernel", EntryPoint = "XGCreateActor")]
-            internal static partial ulong XGCreateActor(nint engine);
+            [LibraryImport("xgGameKernel", EntryPoint = "XG_CreateActor")]
+            internal static partial ulong XG_CreateActor(nint engine);
 
-            [LibraryImport("xgGameKernel", EntryPoint = "XGCreateActorWithName", StringMarshalling = StringMarshalling.Utf8)]
-            internal static partial ulong XGCreateActorWithName(nint engine, string actorName);
+            [LibraryImport("xgGameKernel", EntryPoint = "XG_CreateActorWithName", StringMarshalling = StringMarshalling.Utf8)]
+            internal static partial ulong XG_CreateActorWithName(nint engine, string actorName);
 
             internal static string GetActorName(ActorID id)
             {
-                nint ptr = XGGetActorName(ScriptRuntime._enginePtr, id);
+                nint ptr = XG_GetActorName(ScriptRuntime._enginePtr, id);
                 return Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
             }
 
             internal static void SetActorName(ActorID id, string newName)
             {
-                XGSetActorName(ScriptRuntime._enginePtr, id, newName);
+                XG_SetActorName(ScriptRuntime._enginePtr, id, newName);
             }
 
-            [LibraryImport("xgGameKernel", EntryPoint = "XGGetActorName")]
-            internal static partial nint XGGetActorName(nint engine, ulong actorID);
+            [LibraryImport("xgGameKernel", EntryPoint = "XG_GetActorName")]
+            internal static partial nint XG_GetActorName(nint engine, ulong actorID);
 
-            [LibraryImport("xgGameKernel", EntryPoint = "XGSetActorName", StringMarshalling = StringMarshalling.Utf8)]
-            internal static partial nint XGSetActorName(nint engine, ulong actorID, string newName);
+            [LibraryImport("xgGameKernel", EntryPoint = "XG_SetActorName", StringMarshalling = StringMarshalling.Utf8)]
+            internal static partial nint XG_SetActorName(nint engine, ulong actorID, string newName);
 
-            [LibraryImport("xgGameKernel", EntryPoint = "XGDestroyActor")]
-            internal static partial void XGDestroyActor(nint engine, ulong actorID);
+            [LibraryImport("xgGameKernel", EntryPoint = "XG_DestroyActor")]
+            internal static partial void XG_DestroyActor(nint engine, ulong actorID);
         }
     }
 }

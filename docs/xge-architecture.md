@@ -86,8 +86,8 @@ A **ScriptHost** loads a kind of module and creates its `ScriptModule` objects. 
 | Host | Loads | How |
 |---|---|---|
 | CoreCLR (`xgScriptCoreCLR`) | `*.CoreCLR.dll` assemblies | Starts .NET 10 through hostfxr, then binds the static `ScriptEntry.Init/Update/Shutdown/OnMessage` methods of the assembly. |
-| Native (`xgScriptNative`) | Native DLLs | Calls the `CreateScriptModule(id, moduleID, host, group)` export, which returns a C++ `ScriptModule`. |
-| Native (`xgScriptNative`) | NativeAOT DLLs | Binds the `xg:Init`, `xg:Update`, `xg:Shutdown` and `xg:OnMessage` C exports (`[UnmanagedCallersOnly(EntryPoint = "xg:Init")]` in C#). |
+| Native (`xgScriptNative`) | Native DLLs | Calls the `XG_CreateScriptModule(id, moduleID, host, group)` export, which returns a C++ `ScriptModule`. |
+| Native (`xgScriptNative`) | NativeAOT DLLs | Binds the `XG_Init`, `XG_Update`, `XG_Shutdown` and `XG_OnMessage` C exports (`[UnmanagedCallersOnly(EntryPoint = "xg:Init")]` in C#). |
 
 The managed side of both C# hosts is `xgSharedKit.Managed` (`ScriptRuntime`, actors, components, math, `Debug`). Its interop calls go through `LibraryImport` into `xgScriptNative` and `xgGameKernel`.
 

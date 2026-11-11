@@ -217,6 +217,14 @@ namespace xg.imui
             return new ListScope(ctx, open != 0);
         }
 
+        // Tree row inside Gui.List: indented by depth, expand arrow when HasChildren. Toggled means the arrow was clicked.
+        public static TreeRowScope TreeRow(int index, int depth, TreeRowFlags flags)
+        {
+            nint ctx = Context;
+            Result result = Native.BeginTreeRow(ctx, index, depth, flags);
+            return new TreeRowScope(ctx, result);
+        }
+
         public static ListRowScope ListRow(int index, bool selected)
         {
             nint ctx = Context;
@@ -308,6 +316,30 @@ namespace xg.imui
         {
             if (_ctx != 0)
                 Native.EndListRow(_ctx);
+        }
+    }
+
+    // One tree row. Draw in row space: (0,0) is just after the expand arrow.
+    public readonly ref struct TreeRowScope
+    {
+        private readonly nint _ctx;
+
+        internal TreeRowScope(nint ctx, Result interaction)
+        {
+            _ctx = ctx;
+            Interaction = interaction;
+        }
+
+        public Result Interaction { get; }
+        public bool Clicked => (Interaction & Result.Clicked) != 0;
+        public bool DoubleClicked => (Interaction & Result.DoubleClicked) != 0;
+        public bool Toggled => (Interaction & Result.Changed) != 0;
+        public Painter Draw => new(_ctx);
+
+        public void Dispose()
+        {
+            if (_ctx != 0)
+                Native.EndTreeRow(_ctx);
         }
     }
 

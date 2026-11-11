@@ -14,7 +14,7 @@
 
 namespace xg
 {
-    bool Encode_JSON_Generic(const void* object,
+    bool XG_Encode_JSON_Generic(const void* object,
         const TypeSchema* schema,
         ScriptMessage& out)
     {
@@ -72,7 +72,7 @@ namespace xg
     }
 
 
-    bool Decode_JSON_Generic(const ScriptMessage& msg,
+    bool XG_Decode_JSON_Generic(const ScriptMessage& msg,
         const TypeSchema* schema,
         void* outObject)
     {

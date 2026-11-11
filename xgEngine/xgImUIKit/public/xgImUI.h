@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 5;
+    inline constexpr uint32_t ApiVersion = 6;
 
     struct Context;
     struct PanelEntry;
@@ -217,6 +217,15 @@ namespace xg::imui
 
         bool AtBottom() const noexcept { return HasFlag(Flags, ListFlags::AtBottom); }
     };
+
+    enum class TreeRowFlags : uint8_t
+    {
+        None        = 0,
+        HasChildren = 1 << 0,
+        Expanded    = 1 << 1,
+        Selected    = 1 << 2,
+    };
+    XG_ENABLE_FLAGS(TreeRowFlags)
 }
 
 namespace xg
@@ -281,6 +290,10 @@ namespace xg
     // One full-width row; Painter draws in row space ((0,0) = row top-left) until EndListRow.
     XG_MODULE_EXPORT imui::Result XG_ImUIBeginListRow(imui::Context* ctx, int index, bool selected);
     XG_MODULE_EXPORT void XG_ImUIEndListRow(imui::Context* ctx);
+    // Tree row inside a list: indented by depth, with an expand arrow when HasChildren. Clicked/DoubleClicked are the
+    // row; Changed means the arrow was clicked (toggle expansion). Painter draws in row space after the arrow.
+    XG_MODULE_EXPORT imui::Result XG_ImUIBeginTreeRow(imui::Context* ctx, int index, int depth, imui::TreeRowFlags flags);
+    XG_MODULE_EXPORT void XG_ImUIEndTreeRow(imui::Context* ctx);
 
     // Immediate drawing
     XG_MODULE_EXPORT imui::Result XG_ImUIBeginCanvas(imui::Context* ctx, const char* id, const Vec2* size, Rect* outRect);

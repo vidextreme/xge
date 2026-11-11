@@ -152,6 +152,16 @@ namespace xg.imui
         public readonly bool AtBottom => (Flags & ListFlags.AtBottom) != 0;
     }
 
+    // Mirrors xg::imui::TreeRowFlags.
+    [Flags]
+    public enum TreeRowFlags : byte
+    {
+        None = 0,
+        HasChildren = 1 << 0,
+        Expanded = 1 << 1,
+        Selected = 1 << 2,
+    }
+
     // Theme colors resolved by the native kit.
     public static unsafe class Style
     {

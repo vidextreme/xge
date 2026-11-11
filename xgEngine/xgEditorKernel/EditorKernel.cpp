@@ -320,7 +320,7 @@ namespace xg
 // ------------------------------------------------------------
 //
 extern "C"
-XG_MODULE_EXPORT xg::ScriptModule* CreateScriptModule(const char* id, int moduleID, xg::ScriptHost* host, const char* group)
+XG_MODULE_EXPORT xg::ScriptModule* XG_CreateScriptModule(const char* id, int moduleID, xg::ScriptHost* host, const char* group)
 {
     if (host && host->GetEngine())
         xg::SetLogger(host->GetEngine()->GetLogger());

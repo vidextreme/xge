@@ -133,14 +133,14 @@ namespace xg
         if (mode == PayloadMode::JSON)
         {
             // Register generic JSON codec
-            registry->RegisterEncoder("*", Encode_JSON_Generic);
-            registry->RegisterDecoder("*", Decode_JSON_Generic);
+            registry->RegisterEncoder("*", XG_Encode_JSON_Generic);
+            registry->RegisterDecoder("*", XG_Decode_JSON_Generic);
         }
         else if (mode == PayloadMode::BINARY)
         {
             // Register generic binary codec
-            registry->RegisterEncoder("*", Encode_Binary_Generic);
-            registry->RegisterDecoder("*", Decode_Binary_Generic);
+            registry->RegisterEncoder("*", XG_Encode_Binary_Generic);
+            registry->RegisterDecoder("*", XG_Decode_Binary_Generic);
         }
         
         if (config.RendererModule && !SetRendererModule(config.RendererModule))

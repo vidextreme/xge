@@ -256,12 +256,12 @@ namespace xg
 // UNIQUE HANDLE TYPE DECLARATION
 // ------------------------------------------------------------
 #define XG_DECLARE_UNIQUE_TYPE(T)                                      \
-    extern "C" XG_MODULE_EXPORT void T##Destroy(void* p)               \
+    extern "C" XG_MODULE_EXPORT void XG_##T##Destroy(void* p)               \
     { if (p) delete static_cast<T*>(p); }                              \
                                                                        \
     XG_FORCEINLINE xg::xgUniqueHandle Make##T##UniqueHandle(T* p)      \
     {                                                                  \
-        return p ? xg::xgUniqueHandle{ p, &T##Destroy }                \
+        return p ? xg::xgUniqueHandle{ p, &XG_##T##Destroy }                \
                  : XG_EMPTY_UNIQUE_HANDLE();                           \
     }                                                                  \
                                                                        \
@@ -273,15 +273,15 @@ namespace xg
 // REFCOUNTED HANDLE TYPE DECLARATION
 // ------------------------------------------------------------
 #define XG_DECLARE_REFCOUNTED_TYPE(T)                                  \
-    extern "C" XG_MODULE_EXPORT void T##AddRef(void* p)                \
+    extern "C" XG_MODULE_EXPORT void XG_##T##AddRef(void* p)                \
     { if (p) static_cast<T*>(p)->AddRef(); }                           \
                                                                        \
-    extern "C" XG_MODULE_EXPORT void T##Release(void* p)               \
+    extern "C" XG_MODULE_EXPORT void XG_##T##Release(void* p)               \
     { if (p) static_cast<T*>(p)->Release(); }                          \
                                                                        \
     XG_FORCEINLINE xg::xgRefHandle Make##T##RefHandle(T* p)            \
     {                                                                  \
-        return p ? xg::xgRefHandle{ p, &T##AddRef, &T##Release }       \
+        return p ? xg::xgRefHandle{ p, &XG_##T##AddRef, &XG_##T##Release }       \
                  : XG_EMPTY_REF_HANDLE();                              \
     }                                                                  \
                                                                        \
