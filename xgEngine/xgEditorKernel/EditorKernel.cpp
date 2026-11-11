@@ -27,6 +27,7 @@
 #include "SceneViewWindow.h"
 #include "EditorSceneViewExports.h"
 #include "xgPlatformServices.h"
+#include "xgUIHostSession.h"
 
 namespace xg
 {
@@ -73,16 +74,6 @@ namespace xg
             _prototypeUI = config->EditorUI;
             _multiViewport = config->EditorMultiViewport;
         }
-
-        //
-        // Create event listener (modernized)
-        //
-        _eventListener = std::make_unique<ListenerBinding<EditorKernelModule>>(
-            this,
-            &EditorKernelModule::OnEvent
-        );
-
-        engine->GetSubsystem<EventDispatcher>()->AddListener(_eventListener.get());
 
         //
         // Editor UI setup
@@ -156,17 +147,6 @@ namespace xg
             return;
 
         //
-        // Unregister event listener
-        //
-        if (_engine)
-        {
-            if (auto dispatcher = _engine->GetSubsystem<EventDispatcher>())
-                dispatcher->RemoveListener(_eventListener.get());
-        }
-
-        _eventListener.reset();
-
-        //
         // Shutdown editor UI
         //
         ShutdownUI();
@@ -189,8 +169,8 @@ namespace xg
     //
     void EditorKernelModule::Update(float dt)
     {
-        if (_uiReady)
-            XG_ImUIHostFrame(dt);
+        if (_uiHost)
+            _uiHost->Frame(dt);
     }
 
     SceneGraph* EditorKernelModule::GetSceneGraph()
@@ -206,48 +186,16 @@ namespace xg
     void EditorKernelModule::InitUI()
     {
         auto* engine = static_cast<Engine*>(_engine);
-        Window* window = engine->MainWindow.get();
-        if (!window)
-            return;
-
-        if (engine->Renderer.valid())
+        UIHostOptions options;
+        options.PrototypeShell = _prototypeUI;
+        options.MultiViewport = _multiViewport;
+        auto host = std::make_unique<UIHostSession>();
+        if (!host->Start(*engine, options))
         {
-            _uiTarget = engine->Renderer.get();
-        }
-        else
-        {
-            _ownedUITarget = xg::NewUIRenderTarget(*window);
-            _uiTarget = _ownedUITarget.get();
-        }
-        if (!_uiTarget)
-        {
-            xg::Log(xg::MessageType::Error, "EditorKernel: no UI render target available, editor UI disabled");
+            xg::Log(xg::MessageType::Error, "EditorKernel: editor UI disabled");
             return;
         }
-
-        imui::HostDesc desc = {};
-        desc.Size = sizeof(desc);
-        desc.MainWindow = window;
-        desc.RenderTarget = _uiTarget;
-        desc.Flags = (_prototypeUI ? imui::HostFlags::PrototypeShell : imui::HostFlags::None)
-            | (_multiViewport ? imui::HostFlags::MultiViewport : imui::HostFlags::None);
-        desc.Platform = GetPlatformServices();
-        desc.FontDirectory = "../editor/fonts";
-        if (XG_ImUIGetApiVersion() < imui::ApiVersion || !XG_ImUIHostInit(&desc))
-        {
-            xg::Log(xg::MessageType::Error, "EditorKernel: xgImUIKit initialization failed, editor UI disabled");
-            _uiTarget = nullptr;
-            _ownedUITarget.reset();
-            return;
-        }
-        _uiReady = true;
-
-        ImageRGBA icon = {};
-        if (LoadImageRGBA("../editor/xge-icon.bmp", &icon))
-        {
-            XG_ImUIHostSetAppIcon(icon.Pixels, icon.Width, icon.Height);
-            FreeImageRGBA(&icon);
-        }
+        _uiHost = std::move(host);
 
         _nativeTestWindow = std::make_unique<NativeTestWindow>();
         _nativeFloatingWindow = std::make_unique<NativeFloatingWindow>();
@@ -263,28 +211,15 @@ namespace xg
 
     void EditorKernelModule::ShutdownUI()
     {
-        if (!_uiReady)
+        if (!_uiHost)
             return;
-        _uiReady = false;
 
         for (auto& window : _sceneViewWindows)
             window.reset();
         _nativeFloatingWindow.reset();
         _nativeTestWindow.reset();
-        XG_ImUIHostShutdown();
-        _uiTarget = nullptr;
-        _ownedUITarget.reset();
-    }
-
-    //
-    // ------------------------------------------------------------
-    // Event Handling
-    // ------------------------------------------------------------
-    //
-    void EditorKernelModule::OnEvent(const xgEvent& e)
-    {
-        if (_uiReady)
-            XG_ImUIHostEvent(&e);
+        _uiHost->Stop();
+        _uiHost.reset();
     }
 
     void EditorKernelModule::OnMessage(const ScriptMessage& msg)

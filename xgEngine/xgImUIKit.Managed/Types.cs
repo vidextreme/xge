@@ -24,6 +24,8 @@ namespace xg.imui
         NoScrollbar = 1 << 0,
         NoPadding = 1 << 1,
         StartClosed = 1 << 2,
+        // Covers the main window's work area: no title, tab, docking, moving or resizing.
+        FillViewport = 1 << 3,
     }
 
     // Mirrors xg::imui::FontStyle. Order is part of the ABI: append only.
@@ -68,6 +70,7 @@ namespace xg.imui
         Data, Material, Script,
         Info, Warning, Error,
         WinMinimize, WinMaximize, WinRestore, WinClose,
+        Image, Trash,
     }
 
     // Mirrors xg::imui::StyleColor. Order is part of the ABI: append only.

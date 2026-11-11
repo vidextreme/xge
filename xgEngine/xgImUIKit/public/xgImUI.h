@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 6;
+    inline constexpr uint32_t ApiVersion = 8;
 
     struct Context;
     struct PanelEntry;
@@ -64,6 +64,8 @@ namespace xg::imui
         NoScrollbar = 1 << 0,
         NoPadding   = 1 << 1,
         StartClosed = 1 << 2,
+        // Covers the main window's work area: no title, tab, docking, moving or resizing.
+        FillViewport = 1 << 3,
     };
     XG_ENABLE_FLAGS(PanelFlags)
 
@@ -95,6 +97,7 @@ namespace xg::imui
         Data, Material, Script,
         Info, Warning, Error,
         WinMinimize, WinMaximize, WinRestore, WinClose,
+        Image, Trash,
         Count
     };
 
@@ -158,6 +161,8 @@ namespace xg::imui
         HostFlags Flags;
         const char* FontDirectory;
         PlatformServices* Platform;
+        // Window layout file (relative to the working directory). Null = "imgui.ini"; "" = don't load or save a layout.
+        const char* LayoutFile;
     };
 
     struct PanelDesc
@@ -266,6 +271,25 @@ namespace xg
     XG_MODULE_EXPORT imui::Result XG_ImUIIconToggle(imui::Context* ctx, const char* id, imui::Icon icon, bool* on, Color32 color, const char* text);
     // Single-line search box editing a UTF-8 buffer in place. Returns Changed when the text changed.
     XG_MODULE_EXPORT imui::Result XG_ImUISearchField(imui::Context* ctx, const char* id, char* buffer, int capacity, float width);
+    // Single-line text box editing a UTF-8 buffer in place; hint shows while empty. width <= 0 fills the line.
+    // Returns Changed when the text changed.
+    XG_MODULE_EXPORT imui::Result XG_ImUITextField(imui::Context* ctx, const char* id, const char* hint, char* buffer, int capacity, float width);
+    // Square flat icon button. position null lays it out inline; otherwise it is placed at that point in the current
+    // draw space (row or canvas space, like the Draw* calls) over the row, and the layout cursor is left unchanged.
+    // size <= 0 uses the frame height. Returns Clicked (and Changed) when pressed.
+    XG_MODULE_EXPORT imui::Result XG_ImUIIconButton(imui::Context* ctx, const char* id, imui::Icon icon, const Vec2* position, float size, Color32 color);
+    // Invisible interactive rectangle in the current draw space (Hovered, Clicked, DoubleClicked, RightClicked).
+    XG_MODULE_EXPORT imui::Result XG_ImUIHitArea(imui::Context* ctx, const char* id, const Rect* rect);
+    // Tooltip shown while the previous item is hovered.
+    XG_MODULE_EXPORT void XG_ImUIItemTooltip(imui::Context* ctx, const char* text);
+
+    // Modals: OpenPopup(id) once, then each frame if (BeginModal(id, title, size)) { ...; EndModal(); }.
+    // The modal is centered on the main window and dims it; size.y <= 0 fits the content. Escape closes it.
+    XG_MODULE_EXPORT void XG_ImUIOpenPopup(imui::Context* ctx, const char* id);
+    XG_MODULE_EXPORT bool XG_ImUIBeginModal(imui::Context* ctx, const char* id, const char* title, const Vec2* size);
+    XG_MODULE_EXPORT void XG_ImUIEndModal(imui::Context* ctx);
+    XG_MODULE_EXPORT void XG_ImUICloseModal(imui::Context* ctx);
+
     // Read-only, selectable multi-line text (Ctrl+A / Ctrl+C copy). size <= 0 fills the available space.
     XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size);
 
@@ -288,6 +312,7 @@ namespace xg
     XG_MODULE_EXPORT bool XG_ImUIBeginList(imui::Context* ctx, const char* id, const Vec2* size, imui::ListState* state);
     XG_MODULE_EXPORT void XG_ImUIEndList(imui::Context* ctx);
     // One full-width row; Painter draws in row space ((0,0) = row top-left) until EndListRow.
+    // Hovered is set while the mouse is over the row, including over icon buttons or hit areas placed on it.
     XG_MODULE_EXPORT imui::Result XG_ImUIBeginListRow(imui::Context* ctx, int index, bool selected);
     XG_MODULE_EXPORT void XG_ImUIEndListRow(imui::Context* ctx);
     // Tree row inside a list: indented by depth, with an expand arrow when HasChildren. Clicked/DoubleClicked are the

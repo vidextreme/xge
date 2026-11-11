@@ -227,7 +227,9 @@ int main(int argc, char** argv)
     if (config.ProjectPath)
         xg::Log(xg::MessageType::Info, "Project: %s%s", config.ProjectPath, config.NewProjectPath ? " (new)" : "");
 
-    engine.MainWindow = xg::NewWindow("xgEngine", 1280, 720);
+    const char* windowTitle = (config.WindowTitle && *config.WindowTitle) ? config.WindowTitle : "xgEngine";
+    engine.MainWindow = xg::NewWindow(windowTitle, config.WindowWidth > 0 ? config.WindowWidth : 1280,
+        config.WindowHeight > 0 ? config.WindowHeight : 720);
     if (!engine.Initialize(config))
         return -1;
 

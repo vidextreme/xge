@@ -52,6 +52,8 @@
     <Compile Include="ScriptMessageInterop.cs" />
     <Compile Include="ScriptMessageParser.cs" />
     <Compile Include="ScriptRuntime.cs" />
+    <Compile Include="UIHost.cs" />
+    <Compile Include="PlatformDialogs.cs" />
     <Compile Include="xgID.cs" />
     <Compile Include="ColorInterop.cs" />
     <Compile Include="EasingInterop.cs" />

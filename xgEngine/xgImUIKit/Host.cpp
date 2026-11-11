@@ -24,6 +24,7 @@ namespace
         xg::imui::HostFlags Flags = xg::imui::HostFlags::None;
         bool Ready = false;
         bool Viewports = false;
+        std::string LayoutFile;
     };
 
     HostState _hostState;
@@ -102,13 +103,16 @@ namespace xg
         _hostState.Window = desc->MainWindow;
         _hostState.Target = desc->RenderTarget;
         _hostState.Flags = desc->Flags;
-        PlatformServices* services = desc->Size >= sizeof(imui::HostDesc) ? desc->Platform : nullptr;
+        PlatformServices* services = desc->Size >= offsetof(imui::HostDesc, Platform) + sizeof(desc->Platform) ? desc->Platform : nullptr;
+        const bool hasLayoutFile = desc->Size >= offsetof(imui::HostDesc, LayoutFile) + sizeof(desc->LayoutFile);
+        _hostState.LayoutFile = hasLayoutFile && desc->LayoutFile ? desc->LayoutFile : "imgui.ini";
         _hostState.Viewports = HasFlag(desc->Flags, imui::HostFlags::MultiViewport) && services && desc->RenderTarget->SupportsSurfaces();
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
 
         ImGuiIO& io = ImGui::GetIO();
+        io.IniFilename = _hostState.LayoutFile.empty() ? nullptr : _hostState.LayoutFile.c_str();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigErrorRecoveryEnableAssert = false;
         if (_hostState.Viewports)

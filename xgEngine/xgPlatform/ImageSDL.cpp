@@ -17,7 +17,7 @@ namespace xg {
         if (!path)
             return false;
 
-        SDL_Surface* loaded = SDL_LoadBMP(path);
+        SDL_Surface* loaded = SDL_LoadSurface(path);
         if (!loaded)
             return false;
         SDL_Surface* rgba = SDL_ConvertSurface(loaded, SDL_PIXELFORMAT_RGBA32);

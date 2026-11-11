@@ -124,6 +124,7 @@
     <ClCompile Include="FileWin.cpp" />
     <ClCompile Include="UIRenderTargetSDLGPU.cpp" />
     <ClCompile Include="ImageSDL.cpp" />
+    <ClCompile Include="DialogSDL.cpp" />
     <ClCompile Include="PlatformServicesSDL.cpp" />
   </ItemGroup>
   <ItemGroup>

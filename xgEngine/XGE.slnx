@@ -52,6 +52,9 @@
     </Project>
     <Project Path="xgScriptNative/xgScriptNative.vcxproj" Id="0bb1267a-a6a3-4cba-947f-1ec1a8deb7b1">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
+      <BuildDependency Project="xgEditorKit/xgEditorKit.vcxproj" />
+      <BuildDependency Project="xgImUIKit/xgImUIKit.vcxproj" />
+      <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
     </Project>
   </Folder>
   <Folder Name="/script_modules/">
@@ -60,6 +63,11 @@
     </Project>
     <Project Path="xgEditor.CoreCLR/xgEditor.CoreCLR.csproj">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />
+    </Project>
+    <Project Path="xgHub.CoreCLR/xgHub.CoreCLR.csproj">
+      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+      <BuildDependency Project="xgScriptNative/xgScriptNative.vcxproj" />
+      <BuildDependency Project="xge/xge.vcxproj" />
     </Project>
     <Project Path="xgEditorKernel/xgEditorKernel.vcxproj" Id="0231732b-4c48-4af7-ab6a-3ca3fb926ecb">
       <BuildDependency Project="xgCore/xgCore.vcxproj" />

@@ -10,7 +10,7 @@
 namespace xg
 {
     class ScriptEngine;
-    class EventListener;
+    class UIHostSession;
     class NativeTestWindow;
     class NativeFloatingWindow;
     class SceneViewWindow;
@@ -47,21 +47,15 @@ namespace xg
         void InitUI();
         void ShutdownUI();
 
-        // Platform event handler (called by EventDispatcher)
-        void OnEvent(const xgEvent& e);
         void OnMessage(const ScriptMessage& msg) override;
     private:
         ScriptEngine* _engine = nullptr;
-        UIRenderTargetUnique _ownedUITarget;
-        UIRenderTarget* _uiTarget = nullptr;
 
         bool _isValid = true;
         bool _prototypeUI = true;
         bool _multiViewport = true;
-        bool _uiReady = false;
 
-        // Modernized: EditorKernel owns its listener
-        std::unique_ptr<EventListener> _eventListener;
+        std::unique_ptr<UIHostSession> _uiHost;
         std::unique_ptr<NativeTestWindow> _nativeTestWindow;
         std::unique_ptr<NativeFloatingWindow> _nativeFloatingWindow;
         std::unique_ptr<SceneViewWindow> _sceneViewWindows[2];
