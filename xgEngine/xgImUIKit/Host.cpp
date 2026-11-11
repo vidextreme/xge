@@ -118,10 +118,10 @@ namespace xg
         }
 
         const std::string fonts = desc->FontDirectory;
+        LoadFont(fonts, "NotoSans-Regular.ttf", "DejaVuSans.ttf", 15.0f);
         LoadFont(fonts, "NotoSans-Regular.ttf", "DejaVuSans.ttf", 14.0f);
-        LoadFont(fonts, "NotoSans-Regular.ttf", "DejaVuSans.ttf", 13.0f);
-        LoadFont(fonts, "NotoSans-Bold.ttf", "DejaVuSans-Bold.ttf", 13.0f);
-        LoadFont(fonts, "NotoSansMono-Regular.ttf", "DejaVuSans.ttf", 13.0f);
+        LoadFont(fonts, "NotoSans-Bold.ttf", "DejaVuSans-Bold.ttf", 14.0f);
+        LoadFont(fonts, "NotoSansMono-Regular.ttf", "DejaVuSans.ttf", 14.0f);
 
         if (PrototypeShell())
         {

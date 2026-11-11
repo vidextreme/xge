@@ -26,7 +26,7 @@ actor.RemoveComponent<PlayerComponent>();
 actor.Destroy();
 ```
 
-- `Actor.Create` asks the engine for a new global `ActorID` (`XGCreateActor` / `XGCreateActorWithName`) and registers the managed `Actor` in the managed `ActorRegistry`.
+- `Actor.Create` asks the engine for a new global `ActorID` (`XG_CreateActor` / `XG_CreateActorWithName`) and registers the managed `Actor` in the managed `ActorRegistry`.
 - Components are plain C# objects (`where T : class, new()`). `ActorRegistry.GetOwner(component)` returns a component's actor.
 - `Destroy` detaches every component, unregisters the actor and destroys it natively. Using a destroyed actor throws `ObjectDisposedException`.
 - `ActorRegistry.Count`, `Actors`, `TryGet(id, out actor)` and `FrameCount` are available for queries.
@@ -55,7 +55,7 @@ How it runs:
 
 1. `AddComponent<T>` calls the interface's `Attach`, which adds the component to `ComponentUpdateGroup<T>.Instance`, one group per component type. The group registers itself with the managed `ActorRegistry` on first use.
 2. Each group caches `&T.OnUpdate` in a `delegate* managed<T, float, void>`. Updating a group is a tight loop of direct calls: no virtual dispatch, no boxing and no reflection per frame. This also works under NativeAOT trimming.
-3. Every frame, `Engine::Run` calls native `ActorRegistry::UpdateActors(dt)`, which calls each C# module's callback registered through `XGRegisterActorUpdate`. That callback runs `ActorRegistry.Update(dt)`, which updates every group.
+3. Every frame, `Engine::Run` calls native `ActorRegistry::UpdateActors(dt)`, which calls each C# module's callback registered through `XG_RegisterActorUpdate`. That callback runs `ActorRegistry.Update(dt)`, which updates every group.
 4. `RemoveComponent` / `Destroy` only null out the slot during the pass. `FlushRemovals` compacts each group after all groups have updated, so removing components inside `OnUpdate` is safe.
 5. If a group's `OnUpdate` throws, the error is logged once through `Debug.LogError` and the other groups keep running.
 
@@ -95,7 +95,7 @@ See the [hybrid component sample](xge-component-sample.md) for a component that 
 ## Native storage (WIP)
 
 - `CompositeSceneGraph` (`"compset"` in the `SceneGraphFactory`) keeps one `StridePool` per component type: a dense byte buffer with a parallel array of owner ActorIDs, and swap-and-pop removal.
-- `XGAllocateComponent(engine, actorID, componentType, size)` allocates a block for an actor.
+- `XG_AllocateComponent(engine, actorID, componentType, size)` allocates a block for an actor.
 - Pointers into the pool aren't stable yet (the buffer can grow, and removal moves other actors' data), which is why the managed data components aren't bound to it.
 
 See [Component graphs](xge-components2.md) for how per-type component graphs fit the scoped subsystem model.

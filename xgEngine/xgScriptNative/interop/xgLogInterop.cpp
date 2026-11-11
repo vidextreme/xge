@@ -5,7 +5,7 @@
 #include "xgModules.h"
 #include "xgScriptEngine.h"
 
-XG_MODULE_EXPORT void XGAddLogCallbackForEngine(
+XG_MODULE_EXPORT void XG_AddLogCallbackForEngine(
     xg::ScriptEngine* engine,
     xg::LogCallback callback)
 {
@@ -15,7 +15,7 @@ XG_MODULE_EXPORT void XGAddLogCallbackForEngine(
     engine->AddLogCallback(callback);
 }
 
-XG_MODULE_EXPORT void XGRemoveLogCallbackForEngine(
+XG_MODULE_EXPORT void XG_RemoveLogCallbackForEngine(
     xg::ScriptEngine* engine,
     xg::LogCallback callback)
 {
@@ -25,7 +25,7 @@ XG_MODULE_EXPORT void XGRemoveLogCallbackForEngine(
     engine->RemoveLogCallback(callback);
 }
 
-XG_MODULE_EXPORT void XGLogForEngine(
+XG_MODULE_EXPORT void XG_LogForEngine(
     xg::ScriptEngine* engine,
     int32_t type,
     const char* message)

@@ -25,6 +25,9 @@ namespace xg
 
         virtual SceneNode* GetNode(ActorID id) const = 0;
         inline ActorRegistry& GetRegistry() const { return *_registry; }
+
+        // Writes up to capacity ids of parentless nodes in creation (ascending id) order; returns the total root count.
+        virtual int CopyRootIds(ActorID* out, int capacity) const = 0;
     protected:
         ActorRegistry* _registry;
     };

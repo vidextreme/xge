@@ -5,7 +5,7 @@
 #include "xgScriptEngine.h"
 #include "ScriptHostNative.h"
 
-XG_MODULE_EXPORT xg::ScriptHost* CreateScriptHostNative(xg::ScriptEngine* engine, const char* path)
+XG_MODULE_EXPORT xg::ScriptHost* XG_CreateScriptHostNative(xg::ScriptEngine* engine, const char* path)
 {
     if (engine)
         xg::SetLogger(engine->GetLogger());

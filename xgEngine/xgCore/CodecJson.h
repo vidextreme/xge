@@ -9,12 +9,12 @@ namespace xg
 {
 	struct TypeSchema;
     // Generic JSON encoder for all reflected types
-    XG_MODULE_EXPORT bool Encode_JSON_Generic(const void* object,
+    XG_MODULE_EXPORT bool XG_Encode_JSON_Generic(const void* object,
         const TypeSchema* schema,
         ScriptMessage& out);
 
     // Generic JSON decoder for all reflected types
-    XG_MODULE_EXPORT bool Decode_JSON_Generic(const ScriptMessage& msg,
+    XG_MODULE_EXPORT bool XG_Decode_JSON_Generic(const ScriptMessage& msg,
         const TypeSchema* schema,
         void* outObject);
 }

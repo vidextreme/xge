@@ -3,7 +3,7 @@
 #include "pch.h"
 #include "RendererDX12.h"
 
-XG_MODULE_EXPORT xg::Renderer* CreateRenderer(xg::Window& window)
+XG_MODULE_EXPORT xg::Renderer* XG_CreateRenderer(xg::Window& window)
 {
     auto* renderer = new xg::RendererDX12();
     if (!renderer->Initialize(window))
@@ -14,7 +14,7 @@ XG_MODULE_EXPORT xg::Renderer* CreateRenderer(xg::Window& window)
     return renderer;
 }
 
-XG_MODULE_EXPORT void DestroyRenderer(xg::Renderer* renderer)
+XG_MODULE_EXPORT void XG_DestroyRenderer(xg::Renderer* renderer)
 {
     delete renderer;
 }

@@ -4,7 +4,7 @@
 #include "xgScriptEngine.h"
 #include "xgMessenger.h"
 #include "xgScriptMessage.h"
-XG_MODULE_EXPORT void XGSendMessageToEngine(
+XG_MODULE_EXPORT void XG_SendMessageToEngine(
     xg::ScriptEngine* engine,
     const char* typeName,
     const void* payload,
@@ -19,7 +19,7 @@ XG_MODULE_EXPORT void XGSendMessageToEngine(
     engine->GetSubsystem<xg::Messenger>()->SendToAll(msg);
 }
 
-XG_MODULE_EXPORT void XGSendMessageToEngine_Route(
+XG_MODULE_EXPORT void XG_SendMessageToEngine_Route(
     xg::ScriptEngine* engine,
     const char* typeName,
     const void* payload,
@@ -38,7 +38,7 @@ XG_MODULE_EXPORT void XGSendMessageToEngine_Route(
 }
 
 XG_MODULE_EXPORT
-xg::PayloadMode XGGetPayloadMode(xg::ScriptEngine* engine)
+xg::PayloadMode XG_GetPayloadMode(xg::ScriptEngine* engine)
 {
     return engine->GetPayloadMode();
 }

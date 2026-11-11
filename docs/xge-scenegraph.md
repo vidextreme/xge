@@ -25,20 +25,20 @@ Actors are global identities. SceneGraphs are scoped subsystems that each hold t
 | `AddUpdateCallback(moduleId, fn)` / `RemoveUpdateCallback` | Per-module update hooks |
 | `UpdateActors(dt)` | Called by `Engine::Run` every frame; runs every update callback |
 
-C# modules register their update callback through `XGRegisterActorUpdate`, which is how managed components get updated each frame (see [Components](xge-components.md#behaviour-components-crtp)).
+C# modules register their update callback through `XG_RegisterActorUpdate`, which is how managed components get updated each frame (see [Components](xge-components.md#behaviour-components-crtp)).
 
 ### Actor C exports
 
 `xgSharedKit/public/xgActorSystem.h`, exported from `xgGameKernel.dll` and used by C# `Actor`:
 
 ```cpp
-XG_MODULE_EXPORT xg::ActorID XGCreateActor(xg::ScriptEngine* engine);
-XG_MODULE_EXPORT xg::ActorID XGCreateActorWithName(xg::ScriptEngine* engine, const char* actorName);
-XG_MODULE_EXPORT const char* XGGetActorName(xg::ScriptEngine* engine, xg::ActorID id);
-XG_MODULE_EXPORT void XGSetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newName);
-XG_MODULE_EXPORT void XGDestroyActor(xg::ScriptEngine* engine, xg::ActorID id);
-XG_MODULE_EXPORT void XGRegisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId, void (*update)(float dt));
-XG_MODULE_EXPORT void XGUnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId);
+XG_MODULE_EXPORT xg::ActorID XG_CreateActor(xg::ScriptEngine* engine);
+XG_MODULE_EXPORT xg::ActorID XG_CreateActorWithName(xg::ScriptEngine* engine, const char* actorName);
+XG_MODULE_EXPORT const char* XG_GetActorName(xg::ScriptEngine* engine, xg::ActorID id);
+XG_MODULE_EXPORT void XG_SetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newName);
+XG_MODULE_EXPORT void XG_DestroyActor(xg::ScriptEngine* engine, xg::ActorID id);
+XG_MODULE_EXPORT void XG_RegisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId, void (*update)(float dt));
+XG_MODULE_EXPORT void XG_UnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId);
 ```
 
 ---

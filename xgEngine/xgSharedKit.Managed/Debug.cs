@@ -104,7 +104,7 @@ namespace xg
             {
                 try
                 {
-                    XGLogForEngine(engine, (int)type, text);
+                    XG_LogForEngine(engine, (int)type, text);
                     return;
                 }
                 catch
@@ -139,7 +139,7 @@ namespace xg
             _ => "ERR",
         };
 
-        [LibraryImport("xgScriptNative", EntryPoint = "XGLogForEngine", StringMarshalling = StringMarshalling.Utf8)]
-        private static partial void XGLogForEngine(nint engine, int type, string message);
+        [LibraryImport("xgScriptNative", EntryPoint = "XG_LogForEngine", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial void XG_LogForEngine(nint engine, int type, string message);
     }
 }

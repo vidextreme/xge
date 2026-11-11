@@ -16,16 +16,16 @@ namespace xg
     {
         EnsureScriptCoreCLRLoaded();
 
-        XG_MODULE_PROCEDURE(xg, ScriptCoreCLR, CreateScriptHostCoreCLR);
-        return XG_MODULE_CALL(CreateScriptHostCoreCLR)(engine, path);
+        XG_MODULE_PROCEDURE(xg, ScriptCoreCLR, XG_CreateScriptHostCoreCLR);
+        return XG_MODULE_CALL(XG_CreateScriptHostCoreCLR)(engine, path);
     }
 
     ScriptHost* CreateScriptHostNative(ScriptEngine* engine, const char* path)
     {
         EnsureScriptNativeLoaded();
 
-        XG_MODULE_PROCEDURE(xg, ScriptNative, CreateScriptHostNative);
-        return XG_MODULE_CALL(CreateScriptHostNative)(engine, path);
+        XG_MODULE_PROCEDURE(xg, ScriptNative, XG_CreateScriptHostNative);
+        return XG_MODULE_CALL(XG_CreateScriptHostNative)(engine, path);
     }
 }
 

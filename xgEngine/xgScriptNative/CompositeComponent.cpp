@@ -2,7 +2,7 @@
 #include "xgScriptEngine.h"
 #include "xgComponentSceneGraph.h"
 
-XG_MODULE_EXPORT void* XGAllocateComponent(xg::ScriptEngine* engine, xg::ActorID actorID, const char* componentType, uint32_t size)
+XG_MODULE_EXPORT void* XG_AllocateComponent(xg::ScriptEngine* engine, xg::ActorID actorID, const char* componentType, uint32_t size)
 {		
 	xg::ComponentSceneGraph* graph = engine->GetSubsystemWithAlias<xg::ComponentSceneGraph>(nullptr, componentType);
 	xg::SceneNode* node = graph->GetNode(actorID);

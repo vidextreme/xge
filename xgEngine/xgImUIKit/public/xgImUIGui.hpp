@@ -194,6 +194,24 @@ namespace xg::imui
             Result _result = Result::None;
         };
 
+        class TreeRowScope
+        {
+        public:
+            TreeRowScope(Context* ctx, int index, int depth, TreeRowFlags flags) : _ctx(ctx), _result(XG_ImUIBeginTreeRow(ctx, index, depth, flags)) {}
+            ~TreeRowScope() { if (_ctx) XG_ImUIEndTreeRow(_ctx); }
+            TreeRowScope(const TreeRowScope&) = delete;
+            TreeRowScope& operator=(const TreeRowScope&) = delete;
+            TreeRowScope(TreeRowScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _result(o._result) {}
+
+            Result Interaction() const { return _result; }
+            bool Clicked() const { return HasFlag(_result, Result::Clicked); }
+            bool Toggled() const { return HasFlag(_result, Result::Changed); }
+            Painter Draw() const { return Painter(_ctx); }
+        private:
+            Context* _ctx;
+            Result _result = Result::None;
+        };
+
         class ListScope
         {
         public:
@@ -206,6 +224,7 @@ namespace xg::imui
 
             bool IsOpen() const { return _open; }
             [[nodiscard]] ListRowScope Row(int index, bool selected) const { return ListRowScope(_ctx, index, selected); }
+            [[nodiscard]] TreeRowScope TreeRow(int index, int depth, TreeRowFlags flags) const { return TreeRowScope(_ctx, index, depth, flags); }
         private:
             Context* _ctx;
             bool _open = false;

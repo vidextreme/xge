@@ -10,6 +10,7 @@ namespace xg
 		XG_DECLARE_BASE_SUBSYSTEM(ComponentSceneGraph)
 	public:
 		void SetParent(SceneNode* child, SceneNode* parent) override {}
+		int CopyRootIds(ActorID* out, int capacity) const override { return 0; }
 		virtual void InitializeComponentSet(const char* contextName, size_t strideSize) = 0;
 	protected:
 		virtual ComponentRaw CreateComponentRaw(ActorID id) = 0;

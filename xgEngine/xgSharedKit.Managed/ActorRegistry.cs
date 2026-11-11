@@ -73,7 +73,7 @@ namespace xg
         {
             if (_attached || enginePtr == 0)
                 return;
-            XGRegisterActorUpdate(enginePtr, moduleId, &NativeUpdate);
+            XG_RegisterActorUpdate(enginePtr, moduleId, &NativeUpdate);
             _moduleId = moduleId;
             _attached = true;
         }
@@ -82,7 +82,7 @@ namespace xg
         {
             if (_attached)
             {
-                XGUnregisterActorUpdate(enginePtr, _moduleId);
+                XG_UnregisterActorUpdate(enginePtr, _moduleId);
                 _attached = false;
             }
             foreach (Actor actor in _actors.Values.ToArray())
@@ -92,10 +92,10 @@ namespace xg
                 group.Clear();
         }
 
-        [LibraryImport("xgGameKernel", EntryPoint = "XGRegisterActorUpdate")]
-        private static partial void XGRegisterActorUpdate(nint engine, uint moduleId, delegate* unmanaged[Cdecl]<float, void> update);
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_RegisterActorUpdate")]
+        private static partial void XG_RegisterActorUpdate(nint engine, uint moduleId, delegate* unmanaged[Cdecl]<float, void> update);
 
-        [LibraryImport("xgGameKernel", EntryPoint = "XGUnregisterActorUpdate")]
-        private static partial void XGUnregisterActorUpdate(nint engine, uint moduleId);
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_UnregisterActorUpdate")]
+        private static partial void XG_UnregisterActorUpdate(nint engine, uint moduleId);
     }
 }

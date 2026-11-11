@@ -6,7 +6,7 @@
 #include "ScriptHostCoreCLR.h"
 #include "ScriptModuleCoreCLR.h"
 
-XG_MODULE_EXPORT xg::ScriptHost* CreateScriptHostCoreCLR(xg::ScriptEngine* engine,const char* path)
+XG_MODULE_EXPORT xg::ScriptHost* XG_CreateScriptHostCoreCLR(xg::ScriptEngine* engine,const char* path)
 {
     if (engine)
         xg::SetLogger(engine->GetLogger());
