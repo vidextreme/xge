@@ -73,12 +73,10 @@ namespace xgHub.CoreCLR
             }
 
             DrawHeader();
-            Vector2 avail = Gui.AvailableSize;
-            float listHeight = Math.Max(RowHeight, avail.y - StatusHeight);
             if (_projects.Count == 0)
-                DrawEmptyState(new Vector2(0.0f, listHeight));
+                DrawEmptyState();
             else
-                DrawProjects(new Vector2(0.0f, listHeight), avail.x);
+                DrawProjects(Gui.AvailableSize.x);
             DrawStatus();
 
             if (_openNewPopup)
@@ -114,23 +112,19 @@ namespace xgHub.CoreCLR
             {
                 using (Gui.Font(FontStyle.Bold))
                     Gui.Label("Projects");
-                Gui.SameLine(16.0f);
+                Gui.Space(12.0f);
                 Gui.SearchField("##hub_search", _search, 260.0f);
-
-                float buttons = Gui.MeasureText("Add").x + Gui.MeasureText("New project").x + 20.0f;
-                Gui.SameLine();
-                Gui.AlignRight(buttons);
+                Gui.FlexibleSpace();
                 if (Gui.Button("Add"))
                     BrowseAddProject();
-                Gui.SameLine();
                 if (Gui.Button("New project"))
                     _openNewPopup = true;
             }
         }
 
-        private void DrawEmptyState(Vector2 size)
+        private void DrawEmptyState()
         {
-            using CanvasScope canvas = Gui.Canvas("##hub_empty", size);
+            using CanvasScope canvas = Gui.Canvas("##hub_empty");
             Color32 dim = Style.Color(StyleColor.TextDim);
             const string line1 = "No projects yet";
             const string line2 = "Add an existing project folder, or create a new project.";
@@ -140,12 +134,12 @@ namespace xgHub.CoreCLR
             canvas.Draw.Text(new Vector2((canvas.Size.x - Gui.MeasureText(line2).x) * 0.5f, y + 24.0f), dim, line2);
         }
 
-        private void DrawProjects(Vector2 size, float width)
+        private void DrawProjects(float width)
         {
             RebuildVisible();
             _list.Count = _visible.Count;
             _list.RowHeight = RowHeight;
-            using ListScope list = Gui.List("##hub_projects", ref _list, size);
+            using ListScope list = Gui.List("##hub_projects", ref _list);
             if (!list.IsOpen)
                 return;
 
@@ -273,18 +267,18 @@ namespace xgHub.CoreCLR
             if (!modal.IsOpen)
                 return;
 
-            float width = NewPopupWidth - 28.0f;
             Gui.Label("Name");
-            Gui.TextField("##hub_new_name", _newName, "Project name", width);
+            Gui.TextField("##hub_new_name", _newName, "Project name");
             Gui.Label("Location");
-            float browse = Gui.MeasureText("Browse...").x + 16.0f;
-            Gui.TextField("##hub_new_location", _newLocation, "Parent folder", width - browse - 8.0f);
-            Gui.SameLine();
-            if (Gui.Button("Browse..."))
-                BrowseNewLocation();
+            using (Gui.Horizontal())
+            {
+                Gui.TextField("##hub_new_location", _newLocation, "Parent folder");
+                if (Gui.Button("Browse..."))
+                    BrowseNewLocation();
+            }
 
             string? target = NewProjectTarget(out _);
-            using (CanvasScope info = Gui.Canvas("##hub_new_info", new Vector2(width, 40.0f)))
+            using (CanvasScope info = Gui.Canvas("##hub_new_info", new Vector2(0.0f, 40.0f)))
             {
                 info.Draw.Text(new Vector2(0.0f, 2.0f), Style.Color(StyleColor.TextDim),
                     target is null ? "Enter a name and a parent folder" : $"Creates {target}");
@@ -292,13 +286,14 @@ namespace xgHub.CoreCLR
                     info.Draw.Text(new Vector2(0.0f, 22.0f), Style.Color(StyleColor.IconMaterial), _newError);
             }
 
-            float buttons = Gui.MeasureText("Create").x + Gui.MeasureText("Cancel").x + 24.0f;
-            Gui.AlignRight(buttons);
-            if (Gui.Button("Create") && CreateProject())
-                Gui.CloseModal();
-            Gui.SameLine();
-            if (Gui.Button("Cancel"))
-                Gui.CloseModal();
+            using (Gui.Horizontal())
+            {
+                Gui.FlexibleSpace();
+                if (Gui.Button("Create") && CreateProject())
+                    Gui.CloseModal();
+                if (Gui.Button("Cancel"))
+                    Gui.CloseModal();
+            }
         }
 
         private void DrawRemovePopup()
@@ -314,22 +309,23 @@ namespace xgHub.CoreCLR
             }
 
             Gui.Label($"Remove \"{project.Name}\" from the list?");
-            using (CanvasScope note = Gui.Canvas("##hub_remove_note", new Vector2(RemovePopupWidth - 28.0f, 26.0f)))
+            using (CanvasScope note = Gui.Canvas("##hub_remove_note", new Vector2(0.0f, 26.0f)))
                 note.Draw.Text(new Vector2(0.0f, 2.0f), Style.Color(StyleColor.TextDim), "The project folder and its files are not deleted.");
 
-            float buttons = Gui.MeasureText("Remove").x + Gui.MeasureText("Cancel").x + 24.0f;
-            Gui.AlignRight(buttons);
-            if (Gui.Button("Remove"))
+            using (Gui.Horizontal())
             {
-                RemoveProject(project);
-                _pendingRemove = null;
-                Gui.CloseModal();
-            }
-            Gui.SameLine();
-            if (Gui.Button("Cancel"))
-            {
-                _pendingRemove = null;
-                Gui.CloseModal();
+                Gui.FlexibleSpace();
+                if (Gui.Button("Remove"))
+                {
+                    RemoveProject(project);
+                    _pendingRemove = null;
+                    Gui.CloseModal();
+                }
+                if (Gui.Button("Cancel"))
+                {
+                    _pendingRemove = null;
+                    Gui.CloseModal();
+                }
             }
         }
 

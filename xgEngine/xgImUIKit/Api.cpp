@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -56,7 +57,29 @@ namespace xg::imui
         int CanvasDepth = 0;
         DrawLayer Layer = DrawLayer::Panel;
         int ToolbarCount = 0;
-        int ToolbarDepth = 0;
+
+        // Layout groups: rows and columns. Stretch items (FlexibleSpace, fill-size widgets) share the space left
+        // after the fixed items, measured on the previous frame and kept in the window's state storage.
+        static constexpr int MaxLayoutDepth = 16;
+        struct LayoutFrame
+        {
+            ImGuiWindow* Window = nullptr;
+            bool Horizontal = false;
+            bool Group = false;
+            float Spacing = 0.0f;
+            float PendingSpace = 0.0f;
+            int Items = 0;
+            ImGuiID FixedId = 0;
+            ImGuiID CountId = 0;
+            ImVec2 Start;
+            float Share = 0.0f;
+            float StretchUsed = 0.0f;
+            int Stretches = 0;
+        };
+        LayoutFrame Layouts[MaxLayoutDepth];
+        int LayoutDepth = 0;
+        int LayoutOverflow = 0;
+        int LayoutCounter = 0;
 
         static constexpr int MaxListDepth = 4;
         struct ListFrame
@@ -157,6 +180,107 @@ namespace
         return result;
     }
 
+    Context::LayoutFrame* CurrentLayout(Context* ctx)
+    {
+        if (!ctx || ctx->LayoutDepth <= 0)
+            return nullptr;
+        Context::LayoutFrame& frame = ctx->Layouts[ctx->LayoutDepth - 1];
+        return frame.Window == ImGui::GetCurrentWindow() ? &frame : nullptr;
+    }
+
+    // Called before every layout item: places it after the previous item in a row.
+    void LayoutItem(Context* ctx, bool textItem = false)
+    {
+        Context::LayoutFrame* frame = CurrentLayout(ctx);
+        if (!frame)
+            return;
+        if (frame->Horizontal)
+        {
+            if (frame->Items > 0 && !ImGui::GetCurrentWindow()->DC.IsSameLine)
+                ImGui::SameLine(0.0f, frame->Spacing + frame->PendingSpace);
+            if (textItem)
+                ImGui::AlignTextToFramePadding();
+        }
+        frame->PendingSpace = 0.0f;
+        ++frame->Items;
+    }
+
+    // Size of a fill (size <= 0) item along one axis: a stretch share in a layout on that axis, else the available size.
+    float LayoutFill(Context* ctx, bool horizontalAxis)
+    {
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+        Context::LayoutFrame* frame = CurrentLayout(ctx);
+        if (!frame || frame->Horizontal != horizontalAxis)
+            return (std::max)(horizontalAxis ? avail.x : avail.y, 1.0f);
+        const float share = (std::max)(frame->Share, 1.0f);
+        frame->StretchUsed += share;
+        ++frame->Stretches;
+        return share;
+    }
+
+    void BeginLayout(Context* ctx, bool horizontal, float spacing, bool group)
+    {
+        if (ctx->LayoutDepth >= Context::MaxLayoutDepth)
+        {
+            ++ctx->LayoutOverflow;
+            return;
+        }
+        if (group)
+            LayoutItem(ctx);
+        char key[40];
+        std::snprintf(key, sizeof(key), "##xg_layout_fixed%d", ctx->LayoutCounter);
+        const ImGuiID fixedId = ImGui::GetID(key);
+        std::snprintf(key, sizeof(key), "##xg_layout_count%d", ctx->LayoutCounter);
+        const ImGuiID countId = ImGui::GetID(key);
+        ++ctx->LayoutCounter;
+
+        ImGuiStorage* storage = ImGui::GetStateStorage();
+        const float fixed = storage->GetFloat(fixedId, -1.0f);
+        const int count = storage->GetInt(countId, 0);
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+        const float extent = horizontal ? avail.x : avail.y;
+
+        Context::LayoutFrame& frame = ctx->Layouts[ctx->LayoutDepth++];
+        frame = Context::LayoutFrame();
+        frame.Window = ImGui::GetCurrentWindow();
+        frame.Horizontal = horizontal;
+        frame.Group = group;
+        frame.Spacing = spacing >= 0.0f ? spacing : ImGui::GetStyle().ItemSpacing.x;
+        frame.FixedId = fixedId;
+        frame.CountId = countId;
+        frame.Start = ImGui::GetCursorScreenPos();
+        frame.Share = (fixed >= 0.0f && count > 0) ? (std::max)((extent - fixed) / static_cast<float>(count), 0.0f) : 0.0f;
+        if (group)
+            ImGui::BeginGroup();
+    }
+
+    void EndLayout(Context* ctx)
+    {
+        if (ctx->LayoutOverflow > 0)
+        {
+            --ctx->LayoutOverflow;
+            return;
+        }
+        if (ctx->LayoutDepth <= 0)
+            return;
+        const Context::LayoutFrame frame = ctx->Layouts[--ctx->LayoutDepth];
+        float size = 0.0f;
+        if (frame.Group)
+        {
+            ImGui::EndGroup();
+            const ImVec2 rect = ImGui::GetItemRectSize();
+            size = frame.Horizontal ? rect.x : rect.y;
+        }
+        else
+        {
+            const ImVec2 max = frame.Window->DC.CursorMaxPos;
+            size = frame.Horizontal ? max.x - frame.Start.x : max.y - frame.Start.y;
+        }
+        ImGuiStorage* storage = frame.Window->DC.StateStorage;
+        storage->SetFloat(frame.FixedId, (std::max)(size - frame.StretchUsed, 0.0f));
+        storage->SetInt(frame.CountId, frame.Stretches);
+    }
+
     void SetOpen(PanelEntry* entry, bool open)
     {
         if (!entry || entry->Removed || entry->Open == open)
@@ -186,8 +310,13 @@ namespace
             ImGui::ErrorRecoveryStoreState(&state);
             ImDrawList* bodyList = ImGui::GetWindowDrawList();
             const int clipDepth = bodyList->_ClipRectStack.Size;
+            BeginLayout(&ctx, false, -1.0f, false);
             entry->OnGUI(&ctx, entry->User);
             ImGui::ErrorRecoveryTryToRecoverState(&state);
+            ctx.LayoutOverflow = 0;
+            ctx.LayoutDepth = (std::min)(ctx.LayoutDepth, 1);
+            if (ImGui::GetCurrentWindow() == ctx.Layouts[0].Window)
+                EndLayout(&ctx);
             while (bodyList->_ClipRectStack.Size > clipDepth)
                 bodyList->PopClipRect();
             ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
@@ -551,8 +680,7 @@ namespace xg
     {
         if (!ctx)
             return imui::Result::None;
-        if (ctx->ToolbarDepth > 0)
-            ImGui::AlignTextToFramePadding();
+        LayoutItem(ctx, true);
         ImGui::TextUnformatted(text ? text : "");
         return ItemResult(false);
     }
@@ -561,6 +689,7 @@ namespace xg
     {
         if (!ctx)
             return imui::Result::None;
+        LayoutItem(ctx);
         ImGui::Button(label ? label : "");
         return ItemResult(false);
     }
@@ -570,6 +699,7 @@ namespace xg
         if (!ctx || !value)
             return imui::Result::None;
         const char* text = label ? label : "";
+        LayoutItem(ctx);
         ImGui::PushID(text);
         imui::detail::PropertyLabel(text);
         const bool changed = ImGui::DragFloat("##value", value, speed > 0.0f ? speed : 0.1f, 0.0f, 0.0f, "%.2f");
@@ -582,6 +712,7 @@ namespace xg
     {
         if (!ctx || !on)
             return imui::Result::None;
+        LayoutItem(ctx);
         const bool pressed = imui::detail::FlatButton(label ? label : "", *on);
         if (pressed)
             *on = !*on;
@@ -594,6 +725,8 @@ namespace xg
             return imui::Result::None;
         const ImU32 col = ToImU32(color);
         const imui::detail::Icon drawIcon = (icon > imui::Icon::None && icon < imui::Icon::Count) ? static_cast<imui::detail::Icon>(icon) : imui::detail::Icon::None;
+        LayoutItem(ctx);
+        ImGui::BeginGroup();
         ImGui::PushID(id ? id : "##icontoggle");
         const bool pressed = imui::detail::IconButton("##toggle", drawIcon, false, imui::detail::SegButtonSize, *on ? col : imui::detail::WithAlpha(col, 0.3f));
         if (pressed)
@@ -606,6 +739,7 @@ namespace xg
             ImGui::TextColored(imui::detail::ToVec4(*on ? imui::detail::TextColor : imui::detail::TextDim), "%s", text);
         }
         ImGui::PopID();
+        ImGui::EndGroup();
         return result;
     }
 
@@ -613,7 +747,9 @@ namespace xg
     {
         if (!ctx || !buffer || capacity <= 0)
             return imui::Result::None;
-        const bool changed = imui::detail::SearchField(id ? id : "##search", buffer, static_cast<size_t>(capacity), width > 0.0f ? width : 200.0f);
+        LayoutItem(ctx);
+        const bool changed = imui::detail::SearchField(id ? id : "##search", buffer, static_cast<size_t>(capacity),
+            width > 0.0f ? width : LayoutFill(ctx, true));
         return ItemResult(changed);
     }
 
@@ -621,13 +757,15 @@ namespace xg
     {
         if (!ctx || !buffer || capacity <= 0)
             return imui::Result::None;
+        LayoutItem(ctx);
+        const float fieldWidth = width > 0.0f ? width : LayoutFill(ctx, true);
         ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::DropdownBg);
         ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, imui::detail::DropdownHover);
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive, imui::detail::DropdownBg);
         ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
-        ImGui::SetNextItemWidth(width > 0.0f ? width : -FLT_MIN);
+        ImGui::SetNextItemWidth(fieldWidth);
         const bool changed = ImGui::InputTextWithHint(id ? id : "##textfield", hint ? hint : "", buffer, static_cast<size_t>(capacity));
         const imui::Result result = ItemResult(changed);
         ImGui::PopStyleVar(2);
@@ -640,6 +778,8 @@ namespace xg
         if (!ctx)
             return imui::Result::None;
         const float side = size > 0.0f ? size : ImGui::GetFrameHeight();
+        if (!position)
+            LayoutItem(ctx);
         const ImVec2 restore = ImGui::GetCursorScreenPos();
         if (position)
             ImGui::SetCursorScreenPos(ctx->ToScreen(interop::Load(position)));
@@ -702,7 +842,10 @@ namespace xg
         const Vec2 requested = LoadVec2(size);
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2((std::max)(requested.x, 0.0f), (std::max)(requested.y, 0.0f)), ImGuiCond_Appearing);
+        if (requested.x > 0.0f && requested.y <= 0.0f)
+            ImGui::SetNextWindowSizeConstraints(ImVec2(requested.x, 0.0f), ImVec2(requested.x, FLT_MAX));
+        else
+            ImGui::SetNextWindowSize(ImVec2((std::max)(requested.x, 0.0f), (std::max)(requested.y, 0.0f)), ImGuiCond_Appearing);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.0f, 12.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 6.0f));
         ImGui::PushStyleColor(ImGuiCol_PopupBg, imui::detail::DropdownBg);
@@ -712,15 +855,22 @@ namespace xg
             | (requested.y <= 0.0f ? ImGuiWindowFlags_AlwaysAutoResize : ImGuiWindowFlags_None));
         ImGui::PopStyleColor(2);
         ImGui::PopStyleVar(2);
-        if (open && ImGui::IsKeyPressed(ImGuiKey_Escape) && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+        if (!open)
+            return false;
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape) && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
             ImGui::CloseCurrentPopup();
-        return open;
+        BeginLayout(ctx, false, -1.0f, false);
+        return true;
     }
 
     XG_MODULE_EXPORT void XG_ImUIEndModal(imui::Context* ctx)
     {
-        if (ctx)
-            ImGui::EndPopup();
+        if (!ctx)
+            return;
+        const imui::Context::LayoutFrame* frame = CurrentLayout(ctx);
+        if (frame && !frame->Group)
+            EndLayout(ctx);
+        ImGui::EndPopup();
     }
 
     XG_MODULE_EXPORT void XG_ImUICloseModal(imui::Context* ctx)
@@ -735,8 +885,8 @@ namespace xg
             return imui::Result::None;
         const char* value = text ? text : "";
         const Vec2 requested = LoadVec2(size);
-        const ImVec2 avail = ImGui::GetContentRegionAvail();
-        const ImVec2 areaSize(requested.x > 0.0f ? requested.x : avail.x, requested.y > 0.0f ? requested.y : avail.y);
+        LayoutItem(ctx);
+        const ImVec2 areaSize(requested.x > 0.0f ? requested.x : LayoutFill(ctx, true), requested.y > 0.0f ? requested.y : LayoutFill(ctx, false));
         ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::AreaBg);
         ImGui::InputTextMultiline(id ? id : "##textarea", const_cast<char*>(value), std::strlen(value) + 1, areaSize, ImGuiInputTextFlags_ReadOnly);
         ImGui::PopStyleColor();
@@ -770,18 +920,68 @@ namespace xg
     {
         if (!ctx)
             return;
+        LayoutItem(ctx);
         ImGui::PushID(ctx->ToolbarCount++);
         imui::detail::BeginHeader();
-        ++ctx->ToolbarDepth;
+        BeginLayout(ctx, true, -1.0f, true);
     }
 
     XG_MODULE_EXPORT void XG_ImUIEndToolbar(imui::Context* ctx)
     {
-        if (!ctx || ctx->ToolbarDepth <= 0)
+        if (!ctx)
             return;
-        --ctx->ToolbarDepth;
+        EndLayout(ctx);
         imui::detail::EndHeader();
         ImGui::PopID();
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIBeginHorizontal(imui::Context* ctx, float spacing)
+    {
+        if (ctx)
+            BeginLayout(ctx, true, spacing, true);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndHorizontal(imui::Context* ctx)
+    {
+        if (ctx)
+            EndLayout(ctx);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIBeginVertical(imui::Context* ctx)
+    {
+        if (ctx)
+            BeginLayout(ctx, false, -1.0f, true);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndVertical(imui::Context* ctx)
+    {
+        if (ctx)
+            EndLayout(ctx);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIFlexibleSpace(imui::Context* ctx)
+    {
+        imui::Context::LayoutFrame* frame = CurrentLayout(ctx);
+        if (!frame)
+            return;
+        const bool horizontal = frame->Horizontal;
+        LayoutItem(ctx);
+        const float share = LayoutFill(ctx, horizontal);
+        ImGui::Dummy(horizontal ? ImVec2(share, 0.0f) : ImVec2(0.0f, share));
+    }
+
+    XG_MODULE_EXPORT void XG_ImUISpace(imui::Context* ctx, float pixels)
+    {
+        if (!ctx || pixels <= 0.0f)
+            return;
+        imui::Context::LayoutFrame* frame = CurrentLayout(ctx);
+        if (frame && frame->Horizontal && frame->Items > 0)
+        {
+            frame->PendingSpace += pixels;
+            return;
+        }
+        LayoutItem(ctx);
+        ImGui::Dummy(frame && frame->Horizontal ? ImVec2(pixels, 0.0f) : ImVec2(0.0f, pixels));
     }
 
     XG_MODULE_EXPORT void XG_ImUISameLine(imui::Context* ctx, float spacing)
@@ -809,6 +1009,7 @@ namespace xg
         if (!ctx || !size)
             return imui::Result::None;
         constexpr float Thickness = 4.0f;
+        LayoutItem(ctx);
         const ImVec2 p = ImGui::GetCursorScreenPos();
         const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
         ImGui::InvisibleButton(id ? id : "##splitter", ImVec2(width, Thickness));
@@ -837,8 +1038,8 @@ namespace xg
             return false;
 
         const Vec2 requested = LoadVec2(size);
-        const ImVec2 avail = ImGui::GetContentRegionAvail();
-        const ImVec2 listSize(requested.x > 0.0f ? requested.x : avail.x, (std::max)(requested.y > 0.0f ? requested.y : avail.y, 1.0f));
+        LayoutItem(ctx);
+        const ImVec2 listSize(requested.x > 0.0f ? requested.x : LayoutFill(ctx, true), requested.y > 0.0f ? requested.y : LayoutFill(ctx, false));
         ImGui::PushStyleColor(ImGuiCol_ChildBg, imui::detail::AreaBg);
         ImGui::BeginChild(id ? id : "##list", listSize, ImGuiChildFlags_None, ImGuiWindowFlags_None);
         ImGui::PopStyleColor();
@@ -960,8 +1161,8 @@ namespace xg
             return imui::Result::None;
 
         const Vec2 requested = LoadVec2(size);
-        const ImVec2 avail = ImGui::GetContentRegionAvail();
-        const ImVec2 canvasSize((std::max)(requested.x > 0.0f ? requested.x : avail.x, 1.0f), (std::max)(requested.y > 0.0f ? requested.y : avail.y, 1.0f));
+        LayoutItem(ctx);
+        const ImVec2 canvasSize(requested.x > 0.0f ? requested.x : LayoutFill(ctx, true), requested.y > 0.0f ? requested.y : LayoutFill(ctx, false));
         ImGui::SetNextItemAllowOverlap();
         ImGui::InvisibleButton(id ? id : "##canvas", canvasSize,
             ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);
