@@ -27,7 +27,9 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 - **Scoped subsystems:** services are registered per module and resolved by walking up the tree, so children inherit or override them.
 - **Dual C# scripting:** CoreCLR for the editor, NativeAOT for the runtime, both behind the same `ScriptModule` interface.
 - **Reflection codegen:** a Tree-sitter tool (`xgReflectGen`) generates type schemas from `XG_SERIALIZABLE` / `XG_FIELD` / `XG_ENUM` markers, used for JSON, message codecs and C# enums.
-- **Editor shell:** Dear ImGui (docking + multi-viewport) on SDL3.
+- **Config-driven module tree:** `gameconfig.json` (or any file passed with `--config`) describes the engine settings and the whole module tree, so the editor, the Project Hub and a game runtime are just different configs.
+- **Immediate UI kit:** `xgImUIKit` wraps Dear ImGui (docking + multi-viewport) behind a C ABI with C++ and C# wrappers, including Unity-style layout groups. It draws through the engine renderer or an SDL GPU fallback.
+- **Game projects:** Unity-style project folders whose C# scripts are compiled into a separate solution and loaded into the editor. The Project Hub creates, opens and lists them.
 - **Stable ABI:** cross-DLL interfaces are pure virtual and append-only, and only C types and function pointers cross module boundaries.
 
 ---
@@ -41,13 +43,16 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Messenger / routes | 🟢 Working | `Direct`, `ChildrenOf`, `ParentOf`, `SiblingsOf`, `Filtered`, `SendToAll`. The managed route API is still incomplete. |
 | Codec registry | 🟡 Partial | JSON and binary codecs work for numbers and bools; string fields need work. |
 | Reflection (`xgReflectGen`) | 🟡 Partial | bool / int / uint / float / `const char*` fields and enums. No arrays or nested types yet. |
-| Config (`gameconfig.json`) | 🟢 Working | Loaded by `xge` through reflection into `EngineConfig`. |
+| Config + command line | 🟢 Working | An `EngineConfig` table (read through reflection) and a `ScriptModules` tree. `--config`, `--project`, `--new-project`, `--no-script-build`. See [command line](docs/xge-command-line.md). |
 | Actors & components (C#) | 🟡 Partial | `Actor.Create`, `AddComponent<T>` / `GetComponent<T>` / `RemoveComponent<T>`, `Destroy`. Update logic uses **CRTP**: a component implements `IComponentUpdate<T>` with a `static abstract OnUpdate(T, float)`, and one `ComponentUpdateGroup<T>` per type calls it through a cached function pointer (no virtual call, boxing or reflection per frame). Removals are deferred until after the pass. Driven every frame by `ActorRegistry::UpdateActors(dt)` in both CoreCLR and NativeAOT modules. Data components (`ComponentData<TData>`, `IComponentDataUpdate<TData>`) and native component storage are prototypes. |
 | SceneGraph (native) | 🟡 Partial | ActorIDs are global 64-bit IDs; an actor can belong to several graphs. The tree graph works; transforms are not propagated yet. |
 | Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
 | Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `tools/verify/`. |
-| Editor UI | 🟡 Prototype | Docking layout with static panels (non-functional). Toggle with `EditorUI` in `gameconfig.json`. |
-| Renderer (DX12) | 🟠 Very rough | Device, swap chain, resize, and a UI pass that draws the editor through a generic `xg::Renderer` UI API (no ImGui in the renderer, no DX12 in the editor). No 3D rendering yet; multi-viewport is SDL GPU only. |
+| Immediate UI kit (`xgImUIKit`) | 🟢 Working | Panels, menus, widgets, virtualized lists, modals, layout groups (`Gui.Horizontal`/`Vertical`/`FlexibleSpace`), FreeType fonts (Noto), per-monitor DPI. Multi-viewport on DX12 and SDL GPU. |
+| Editor UI | 🟡 Partial | Real panels: Console (fed by the engine log) and Hierarchy (actor tree). The editor shell (`EditorUI: true`) and its other panels are still a non-functional prototype. |
+| Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Next: an Assets watcher with hot reload, then asset import and a NativeAOT player build. |
+| Project Hub | 🟢 Working | `xge.exe --config hub.config`: add, create, open and remove projects, with a preview image per project. |
+| Renderer (DX12) | 🟠 Very rough | Device, swap chains for every UI window, and a UI pass behind the generic `xg::UIRenderTarget` API (no ImGui in the renderer, no DX12 in the UI kit). Offscreen render views draw a test cube and grid for the scene views; no real 3D pipeline yet. |
 | Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
 | Vulkan | ⚪ Planned | |
 | Network replication | ⚪ Planned | |
@@ -59,8 +64,8 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 
 ### Requirements
 
-- Windows 10/11 x64
-- Visual Studio 2026 with the C++ desktop workload (toolset v145)
+- Windows 10/11 x64 (Linux - planned)
+- Visual Studio 2026 with the C++ desktop workload (toolset v145, other compile - planned)
 - .NET 10 SDK
 
 ### Build
@@ -78,44 +83,84 @@ Binaries go to `gameroot/bin`.
 
 ### Run
 
-Run `xge.exe` from `gameroot/bin`. It reads `gameroot/bin/gameconfig.json`:
+```powershell
+cd gameroot\bin
+.\xge.exe                                         # editor
+.\xge.exe --config hub.config                     # Project Hub
+.\xge.exe --project ..\..\samples\SampleGame      # open a game project in the editor
+.\xge.exe --new-project D:\Games\SpaceShooter     # create a project from the template, then open it
+```
+
+By default xge reads `gameconfig.json` next to `xge.exe`, wherever it's started from. The config has two tables: engine settings, and the module tree to load:
 
 ```json
 {
-    "RendererModule": "",
-    "EditorUI": true
+    "EngineConfig": {
+        "RendererModule": "xgRendererDX12",
+        "EditorUI": false,
+        "EditorMultiViewport": true
+    },
+    "ScriptModules": {
+        "editor.kernel": { "path": "xgEditorKernel.dll", "group": "group.main", "dispatchgroup": "main", "children": {
+            "game.kernel": { "path": "xgGameKernel.dll", "children": {
+                "editor": "xgEditor.CoreCLR.dll",
+                "game.demo": "GameDemoModule.dll"
+            } }
+        } }
+    }
 }
 ```
 
-| Key | Meaning |
+| `EngineConfig` key | Meaning |
 |---|---|
-| `RendererModule` | Renderer DLL to load, for example `xgRendererDX12`. When set, the editor UI draws through it; when empty, the editor draws through SDL GPU (with multi-viewport). |
-| `EditorUI` | `true` shows the editor UI prototype; `false` shows an empty ImGui dockspace with the OS window frame. |
+| `RendererModule` | Renderer DLL, for example `xgRendererDX12`. Empty uses the SDL GPU fallback (no 3D views). |
+| `EditorUI` | `true` shows the editor shell prototype; `false` shows an empty dockspace, where the real panels (Console, Hierarchy) still dock. |
+| `EditorMultiViewport` | Panels dragged outside the main window become OS windows. |
+| `ProjectPath`, `ProjectAutoBuild` | Project to open (relative to the config file) and whether to build its scripts first. |
+| `WindowTitle`, `WindowWidth`, `WindowHeight` | Main window title and size. |
+
+The [command-line reference](docs/xge-command-line.md) covers every option, the `ScriptModules` format, the startup order and more config examples.
+
+In Visual Studio, set **xgHub.CoreCLR** as the startup project. Its Start button then offers the profiles **XGE (default config)** and **XGE Project Hub**.
 
 ---
 
 ## Architecture
 
 ```
-xgBase         → Base types, macros, logging, JSON, reflection, math (static lib)
-xgPlatform     → Platform backends (SDL3 window, Win32 files)
-xgCore         → Engine runtime: ScriptTree, subsystems, Messenger, codecs, ActorRegistry
-Renderers      → DX12 (very rough), Vulkan (planned)
-Script hosts   → CoreCLR (hostfxr), Native + NativeAOT
-Kernels        → xgEditorKernel (editor UI), xgGameKernel (scene graphs, actor exports)
-Kits           → xgSharedKit / xgEditorKit (native), xgSharedKit.Managed (C#)
-xge            → Launcher
+xgBase         → Base types, macros, logging, JSON, reflection, math, UI draw/render-target interfaces (static lib)
+xgPlatform     → SDL3 windows and events, secondary OS windows, file dialogs, image loading, SDL GPU UI fallback, Win32 files
+xgCore         → Engine runtime: ScriptTree, subsystems, Messenger, codecs, ActorRegistry, logger
+Renderers      → DX12 (very rough: UI surfaces, offscreen views), Vulkan (planned)
+Script hosts   → CoreCLR (hostfxr), Native + NativeAOT (xgScriptNative, also the C exports for managed code)
+Kernels        → xgEditorKernel (editor UI wiring), xgGameKernel (scene graphs, actor exports)
+UI kit         → xgImUIKit (immediate-mode UI, the only Dear ImGui user), xgImUIKit.Managed (C#)
+Kits           → xgSharedKit, xgEditorKit (UIHostSession), xgSharedKit.Managed (C# runtime, actors, Debug)
+Managed apps   → xgEditor.CoreCLR (editor panels, projects), xgHub.CoreCLR (Project Hub)
+Templates      → Game project template and SDK props/targets, installed to gameroot/sdk
+xge            → Launcher: config file + command line → window, engine, module tree
 ```
 
 ### Module tree at runtime
 
+xge doesn't hard-code any module: it loads the `ScriptModules` tree of the config file, depth-first in file order. The default `gameconfig.json` gives the editor tree. When a project is open, the editor adds the project's scripts at runtime:
+
+```
+root                      (engine subsystems)
+└── editor.kernel         (xgEditorKernel.dll, native, UI host)
+    └── game.kernel       (xgGameKernel.dll, native, scene graphs, actor exports)
+        ├── editor        (xgEditor.CoreCLR.dll, CoreCLR, Console, Hierarchy, project service)
+        └── game.demo     (GameDemoModule.dll, NativeAOT, test module)
+```
+
+`hub.config` loads a single module, which runs the UI host itself:
+
 ```
 root
-└── editor.kernel   xgEditorKernel.dll     (native)
-    └── game.kernel xgGameKernel.dll       (native)
-        ├── editor      xgEditor.CoreCLR.dll  (CoreCLR)
-        └── game.demo   GameDemoModule.dll    (NativeAOT)
+└── hub   xgHub.CoreCLR.dll   CoreCLR   Project Hub
 ```
+
+A module can add modules with `ScriptRuntime.AddScriptModule(id, path, parentId, group)`, outside a frame update. See the [command-line reference](docs/xge-command-line.md#scriptmodules) for the config format.
 
 ### Frame loop
 
@@ -162,9 +207,17 @@ struct EngineConfig
 
     XG_FIELD()
     bool EditorUI = true;
+
+    XG_FIELD()
+    const char* WindowTitle = nullptr;
+
+    XG_FIELD()
+    int WindowWidth = 1280;
+    // ...
 };
 
 const TypeSchema* schema = engine.GetTypeRegistry()->Get(EngineConfig::TypeName);
+ReadReflected(json, *schema, &config, strings, "EngineConfig");   // reads the "EngineConfig" table
 ```
 
 ### C# components and logging
@@ -188,29 +241,35 @@ Debug.Log("enemy spawned");
 
 ```
 XGE/
-├── docs/                     # Design notes, diagrams
+├── docs/                     # Architecture, command line, design notes, diagrams
 ├── gameroot/                 # Runtime deployment root
-│   ├── bin/                  # Engine, modules, gameconfig.json
-│   ├── editor/               # Editor assets (fonts, icon)
-│   └── coreclr/              # Bundled .NET runtime for the CoreCLR host
+│   ├── bin/                  # xge.exe, engine and module DLLs, gameconfig.json, hub.config, imgui.ini
+│   ├── editor/               # Editor assets (Noto/DejaVu fonts, icon)
+│   ├── coreclr/              # Bundled .NET runtime for the CoreCLR host
+│   └── sdk/                  # Game project SDK and template, installed by the build (generated)
+├── samples/                  # Local test projects such as SampleGame (untracked)
 └── xgEngine/                 # Engine source (XGE.slnx)
-    ├── 3rdparty/             # SDL3, Dear ImGui (docking), nlohmann/json, DirectXMath, Tree-sitter
+    ├── 3rdparty/             # SDL3, Dear ImGui (docking), FreeType, nlohmann/json, DirectXMath, Tree-sitter
+    ├── templates/            # Game project template (GameProject/) and SDK props/targets (sdk/)
     ├── tools/xgReflectGen/   # Reflection code generator
     ├── tools/verify/         # Math test suites (native + managed), ImUIParity.ps1
-    ├── xgBase/               # Base types, macros, logging, JSON, reflection, math
-    ├── xgPlatform/           # Platform backends
+    ├── xgBase/               # Base types, macros, logging, JSON, reflection, math, platform interfaces
+    ├── xgPlatform/           # SDL3 windows, dialogs, images, SDL GPU UI fallback, Win32 files
     ├── xgCore/               # Engine runtime
     ├── xgUtility/            # SDL ⇄ xgEvent helpers
     ├── xgRendererDX12/       # DirectX 12 renderer module (very rough)
     ├── xgScriptCoreCLR/      # CoreCLR script host
-    ├── xgScriptNative/       # Native / NativeAOT script host + C interop exports
-    ├── xgEditorKernel/       # Editor kernel module (ImGui)
+    ├── xgScriptNative/       # Native / NativeAOT script host + C exports (projects, UI host, dialogs)
+    ├── xgImUIKit/            # Immediate-mode UI kit (Dear ImGui + FreeType, C ABI, C++ wrapper)
+    ├── xgImUIKit.Managed/    # C# bindings for xgImUIKit (Gui, Painter, Panel, layouts, modals)
+    ├── xgEditorKernel/       # Editor kernel module (UI host, editor wiring, test panels)
     ├── xgGameKernel/         # Game kernel module (scene graphs, actor API)
     ├── xgSharedKit/          # Shared native editor/runtime library
-    ├── xgSharedKit.Managed/  # Shared C# library (runtime, actors, components, math, Debug)
-    ├── xgEditorKit/          # Editor utilities (placeholder)
-    ├── xgEditor.CoreCLR/     # Managed editor module
-    ├── GameDemoModule/       # NativeAOT sample module
+    ├── xgSharedKit.Managed/  # Shared C# library (runtime, actors, components, math, Debug, UIHost)
+    ├── xgEditorKit/          # Editor static library (UIHostSession)
+    ├── xgEditor.CoreCLR/     # Managed editor module (Console, Hierarchy, projects)
+    ├── xgHub.CoreCLR/        # Project Hub module
+    ├── GameDemoModule/       # NativeAOT test module
     └── xge/                  # Launcher executable
 ```
 
@@ -218,7 +277,8 @@ XGE/
 
 ## Documentation
 
-- [Runtime architecture](docs/xge-architecture.md) — HSM, scoped subsystems, script hosts, Messenger, reflection, logging
+- [Command line and config files](docs/xge-command-line.md) — xge options, startup order, `EngineConfig` and `ScriptModules`, shipped configs, examples
+- [Runtime architecture](docs/xge-architecture.md) — HSM, scoped subsystems, script hosts, UI host, Messenger, reflection, logging
 - [SceneGraph and actors](docs/xge-scenegraph.md) — ActorRegistry, scene graphs, node mixins
 - [Actors and components (C#)](docs/xge-components.md) — Actor API, CRTP behaviour components, data components
 - [Component graphs](docs/xge-components2.md) — per-type component storage as scoped subsystems
@@ -232,9 +292,9 @@ Each document describes the current code and lists unbuilt work under "Future de
 ## Roadmap
 
 **Near term**
+- Game projects: an Assets watcher with background build and script hot reload, then asset import, then a NativeAOT player build
+- Inspector panel backed by reflection (Hierarchy and Console are done)
 - Wire up dispatch groups (thread affinity)
-- Multi-viewport (floating windows) on the engine renderer
-- Back the editor panels with real data (outliner → scene graph, properties → reflection)
 
 **Mid term**
 - Transform propagation and one settled component model
@@ -244,7 +304,6 @@ Each document describes the current code and lists unbuilt work under "Future de
 **Long term**
 - Vulkan backend
 - Network replication and RPC
-- Hot reload of C# gameplay modules
 - Visual scripting
 
 ---

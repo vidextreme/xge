@@ -2,7 +2,7 @@
 
 > Status: current implementation (2026-11). Future design is listed at the end. See the [README](../README.md) for build steps and the overall status table.
 
-This document covers the runtime backbone: the module tree (HSM), scoped subsystems, script hosts, messaging, reflection and logging.
+This document covers the runtime backbone: the module tree (HSM), scoped subsystems, script hosts, the UI host, messaging, reflection and logging. How xge starts and reads its config is in [command line and config files](xge-command-line.md).
 
 | Piece | State |
 |---|---|
@@ -20,17 +20,22 @@ This document covers the runtime backbone: the module tree (HSM), scoped subsyst
 
 Every script module lives in one tree, the **ScriptTree**. A node's position defines its update order and the scope of the subsystems it sees.
 
-The tree as it loads today:
+The tree comes from the config file's `ScriptModules` table. Nothing is hard-coded in xge. With the default `gameconfig.json` and a project open, it looks like this:
 
 ```
 root                    (null host; owns the engine subsystems)
 └── editor.kernel       xgEditorKernel.dll     native
     └── game.kernel     xgGameKernel.dll       native
-        ├── editor      xgEditor.CoreCLR.dll   CoreCLR
-        └── game.demo   GameDemoModule.dll     NativeAOT
+        ├── editor        xgEditor.CoreCLR.dll   CoreCLR
+        ├── game.demo     GameDemoModule.dll     NativeAOT
+        └── game.project  <Name>.CoreCLR.dll     CoreCLR   (added at runtime when a project opens)
 ```
 
-- `xge` loads `editor.kernel` with `Engine::AddScriptModule(id, path, parent, group)`. The editor kernel then loads its children the same way.
+`hub.config` loads only `hub` (`xgHub.CoreCLR.dll`, CoreCLR) under the root.
+
+- After `Engine::Initialize`, `LoadScriptModules` (`xge/xge.cpp`) walks the table depth-first in file order. Each entry fills a reflected `ScriptModuleDesc` (`Id` from the key, `Path`, `Group`, `DispatchGroup`; group values are inherited from the parent) and calls `Engine::AddScriptModule(id, path, parent, group)`. A parent is initialized before its children load, and a module that fails to load skips its subtree.
+- Modules add modules at runtime through `XG_AddScriptModule(engine, callerModuleId, id, path, parentId, group)` (`xgScriptNative/interop/xgProjectInterop.cpp`, managed `ScriptRuntime.AddScriptModule`). A null parent means the caller's parent (`ScriptEngine::GetParentScriptModule`). This must not happen during a frame update, because `ScriptTree::Update` iterates the node list that adding appends to. The editor's `ProjectService` loads `game.project` this way during its `Init`.
+- The editor kernel reserves the id `editor`: it removes that module before shutting down the UI host.
 - Each module receives a module id that increases in load order. Shutdown runs in reverse load order, so children shut down before their parents.
 - `Engine::Run` updates the tree every frame, parents before children, then calls `ActorRegistry::UpdateActors(dt)`.
 - Known issue: `ScriptTree::Update` starts from every main-thread node, and each node also recurses into its children, so nested modules currently update more than once per frame.
@@ -90,6 +95,27 @@ A **ScriptHost** loads a kind of module and creates its `ScriptModule` objects. 
 | Native (`xgScriptNative`) | NativeAOT DLLs | Binds the `XG_Init`, `XG_Update`, `XG_Shutdown` and `XG_OnMessage` C exports (`[UnmanagedCallersOnly(EntryPoint = "xg:Init")]` in C#). |
 
 The managed side of both C# hosts is `xgSharedKit.Managed` (`ScriptRuntime`, actors, components, math, `Debug`). Its interop calls go through `LibraryImport` into `xgScriptNative` and `xgGameKernel`.
+
+- hostfxr returns 1 ("already initialized") for every CoreCLR module after the first, so only negative codes count as errors.
+- The host resolves `<assembly>.runtimeconfig.json` next to each DLL.
+
+---
+
+## UI host
+
+The immediate-mode UI (`xgImUIKit`, the only library that contains Dear ImGui) needs a host that owns its lifecycle:
+- pick the render target: the engine renderer, or xgPlatform's SDL GPU presenter when `RendererModule` is empty
+- pass the main window, `PlatformServices` (secondary OS windows), fonts and the app icon to `XG_ImUIHostInit`
+- forward platform events and call `XG_ImUIHostFrame` every frame
+
+That logic lives in `xg::UIHostSession` (`xgEditorKit/public/xgUIHostSession.h`), which has two users:
+
+| User | How |
+|---|---|
+| `xgEditorKernel` | Starts a session in `Init` with `EditorUI` / `EditorMultiViewport` from the config, and stops it before the managed `editor` module is removed. |
+| Managed modules without a kernel | `xg.UIHost.Start/Frame/Stop` (xgSharedKit.Managed) bind `XG_UIHostStart/Frame/Stop` in `xgScriptNative/interop/xgUIHostInterop.cpp`. The Project Hub uses this, with layout saving off so it never touches the editor's `imgui.ini`. |
+
+Panels are then registered through the kit API: native `XG_ImUI*` / `xgImUIGui.hpp`, or managed `xg.imui.Panel`.
 
 ---
 
@@ -174,7 +200,10 @@ Codec details (native vs dynamic codecs, the `"*"` fallback) are in the [design 
 - `XG_SERIALIZABLE()` marks a struct and `XG_FIELD()` marks each reflected field. The generator emits a `TypeSchema` with one `FieldSchema` per field (name, offset, size, value type), registered in the engine's `TypeRegistry`.
 - Supported field types: `bool`, integers, `float` and `const char*`. `XG_ENUM(...)` enums are also emitted as C# enums.
 - `XG_DECLARE_TYPE_NAME(Type)` gives a type its own `TypeName` and `StaticTypeID` (FNV-1a), so lookups don't repeat string literals.
-- Consumers: the message codecs, and `ReadReflected` / `DescribeReflected` (`xgBase/public/xgReflectJson.h`), which `xge` uses to load `gameconfig.json` into `EngineConfig`.
+- Consumers:
+  - the message codecs
+  - `ReadReflected` / `DescribeReflected` (`xgBase/public/xgReflectJson.h`). `xge` uses them to read the config file's `EngineConfig` table into `xg::EngineConfig`, and each `ScriptModules` entry into `ScriptModuleDesc`.
+- `ReadReflected(json, schema, object, strings, table)` reads the named sub-table, or the whole document when `table` is null. It matches field names to JSON keys exactly first, then ignoring case.
 
 ---
 
