@@ -140,7 +140,10 @@ Both runtimes sit behind the same `ScriptModule` interface, so a module can move
 ## Rendering (very rough / planned)
 
 ### DirectX 12 (very rough)
-The `xgRendererDX12` module creates a device, command queue, swap chain and render targets, handles resize, and clears and presents every frame from `Engine::Run`. It also draws the editor UI: the editor converts ImGui draw data into the engine-neutral `UIDrawList` and texture calls on `xg::Renderer` (`xgEditorKernel/EditorUIBridge.cpp`), and the renderer draws them with its own small UI pipeline. No ImGui code lives in the renderer and no DX12 code lives in the editor. Floating editor windows (multi-viewport) still need the SDL GPU path.
+The `xgRendererDX12` module creates a device, command queue, swap chain and render targets, handles resize, and clears and presents every frame from `Engine::Run`. It also draws the UI. `xgImUIKit`'s render backend (`backends/UIRenderBackend.cpp`) turns ImGui output into the engine-neutral `UIDrawList` and texture calls on `xg::UIRenderTarget` (`xgBase/public/xgUIDraw.h`). `xg::Renderer` derives from `UIRenderTarget`, and the renderer draws the lists with its own small UI pipeline. No ImGui code lives in the renderer and no DX12 code lives in the UI kit.
+- **Multi-viewport:** floating UI windows get their own swap chain through `CreateUISurface`, and all surfaces are recorded in one command list.
+- **Scene views:** `CreateRenderView` gives offscreen color and depth targets that the UI shows as textures. They currently draw a test cube and grid.
+- **No renderer:** with `RendererModule` empty, xgPlatform's SDL GPU presenter (`UIRenderTargetSDLGPU`) implements the same interface, without 3D views.
 
 Intended to validate:
 - command queue + allocator
