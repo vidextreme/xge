@@ -694,18 +694,41 @@ namespace xg
         return ItemResult(false);
     }
 
+    namespace
+    {
+        void InspectorLabel(const char* text)
+        {
+            const ImRect& content = ImGui::GetCurrentWindow()->ContentRegionRect;
+            const float column = content.Min.x + (std::max)(imui::detail::PropertyLabelWidth, content.GetWidth() * 0.4f);
+            const float startX = ImGui::GetCursorScreenPos().x;
+            ImGui::AlignTextToFramePadding();
+            ImGui::PushStyleColor(ImGuiCol_Text, imui::detail::ToVec4(imui::detail::TextDim));
+            ImGui::TextUnformatted(text, ImGui::FindRenderedTextEnd(text));
+            ImGui::PopStyleColor();
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::SetCursorScreenPos(ImVec2((std::max)(column, startX + 24.0f), ImGui::GetCursorScreenPos().y));
+            ImGui::SetNextItemWidth(-FLT_MIN);
+        }
+
+        template <typename Body>
+        imui::Result PropertyRow(imui::Context* ctx, const char* label, Body body)
+        {
+            const char* text = label ? label : "";
+            LayoutItem(ctx);
+            ImGui::PushID(text);
+            InspectorLabel(text);
+            const bool changed = body();
+            const imui::Result result = ItemResult(changed);
+            ImGui::PopID();
+            return result;
+        }
+    }
+
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldFloat(imui::Context* ctx, const char* label, float* value, float speed)
     {
         if (!ctx || !value)
             return imui::Result::None;
-        const char* text = label ? label : "";
-        LayoutItem(ctx);
-        ImGui::PushID(text);
-        imui::detail::PropertyLabel(text);
-        const bool changed = ImGui::DragFloat("##value", value, speed > 0.0f ? speed : 0.1f, 0.0f, 0.0f, "%.2f");
-        const imui::Result result = ItemResult(changed);
-        ImGui::PopID();
-        return result;
+        return PropertyRow(ctx, label, [&] { return ImGui::DragFloat("##value", value, speed > 0.0f ? speed : 0.1f, 0.0f, 0.0f, "%.2f"); });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUIToggleButton(imui::Context* ctx, const char* label, bool* on)
@@ -717,6 +740,96 @@ namespace xg
         if (pressed)
             *on = !*on;
         return ItemResult(pressed);
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldInt(imui::Context* ctx, const char* label, int* value, float speed)
+    {
+        if (!ctx || !value)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&] { return ImGui::DragInt("##value", value, speed > 0.0f ? speed : 0.2f); });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldVector(imui::Context* ctx, const char* label, float* values, int count, float speed)
+    {
+        if (!ctx || !values || count < 1 || count > 4)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&] { return ImGui::DragScalarN("##value", ImGuiDataType_Float, values, count, speed > 0.0f ? speed : 0.1f, nullptr, nullptr, "%.2f"); });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldText(imui::Context* ctx, const char* label, char* buffer, int capacity)
+    {
+        if (!ctx || !buffer || capacity <= 0)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&] { return ImGui::InputText("##value", buffer, static_cast<size_t>(capacity)); });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUISliderFloat(imui::Context* ctx, const char* label, float* value, float min, float max)
+    {
+        if (!ctx || !value)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&] { return ImGui::SliderFloat("##value", value, min, max, "%.2f"); });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUISliderInt(imui::Context* ctx, const char* label, int* value, int min, int max)
+    {
+        if (!ctx || !value)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&] { return ImGui::SliderInt("##value", value, min, max); });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUICheckbox(imui::Context* ctx, const char* label, bool* value)
+    {
+        if (!ctx || !value)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&] { return ImGui::Checkbox("##value", value); });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUICombo(imui::Context* ctx, const char* label, int* index, const char* const* items, int count)
+    {
+        if (!ctx || !index || (!items && count > 0))
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&]
+        {
+            const char* preview = *index >= 0 && *index < count && items[*index] ? items[*index] : "";
+            bool changed = false;
+            if (ImGui::BeginCombo("##value", preview))
+            {
+                for (int i = 0; i < count; ++i)
+                {
+                    const bool selected = i == *index;
+                    ImGui::PushID(i);
+                    if (ImGui::Selectable(items[i] ? items[i] : "", selected))
+                    {
+                        changed = *index != i;
+                        *index = i;
+                    }
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
+            return changed;
+        });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIFoldout(imui::Context* ctx, const char* label, bool* open)
+    {
+        if (!ctx || !open)
+            return imui::Result::None;
+        LayoutItem(ctx);
+        ImGui::SetNextItemOpen(*open, ImGuiCond_Always);
+        const bool nowOpen = ImGui::CollapsingHeader(label ? label : "", ImGuiTreeNodeFlags_SpanAvailWidth);
+        const bool changed = nowOpen != *open;
+        *open = nowOpen;
+        return ItemResult(changed);
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIPropertyLabel(imui::Context* ctx, const char* label, const char* value)
+    {
+        if (!ctx)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&] { ImGui::TextUnformatted(value ? value : ""); return false; });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUIIconToggle(imui::Context* ctx, const char* id, imui::Icon icon, bool* on, Color32 color, const char* text)

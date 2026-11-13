@@ -1,6 +1,8 @@
 ﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
+using System.Runtime.CompilerServices;
+
 namespace xg
 {
     // Read access to the engine's actor hierarchy (the root SceneGraph), covering actors from every module.
@@ -75,6 +77,39 @@ namespace xg
             return Marshal.PtrToStringUTF8(name) ?? string.Empty;
         }
 
+        // Live component objects of an actor from every CoreCLR module (they share this runtime), including other
+        // modules' components. Their types may come from another load context, so compare them by name, not identity.
+        public static void GetComponents(ActorID id, List<object> result)
+        {
+            result.Clear();
+            nint engine = ScriptRuntime._enginePtr;
+            if (engine == 0 || !RuntimeFeature.IsDynamicCodeSupported)
+                return;
+            nint* handles = stackalloc nint[64];
+            int count = XG_ActorGetComponentHandles(engine, id, 1, handles, 64);
+            if (count > 64)
+            {
+                nint[] large = new nint[count];
+                fixed (nint* p = large)
+                {
+                    count = Math.Min(XG_ActorGetComponentHandles(engine, id, 1, p, count), count);
+                    Resolve(p, count, result);
+                }
+                return;
+            }
+            Resolve(handles, count, result);
+        }
+
+        private static void Resolve(nint* handles, int count, List<object> result)
+        {
+            for (int i = 0; i < count; ++i)
+            {
+                object? target = GCHandle.FromIntPtr(handles[i]).Target;
+                if (target is not null)
+                    result.Add(target);
+            }
+        }
+
         private static ulong[] Buffer(int size)
         {
             if (_buffer is null || _buffer.Length < size)
@@ -96,6 +131,9 @@ namespace xg
 
         [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorGetParent")]
         private static partial ulong XG_ActorGetParent(nint engine, ulong id);
+
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorGetComponentHandles")]
+        private static partial int XG_ActorGetComponentHandles(nint engine, ulong id, int runtimeKind, nint* output, int capacity);
 
         [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorSetParent")]
         private static partial byte XG_ActorSetParent(nint engine, ulong child, ulong parent);

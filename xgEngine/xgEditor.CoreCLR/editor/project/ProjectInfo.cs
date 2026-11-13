@@ -29,12 +29,29 @@ namespace xgEditor.CoreCLR
         public string SlnxPath => Path.Combine(Root, Name + ".slnx");
         public string ScriptAssemblyName => Name + ".CoreCLR";
         public string ScriptAssemblyPath => Path.Combine(LibraryPath, "Build", "Editor", ScriptAssemblyName + ".dll");
+        // Editor-only scripts (Assets/**/Editor/**) build into a second assembly that only the editor loads.
+        public string EditorCsprojPath => Path.Combine(Root, Name + ".Editor.csproj");
+        public string EditorAssemblyName => Name + ".Editor";
+        public string EditorAssemblyPath => Path.Combine(LibraryPath, "Build", "Editor", EditorAssemblyName + ".dll");
         // Record of the inputs (path, time, size) of the last successful script build.
         public string InputsStampPath => Path.Combine(LibraryPath, "Build", "Editor", "inputs.txt");
         // Present while the latest script build failed; the kernel then notes it is loading the last good build.
         public string BuildFailedMarkerPath => Path.Combine(LibraryPath, "Build", "Editor", "build-failed");
 
-        // Files whose changes require rebuilding the script assembly: scripts, manifest, generated project files, SDK.
+        public static bool IsEditorScript(string assetsPath, string file)
+        {
+            string relative = Path.GetRelativePath(assetsPath, Path.GetDirectoryName(file) ?? assetsPath);
+            foreach (string part in relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                if (string.Equals(part, "Editor", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
+        public bool HasEditorScripts =>
+            Directory.Exists(AssetsPath) &&
+            Directory.EnumerateFiles(AssetsPath, "*.cs", SearchOption.AllDirectories).Any(f => IsEditorScript(AssetsPath, f));
+
+        // Files whose changes require rebuilding the script assemblies: scripts, manifest, generated project files, SDK.
         public IEnumerable<string> ScriptInputs()
         {
             if (Directory.Exists(AssetsPath))
@@ -44,12 +61,18 @@ namespace xgEditor.CoreCLR
             }
             yield return ManifestPath;
             yield return CsprojPath;
+            yield return EditorCsprojPath;
             if (Directory.Exists(GeneratedPath))
             {
                 foreach (string generated in Directory.EnumerateFiles(GeneratedPath, "*.cs", SearchOption.AllDirectories))
                     yield return generated;
             }
-            yield return Path.Combine(ProjectFiles.SdkDirectory, "lib", "xgSharedKit.Managed.dll");
+            string lib = Path.Combine(ProjectFiles.SdkDirectory, "lib");
+            if (Directory.Exists(lib))
+            {
+                foreach (string dll in Directory.EnumerateFiles(lib, "*.dll"))
+                    yield return dll;
+            }
         }
 
         // Returns null when root has no manifest or the manifest is unreadable.

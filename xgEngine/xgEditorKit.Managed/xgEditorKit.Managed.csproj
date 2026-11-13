@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Editor API for game projects' editor assemblies (Assets/**/Editor/): PropertyDrawer, SerializedProperty,
+       EditorGUI. Installed into gameroot/sdk/lib. Never referenced by runtime assemblies or the player build. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>xg.editor</RootNamespace>
+
+    <OutputPath>..\..\gameroot\bin\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendConfigurationToOutputPath>false</AppendConfigurationToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Editor.EventActor.cs" />
+    <Compile Include="PropertyDrawer.cs" />
+    <Compile Include="SerializedProperty.cs" />
+    <Compile Include="SerializedObject.cs" />
+    <Compile Include="TypeBridge.cs" />
+    <Compile Include="DrawerRegistry.cs" />
+    <Compile Include="EditorGUI.cs" />
+    <Compile Include="BuiltinDrawers.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
+    <ProjectReference Include="..\xgImUIKit.Managed\xgImUIKit.Managed.csproj" />
+  </ItemGroup>
+
+  <!-- Installs the editor API and the UI kit binding next to xgSharedKit.Managed in gameroot\sdk\lib, where the
+       generated <Name>.Editor.csproj of a game project references them. -->
+  <Target Name="XgeInstallEditorSdk" AfterTargets="Build">
+    <ItemGroup>
+      <XgeEditorSdkLib Include="$(TargetPath)" />
+      <XgeEditorSdkLib Include="$(TargetDir)xgImUIKit.Managed.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XgeEditorSdkLib)" DestinationFolder="$(MSBuildThisFileDirectory)..\..\gameroot\sdk\lib\" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

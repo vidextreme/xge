@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using xg.math;
 
 namespace xg.imui
@@ -67,6 +68,108 @@ namespace xg.imui
             fixed (byte* p = Utf8.Encode(label.AsSpan()))
             fixed (float* v = &value)
                 return (Native.FieldFloat(Context, p, v, speed) & Result.Changed) != 0;
+        }
+
+        // ------------------------------------------------------------
+        // Property rows: a label column plus the value filling the rest (inspector building blocks)
+        // ------------------------------------------------------------
+        public static bool Field(string label, ref int value, float speed = 0.2f)
+        {
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (int* v = &value)
+                return (Native.FieldInt(Context, p, v, speed) & Result.Changed) != 0;
+        }
+
+        public static bool Field(string label, ref Vector2 value, float speed = 0.1f)
+        {
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (Vector2* v = &value)
+                return (Native.FieldVector(Context, p, (float*)v, 2, speed) & Result.Changed) != 0;
+        }
+
+        public static bool Field(string label, ref Vector3 value, float speed = 0.1f)
+        {
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (Vector3* v = &value)
+                return (Native.FieldVector(Context, p, (float*)v, 3, speed) & Result.Changed) != 0;
+        }
+
+        public static bool Field(string label, TextBuffer text)
+        {
+            Result result;
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (byte* buffer = text.Buffer)
+                result = Native.FieldText(Context, p, buffer, text.Buffer.Length);
+            bool changed = (result & Result.Changed) != 0;
+            if (changed)
+                text.MarkEdited();
+            return changed;
+        }
+
+        public static bool Slider(string label, ref float value, float min, float max)
+        {
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (float* v = &value)
+                return (Native.SliderFloat(Context, p, v, min, max) & Result.Changed) != 0;
+        }
+
+        public static bool Slider(string label, ref int value, int min, int max)
+        {
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (int* v = &value)
+                return (Native.SliderInt(Context, p, v, min, max) & Result.Changed) != 0;
+        }
+
+        public static bool Checkbox(string label, ref bool value)
+        {
+            byte on = value ? (byte)1 : (byte)0;
+            Result result;
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+                result = Native.Checkbox(Context, p, &on);
+            value = on != 0;
+            return (result & Result.Changed) != 0;
+        }
+
+        public static bool Combo(string label, ref int index, IReadOnlyList<string> items)
+        {
+            byte[][] encoded = new byte[items.Count][];
+            GCHandle[] pins = new GCHandle[items.Count];
+            nint* pointers = stackalloc nint[Math.Max(items.Count, 1)];
+            try
+            {
+                for (int i = 0; i < items.Count; i++)
+                {
+                    encoded[i] = System.Text.Encoding.UTF8.GetBytes(items[i] + "\0");
+                    pins[i] = GCHandle.Alloc(encoded[i], GCHandleType.Pinned);
+                    pointers[i] = pins[i].AddrOfPinnedObject();
+                }
+                fixed (byte* p = Utf8.Encode(label.AsSpan()))
+                fixed (int* v = &index)
+                    return (Native.Combo(Context, p, v, (byte**)pointers, items.Count) & Result.Changed) != 0;
+            }
+            finally
+            {
+                for (int i = 0; i < pins.Length; i++)
+                    if (pins[i].IsAllocated)
+                        pins[i].Free();
+            }
+        }
+
+        // Full-width collapsible header. Returns whether it is open (after this frame's click).
+        public static bool Foldout(string label, ref bool open)
+        {
+            byte value = open ? (byte)1 : (byte)0;
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+                Native.Foldout(Context, p, &value);
+            open = value != 0;
+            return open;
+        }
+
+        public static Result PropertyLabel(string label, string value)
+        {
+            fixed (byte* p = Utf8.Encode(label.AsSpan(), 0))
+            fixed (byte* v = Utf8.Encode(value.AsSpan(), 1))
+                return Native.PropertyLabel(Context, p, v);
         }
 
         // ------------------------------------------------------------

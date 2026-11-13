@@ -20,7 +20,7 @@
 namespace xg
 {
     using xgID = uint64_t;
-
+    inline constexpr xgID InvalidID = 0;
     class xgIDGenerator
     {
     public:

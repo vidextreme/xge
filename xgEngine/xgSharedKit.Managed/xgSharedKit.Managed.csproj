@@ -33,7 +33,9 @@
     <Compile Include="ActorID.cs" />
     <Compile Include="Actor.cs" />
     <Compile Include="ActorTree.cs" />
+    <Compile Include="xfg\Core.EventX.cs" />
     <Compile Include="GameScript.cs" />
+    <Compile Include="InspectorAttributes.cs" />
     <Compile Include="ActorRegistry.cs" />
     <Compile Include="Component.cs" />
     <Compile Include="ComponentUpdateGroup.cs" />

@@ -73,6 +73,7 @@ namespace xgEditor.CoreCLR
             body.Parent = actor;
             weapon.Parent = actor;
             muzzle.Parent = weapon;
+            weapon.AddComponent<WeaponSample>();
             List<ActorID> children = new();
             ActorTree.GetChildren(actor.ID, children);
             Debug.Log($"[Debug] Hierarchy sample: {actor.Name} children [{string.Join(", ", children.Select(ActorTree.GetName))}], Muzzle parent {muzzle.Parent?.Name}");
@@ -83,6 +84,16 @@ namespace xgEditor.CoreCLR
                 hierarchy.Focus();
                 hierarchy.ExpandAll();
                 hierarchy.SelectByName("Weapon");
+            }
+
+            InspectorPanel inspector = xg.imui.Panel.Open<InspectorPanel>();
+            inspector.Bind(hierarchy);
+            string? inspectTarget = Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT");
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "inspector")
+            {
+                inspector.Focus();
+                hierarchy.ExpandAll();
+                hierarchy.SelectByName(string.IsNullOrEmpty(inspectTarget) ? "Weapon" : inspectTarget);
             }
 
             ConsolePanel console = xg.imui.Panel.Open<ConsolePanel>();

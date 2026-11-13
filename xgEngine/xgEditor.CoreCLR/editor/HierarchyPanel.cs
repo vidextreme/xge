@@ -4,6 +4,7 @@
 using xg;
 using xg.imui;
 using xg.math;
+using xg.editor;
 
 namespace xgEditor.CoreCLR
 {
@@ -44,17 +45,19 @@ namespace xgEditor.CoreCLR
         public override Icon PanelIcon => Icon.Hierarchy;
         public override PanelFlags Flags => PanelFlags.NoPadding | PanelFlags.NoScrollbar;
 
-        public event Action<ActorID?>? SelectionChanged;
+        public ActorID Selected => _selected == 0 ? ActorID.InvalidID : _selected;
 
-        public ActorID? Selected => _selected == 0 ? null : new ActorID(_selected);
-
-        public void Select(ActorID? actor)
+        public void Select(ActorID actor)
         {
-            ulong id = actor?.Value ?? 0;
+            ulong id = actor;
             if (id == _selected)
                 return;
+            ActorID previous = Selected;
             _selected = id;
-            SelectionChanged?.Invoke(Selected);
+            if (previous != ActorID.InvalidID)
+                Editor.BroadcastEvent(EditorEventActor.OnDeselectActor, previous);
+            if (actor != ActorID.InvalidID)
+                Editor.BroadcastEvent(EditorEventActor.OnSelectActor, actor);
         }
 
         // Expands every actor with children on the next frame (used by the XG_UI_TEST_FOCUS=hierarchy hook).
@@ -83,7 +86,7 @@ namespace xgEditor.CoreCLR
             _expandAll = false;
             _selectName = null;
             if (_selected != 0 && !_selectedSeen)
-                Select(null);
+                Select(ActorID.InvalidID);
         }
 
         private void Visit(ActorID id, int depth, bool visible, string search)

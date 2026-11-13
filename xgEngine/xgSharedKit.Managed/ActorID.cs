@@ -3,31 +3,36 @@
 
 using xg;
 
-public readonly struct ActorID
+namespace xg
 {
-    public readonly xgID Value;
-
-    public ActorID(xgID value)
+    public readonly struct ActorID
     {
-        Value = value;
+        public readonly xgID Value;
+
+        public static readonly ActorID InvalidID = 0;
+
+        public ActorID(xgID value)
+        {
+            Value = value;
+        }
+
+
+        // Implicit conversion FROM ulong → xgID
+        public static implicit operator ActorID(ulong value)
+            => new ActorID(value);
+
+        // Implicit conversion FROM xgID → ulong
+        public static implicit operator ulong(ActorID id)
+            => id.Value;
+
+        // Implicit conversion FROM ulong → xgID
+        public static implicit operator ActorID(xgID value)
+            => new ActorID(value);
+
+        // Implicit conversion FROM xgID → ulong
+        public static implicit operator xgID(ActorID id)
+            => id.Value;
+
+        public override string ToString() => Value.ToString();
     }
-
-
-    // Implicit conversion FROM ulong → xgID
-    public static implicit operator ActorID(ulong value)
-        => new ActorID(value);
-
-    // Implicit conversion FROM xgID → ulong
-    public static implicit operator ulong(ActorID id)
-        => id.Value;
-
-    // Implicit conversion FROM ulong → xgID
-    public static implicit operator ActorID(xgID value)
-        => new ActorID(value);
-
-    // Implicit conversion FROM xgID → ulong
-    public static implicit operator xgID(ActorID id)
-        => id.Value;
-
-    public override string ToString() => Value.ToString();
 }

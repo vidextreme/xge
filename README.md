@@ -49,8 +49,8 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
 | Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `tools/verify/`. |
 | Immediate UI kit (`xgImUIKit`) | 🟢 Working | Panels, menus, widgets, virtualized lists, modals, layout groups (`Gui.Horizontal`/`Vertical`/`FlexibleSpace`), FreeType fonts (Noto), per-monitor DPI. Multi-viewport on DX12 and SDL GPU. |
-| Editor UI | 🟡 Partial | Real panels: Console (fed by the engine log) and Hierarchy (actor tree). The editor shell (`EditorUI: true`) and its other panels are still a non-functional prototype. |
-| Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Next: an Assets watcher with hot reload, then asset import and a NativeAOT player build. |
+| Editor UI | 🟡 Partial | Real panels: Console (fed by the engine log), Hierarchy (actor tree) and Inspector (components of the selected actor, drawn by Unity-style property drawers). The editor shell (`EditorUI: true`) and its other panels are still a non-functional prototype. |
+| Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Scripts under `Editor` folders build into a separate editor-only assembly (property drawers). Next: an Assets watcher with hot reload, then asset import and a NativeAOT player build. |
 | Project Hub | 🟢 Working | `xge.exe --config hub.config`: add, create, open and remove projects, with a preview image per project. |
 | Renderer (DX12) | 🟠 Very rough | Device, swap chains for every UI window, and a UI pass behind the generic `xg::UIRenderTarget` API (no ImGui in the renderer, no DX12 in the UI kit). Offscreen render views draw a test cube and grid for the scene views; no real 3D pipeline yet. |
 | Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
@@ -135,7 +135,8 @@ Renderers      → DX12 (very rough: UI surfaces, offscreen views), Vulkan (plan
 Script hosts   → CoreCLR (hostfxr), Native + NativeAOT (xgScriptNative, also the C exports for managed code)
 Kernels        → xgEditorKernel (editor UI wiring), xgGameKernel (scene graphs, actor exports)
 UI kit         → xgImUIKit (immediate-mode UI, the only Dear ImGui user), xgImUIKit.Managed (C#)
-Kits           → xgSharedKit, xgEditorKit (UIHostSession), xgSharedKit.Managed (C# runtime, actors, Debug)
+Kits           → xgSharedKit, xgEditorKit (UIHostSession), xgSharedKit.Managed (C# runtime, actors, Debug),
+                 xgEditorKit.Managed (C# editor API: PropertyDrawer, SerializedProperty)
 Managed apps   → xgEditor.CoreCLR (editor panels, projects), xgHub.CoreCLR (Project Hub)
 Templates      → Game project template and SDK props/targets, installed to gameroot/sdk
 xge            → Launcher: config file + command line → window, engine, module tree
@@ -267,7 +268,8 @@ XGE/
     ├── xgSharedKit/          # Shared native editor/runtime library
     ├── xgSharedKit.Managed/  # Shared C# library (runtime, actors, components, math, Debug, UIHost)
     ├── xgEditorKit/          # Editor static library (UIHostSession)
-    ├── xgEditor.CoreCLR/     # Managed editor module (Console, Hierarchy, projects)
+    ├── xgEditorKit.Managed/  # C# editor API for editor scripts (PropertyDrawer, SerializedProperty, EditorGUI)
+    ├── xgEditor.CoreCLR/     # Managed editor module (Console, Hierarchy, Inspector, projects)
     ├── xgHub.CoreCLR/        # Project Hub module
     ├── GameDemoModule/       # NativeAOT test module
     └── xge/                  # Launcher executable
@@ -293,7 +295,7 @@ Each document describes the current code and lists unbuilt work under "Future de
 
 **Near term**
 - Game projects: an Assets watcher with background build and script hot reload, then asset import, then a NativeAOT player build
-- Inspector panel backed by reflection (Hierarchy and Console are done)
+- Inspector: editing beyond fields (add/remove components, undo, multi-selection), and saving values with the scene
 - Wire up dispatch groups (thread affinity)
 
 **Mid term**

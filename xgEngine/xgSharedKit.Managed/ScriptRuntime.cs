@@ -49,6 +49,15 @@ namespace xg
 
             try
             {
+                XFG.Core.EventX.ClearAllSystems();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+
+            try
+            {
                 Subsystem.UnregisterAll();
             }
             catch (Exception e)

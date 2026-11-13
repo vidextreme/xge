@@ -7,6 +7,7 @@ namespace xg
     {
         public readonly ulong Value;
 
+        public static readonly xgID InvalidID = 0;
         public xgID(ulong value)
         {
             Value = value;

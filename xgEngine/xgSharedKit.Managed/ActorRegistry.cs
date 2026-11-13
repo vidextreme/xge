@@ -69,11 +69,46 @@ namespace xg
             }
         }
 
+        private static readonly List<GCHandle> _componentHandles = new();
+
+        private static void FreeComponentHandles()
+        {
+            foreach (GCHandle handle in _componentHandles)
+                handle.Free();
+            _componentHandles.Clear();
+        }
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static int NativeComponentSource(ulong id, nint* output, int capacity)
+        {
+            try
+            {
+                FreeComponentHandles();
+                if (!_actors.TryGetValue(new ActorID(id), out Actor? actor))
+                    return 0;
+                IReadOnlyList<object> components = actor.Components;
+                int count = Math.Min(components.Count, output == null ? 0 : capacity);
+                for (int i = 0; i < count; i++)
+                {
+                    GCHandle handle = GCHandle.Alloc(components[i]);
+                    _componentHandles.Add(handle);
+                    output[i] = GCHandle.ToIntPtr(handle);
+                }
+                return components.Count;
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                return 0;
+            }
+        }
+
         internal static void Attach(nint enginePtr, uint moduleId)
         {
             if (_attached || enginePtr == 0)
                 return;
             XG_RegisterActorUpdate(enginePtr, moduleId, &NativeUpdate);
+            XG_ActorRegisterComponentSource(enginePtr, moduleId, RuntimeFeature.IsDynamicCodeSupported ? 1 : 2, &NativeComponentSource);
             _moduleId = moduleId;
             _attached = true;
         }
@@ -83,8 +118,10 @@ namespace xg
             if (_attached)
             {
                 XG_UnregisterActorUpdate(enginePtr, _moduleId);
+                XG_ActorUnregisterComponentSource(enginePtr, _moduleId);
                 _attached = false;
             }
+            FreeComponentHandles();
             foreach (Actor actor in _actors.Values.ToArray())
                 actor.Release();
             _actors.Clear();
@@ -97,5 +134,11 @@ namespace xg
 
         [LibraryImport("xgGameKernel", EntryPoint = "XG_UnregisterActorUpdate")]
         private static partial void XG_UnregisterActorUpdate(nint engine, uint moduleId);
+
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorRegisterComponentSource")]
+        private static partial void XG_ActorRegisterComponentSource(nint engine, uint moduleId, int runtimeKind, delegate* unmanaged[Cdecl]<ulong, nint*, int, int> source);
+
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorUnregisterComponentSource")]
+        private static partial void XG_ActorUnregisterComponentSource(nint engine, uint moduleId);
     }
 }

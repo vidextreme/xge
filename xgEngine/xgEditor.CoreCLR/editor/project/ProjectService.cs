@@ -2,9 +2,12 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.Loader;
 using System.Text;
 using System.Text.RegularExpressions;
 using xg;
+using xg.editor;
 using xg.imui;
 using Debug = xg.Debug;
 
@@ -53,6 +56,49 @@ namespace xgEditor.CoreCLR
                     BuildNow(Current, stale);
             }
             LoadScriptModule(Current);
+            LoadEditorAssembly(Current);
+        }
+
+        // Loads the project's editor scripts (<Name>.Editor.dll) into this module's load context, so its drawers derive
+        // from the editor's own PropertyDrawer. Its reference to the runtime scripts resolves to a reflection copy from
+        // the build folder; the live game objects stay in game.project. Loaded from bytes, so rebuilds can replace it.
+        private static void LoadEditorAssembly(ProjectInfo project)
+        {
+            if (!project.HasEditorScripts)
+                return;
+            if (!File.Exists(project.EditorAssemblyPath))
+            {
+                Debug.LogWarning($"[Project] {project.Name}: no editor script build at {project.EditorAssemblyPath}");
+                return;
+            }
+
+            AssemblyLoadContext context = TypeBridge.EditorContext;
+            string folder = Path.GetDirectoryName(project.EditorAssemblyPath)!;
+            context.Resolving += (loader, name) =>
+            {
+                string candidate = Path.Combine(folder, name.Name + ".dll");
+                return File.Exists(candidate) ? LoadFromBytes(loader, candidate) : null;
+            };
+            try
+            {
+                Assembly editor = LoadFromBytes(context, project.EditorAssemblyPath);
+                int drawers = DrawerRegistry.Register(editor);
+                Debug.LogSuccess($"[Project] {project.Name}: loaded editor scripts ({drawers} property drawer(s)) from {project.EditorAssemblyPath}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Project] {project.Name}: failed to load editor scripts: {e.Message}");
+            }
+        }
+
+        private static Assembly LoadFromBytes(AssemblyLoadContext context, string path)
+        {
+            string pdb = Path.ChangeExtension(path, ".pdb");
+            using MemoryStream assembly = new(File.ReadAllBytes(path));
+            if (!File.Exists(pdb))
+                return context.LoadFromStream(assembly);
+            using MemoryStream symbols = new(File.ReadAllBytes(pdb));
+            return context.LoadFromStream(assembly, symbols);
         }
 
         // Loads the project's script assembly as "game.project", a sibling of this editor module.
@@ -94,6 +140,8 @@ namespace xgEditor.CoreCLR
                 return "not built yet";
             if (!File.Exists(project.InputsStampPath))
                 return "no build record";
+            if (project.HasEditorScripts && !File.Exists(project.EditorAssemblyPath))
+                return "editor scripts not built yet";
 
             Dictionary<string, string> previous = new(StringComparer.OrdinalIgnoreCase);
             foreach (string line in File.ReadAllLines(project.InputsStampPath))
@@ -166,7 +214,8 @@ namespace xgEditor.CoreCLR
         private static bool RunBuild(ProjectInfo project)
         {
             List<string> inputs = InputStamp(project);
-            ProcessStartInfo info = new("dotnet", $"build \"{project.CsprojPath}\" -nologo -v:quiet -clp:NoSummary -nodeReuse:false")
+            string target = project.HasEditorScripts ? project.EditorCsprojPath : project.CsprojPath;
+            ProcessStartInfo info = new("dotnet", $"build \"{target}\" -nologo -v:quiet -clp:NoSummary -nodeReuse:false")
             {
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

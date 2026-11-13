@@ -159,3 +159,44 @@ void XG_UnregisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId)
     if (ActorRegistry* actors = engine->GetSubsystem<ActorRegistry>())
         actors->RemoveUpdateCallback(moduleId);
 }
+
+namespace xg
+{
+    namespace
+    {
+        struct ComponentSource
+        {
+            ScriptEngine* Engine;
+            uint32_t ModuleId;
+            int RuntimeKind;
+            XG_ActorComponentSourceFn Fn;
+        };
+
+        std::vector<ComponentSource> _componentSources;
+    }
+}
+
+void XG_ActorRegisterComponentSource(xg::ScriptEngine* engine, uint32_t moduleId, int runtimeKind, XG_ActorComponentSourceFn source)
+{
+    XG_ActorUnregisterComponentSource(engine, moduleId);
+    if (source)
+        xg::_componentSources.push_back({ engine, moduleId, runtimeKind, source });
+}
+
+void XG_ActorUnregisterComponentSource(xg::ScriptEngine* engine, uint32_t moduleId)
+{
+    std::erase_if(xg::_componentSources, [&](const xg::ComponentSource& s) { return s.Engine == engine && s.ModuleId == moduleId; });
+}
+
+int XG_ActorGetComponentHandles(xg::ScriptEngine* engine, xg::ActorID id, int runtimeKind, intptr_t* out, int capacity)
+{
+    int total = 0;
+    for (const xg::ComponentSource& source : xg::_componentSources)
+    {
+        if (source.Engine != engine || source.RuntimeKind != runtimeKind)
+            continue;
+        int room = out ? (std::max)(capacity - total, 0) : 0;
+        total += source.Fn(id, room > 0 ? out + total : nullptr, room);
+    }
+    return total;
+}

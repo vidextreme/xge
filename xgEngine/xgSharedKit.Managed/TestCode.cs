@@ -51,6 +51,7 @@ namespace xg
 
         public int UpdateCount;
         public float ElapsedTime;
+        [Range(0, 1)]
         public float TargetTime = 5;
 
         public static void OnUpdate(PlayerComponent component, float deltaTime)

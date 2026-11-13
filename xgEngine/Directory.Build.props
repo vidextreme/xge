@@ -2,5 +2,6 @@
   <!-- Keep this file purely for defining global engine environment macros -->
   <PropertyGroup>
     <XgEngineRoot>$(MSBuildThisFileDirectory)</XgEngineRoot>
+    <DefineConstants>$(DefineConstants);XGE</DefineConstants>
   </PropertyGroup>
 </Project>
