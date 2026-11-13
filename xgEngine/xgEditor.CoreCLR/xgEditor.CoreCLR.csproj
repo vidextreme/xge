@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
     <ProjectReference Include="..\xgImUIKit.Managed\xgImUIKit.Managed.csproj" />
+    <ProjectReference Include="..\xgEditorKit.Managed\xgEditorKit.Managed.csproj" />
   </ItemGroup>
 
 </Project>

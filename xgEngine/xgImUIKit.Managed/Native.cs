@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 9;
+        public const uint ApiVersion = 10;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -83,6 +83,33 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldFloat")]
         public static partial Result FieldFloat(nint ctx, byte* label, float* value, float speed);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldInt")]
+        public static partial Result FieldInt(nint ctx, byte* label, int* value, float speed);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldVector")]
+        public static partial Result FieldVector(nint ctx, byte* label, float* values, int count, float speed);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldText")]
+        public static partial Result FieldText(nint ctx, byte* label, byte* buffer, int capacity);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISliderFloat")]
+        public static partial Result SliderFloat(nint ctx, byte* label, float* value, float min, float max);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISliderInt")]
+        public static partial Result SliderInt(nint ctx, byte* label, int* value, int min, int max);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUICheckbox")]
+        public static partial Result Checkbox(nint ctx, byte* label, byte* value);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUICombo")]
+        public static partial Result Combo(nint ctx, byte* label, int* index, byte** items, int count);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFoldout")]
+        public static partial Result Foldout(nint ctx, byte* label, byte* open);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIPropertyLabel")]
+        public static partial Result PropertyLabel(nint ctx, byte* label, byte* value);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIToggleButton")]
         public static partial Result ToggleButton(nint ctx, byte* label, byte* on);

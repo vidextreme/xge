@@ -66,6 +66,7 @@ internal static class Program
         Run(nameof(TestManagedMirrors), TestManagedMirrors);
         Run(nameof(TestExistingInterop), TestExistingInterop);
         Run(nameof(TestGeometryInterop), TestGeometryInterop);
+        Run(nameof(TestEventX), TestEventX);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -396,5 +397,114 @@ internal static class Program
         Span<byte> visible = stackalloc byte[3];
         Check(Geometry.CullSpheres(f, spheres, visible) == 2, "batch cull count");
         Check(visible[0] == 1 && visible[1] == 0 && visible[2] == 1, "batch cull flags");
+    }
+    // ------------------------------------------------------------
+    // XFG.Core.EventX
+    // ------------------------------------------------------------
+    private enum EvKey { A, B, Alloc, Threads, Throw }
+
+    private static long _sink;
+
+    private static void TestEventX()
+    {
+        int calls = 0;
+        Action<int> add = v => calls += v;
+        XFG.Core.EventX<EvKey, int>.Subscribe(EvKey.A, add);
+        XFG.Core.EventX<EvKey, int>.Subscribe(EvKey.A, add);
+        Check(XFG.Core.EventX<EvKey, int>.Count(EvKey.A) == 2, "duplicate subscription counted twice");
+        XFG.Core.EventX<EvKey, int>.Broadcast(EvKey.A, 3);
+        Check(calls == 6, "broadcast reaches both registrations");
+        Check(XFG.Core.EventX<EvKey, int>.Unsubscribe(EvKey.A, add), "unsubscribe returns true");
+        XFG.Core.EventX<EvKey, int>.Broadcast(EvKey.A, 1);
+        Check(calls == 7, "one registration left");
+        Check(XFG.Core.EventX<EvKey, int>.Unsubscribe(EvKey.A, add) && !XFG.Core.EventX<EvKey, int>.Unsubscribe(EvKey.A, add), "second unsubscribe true, third false");
+        Check(!XFG.Core.EventX<EvKey, int>.HasEvent(EvKey.A), "no handlers left");
+
+        bool threw = false;
+        try
+        {
+            XFG.Core.EventX<EvKey, int>.Subscribe(EvKey.A, null!);
+        }
+        catch (ArgumentNullException)
+        {
+            threw = true;
+        }
+        Check(threw && XFG.Core.EventX<EvKey, int>.Count(EvKey.A) == 0, "null handler rejected without creating an entry");
+
+        int order = 0, second = 0;
+        Action<int>? selfRemoving = null;
+        selfRemoving = _ =>
+        {
+            order++;
+            XFG.Core.EventX<EvKey, int>.Unsubscribe(EvKey.B, selfRemoving!);
+        };
+        XFG.Core.EventX<EvKey, int>.Subscribe(EvKey.B, selfRemoving);
+        XFG.Core.EventX<EvKey, int>.Subscribe(EvKey.B, _ => second++);
+        XFG.Core.EventX<EvKey, int>.Broadcast(EvKey.B, 0);
+        XFG.Core.EventX<EvKey, int>.Broadcast(EvKey.B, 0);
+        Check(order == 1 && second == 2, "unsubscribing during a broadcast applies from the next one");
+
+        var sub = XFG.Core.EventX<EvKey, int, string>.Subscribe(EvKey.B, (_, _) => { });
+        Check(XFG.Core.EventX<EvKey, int, string>.Count(EvKey.B) == 1, "subscription handle registered");
+        sub.Dispose();
+        Check(XFG.Core.EventX<EvKey, int, string>.Count(EvKey.B) == 0, "Subscription.Dispose unsubscribes");
+        default(XFG.Core.Subscription<EvKey, Action>).Dispose();
+
+        int after = 0;
+        XFG.Core.EventX<EvKey>.Subscribe(EvKey.Throw, () => throw new InvalidOperationException("expected test exception from EventX handler"));
+        XFG.Core.EventX<EvKey>.Subscribe(EvKey.Throw, () => after++);
+        XFG.Core.EventX<EvKey>.Broadcast(EvKey.Throw);
+        Check(after == 1, "a throwing handler does not stop the others");
+        XFG.Core.EventX.ThrowOnHandlerException = true;
+        bool propagated = false;
+        try
+        {
+            XFG.Core.EventX<EvKey>.Broadcast(EvKey.Throw);
+        }
+        catch (InvalidOperationException)
+        {
+            propagated = true;
+        }
+        XFG.Core.EventX.ThrowOnHandlerException = false;
+        Check(propagated, "ThrowOnHandlerException propagates");
+
+        XFG.Core.EventX<EvKey>.Subscribe(EvKey.Alloc, static () => _sink++);
+        XFG.Core.EventX<EvKey, int>.Subscribe(EvKey.Alloc, static a => _sink += a);
+        XFG.Core.EventX<EvKey, int, float>.Subscribe(EvKey.Alloc, static (a, b) => _sink += a + (long)b);
+        XFG.Core.EventX<EvKey, int, float, Vector3>.Subscribe(EvKey.Alloc, static (a, b, c) => _sink += a + (long)c.x);
+        XFG.Core.EventX<EvKey, int, float, Vector3, long>.Subscribe(EvKey.Alloc, static (a, b, c, d) => _sink += d);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 10_000; i++)
+            {
+                XFG.Core.EventX<EvKey>.Broadcast(EvKey.Alloc);
+                XFG.Core.EventX<EvKey, int>.Broadcast(EvKey.Alloc, i);
+                XFG.Core.EventX<EvKey, int, float>.Broadcast(EvKey.Alloc, i, 1.0f);
+                XFG.Core.EventX<EvKey, int, float, Vector3>.Broadcast(EvKey.Alloc, i, 1.0f, V(1f, 2f, 3f));
+                XFG.Core.EventX<EvKey, int, float, Vector3, long>.Broadcast(EvKey.Alloc, i, 1.0f, V(1f, 2f, 3f), 4L);
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            if (pass == 1)
+                Check(allocated == 0, $"broadcast allocates nothing (allocated {allocated} bytes over 50,000 broadcasts)");
+        }
+
+        const int threads = 8, perThread = 1000;
+        Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, t =>
+        {
+            Action<int>[] handlers = new Action<int>[perThread];
+            for (int i = 0; i < perThread; i++)
+            {
+                int captured = t * perThread + i;
+                handlers[i] = v => _ = v + captured;
+                XFG.Core.EventX<EvKey, int>.Subscribe(EvKey.Threads, handlers[i]);
+            }
+            for (int i = 0; i < perThread; i += 2)
+                XFG.Core.EventX<EvKey, int>.Unsubscribe(EvKey.Threads, handlers[i]);
+        });
+        Check(XFG.Core.EventX<EvKey, int>.Count(EvKey.Threads) == threads * perThread / 2, $"parallel subscribe/unsubscribe keeps every registration ({XFG.Core.EventX<EvKey, int>.Count(EvKey.Threads)})");
+
+        XFG.Core.EventX.ClearAllSystems();
+        Check(XFG.Core.EventX<EvKey, int>.Count(EvKey.Threads) == 0 && XFG.Core.EventX<EvKey>.Count(EvKey.Alloc) == 0, "ClearAllSystems clears every bus");
     }
 }

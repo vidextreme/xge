@@ -5,6 +5,7 @@
 // so STL types are allowed here. Mirrors the managed xg.imui API (Gui, Painter, Panel, Menu, Texture).
 #pragma once
 #include "xgImUI.h"
+#include "xgVec3.h"
 
 #include <functional>
 #include <memory>
@@ -125,6 +126,16 @@ namespace xg::imui
         bool Button(const char* label) const { return Clicked(XG_ImUIButton(_ctx, label)); }
         Result ButtonResult(const char* label) const { return XG_ImUIButton(_ctx, label); }
         bool Field(const char* label, float& value, float speed = 0.1f) const { return Changed(XG_ImUIFieldFloat(_ctx, label, &value, speed)); }
+        bool Field(const char* label, int& value, float speed = 0.2f) const { return Changed(XG_ImUIFieldInt(_ctx, label, &value, speed)); }
+        bool Field(const char* label, Vec2& value, float speed = 0.1f) const { return Changed(XG_ImUIFieldVector(_ctx, label, &value.x, 2, speed)); }
+        bool Field(const char* label, Vec3& value, float speed = 0.1f) const { return Changed(XG_ImUIFieldVector(_ctx, label, &value.x, 3, speed)); }
+        bool Field(const char* label, char* buffer, int capacity) const { return Changed(XG_ImUIFieldText(_ctx, label, buffer, capacity)); }
+        bool Slider(const char* label, float& value, float min, float max) const { return Changed(XG_ImUISliderFloat(_ctx, label, &value, min, max)); }
+        bool Slider(const char* label, int& value, int min, int max) const { return Changed(XG_ImUISliderInt(_ctx, label, &value, min, max)); }
+        bool Checkbox(const char* label, bool& value) const { return Changed(XG_ImUICheckbox(_ctx, label, &value)); }
+        bool Combo(const char* label, int& index, const char* const* items, int count) const { return Changed(XG_ImUICombo(_ctx, label, &index, items, count)); }
+        Result PropertyLabel(const char* label, const char* value) const { return XG_ImUIPropertyLabel(_ctx, label, value); }
+        bool Foldout(const char* label, bool& open) const { XG_ImUIFoldout(_ctx, label, &open); return open; }
 
         [[nodiscard]] IdScope Id(const char* id) const { XG_ImUIPushID(_ctx, id); return IdScope(_ctx); }
         [[nodiscard]] IdScope Id(const void* id) const { XG_ImUIPushIDPtr(_ctx, id); return IdScope(_ctx); }

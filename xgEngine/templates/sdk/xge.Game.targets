@@ -2,11 +2,19 @@
   XGE game project SDK (targets). Imported by a generated <Name>.csproj after Microsoft.NET.Sdk.
   Every *.cs under Assets\ is compiled (globbed, so new scripts need no project regeneration), plus the editor-generated
   Library\Generated\*.g.cs (the ScriptEntry the engine calls). The engine API comes from the installed SDK, not source.
+  Scripts inside a folder named Editor (Assets\**\Editor\**) are editor-only: they build into <Name>.Editor.dll
+  (xge.Editor.props/.targets) and never into this runtime assembly, which cannot reference the editor API.
+  XgeEditorBuild (default true) defines XGE_EDITOR; a player build sets it to false.
 -->
 <Project>
 
+  <PropertyGroup>
+    <XgeEditorBuild Condition="'$(XgeEditorBuild)' == ''">true</XgeEditorBuild>
+    <DefineConstants Condition="'$(XgeEditorBuild)' == 'true'">$(DefineConstants);XGE_EDITOR</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
-    <Compile Include="Assets\**\*.cs" />
+    <Compile Include="Assets\**\*.cs" Exclude="Assets\**\Editor\**" />
     <Compile Include="Library\Generated\**\*.cs" />
     <None Include="Assets\**\*" Exclude="Assets\**\*.cs" />
   </ItemGroup>

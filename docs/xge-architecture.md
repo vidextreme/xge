@@ -98,6 +98,19 @@ The managed side of both C# hosts is `xgSharedKit.Managed` (`ScriptRuntime`, act
 
 - hostfxr returns 1 ("already initialized") for every CoreCLR module after the first, so only negative codes count as errors.
 - The host resolves `<assembly>.runtimeconfig.json` next to each DLL.
+- Every CoreCLR module loads into its own AssemblyLoadContext. Modules share one runtime and one heap, but each has its own copy of `xgSharedKit.Managed` (types and statics), so a type from one module is not the same `Type` in another. Code that crosses modules compares types by assembly and full name (`xg.editor.TypeBridge`).
+
+### Game project assemblies
+
+A game project builds two assemblies from `Assets/`:
+
+| Assembly | Sources | Can reference | Loaded by |
+|---|---|---|---|
+| `<Name>.CoreCLR.dll` | every `*.cs` outside `Editor` folders | `xgSharedKit.Managed` | the engine, as script module `game.project` |
+| `<Name>.Editor.dll` | `Assets/**/Editor/**/*.cs` | the runtime assembly, `xgSharedKit.Managed`, `xgImUIKit.Managed`, `xgEditorKit.Managed` | the editor, into its own load context (not a module) |
+
+- Runtime code can't reference the editor API, so editor code never reaches a game build. Both assemblies define `XGE_EDITOR` in editor builds; a player build turns it off and skips the editor assembly.
+- The editor assembly's drawers (`[CustomPropertyDrawer]` classes deriving from `xg.editor.PropertyDrawer`) draw fields in the Inspector. The Inspector gets live component objects from every CoreCLR module through `XG_ActorGetComponentHandles`. Each module registers a component source that hands out `GCHandle` values, and field attributes come from the editor's copy of each type, so drawers can cast them.
 
 ---
 

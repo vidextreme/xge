@@ -191,9 +191,7 @@ namespace xg::imui::detail
     void DrawGameTab();
     void DrawSceneView();
     void DrawGameView();
-    void DrawInspectorActor();
     void DrawInspectorLighting();
-    void DrawInspector();
     void DrawLighting();
     void DrawProjectTab();
     void DrawProject();

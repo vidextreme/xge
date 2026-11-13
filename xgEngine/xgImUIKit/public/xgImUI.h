@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 9;
+    inline constexpr uint32_t ApiVersion = 10;
 
     struct Context;
     struct PanelEntry;
@@ -267,6 +267,21 @@ namespace xg
     XG_MODULE_EXPORT imui::Result XG_ImUIButton(imui::Context* ctx, const char* label);
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldFloat(imui::Context* ctx, const char* label, float* value, float speed);
     XG_MODULE_EXPORT imui::Result XG_ImUIToggleButton(imui::Context* ctx, const char* label, bool* on);
+    // Property rows (FieldFloat and the ApiVersion 10 rows below): a dim label column and the value filling the rest.
+    // The value column starts at the same x in every row of a panel (40% of its width, at least 92 px), also inside
+    // indented layout groups. They are the building blocks of inspector drawers.
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldInt(imui::Context* ctx, const char* label, int* value, float speed);
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldVector(imui::Context* ctx, const char* label, float* values, int count, float speed);
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldText(imui::Context* ctx, const char* label, char* buffer, int capacity);
+    XG_MODULE_EXPORT imui::Result XG_ImUISliderFloat(imui::Context* ctx, const char* label, float* value, float min, float max);
+    XG_MODULE_EXPORT imui::Result XG_ImUISliderInt(imui::Context* ctx, const char* label, int* value, int min, int max);
+    XG_MODULE_EXPORT imui::Result XG_ImUICheckbox(imui::Context* ctx, const char* label, bool* value);
+    // items holds count UTF-8 strings; index is the selected item (-1 shows an empty box).
+    XG_MODULE_EXPORT imui::Result XG_ImUICombo(imui::Context* ctx, const char* label, int* index, const char* const* items, int count);
+    // Full-width collapsible header (inspector sections); *open is toggled by a click. Changed when it toggles.
+    XG_MODULE_EXPORT imui::Result XG_ImUIFoldout(imui::Context* ctx, const char* label, bool* open);
+    // A label in the property label column with value text (read only) next to it.
+    XG_MODULE_EXPORT imui::Result XG_ImUIPropertyLabel(imui::Context* ctx, const char* label, const char* value);
     // Icon toggle with optional text after it (e.g. a count). Dimmed while off.
     XG_MODULE_EXPORT imui::Result XG_ImUIIconToggle(imui::Context* ctx, const char* id, imui::Icon icon, bool* on, Color32 color, const char* text);
     // Single-line search box editing a UTF-8 buffer in place. Returns Changed when the text changed.

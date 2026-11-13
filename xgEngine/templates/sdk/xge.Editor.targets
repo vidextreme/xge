@@ -1,0 +1,40 @@
+<!--
+  XGE game project SDK, editor assembly (targets). Imported by a generated <Name>.Editor.csproj after Microsoft.NET.Sdk.
+  Compiles Assets\**\Editor\**\*.cs against the project's runtime assembly and the editor API (xgEditorKit.Managed,
+  xgImUIKit.Managed). Engine assemblies are not copied: the editor already has them loaded.
+-->
+<Project>
+
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);XGE_EDITOR</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Assets\**\Editor\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(XgeProjectName).csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="xgSharedKit.Managed">
+      <HintPath>$(XgeSdkDir)lib\xgSharedKit.Managed.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="xgImUIKit.Managed">
+      <HintPath>$(XgeSdkDir)lib\xgImUIKit.Managed.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="xgEditorKit.Managed">
+      <HintPath>$(XgeSdkDir)lib\xgEditorKit.Managed.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="XgeCheckEditorSdk" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(XgeSdkDir)lib\xgEditorKit.Managed.dll')"
+           Text="XGE editor SDK not found at '$(XgeSdkDir)lib'. Build XGE.slnx (it installs gameroot\sdk)." />
+  </Target>
+
+</Project>

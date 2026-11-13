@@ -1,0 +1,31 @@
+<!--
+  XGE game project SDK, editor assembly (props). Imported by a generated <Name>.Editor.csproj before Microsoft.NET.Sdk.
+  The editor assembly holds the project's editor-only scripts (Assets\**\Editor\**): property drawers and other editor
+  extensions. The editor loads it next to its own code; it is not a script module and never ships in a player build.
+-->
+<Project>
+
+  <PropertyGroup>
+    <XgeSdkVersion>1</XgeSdkVersion>
+    <BaseIntermediateOutputPath>$(MSBuildProjectDirectory)\Library\obj\Editor\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>$(XgeProjectName).Editor</AssemblyName>
+    <RootNamespace>$(XgeProjectName)</RootNamespace>
+
+    <OutputPath>$(MSBuildProjectDirectory)\Library\Build\Editor\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendConfigurationToOutputPath>false</AppendConfigurationToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>
