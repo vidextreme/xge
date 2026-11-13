@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Built-in engine shaders: src/*.hlsl -> compiled/dxil.<Name>.h + spv.<Name>.h through CompileShaders.ps1.
+       Build runs it only when a source (or the script) is newer than its headers; Clean deletes the stamp, so Rebuild always recompiles. Set XgDxc or XG_DXC to a dxc with SPIR-V support. -->
+  <PropertyGroup>
+    <XgDxc Condition="'$(XgDxc)' == ''">$(XG_DXC)</XgDxc>
+    <XgShaderStamp>$(MSBuildThisFileDirectory)obj\shaders.stamp</XgShaderStamp>
+  </PropertyGroup>
+  <ItemGroup>
+    <XgShaderSource Include="$(MSBuildThisFileDirectory)src\*.hlsl" />
+  </ItemGroup>
+  <Target Name="XgCompileShaders" BeforeTargets="PrepareForBuild"
+          Inputs="@(XgShaderSource);$(MSBuildThisFileDirectory)CompileShaders.ps1"
+          Outputs="$(XgShaderStamp);@(XgShaderSource->'$(MSBuildThisFileDirectory)compiled\dxil.%(Filename).h');@(XgShaderSource->'$(MSBuildThisFileDirectory)compiled\spv.%(Filename).h')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)CompileShaders.ps1&quot; -Dxc &quot;$(XgDxc)&quot;" />
+    <Touch Files="$(XgShaderStamp)" AlwaysCreate="true" />
+  </Target>
+  <Target Name="XgCleanShaders" AfterTargets="Clean">
+    <Delete Files="$(XgShaderStamp)" />
+  </Target>
+</Project>

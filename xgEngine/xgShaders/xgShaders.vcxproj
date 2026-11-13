@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <ProjectGuid>{6d3a8f21-4c2e-4b7a-9e15-2f8c0b9d4a63}</ProjectGuid>
+    <RootNamespace>xgShaders</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <IntDir>obj\$(Configuration)\</IntDir>
+    <OutDir>obj\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="src\ui.textured.hlsl" />
+    <None Include="src\scene.unlit.hlsl" />
+    <None Include="CompileShaders.ps1" />
+    <None Include="xgShaders.targets" />
+    <ClInclude Include="xgShaderTypes.h" />
+    <ClInclude Include="compiled\dxil.ui.textured.h" />
+    <ClInclude Include="compiled\spv.ui.textured.h" />
+    <ClInclude Include="compiled\dxil.scene.unlit.h" />
+    <ClInclude Include="compiled\spv.scene.unlit.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="xgShaders.targets" />
+</Project>

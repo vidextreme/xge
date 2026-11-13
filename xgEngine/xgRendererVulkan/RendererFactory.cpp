@@ -1,0 +1,26 @@
+// Copyright (c) 2026 John David Uy
+// Licensed under the MIT License. See LICENSE for details.
+#include "pch.h"
+#include "RendererVulkan.h"
+#include "xgLog.h"
+
+XG_MODULE_EXPORT void XG_RendererSetLogger(xg::Logger* logger)
+{
+    xg::SetLogger(logger);
+}
+
+XG_MODULE_EXPORT xg::Renderer* XG_CreateRenderer(xg::Window& window)
+{
+    auto* renderer = new xg::RendererVulkan();
+    if (!renderer->Initialize(window))
+    {
+        delete renderer;
+        return nullptr;
+    }
+    return renderer;
+}
+
+XG_MODULE_EXPORT void XG_DestroyRenderer(xg::Renderer* renderer)
+{
+    delete renderer;
+}
