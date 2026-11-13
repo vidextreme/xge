@@ -4,53 +4,13 @@
 #include "RendererDX12.h"
 #include "xgWindow.h"
 #include "xgLog.h"
-#include <d3dcompiler.h>
+#include "dxil.ui.textured.h"
 #include <cstring>
-
-#pragma comment(lib, "d3dcompiler")
 
 namespace xg {
 
     namespace
     {
-        const char* _uiShaderSource = R"(
-cbuffer Constants : register(b0)
-{
-    float4x4 ProjectionMatrix;
-};
-
-struct VSInput
-{
-    float2 pos : POSITION;
-    float2 uv  : TEXCOORD0;
-    float4 col : COLOR0;
-};
-
-struct PSInput
-{
-    float4 pos : SV_POSITION;
-    float4 col : COLOR0;
-    float2 uv  : TEXCOORD0;
-};
-
-PSInput VSMain(VSInput input)
-{
-    PSInput output;
-    output.pos = mul(ProjectionMatrix, float4(input.pos.xy, 0.0f, 1.0f));
-    output.col = input.col;
-    output.uv = input.uv;
-    return output;
-}
-
-SamplerState Sampler0 : register(s0);
-Texture2D Texture0 : register(t0);
-
-float4 PSMain(PSInput input) : SV_Target
-{
-    return input.col * Texture0.Sample(Sampler0, input.uv);
-}
-)";
-
         D3D12_RESOURCE_BARRIER Transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
         {
             D3D12_RESOURCE_BARRIER barrier = {};
@@ -294,22 +254,6 @@ float4 PSMain(PSInput input) : SV_Target
         if (!Check(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_uiRootSignature)), "CreateRootSignature"))
             return false;
 
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        const size_t sourceLength = std::strlen(_uiShaderSource);
-        if (FAILED(D3DCompile(_uiShaderSource, sourceLength, "xgUI", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, &error)))
-        {
-            xg::Log(xg::MessageType::Error, "RendererDX12: UI vertex shader: %s",
-                error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
-            return false;
-        }
-        if (FAILED(D3DCompile(_uiShaderSource, sourceLength, "xgUI", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, &error)))
-        {
-            xg::Log(xg::MessageType::Error, "RendererDX12: UI pixel shader: %s",
-                error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
-            return false;
-        }
-
         static_assert(sizeof(UIVertex) == 20, "UIVertex layout must match the UI input layout");
         D3D12_INPUT_ELEMENT_DESC layout[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(UIVertex, Position),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -319,8 +263,8 @@ float4 PSMain(PSInput input) : SV_Target
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pso = {};
         pso.pRootSignature = _uiRootSignature.Get();
-        pso.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
-        pso.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
+        pso.VS = { shaders::dxil::_uiTexturedVS, sizeof(shaders::dxil::_uiTexturedVS) };
+        pso.PS = { shaders::dxil::_uiTexturedPS, sizeof(shaders::dxil::_uiTexturedPS) };
         pso.InputLayout = { layout, 3 };
         pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         pso.NumRenderTargets = 1;

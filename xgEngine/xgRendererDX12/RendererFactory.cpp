@@ -2,6 +2,12 @@
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
 #include "RendererDX12.h"
+#include "xgLog.h"
+
+XG_MODULE_EXPORT void XG_RendererSetLogger(xg::Logger* logger)
+{
+    xg::SetLogger(logger);
+}
 
 XG_MODULE_EXPORT xg::Renderer* XG_CreateRenderer(xg::Window& window)
 {

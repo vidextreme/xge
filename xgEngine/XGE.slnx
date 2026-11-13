@@ -16,13 +16,20 @@
       <BuildDependency Project="xgEditorKernel/xgEditorKernel.vcxproj" />
       <BuildDependency Project="xgPlatform/xgPlatform.vcxproj" />
       <BuildDependency Project="xgRendererDX12/xgRendererDX12.vcxproj" />
+      <BuildDependency Project="xgRendererVulkan/xgRendererVulkan.vcxproj" />
       <BuildDependency Project="xgScriptCoreCLR/xgScriptCoreCLR.vcxproj" />
       <BuildDependency Project="xgScriptNative/xgScriptNative.vcxproj" />
     </Project>
     <Project Path="xgPlatform/xgPlatform.vcxproj" Id="e288c667-2735-4b5c-b72a-b21b2ae92e84" />
     <Project Path="xgRendererDX12/xgRendererDX12.vcxproj" Id="39cadf1a-e87e-42ac-abf5-6807a839d54e">
-      <BuildDependency Project="xgCore/xgCore.vcxproj" />
+      <BuildDependency Project="xgBase/xgBase.vcxproj" />
+      <BuildDependency Project="xgShaders/xgShaders.vcxproj" />
     </Project>
+    <Project Path="xgRendererVulkan/xgRendererVulkan.vcxproj" Id="b4e7c2d9-3f61-4a8e-9c05-7d2a1e6f8b34">
+      <BuildDependency Project="xgBase/xgBase.vcxproj" />
+      <BuildDependency Project="xgShaders/xgShaders.vcxproj" />
+    </Project>
+    <Project Path="xgShaders/xgShaders.vcxproj" Id="6d3a8f21-4c2e-4b7a-9e15-2f8c0b9d4a63" />
     <Project Path="xgUtility/xgUtility.vcxproj" Id="f7226bfd-67ad-4c0f-adbb-a2f04c2a100a" />
   </Folder>
   <Folder Name="/engine/kits/">

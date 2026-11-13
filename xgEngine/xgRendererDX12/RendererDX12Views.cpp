@@ -6,7 +6,8 @@
 #include "pch.h"
 #include "RendererDX12.h"
 #include "xgLog.h"
-#include <d3dcompiler.h>
+#include "dxil.scene.unlit.h"
+#include "xgShaderTypes.h"
 #include "xgMat4x4.h"
 #include <cmath>
 #include <cstring>
@@ -15,43 +16,7 @@ namespace xg {
 
     namespace
     {
-        const char* _sceneShaderSource = R"(
-cbuffer Constants : register(b0)
-{
-    row_major float4x4 ViewProjection;
-};
-
-struct VSInput
-{
-    float3 pos : POSITION;
-    float4 col : COLOR0;
-};
-
-struct PSInput
-{
-    float4 pos : SV_POSITION;
-    float4 col : COLOR0;
-};
-
-PSInput VSMain(VSInput input)
-{
-    PSInput output;
-    output.pos = mul(float4(input.pos, 1.0f), ViewProjection);
-    output.col = input.col;
-    return output;
-}
-
-float4 PSMain(PSInput input) : SV_Target
-{
-    return input.col;
-}
-)";
-
-        struct SceneVertex
-        {
-            float X, Y, Z;
-            Color32 Color;
-        };
+        using shaders::SceneVertex;
 
         constexpr Color32 Rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
         {
@@ -158,17 +123,6 @@ float4 PSMain(PSInput input) : SV_Target
         if (!Check(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_sceneRootSignature)), "CreateRootSignature (scene)"))
             return false;
 
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        const size_t sourceLength = std::strlen(_sceneShaderSource);
-        if (FAILED(D3DCompile(_sceneShaderSource, sourceLength, "xgScene", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, &error))
-            || FAILED(D3DCompile(_sceneShaderSource, sourceLength, "xgScene", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, &error)))
-        {
-            xg::Log(xg::MessageType::Error, "RendererDX12: scene shader: %s",
-                error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
-            return false;
-        }
-
         D3D12_INPUT_ELEMENT_DESC layout[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SceneVertex, X),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM,  0, offsetof(SceneVertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -176,8 +130,8 @@ float4 PSMain(PSInput input) : SV_Target
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pso = {};
         pso.pRootSignature = _sceneRootSignature.Get();
-        pso.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
-        pso.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
+        pso.VS = { shaders::dxil::_sceneUnlitVS, sizeof(shaders::dxil::_sceneUnlitVS) };
+        pso.PS = { shaders::dxil::_sceneUnlitPS, sizeof(shaders::dxil::_sceneUnlitPS) };
         pso.InputLayout = { layout, 2 };
         pso.NumRenderTargets = 1;
         pso.RTVFormats[0] = BackBufferFormat;

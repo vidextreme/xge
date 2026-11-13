@@ -10,6 +10,7 @@
 namespace xg {
 
     class Window;
+    class Logger;
 
     // Camera for an offscreen render view. Y is up; FovY is in radians.
     // Crosses into managed code (xgEditorKernel scene view exports): 80 bytes, Vec3 and Color are 16-byte aligned.
@@ -39,6 +40,8 @@ namespace xg {
 
     XG_DECLARE_MODULE_FUNCTION(XG_CreateRenderer, Renderer*, Window&);
     XG_DECLARE_MODULE_FUNCTION(XG_DestroyRenderer, void, Renderer*);
+    // Optional: renderer DLLs link their own xgBase, so the engine hands them its logger before XG_CreateRenderer.
+    XG_DECLARE_MODULE_FUNCTION(XG_RendererSetLogger, void, Logger*);
 
 	XG_DECLARE_UNIQUE(Renderer)
 

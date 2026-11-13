@@ -37,6 +37,10 @@ namespace xg
     {
         EnsureRendererLoaded();
 
+        XG_MODULE_PROCEDURE_NAMED(xg, Renderer, XG_RendererSetLogger, setLogger);
+        if (XG_MODULE_CALL_NAMED(setLogger))
+            XG_MODULE_CALL_NAMED(setLogger)(xg::GetLogger());
+
         XG_MODULE_PROCEDURE(xg, Renderer, XG_CreateRenderer);
         if (!XG_MODULE_CALL(XG_CreateRenderer))
         {
