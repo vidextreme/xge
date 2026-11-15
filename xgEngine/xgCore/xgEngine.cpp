@@ -25,7 +25,7 @@
 #include "TreeSceneGraph.h"
 #include "CompositeSceneGraph.h"
 
-#include "CodecJson.h"
+#include "CodecJSON.h"
 #include "CodecBinary.h"
 
 namespace xg
@@ -58,7 +58,7 @@ namespace xg
         _hostStorage = new HostStorage();
 
         _scriptTree = new ScriptTree();
-        //_codec = new JsonMessageCodec();
+        //_codec = new JSONMessageCodec();
         //_messenger = new MessengerImpl(_scriptTree);
         _rootModule = AddScriptModule("root", nullptr, nullptr, "core");
 		_rootNode = _scriptTree->FindNode(_rootModule);

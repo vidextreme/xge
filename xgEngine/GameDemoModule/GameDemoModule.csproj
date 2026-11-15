@@ -18,7 +18,8 @@
 
     <!-- NativeAOT -->
     <PublishAot>true</PublishAot>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <XGERid Condition="'$(XGERid)' == ''">win-x64</XGERid>
+    <RuntimeIdentifier>$(XGERid)</RuntimeIdentifier>
     <InvariantGlobalization>true</InvariantGlobalization>
     <RuntimeFrameworkVersion>10.0.14</RuntimeFrameworkVersion>
   </PropertyGroup>
@@ -46,7 +47,7 @@
           Condition="'$(Configuration)' == 'Debug'
                      and '$(PublishProtocol)' == ''
                      and '$(_IsPublishing)' != 'true'">
-    <Exec Command="dotnet publish -c Debug -r win-x64" />
+    <Exec Command="dotnet publish -c Debug -r $(XGERid) -p:XGERid=$(XGERid)" />
   </Target>
 
   <!-- Safe, non-recursive NativeAOT publish -->
@@ -55,7 +56,7 @@
           Condition="'$(Configuration)' == 'Release'
                      and '$(PublishProtocol)' == ''
                      and '$(_IsPublishing)' != 'true'">
-    <Exec Command="dotnet publish -c Release -r win-x64" />
+    <Exec Command="dotnet publish -c Release -r $(XGERid) -p:XGERid=$(XGERid)" />
   </Target>
 
 </Project>

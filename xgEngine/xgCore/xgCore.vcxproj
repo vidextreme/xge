@@ -132,7 +132,7 @@
     <ClInclude Include="ScriptModuleNull.h" />
     <ClInclude Include="ScriptTree.h" />
     <ClInclude Include="CodecBinary.h" />
-    <ClInclude Include="CodecJson.h" />
+    <ClInclude Include="CodecJSON.h" />
     <ClInclude Include="StridePool.h" />
     <ClInclude Include="TreeSceneGraph.h" />
   </ItemGroup>
@@ -148,7 +148,7 @@
     <ClCompile Include="CodecRegistryImpl.cpp" />
     <ClCompile Include="DynamicObjectImpl.cpp" />
     <ClCompile Include="CodecBinary.cpp" />
-    <ClCompile Include="CodecJson.cpp" />
+    <ClCompile Include="CodecJSON.cpp" />
     <ClCompile Include="StridePool.cpp" />
     <ClCompile Include="TreeSceneGraph.cpp" />
     <ClCompile Include="xgEngine.cpp" />

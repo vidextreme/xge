@@ -5,18 +5,16 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
-#include "xgJson.h"
-#include "xgReflectJson.h"
+#include "xgJSON.h"
+#include "xgReflectJSON.h"
 
 #include "xgStream.h"
+#include "xgPathUtils.h"
 #include "xgEngine.h"
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 
 namespace
 {
@@ -32,23 +30,6 @@ namespace
         Invalid,
     };
 
-    fs::path ExecutableDirectory()
-    {
-        std::wstring buffer(MAX_PATH, L'\0');
-        for (;;)
-        {
-            const DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
-            if (length == 0)
-                return fs::current_path();
-            if (length < buffer.size())
-            {
-                buffer.resize(length);
-                return fs::path(buffer).parent_path();
-            }
-            buffer.resize(buffer.size() * 2);
-        }
-    }
-
     std::string ToUtf8(const fs::path& path)
     {
         const std::u8string text = path.u8string();
@@ -59,6 +40,16 @@ namespace
     {
         return fs::path(reinterpret_cast<const char8_t*>(text));
     }
+
+    fs::path ExecutableDirectory()
+    {
+        std::string buffer(4096, '\0');
+        const size_t length = xg::GetExecutablePath(buffer.data(), buffer.size());
+        if (length == 0)
+            return fs::current_path();
+        buffer.resize(length);
+        return FromUtf8(buffer.c_str()).parent_path();
+    }
 }
 
 void _LogMsg(xg::MessageType _type, const char* _message)
@@ -67,7 +58,7 @@ void _LogMsg(xg::MessageType _type, const char* _message)
     fflush(stdout);
 }
 
-static ConfigResult LoadGameConfig(xg::Engine& engine, const wchar_t* path, xg::Json& json, xg::EngineConfig& config, xg::ReflectStringStore& strings)
+static ConfigResult LoadGameConfig(xg::Engine& engine, const char* path, xg::JSON& json, xg::EngineConfig& config, xg::ReflectStringStore& strings)
 {
     const xg::TypeSchema* schema = engine.GetTypeRegistry()->Get(xg::EngineConfig::TypeName);
     if (!schema)
@@ -91,18 +82,18 @@ static ConfigResult LoadGameConfig(xg::Engine& engine, const wchar_t* path, xg::
     }
     else
     {
-        xg::Log(xg::MessageType::Warning, "%ls has no \"%s\" table; reading engine settings from the top level (deprecated)",
+        xg::Log(xg::MessageType::Warning, "%s has no \"%s\" table; reading engine settings from the top level (deprecated)",
             path, xg::EngineConfig::TypeName);
         xg::ReadReflected(json, *schema, &config, strings);
     }
-    xg::Log(xg::MessageType::Info, "%ls: %s", path, xg::DescribeReflected(*schema, &config).c_str());
+    xg::Log(xg::MessageType::Info, "%s: %s", path, xg::DescribeReflected(*schema, &config).c_str());
     return ConfigResult::Loaded;
 }
 
 // Loads the module tree stored as an object under key: each member's name is the module id and its value is either
 // the module path (string) or { "path", "group", "dispatchgroup", "children" }. group/dispatchgroup default to the
 // parent's. Members load in file order; a parent's Init runs before its children load.
-static int LoadScriptModules(xg::Engine& engine, const xg::Json& json, const char* key, xg::ScriptModule* parent,
+static int LoadScriptModules(xg::Engine& engine, const xg::JSON& json, const char* key, xg::ScriptModule* parent,
     const char* inheritedGroup, const char* inheritedDispatch, xg::ReflectStringStore& strings)
 {
     const xg::TypeSchema* schema = engine.GetTypeRegistry()->Get(xg::ScriptModuleDesc::TypeName);
@@ -118,7 +109,7 @@ static int LoadScriptModules(xg::Engine& engine, const xg::Json& json, const cha
     {
         xg::ScriptModuleDesc desc;
         desc.Id = strings.Store(json.GetObjectKey(key, i));
-        xg::Json entry;
+        xg::JSON entry;
         const bool hasEntry = json.GetObjectItem(key, i, entry);
         if (hasEntry)
             xg::ReadReflected(entry, *schema, &desc, strings);
@@ -174,24 +165,25 @@ int main(int argc, char** argv)
     std::error_code pathError;
     configPath = fs::absolute(configPath, pathError).lexically_normal();
     _configName = ToUtf8(configPath.filename());
+    const std::string configPathUtf8 = ToUtf8(configPath);
 
     xg::ReflectStringStore configStrings;
     xg::EngineConfig config;
-    xg::Json gameConfig;
-    const ConfigResult configResult = LoadGameConfig(engine, configPath.c_str(), gameConfig, config, configStrings);
+    xg::JSON gameConfig;
+    const ConfigResult configResult = LoadGameConfig(engine, configPathUtf8.c_str(), gameConfig, config, configStrings);
     if (configResult != ConfigResult::Loaded)
     {
         const char* problem = configResult == ConfigResult::Missing ? "not found" : "could not be read as a valid config";
         if (explicitConfig)
         {
-            xg::Log(xg::MessageType::Error, "Config %ls %s (--config)", configPath.c_str(), problem);
+            xg::Log(xg::MessageType::Error, "Config %s %s (--config)", configPathUtf8.c_str(), problem);
             return 1;
         }
-        xg::Log(xg::MessageType::Warning, "Config %ls %s, using default settings", configPath.c_str(), problem);
+        xg::Log(xg::MessageType::Warning, "Config %s %s, using default settings", configPathUtf8.c_str(), problem);
     }
     else
     {
-        xg::Log(xg::MessageType::Info, "Config: %ls", configPath.c_str());
+        xg::Log(xg::MessageType::Info, "Config: %s", configPathUtf8.c_str());
     }
 
     std::string projectPath;
@@ -220,7 +212,7 @@ int main(int argc, char** argv)
     {
         fs::current_path(exeDirectory, pathError);
         if (!pathError)
-            xg::Log(xg::MessageType::Info, "Working directory: %ls", exeDirectory.c_str());
+            xg::Log(xg::MessageType::Info, "Working directory: %s", ToUtf8(exeDirectory).c_str());
     }
     config.ProjectPath = projectPath.empty() ? nullptr : projectPath.c_str();
     config.NewProjectPath = newProjectPath.empty() ? nullptr : newProjectPath.c_str();

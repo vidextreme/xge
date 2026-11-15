@@ -9,18 +9,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "xgEnv.h"
 
 namespace xg
 {
     NativeTestWindow::NativeTestWindow()
     {
-        char* value = nullptr;
-        size_t length = 0;
-        if (_dupenv_s(&value, &length, "XG_UI_TEST_UNBALANCED") == 0 && value)
-        {
-            _unbalanced = value[0] == '1';
-            free(value);
-        }
+        _unbalanced = EnvEquals("XG_UI_TEST_UNBALANCED", "1");
 
         Settings settings;
         settings.Title = "Native Test";
@@ -29,12 +24,8 @@ namespace xg
         settings.PanelIcon = imui::Icon::Script;
         Register(settings);
 
-        if (_dupenv_s(&value, &length, "XG_UI_TEST_FOCUS") == 0 && value)
-        {
-            if (std::strcmp(value, "native") == 0)
-                Focus();
-            free(value);
-        }
+        if (EnvEquals("XG_UI_TEST_FOCUS", "native"))
+            Focus();
     }
 
     void NativeTestWindow::OnGUI(imui::Gui& gui)
@@ -81,15 +72,7 @@ namespace xg
 
     bool TestFloatOutside()
     {
-        char* value = nullptr;
-        size_t length = 0;
-        bool outside = false;
-        if (_dupenv_s(&value, &length, "XG_UI_TEST_FLOAT_OUTSIDE") == 0 && value)
-        {
-            outside = value[0] == '1';
-            free(value);
-        }
-        return outside;
+        return EnvEquals("XG_UI_TEST_FLOAT_OUTSIDE", "1");
     }
 
     NativeFloatingWindow::NativeFloatingWindow()

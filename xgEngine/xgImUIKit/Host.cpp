@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 
 namespace
@@ -36,11 +37,8 @@ namespace
 
     bool FileExists(const std::string& path)
     {
-        FILE* file = nullptr;
-        if (fopen_s(&file, path.c_str(), "rb") != 0 || !file)
-            return false;
-        std::fclose(file);
-        return true;
+        std::error_code error;
+        return std::filesystem::is_regular_file(std::filesystem::path(std::u8string(path.begin(), path.end())), error);
     }
 
     ImFont* LoadFont(const std::string& directory, const char* file, const char* fallback, float size)

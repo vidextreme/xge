@@ -1,7 +1,7 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
-#include "xgJson.h"
+#include "xgJSON.h"
 #include <json.hpp>
 #include <cstring>
 #include <iterator>
@@ -10,23 +10,23 @@
 
 namespace xg
 {
-    struct Json::Impl
+    struct JSON::Impl
     {
         nlohmann::ordered_json Data;
         std::string TempString; // used to return stable const char*
     };
 
-    Json::Json()
+    JSON::JSON()
     {
         impl = new Impl();
     }
 
-    Json::~Json()
+    JSON::~JSON()
     {
         delete impl;
     }
 
-    bool Json::Load(Stream& stream)
+    bool JSON::Load(Stream& stream)
     {
         long len = stream.Length();
         if (len <= 0)
@@ -48,7 +48,7 @@ namespace xg
         }
     }
 
-    bool Json::Save(Stream& stream) const
+    bool JSON::Save(Stream& stream) const
     {
         // Convert JSON to string
         impl->TempString = impl->Data.dump(4);
@@ -61,7 +61,7 @@ namespace xg
     }
 
 
-    bool Json::GetBool(const char* key, bool defaultValue) const
+    bool JSON::GetBool(const char* key, bool defaultValue) const
     {
         auto it = impl->Data.find(key);
         if (it != impl->Data.end() && it->is_boolean())
@@ -69,7 +69,7 @@ namespace xg
         return defaultValue;
     }
 
-    int Json::GetInt(const char* key, int defaultValue) const
+    int JSON::GetInt(const char* key, int defaultValue) const
     {
         auto it = impl->Data.find(key);
         if (it != impl->Data.end() && it->is_number())
@@ -77,7 +77,7 @@ namespace xg
         return defaultValue;
     }
 
-    float Json::GetFloat(const char* key, float defaultValue) const
+    float JSON::GetFloat(const char* key, float defaultValue) const
     {
         auto it = impl->Data.find(key);
         if (it != impl->Data.end() && it->is_number())
@@ -85,7 +85,7 @@ namespace xg
         return defaultValue;
     }
 
-    const char* Json::GetString(const char* key, const char* defaultValue) const
+    const char* JSON::GetString(const char* key, const char* defaultValue) const
     {
         auto it = impl->Data.find(key);
         if (it != impl->Data.end() && it->is_string())
@@ -96,12 +96,12 @@ namespace xg
         return defaultValue;
     }
 
-    bool Json::Has(const char* key) const
+    bool JSON::Has(const char* key) const
     {
         return impl->Data.contains(key);
     }
 
-    bool Json::GetTable(const char* key, Json& out) const
+    bool JSON::GetTable(const char* key, JSON& out) const
     {
         auto it = impl->Data.find(key);
         if (it == impl->Data.end() || !it->is_object())
@@ -110,13 +110,13 @@ namespace xg
         return true;
     }
 
-    int Json::GetObjectSize(const char* key) const
+    int JSON::GetObjectSize(const char* key) const
     {
         auto it = impl->Data.find(key);
         return (it != impl->Data.end() && it->is_object()) ? static_cast<int>(it->size()) : 0;
     }
 
-    const char* Json::GetObjectKey(const char* key, int index) const
+    const char* JSON::GetObjectKey(const char* key, int index) const
     {
         auto it = impl->Data.find(key);
         if (it == impl->Data.end() || !it->is_object() || index < 0 || index >= static_cast<int>(it->size()))
@@ -127,7 +127,7 @@ namespace xg
         return impl->TempString.c_str();
     }
 
-    bool Json::GetObjectItem(const char* key, int index, Json& out) const
+    bool JSON::GetObjectItem(const char* key, int index, JSON& out) const
     {
         auto it = impl->Data.find(key);
         if (it == impl->Data.end() || !it->is_object() || index < 0 || index >= static_cast<int>(it->size()))
@@ -140,7 +140,7 @@ namespace xg
         return true;
     }
 
-    const char* Json::GetObjectString(const char* key, int index) const
+    const char* JSON::GetObjectString(const char* key, int index) const
     {
         auto it = impl->Data.find(key);
         if (it == impl->Data.end() || !it->is_object() || index < 0 || index >= static_cast<int>(it->size()))
@@ -153,13 +153,13 @@ namespace xg
         return impl->TempString.c_str();
     }
 
-    const char* Json::FindKey(const char* name) const
+    const char* JSON::FindKey(const char* name) const
     {
         if (!name || !impl->Data.is_object())
             return nullptr;
         for (auto member = impl->Data.begin(); member != impl->Data.end(); ++member)
         {
-            if (_stricmp(member.key().c_str(), name) == 0)
+            if (xg::StrICmp(member.key().c_str(), name) == 0)
             {
                 impl->TempString = member.key();
                 return impl->TempString.c_str();
@@ -168,13 +168,13 @@ namespace xg
         return nullptr;
     }
 
-    int Json::GetArraySize(const char* key) const
+    int JSON::GetArraySize(const char* key) const
     {
         auto it = impl->Data.find(key);
         return (it != impl->Data.end() && it->is_array()) ? static_cast<int>(it->size()) : 0;
     }
 
-    bool Json::GetArrayItem(const char* key, int index, Json& out) const
+    bool JSON::GetArrayItem(const char* key, int index, JSON& out) const
     {
         auto it = impl->Data.find(key);
         if (it == impl->Data.end() || !it->is_array() || index < 0 || index >= static_cast<int>(it->size()))
@@ -187,27 +187,27 @@ namespace xg
     }
 
 
-    void Json::SetBool(const char* key, bool value)
+    void JSON::SetBool(const char* key, bool value)
     {
         impl->Data[key] = value;
     }
 
-    void Json::SetInt(const char* key, int value)
+    void JSON::SetInt(const char* key, int value)
     {
         impl->Data[key] = value;
     }
 
-    void Json::SetFloat(const char* key, float value)
+    void JSON::SetFloat(const char* key, float value)
     {
         impl->Data[key] = value;
     }
 
-    void Json::SetString(const char* key, const char* value)
+    void JSON::SetString(const char* key, const char* value)
     {
         impl->Data[key] = value ? value : "";
     }
 
-    const char* Json::ToString() const
+    const char* JSON::ToString() const
     {
         impl->TempString = impl->Data.dump(4); // pretty print
         return impl->TempString.c_str();

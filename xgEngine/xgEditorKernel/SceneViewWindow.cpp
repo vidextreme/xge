@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include "xgEnv.h"
 
 namespace xg
 {
@@ -16,14 +17,7 @@ namespace xg
         _clear = Color(clearColor[0], clearColor[1], clearColor[2], 1.0f);
         _state.Placeholder = "No 3D renderer (RendererModule is empty)";
 
-        bool open = forceOpen;
-        char* value = nullptr;
-        size_t length = 0;
-        if (_dupenv_s(&value, &length, "XG_UI_TEST_FOCUS") == 0 && value)
-        {
-            open = open || std::strcmp(value, "scene") == 0;
-            free(value);
-        }
+        const bool open = forceOpen || EnvEquals("XG_UI_TEST_FOCUS", "scene");
 
         Settings settings;
         settings.Title = title;

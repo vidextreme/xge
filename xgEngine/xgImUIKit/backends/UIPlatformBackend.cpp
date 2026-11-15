@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cstdlib>
+#include "xgEnv.h"
 
 namespace xg::imui::detail::platform
 {
@@ -191,14 +192,8 @@ namespace xg::imui::detail::platform
 
         float ReadDpiOverride()
         {
-            char* value = nullptr;
-            size_t length = 0;
-            float scale = 0.0f;
-            if (_dupenv_s(&value, &length, "XG_UI_DPI_SCALE") == 0 && value)
-            {
-                scale = std::strtof(value, nullptr);
-                free(value);
-            }
+            char value[32];
+            const float scale = GetEnv("XG_UI_DPI_SCALE", value, sizeof(value)) ? std::strtof(value, nullptr) : 0.0f;
             return scale > 0.0f ? (std::clamp)(scale, 0.5f, 4.0f) : 0.0f;
         }
 

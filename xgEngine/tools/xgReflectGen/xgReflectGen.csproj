@@ -12,6 +12,8 @@
     <AppendConfigurationToOutputPath>false</AppendConfigurationToOutputPath>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- Outside Windows the apphost would be named tools/xgReflectGen, which is this project's folder -->
+    <UseAppHost Condition="'$(OS)' != 'Windows_NT'">false</UseAppHost>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,7 +30,10 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy /Y /D &quot;$(ProjectDir)..\..\3rdparty\TreeSitter\*.dll&quot; &quot;$(TargetDir)&quot;" />
+    <ItemGroup>
+      <TreeSitterNative Include="$(ProjectDir)..\..\3rdparty\TreeSitter\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(TreeSitterNative)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

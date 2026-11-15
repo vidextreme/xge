@@ -65,10 +65,10 @@
     <ClInclude Include="public\xgScriptMessage.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgJson.h">
+    <ClInclude Include="public\xgJSON.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgReflectJson.h">
+    <ClInclude Include="public\xgReflectJSON.h">
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="public\xgRoute.h">
@@ -214,10 +214,10 @@
     <ClCompile Include="xgTypeRegistry.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgJson.cpp">
+    <ClCompile Include="xgJSON.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="xgReflectJson.cpp">
+    <ClCompile Include="xgReflectJSON.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="MemoryStreamImpl.cpp">

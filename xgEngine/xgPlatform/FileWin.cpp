@@ -4,12 +4,14 @@
 #include "xgModules.h"
 #include "FileWin.h"
 
+#if XG_PLATFORM_WINDOWS
 namespace xg
 {
     struct FileWin::Impl
     {
         HANDLE Handle = INVALID_HANDLE_VALUE;
-        std::wstring Path;
+        std::string Path;
+        std::wstring WidePath;
     };
 
     // ------------------------------------------------------------
@@ -35,10 +37,23 @@ namespace xg
     // ------------------------------------------------------------
     // Constructor / Destructor
     // ------------------------------------------------------------
-    FileWin::FileWin(const wchar_t* path)
+    static std::wstring ToWidePath(const std::string& path)
+    {
+        if (path.empty())
+            return std::wstring();
+        const int length = ::MultiByteToWideChar(CP_UTF8, 0, path.c_str(), static_cast<int>(path.size()), nullptr, 0);
+        if (length <= 0)
+            return std::wstring();
+        std::wstring wide(static_cast<size_t>(length), L'\0');
+        ::MultiByteToWideChar(CP_UTF8, 0, path.c_str(), static_cast<int>(path.size()), wide.data(), length);
+        return wide;
+    }
+
+    FileWin::FileWin(const char* path)
     {
         impl = new Impl();
-        impl->Path = path;
+        impl->Path = path ? path : "";
+        impl->WidePath = ToWidePath(impl->Path);
     }
 
     FileWin::~FileWin()
@@ -56,7 +71,7 @@ namespace xg
             return false;
 
         impl->Handle = ::CreateFileW(
-            impl->Path.c_str(),
+            impl->WidePath.c_str(),
             ToWinAccess(mode),
             FILE_SHARE_READ,
             nullptr,
@@ -88,7 +103,7 @@ namespace xg
         return impl->Handle;
     }
 
-    const wchar_t* FileWin::GetPath() const
+    const char* FileWin::GetPath() const
     {
         return impl->Path.c_str();
     }
@@ -137,3 +152,4 @@ namespace xg
         return Position() == Length();
     }
 }
+#endif

@@ -2,14 +2,21 @@
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
 #include "FileWin.h"
+#include "FilePosix.h"
 
 namespace xg
 {
-    XG_DECLARE_UNIQUE_TYPE(FileWin)
-    FileUnique LoadFile(const wchar_t* path, FileAccessMode mode)
+#if XG_PLATFORM_WINDOWS
+    using PlatformFile = FileWin;
+#else
+    using PlatformFile = FilePosix;
+#endif
+
+    XG_DECLARE_UNIQUE_TYPE(PlatformFile)
+    FileUnique LoadFile(const char* path, FileAccessMode mode)
     {
         // Create raw object
-        auto* raw = new FileWin(path);
+        auto* raw = new PlatformFile(path);
 
         // Try opening
         if (!raw->Open(mode))
@@ -19,6 +26,6 @@ namespace xg
         }
 
         // Wrap into ABI-stable unique handle
-        return FileUnique(MakeFileWinUniqueHandle(raw));
+        return FileUnique(MakePlatformFileUniqueHandle(raw));
     }
 }
