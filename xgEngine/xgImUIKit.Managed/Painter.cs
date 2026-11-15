@@ -50,6 +50,14 @@ namespace xg.imui
                 Native.DrawText(_ctx, &position, color, p);
         }
 
+        // Text turned by quarterTurns * 90 degrees clockwise (1 reads top to bottom, 3 bottom to top).
+        // position is the top-left of the turned text's bounds.
+        public void TextRotated(Vector2 position, Color32 color, string text, int quarterTurns)
+        {
+            fixed (byte* p = Utf8.Encode(text.AsSpan()))
+                Native.DrawTextRotated(_ctx, &position, color, p, quarterTurns);
+        }
+
         public void Icon(xg.imui.Icon icon, Vector2 center, float size, Color32 color) =>
             Native.DrawIcon(_ctx, icon, &center, size, color);
 

@@ -345,6 +345,20 @@ namespace xg::imui::detail
             dl->AddLine(ImVec2(c.x - h * 0.2f, c.y - h * 0.15f), ImVec2(c.x - h * 0.17f, c.y + h * 0.6f), col, 1.2f);
             dl->AddLine(ImVec2(c.x + h * 0.2f, c.y - h * 0.15f), ImVec2(c.x + h * 0.17f, c.y + h * 0.6f), col, 1.2f);
             break;
+        case Icon::Cards:
+        {
+            const float row = ImMax(ImFloor(s * 0.27f), 3.0f);
+            const float gap = ImMax(ImFloor(s * 0.13f), 1.0f);
+            const float left = ImFloor(c.x - h * 0.9f) + 0.5f;
+            const float right = ImFloor(c.x + h * 0.9f) + 0.5f;
+            float top = ImFloor(c.y - (row * 3.0f + gap * 2.0f) * 0.5f) + 0.5f;
+            for (int i = 0; i < 3; ++i)
+            {
+                dl->AddRect(ImVec2(left, top), ImVec2(right, top + row), col, 1.0f, 0, 1.0f);
+                top += row + gap;
+            }
+            break;
+        }
         }
     }
 }

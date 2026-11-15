@@ -22,6 +22,7 @@ namespace xgEditor.CoreCLR
         public bool Randomize;
     }
 
+    [ComponentIcon("Effects", Color = "#C44A4A")]
     public sealed class WeaponSample
     {
         [Header("Firing")]

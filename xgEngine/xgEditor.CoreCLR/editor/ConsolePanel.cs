@@ -18,6 +18,8 @@ namespace xgEditor.CoreCLR
         private const float MinPaneHeight = 40.0f;
         private const float ScrollbarAllowance = 16.0f;
         private const float ToggleSpacing = 8.0f;
+        private const float DetailPadding = 6.0f;
+        private const float CardHeaderHeight = 34.0f;
 
         private readonly struct LevelStyle
         {
@@ -66,6 +68,8 @@ namespace xgEditor.CoreCLR
         private float _timeWidth = -1.0f;
         private LogEntry? _selected;
         private string _detail = string.Empty;
+        private string _detailTitle = "No message selected";
+        private LevelStyle _detailLevel = _levels[0];
         private bool _selectLatestError;
 
         public ConsolePanel()
@@ -110,15 +114,28 @@ namespace xgEditor.CoreCLR
 
             DrawList(avail.x, grew);
             Gui.Splitter("##console_split", ref _detailHeight, MinPaneHeight, maxDetail);
+            DrawDetail();
+        }
+
+        private void DrawDetail()
+        {
+            using var area = Gui.ScrollArea("##console_detail_area", new Vector2(0.0f, _detailHeight), ScrollAreaFlags.Padded);
+            if (!area.IsOpen)
+                return;
+            Vector2 avail = Gui.AvailableSize;
+            Gui.Draw.RectFilled(new Rect(new Vector2(-DetailPadding, -DetailPadding), new Vector2(avail.x + DetailPadding, avail.y + DetailPadding)),
+                Style.Color(StyleColor.ToolbarBg));
+            float bodyHeight = Math.Max(_detailHeight - DetailPadding * 2.0f - CardHeaderHeight, 20.0f);
+            using var card = Gui.Card("##console_detail_card", _detailTitle, _detailLevel.Icon, null, Style.Color(_detailLevel.Color));
             using (Gui.Font(FontStyle.Mono))
-                Gui.TextArea("##console_detail", _detail, new Vector2(0.0f, _detailHeight));
+                Gui.TextArea("##console_detail", _detail, new Vector2(0.0f, bodyHeight));
         }
 
         private void DrawToolbar()
         {
             using (Gui.Toolbar())
             {
-                if (FlatButton("Clear"))
+                if (Gui.Button("Clear"))
                 {
                     EditorLog.Clear();
                     Select(null);
@@ -177,6 +194,8 @@ namespace xgEditor.CoreCLR
                     Select(entry);
 
                 Painter draw = scope.Draw;
+                if (selected)
+                    EditorStyle.SelectionBar(draw, 0.0f, RowHeight);
                 LevelStyle level = StyleOf(entry.Type);
                 draw.Icon(level.Icon, new Vector2(14.0f, RowHeight * 0.5f), 14.0f, Style.Color(level.Color));
                 float x = 28.0f;
@@ -252,6 +271,8 @@ namespace xgEditor.CoreCLR
         {
             _selected = entry;
             _detail = entry is null ? string.Empty : DetailText(entry);
+            _detailTitle = entry is null ? "No message selected" : DetailTitle(entry);
+            _detailLevel = entry is null ? _levels[0] : StyleOf(entry.Type);
         }
 
         private bool IsSelected(LogEntry entry)
@@ -283,24 +304,26 @@ namespace xgEditor.CoreCLR
             return _levels[0];
         }
 
+        // Card header: type, context and time.
+        private static string DetailTitle(LogEntry entry)
+        {
+            StringBuilder title = new();
+            title.Append(entry.Type);
+            if (entry.Context.Length > 0)
+                title.Append(" · ").Append(entry.Context);
+            if (entry.Time.Length > 0)
+                title.Append(" · ").Append(entry.Time);
+            return title.ToString();
+        }
+
+        // Card body: the message, then the stack trace.
         private static string DetailText(LogEntry entry)
         {
             StringBuilder text = new();
-            if (entry.Time.Length > 0)
-                text.Append('[').Append(entry.Time).Append("] ");
-            text.Append(entry.Type);
-            if (entry.Context.Length > 0)
-                text.Append(" · ").Append(entry.Context);
-            text.Append('\n').Append(entry.Message);
+            text.Append(entry.Message);
             if (entry.HasStackTrace)
                 text.Append("\n\n").Append(entry.StackTrace);
             return text.ToString();
-        }
-
-        private static bool FlatButton(string label)
-        {
-            bool pressed = false;
-            return Gui.Toggle(label, ref pressed);
         }
     }
 }

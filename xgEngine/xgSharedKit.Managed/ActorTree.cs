@@ -100,6 +100,17 @@ namespace xg
             Resolve(handles, count, result);
         }
 
+        // Adds a component of type to the actor, through whichever CoreCLR module owns the actor or defines the type (types
+        // may come from any load context). Returns false when no module could add it; errors are logged by the module.
+        public static bool AddComponent(ActorID id, Type type)
+        {
+            nint engine = ScriptRuntime._enginePtr;
+            if (engine == 0 || !RuntimeFeature.IsDynamicCodeSupported)
+                return false;
+            string key = $"{type.FullName}, {type.Assembly.GetName().Name}";
+            return XG_ActorAddComponent(engine, id, key, 1) == 1;
+        }
+
         private static void Resolve(nint* handles, int count, List<object> result)
         {
             for (int i = 0; i < count; ++i)
@@ -131,6 +142,9 @@ namespace xg
 
         [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorGetParent")]
         private static partial ulong XG_ActorGetParent(nint engine, ulong id);
+
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorAddComponent", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial int XG_ActorAddComponent(nint engine, ulong id, string typeKey, int runtimeKind);
 
         [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorGetComponentHandles")]
         private static partial int XG_ActorGetComponentHandles(nint engine, ulong id, int runtimeKind, nint* output, int capacity);

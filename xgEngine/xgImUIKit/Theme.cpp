@@ -17,8 +17,8 @@ namespace xg::imui::detail
         c[ImGuiCol_PopupBg]                   = rgb( 21,  21,  21, 0.98f);
         c[ImGuiCol_Border]                    = rgb( 50,  50,  50);
         c[ImGuiCol_BorderShadow]              = rgb(  0,   0,   0, 0.0f);
-        c[ImGuiCol_FrameBg]                   = rgb( 74,  74,  74);
-        c[ImGuiCol_FrameBgHovered]            = rgb( 88,  88,  88);
+        c[ImGuiCol_FrameBg]                   = ImGui::ColorConvertU32ToFloat4(ButtonBg);
+        c[ImGuiCol_FrameBgHovered]            = ImGui::ColorConvertU32ToFloat4(ButtonHover);
         c[ImGuiCol_FrameBgActive]             = rgb( 29,  29,  29);
         c[ImGuiCol_TitleBg]                   = rgb( 21,  21,  21);
         c[ImGuiCol_TitleBgActive]             = rgb( 21,  21,  21);
@@ -32,8 +32,8 @@ namespace xg::imui::detail
         c[ImGuiCol_CheckboxSelectedBg]        = rgb( 71, 114, 179);
         c[ImGuiCol_SliderGrab]                = rgb( 71, 114, 179);
         c[ImGuiCol_SliderGrabActive]          = rgb( 84, 129, 196);
-        c[ImGuiCol_Button]                    = rgb( 74,  74,  74);
-        c[ImGuiCol_ButtonHovered]             = rgb( 88,  88,  88);
+        c[ImGuiCol_Button]                    = ImGui::ColorConvertU32ToFloat4(ButtonBg);
+        c[ImGuiCol_ButtonHovered]             = ImGui::ColorConvertU32ToFloat4(ButtonHover);
         c[ImGuiCol_ButtonActive]              = rgb( 71, 114, 179);
         c[ImGuiCol_Header]                    = rgb( 51,  77, 128);
         c[ImGuiCol_HeaderHovered]             = rgb(255, 255, 255, 0.05f);

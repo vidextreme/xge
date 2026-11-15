@@ -326,6 +326,20 @@ namespace xg.imui
 
         public static void CloseModal() => Native.CloseModal(Context);
 
+        // Flyout: Gui.OpenPopup(id) once, then every frame using (var p = Gui.Popup(id, position, size)) { if (p.IsOpen) { ... } }.
+        // position is in the current draw space; size.y <= 0 fits the content. A click outside or Escape closes it.
+        public static PopupScope Popup(string id, Vector2 position, Vector2 size = default)
+        {
+            nint ctx = Context;
+            byte open;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                open = Native.BeginPopup(ctx, p, &position, &size);
+            return new PopupScope(ctx, open != 0);
+        }
+
+        // Closes the current popup or modal.
+        public static void ClosePopup() => Native.CloseModal(Context);
+
         // Read-only, selectable text; size <= 0 fills the available space.
         public static Result TextArea(string id, string text, Vector2 size = default)
         {
@@ -383,6 +397,58 @@ namespace xg.imui
         public static void AlignRight(float width) => Native.AlignRight(Context, width);
 
         public static Vector2 AvailableSize => Native.AvailableSize(Context);
+
+        // Where the panel being drawn is (window, dock node and dock tree rects in screen coordinates).
+        public static PanelPlacement PanelPlacement
+        {
+            get
+            {
+                PanelPlacement placement = default;
+                placement.Size = (uint)sizeof(PanelPlacement);
+                Native.GetPanelPlacement(Context, &placement);
+                return placement;
+            }
+        }
+
+        // Group card (the Ribbon's group look) around layout content:
+        //   using (var card = Gui.Card("##health", "Health", Icon.Physics, null, color, ref open)) { if (card.IsOpen) { ... } }
+        // The header click toggles open. texture (when valid) is shown instead of icon.
+        public static CardScope Card(string id, string title, Icon icon, Texture? texture, Color32 iconColor, ref bool open)
+        {
+            nint ctx = Context;
+            byte value = open ? (byte)1 : (byte)0;
+            byte body;
+            fixed (byte* p = Utf8.Encode(id.AsSpan(), 0))
+            fixed (byte* t = Utf8.Encode(title.AsSpan(), 1))
+                body = Native.BeginCard(ctx, p, t, icon, texture != null && texture.IsValid ? texture.Handle : 0, iconColor, &value);
+            open = value != 0;
+            return new CardScope(ctx, body != 0);
+        }
+
+        // A card that can't be folded (no arrow); its body is always shown.
+        public static CardScope Card(string id, string title, Icon icon, Texture? texture, Color32 iconColor)
+        {
+            nint ctx = Context;
+            byte body;
+            fixed (byte* p = Utf8.Encode(id.AsSpan(), 0))
+            fixed (byte* t = Utf8.Encode(title.AsSpan(), 1))
+                body = Native.BeginCard(ctx, p, t, icon, texture != null && texture.IsValid ? texture.Handle : 0, iconColor, null);
+            return new CardScope(ctx, body != 0);
+        }
+
+        // using (Gui.ScrollArea("##tools")) { ... }: a region whose scrollbars appear only when the content overflows.
+        // The content is a column, or a row when horizontal. Size 0 fills like Canvas.
+        public static ScrollAreaScope ScrollArea(string id, Vector2 size = default, bool horizontal = false) =>
+            ScrollArea(id, size, horizontal ? ScrollAreaFlags.Horizontal : ScrollAreaFlags.None);
+
+        public static ScrollAreaScope ScrollArea(string id, Vector2 size, ScrollAreaFlags flags)
+        {
+            nint ctx = Context;
+            byte open;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                open = Native.BeginScrollArea(ctx, p, &size, flags);
+            return new ScrollAreaScope(ctx, open != 0);
+        }
 
         // Horizontal bar; dragging it changes size (the height of the area below it).
         public static bool Splitter(string id, ref float size, float minSize, float maxSize)
@@ -494,6 +560,63 @@ namespace xg.imui
         {
             if (_ctx != 0 && IsOpen)
                 Native.EndModal(_ctx);
+        }
+    }
+
+    public readonly ref struct CardScope
+    {
+        private readonly nint _ctx;
+
+        internal CardScope(nint ctx, bool open)
+        {
+            _ctx = ctx;
+            IsOpen = open;
+        }
+
+        public bool IsOpen { get; }
+
+        public void Dispose()
+        {
+            if (_ctx != 0)
+                Native.EndCard(_ctx);
+        }
+    }
+
+    public readonly ref struct PopupScope
+    {
+        private readonly nint _ctx;
+
+        internal PopupScope(nint ctx, bool open)
+        {
+            _ctx = ctx;
+            IsOpen = open;
+        }
+
+        public bool IsOpen { get; }
+
+        public void Dispose()
+        {
+            if (_ctx != 0 && IsOpen)
+                Native.EndPopup(_ctx);
+        }
+    }
+
+    public readonly ref struct ScrollAreaScope
+    {
+        private readonly nint _ctx;
+
+        internal ScrollAreaScope(nint ctx, bool open)
+        {
+            _ctx = ctx;
+            IsOpen = open;
+        }
+
+        public bool IsOpen { get; }
+
+        public void Dispose()
+        {
+            if (_ctx != 0 && IsOpen)
+                Native.EndScrollArea(_ctx);
         }
     }
 

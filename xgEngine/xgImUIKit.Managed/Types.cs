@@ -71,6 +71,7 @@ namespace xg.imui
         Info, Warning, Error,
         WinMinimize, WinMaximize, WinRestore, WinClose,
         Image, Trash,
+        Cards,
     }
 
     // Mirrors xg::imui::StyleColor. Order is part of the ABI: append only.
@@ -100,6 +101,45 @@ namespace xg.imui
         AxisY,
         AxisZ,
         Grid,
+        TextOnAccent,
+        PanelHeaderHover,
+        TopBarBg,
+        SegmentBg,
+        Button,
+        ButtonHover,
+        Border,
+    }
+
+    // Mirrors xg::imui::ScrollAreaFlags.
+    [Flags]
+    public enum ScrollAreaFlags : byte
+    {
+        None = 0,
+        Horizontal = 1 << 0,
+        Padded = 1 << 1,
+    }
+
+    // Mirrors xg::imui::PanelPlacementFlags.
+    [Flags]
+    public enum PanelPlacementFlags : byte
+    {
+        None = 0,
+        Docked = 1 << 0,
+        MainViewport = 1 << 1,
+    }
+
+    // Mirrors xg::imui::PanelPlacement: where the current panel is, in screen coordinates. DockNode is the panel's
+    // dock node and DockSpace the root of its dock tree (both equal Window while floating).
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PanelPlacement
+    {
+        public uint Size;
+        public Rect Window;
+        public Rect DockNode;
+        public Rect DockSpace;
+        public PanelPlacementFlags Flags;
+
+        public readonly bool Docked => (Flags & PanelPlacementFlags.Docked) != 0;
     }
 
     // Mirrors xg::imui::SceneViewFlags.

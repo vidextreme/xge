@@ -26,3 +26,13 @@ XG_MODULE_EXPORT void XG_ActorRegisterComponentSource(xg::ScriptEngine* engine, 
 XG_MODULE_EXPORT void XG_ActorUnregisterComponentSource(xg::ScriptEngine* engine, uint32_t moduleId);
 // Writes up to capacity handles from every source of runtimeKind and returns the total count.
 XG_MODULE_EXPORT int XG_ActorGetComponentHandles(xg::ScriptEngine* engine, xg::ActorID id, int runtimeKind, intptr_t* out, int capacity);
+
+// Component factories: each managed module registers a callback that adds a component, given its type key
+// ("Full.Name, AssemblyName"), to an actor. adopt = 0 asks only modules that already have the actor; adopt = 1 lets a
+// module whose own assembly defines the type take the actor id. Returns 1 when added, 0 when not handled, -1 on error.
+typedef int (*XG_ActorComponentFactoryFn)(xg::ActorID id, const char* typeKey, int adopt);
+XG_MODULE_EXPORT void XG_ActorRegisterComponentFactory(xg::ScriptEngine* engine, uint32_t moduleId, int runtimeKind, XG_ActorComponentFactoryFn factory);
+XG_MODULE_EXPORT void XG_ActorUnregisterComponentFactory(xg::ScriptEngine* engine, uint32_t moduleId);
+// Adds a component of typeKey to the actor through the factories of runtimeKind: first a module that has the actor,
+// then a module that defines the type. Returns 1 when added, 0 when no module handled it, -1 on error.
+XG_MODULE_EXPORT int XG_ActorAddComponent(xg::ScriptEngine* engine, xg::ActorID id, const char* typeKey, int runtimeKind);
