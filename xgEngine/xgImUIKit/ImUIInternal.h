@@ -27,6 +27,8 @@ namespace xg::imui::detail
     inline constexpr ImU32 PanelHeaderBg  = IM_COL32( 46,  46,  46, 255);
     inline constexpr ImU32 PanelHeaderHov = IM_COL32( 54,  54,  54, 255);
     inline constexpr ImU32 SegmentBg      = IM_COL32( 27,  27,  27, 255);
+    inline constexpr ImU32 ButtonBg       = IM_COL32( 74,  74,  74, 255);
+    inline constexpr ImU32 ButtonHover    = IM_COL32( 88,  88,  88, 255);
     inline constexpr ImU32 DropdownBg     = IM_COL32( 27,  27,  27, 255);
     inline constexpr ImU32 DropdownHover  = IM_COL32( 38,  38,  38, 255);
     inline constexpr ImU32 DropdownBorder = IM_COL32( 50,  50,  50, 255);
@@ -88,6 +90,7 @@ namespace xg::imui::detail
         Info, Warning, Error,
         WinMinimize, WinMaximize, WinRestore, WinClose,
         Image, Trash,
+        Cards,
     };
 
     inline ImVec2 _segmentStart;

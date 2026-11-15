@@ -89,6 +89,13 @@ namespace xgEditor.CoreCLR
             InspectorPanel inspector = xg.imui.Panel.Open<InspectorPanel>();
             inspector.Bind(hierarchy);
             string? inspectTarget = Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT");
+            if (int.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_TAB"), out int inspectTab))
+                inspector.SelectedTab = inspectTab;
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_ADD") == "1")
+                inspector.OpenAddComponent(30);
+            string? inspectAddType = Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_ADDTYPE");
+            if (!string.IsNullOrEmpty(inspectAddType))
+                inspector.AddComponentWhenSelected(inspectAddType);
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "inspector")
             {
                 inspector.Focus();
@@ -102,6 +109,15 @@ namespace xgEditor.CoreCLR
                 console.Focus();
                 console.SelectLatestError();
             }
+
+            RibbonPanel ribbon = xg.imui.Panel.Open<RibbonPanel>();
+            if (Enum.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_RIBBON_SIDE"), true, out xg.imui.RibbonSide ribbonSide))
+                ribbon.Ribbon.Side = ribbonSide;
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "ribbon")
+                ribbon.Focus();
+            string? ribbonMore = Environment.GetEnvironmentVariable("XG_UI_TEST_RIBBON_MORE");
+            if (!string.IsNullOrEmpty(ribbonMore))
+                ribbon.Ribbon.RequestOverflow(ribbonMore, 30);
 
             _testWindow = xg.imui.Panel.Open<ManagedTestWindow>();
             xg.imui.Panel.Open<ManagedFloatingWindow>();

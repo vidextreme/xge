@@ -19,9 +19,12 @@
   <ItemGroup>
     <Compile Include="Editor.EventActor.cs" />
     <Compile Include="PropertyDrawer.cs" />
+    <Compile Include="Selection.cs" />
     <Compile Include="SerializedProperty.cs" />
     <Compile Include="SerializedObject.cs" />
     <Compile Include="TypeBridge.cs" />
+    <Compile Include="ComponentIcons.cs" />
+    <Compile Include="ComponentCatalog.cs" />
     <Compile Include="DrawerRegistry.cs" />
     <Compile Include="EditorGUI.cs" />
     <Compile Include="BuiltinDrawers.cs" />

@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 10;
+        public const uint ApiVersion = 11;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -141,6 +141,12 @@ namespace xg.imui
         [LibraryImport(DLL, EntryPoint = "XG_ImUICloseModal")]
         public static partial void CloseModal(nint ctx);
 
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginPopup")]
+        public static partial byte BeginPopup(nint ctx, byte* id, Vector2* position, Vector2* size);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndPopup")]
+        public static partial void EndPopup(nint ctx);
+
         [LibraryImport(DLL, EntryPoint = "XG_ImUITextField")]
         public static partial Result TextField(nint ctx, byte* id, byte* hint, byte* buffer, int capacity, float width);
 
@@ -207,6 +213,21 @@ namespace xg.imui
         [LibraryImport(DLL, EntryPoint = "XG_ImUIEndTreeRow")]
         public static partial void EndTreeRow(nint ctx);
 
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginScrollArea")]
+        public static partial byte BeginScrollArea(nint ctx, byte* id, Vector2* size, ScrollAreaFlags flags);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndScrollArea")]
+        public static partial void EndScrollArea(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginCard")]
+        public static partial byte BeginCard(nint ctx, byte* id, byte* title, Icon icon, nint texture, Color32 iconColor, byte* open);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndCard")]
+        public static partial void EndCard(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIGetPanelPlacement")]
+        public static partial byte GetPanelPlacement(nint ctx, PanelPlacement* placement);
+
         [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginCanvas")]
         public static partial Result BeginCanvas(nint ctx, byte* id, Vector2* size, Rect* outRect);
 
@@ -245,6 +266,9 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawText")]
         public static partial void DrawText(nint ctx, Vector2* position, Color32 color, byte* text);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawTextRotated")]
+        public static partial void DrawTextRotated(nint ctx, Vector2* position, Color32 color, byte* text, int quarterTurns);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawIcon")]
         public static partial void DrawIcon(nint ctx, Icon icon, Vector2* center, float size, Color32 color);

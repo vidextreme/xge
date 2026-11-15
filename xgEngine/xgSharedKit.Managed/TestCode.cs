@@ -27,6 +27,7 @@ namespace xg
         public float Stamina;
     }
 
+    [ComponentIcon("Warning", Color = "#D6AA3C")]
     public class EnemyComponent : IComponentUpdate<EnemyComponent>
     {
         public int UpdateCount;
@@ -38,6 +39,7 @@ namespace xg
             component.ElapsedTime += deltaTime;
         }
     }
+    [ComponentIcon("Account", Color = "#5585D0")]
     public class PlayerComponent : ComponentDataSet<CharacterData>, IComponentUpdate<PlayerComponent>, IComponentDataUpdate<CharacterData>
     {
 
@@ -89,6 +91,7 @@ namespace xg
     }
 
     // Hybrid Component (Standard + ECS)
+    [ComponentIcon("Object", Color = "#6A9A48")]
     public class NPCComponent : ComponentDataSet<NPCData>, // ComponentSet<D1, D2, ...>
                                   IComponentUpdate<NPCComponent>, // standard update (optional)
                                   IComponentDataUpdate<NPCData> // ECS update (optional)

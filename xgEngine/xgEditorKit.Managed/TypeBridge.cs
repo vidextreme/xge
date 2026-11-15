@@ -54,12 +54,21 @@ namespace xg.editor
             return false;
         }
 
-        public static bool HasAttribute(MemberInfo member, Type attributeType)
+        public static bool HasAttribute(MemberInfo member, Type attributeType) => GetAttributeData(member, attributeType) is not null;
+
+        // The first attribute of attributeType (or derived) on member, matched by name so it works across load contexts.
+        // Inherited attributes on base classes are included for types.
+        public static CustomAttributeData? GetAttributeData(MemberInfo member, Type attributeType)
         {
-            foreach (CustomAttributeData data in member.CustomAttributes)
-                if (Derives(data.AttributeType, attributeType))
-                    return true;
-            return false;
+            for (MemberInfo? current = member; current is not null; current = (current as Type)?.BaseType)
+            {
+                foreach (CustomAttributeData data in current.CustomAttributes)
+                    if (Derives(data.AttributeType, attributeType))
+                        return data;
+                if (current is not Type)
+                    break;
+            }
+            return null;
         }
 
         // Converts value to target, which may be the same type from another load context.

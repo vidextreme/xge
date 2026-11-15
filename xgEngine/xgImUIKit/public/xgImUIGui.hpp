@@ -59,6 +59,8 @@ namespace xg::imui
         void Polyline(const Vec2* points, int count, Color32 color, bool closed = false, float thickness = 1.0f) const { XG_ImUIDrawPolyline(_ctx, points, count, color, closed, thickness); }
         void Text(const Vec2& position, Color32 color, const char* text) const { XG_ImUIDrawText(_ctx, &position, color, text); }
         void Text(const Vec2& position, Color32 color, const std::string& text) const { XG_ImUIDrawText(_ctx, &position, color, text.c_str()); }
+        // Turned by quarterTurns * 90 degrees clockwise; position is the top-left of the turned text's bounds.
+        void TextRotated(const Vec2& position, Color32 color, const char* text, int quarterTurns) const { XG_ImUIDrawTextRotated(_ctx, &position, color, text, quarterTurns); }
         void DrawIcon(imui::Icon icon, const Vec2& center, float size, Color32 color) const { XG_ImUIDrawIcon(_ctx, icon, &center, size, color); }
         void Image(const Texture& texture, const xg::Rect& r, const Vec2& uv0 = Vec2(0.0f, 0.0f), const Vec2& uv1 = Vec2(1.0f, 1.0f), Color32 tint = Color32(255, 255, 255, 255)) const
         {
@@ -196,9 +198,76 @@ namespace xg::imui
         [[nodiscard]] ModalScope Modal(const char* id, const char* title, const Vec2& size = Vec2(0.0f, 0.0f)) const { return ModalScope(_ctx, id, title, size); }
         void CloseModal() const { XG_ImUICloseModal(_ctx); }
 
+        // Flyout: gui.OpenPopup(id) once, then each frame if (auto popup = gui.Popup(id, position, size)) { ... }.
+        class PopupScope
+        {
+        public:
+            PopupScope(Context* ctx, const char* id, const Vec2& position, const Vec2& size)
+                : _ctx(ctx), _open(XG_ImUIBeginPopup(ctx, id, &position, &size)) {}
+            ~PopupScope() { if (_ctx && _open) XG_ImUIEndPopup(_ctx); }
+            PopupScope(const PopupScope&) = delete;
+            PopupScope& operator=(const PopupScope&) = delete;
+            PopupScope(PopupScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _open(o._open) {}
+            explicit operator bool() const { return _open; }
+        private:
+            Context* _ctx;
+            bool _open;
+        };
+
+        [[nodiscard]] PopupScope Popup(const char* id, const Vec2& position, const Vec2& size = Vec2(0.0f, 0.0f)) const { return PopupScope(_ctx, id, position, size); }
+
         void SameLine(float spacing = -1.0f) const { XG_ImUISameLine(_ctx, spacing); }
         void AlignRight(float width) const { XG_ImUIAlignRight(_ctx, width); }
         Vec2 AvailableSize() const { const interop::Vec2Abi v = XG_ImUIAvailableSize(_ctx); return Vec2(v.x, v.y); }
+
+        // auto card = gui.Card("##health", "Health", Icon::Physics, nullptr, color, &open); if (card) { ...fields... }
+        class CardScope
+        {
+        public:
+            CardScope(Context* ctx, const char* id, const char* title, imui::Icon icon, TextureHandle texture, Color32 color, bool* open)
+                : _ctx(ctx), _open(XG_ImUIBeginCard(ctx, id, title, icon, texture, color, open)) {}
+            ~CardScope() { if (_ctx) XG_ImUIEndCard(_ctx); }
+            CardScope(const CardScope&) = delete;
+            CardScope& operator=(const CardScope&) = delete;
+            CardScope(CardScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _open(o._open) {}
+            explicit operator bool() const { return _open; }
+        private:
+            Context* _ctx;
+            bool _open;
+        };
+
+        [[nodiscard]] CardScope Card(const char* id, const char* title, imui::Icon icon, TextureHandle texture, Color32 color, bool* open = nullptr) const
+        {
+            return CardScope(_ctx, id, title, icon, texture, color, open);
+        }
+
+        // Placement of the panel being drawn; false outside a panel.
+        bool PanelPlacement(imui::PanelPlacement& placement) const
+        {
+            placement.Size = sizeof(imui::PanelPlacement);
+            return XG_ImUIGetPanelPlacement(_ctx, &placement);
+        }
+
+        // auto area = gui.ScrollArea("##tools"); scrollbars appear only when the content overflows.
+        class ScrollAreaScope
+        {
+        public:
+            ScrollAreaScope(Context* ctx, const char* id, const Vec2& size, ScrollAreaFlags flags)
+                : _ctx(ctx), _open(XG_ImUIBeginScrollArea(ctx, id, &size, flags)) {}
+            ~ScrollAreaScope() { if (_ctx && _open) XG_ImUIEndScrollArea(_ctx); }
+            ScrollAreaScope(const ScrollAreaScope&) = delete;
+            ScrollAreaScope& operator=(const ScrollAreaScope&) = delete;
+            ScrollAreaScope(ScrollAreaScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _open(o._open) {}
+            explicit operator bool() const { return _open; }
+        private:
+            Context* _ctx;
+            bool _open = false;
+        };
+
+        [[nodiscard]] ScrollAreaScope ScrollArea(const char* id, const Vec2& size = Vec2(0.0f, 0.0f), ScrollAreaFlags flags = ScrollAreaFlags::None) const
+        {
+            return ScrollAreaScope(_ctx, id, size, flags);
+        }
         bool Splitter(const char* id, float& size, float minSize, float maxSize) const { return Changed(XG_ImUISplitter(_ctx, id, &size, minSize, maxSize)); }
 
         class FontScope

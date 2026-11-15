@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 10;
+    inline constexpr uint32_t ApiVersion = 11;
 
     struct Context;
     struct PanelEntry;
@@ -98,6 +98,7 @@ namespace xg::imui
         Info, Warning, Error,
         WinMinimize, WinMaximize, WinRestore, WinClose,
         Image, Trash,
+        Cards,
         Count
     };
 
@@ -128,6 +129,13 @@ namespace xg::imui
         AxisY,
         AxisZ,
         Grid,
+        TextOnAccent,
+        PanelHeaderHover,
+        TopBarBg,
+        SegmentBg,
+        Button,
+        ButtonHover,
+        Border,
         Count
     };
 
@@ -231,6 +239,37 @@ namespace xg::imui
         Selected    = 1 << 2,
     };
     XG_ENABLE_FLAGS(TreeRowFlags)
+
+    enum class ScrollAreaFlags : uint8_t
+    {
+        None       = 0,
+        // Content is a row that scrolls horizontally (and vertically on overflow); the wheel scrolls X when nothing overflows vertically.
+        Horizontal = 1 << 0,
+        // 6 px padding around the content.
+        Padded     = 1 << 1,
+    };
+    XG_ENABLE_FLAGS(ScrollAreaFlags)
+
+    enum class PanelPlacementFlags : uint8_t
+    {
+        None         = 0,
+        Docked       = 1 << 0,
+        MainViewport = 1 << 1,
+    };
+    XG_ENABLE_FLAGS(PanelPlacementFlags)
+
+    // Where the current panel is, in screen coordinates. DockNode is the panel's own dock node and DockSpace the root
+    // node of its dock tree (both equal to Window when floating), so comparing them tells which side it is docked on.
+    struct PanelPlacement
+    {
+        uint32_t Size = sizeof(PanelPlacement);
+        Rect Window;
+        Rect DockNode;
+        Rect DockSpace;
+        PanelPlacementFlags Flags = PanelPlacementFlags::None;
+
+        bool Docked() const noexcept { return HasFlag(Flags, PanelPlacementFlags::Docked); }
+    };
 }
 
 namespace xg
@@ -303,7 +342,12 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUIOpenPopup(imui::Context* ctx, const char* id);
     XG_MODULE_EXPORT bool XG_ImUIBeginModal(imui::Context* ctx, const char* id, const char* title, const Vec2* size);
     XG_MODULE_EXPORT void XG_ImUIEndModal(imui::Context* ctx);
+    // Closes the current popup or modal.
     XG_MODULE_EXPORT void XG_ImUICloseModal(imui::Context* ctx);
+    // Non-modal popup (a flyout) opened with OpenPopup(id): placed at position in the current draw space, size.x wide
+    // (size.y <= 0 fits the content). A click outside or Escape closes it. Call EndPopup only when BeginPopup returned true.
+    XG_MODULE_EXPORT bool XG_ImUIBeginPopup(imui::Context* ctx, const char* id, const Vec2* position, const Vec2* size);
+    XG_MODULE_EXPORT void XG_ImUIEndPopup(imui::Context* ctx);
 
     // Read-only, selectable multi-line text (Ctrl+A / Ctrl+C copy). size <= 0 fills the available space.
     XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size);
@@ -348,6 +392,21 @@ namespace xg
     XG_MODULE_EXPORT imui::Result XG_ImUIBeginTreeRow(imui::Context* ctx, int index, int depth, imui::TreeRowFlags flags);
     XG_MODULE_EXPORT void XG_ImUIEndTreeRow(imui::Context* ctx);
 
+    // Scrolling region without a background; scrollbars show only when the content overflows. Its content is a column
+    // (a row with ScrollAreaFlags::Horizontal). size <= 0 fills like Canvas. Call EndScrollArea only when Begin returned true.
+    XG_MODULE_EXPORT bool XG_ImUIBeginScrollArea(imui::Context* ctx, const char* id, const Vec2* size, imui::ScrollAreaFlags flags);
+    XG_MODULE_EXPORT void XG_ImUIEndScrollArea(imui::Context* ctx);
+
+    // Group card (the Ribbon's group look) around ordinary layout content: a full-width bordered box whose header shows
+    // an expand arrow (when open isn't null; a click toggles *open), the texture or icon in iconColor and the bold title.
+    // Returns whether the body is open; its content is a column. Always call EndCard. Heights follow the content one
+    // frame late.
+    XG_MODULE_EXPORT bool XG_ImUIBeginCard(imui::Context* ctx, const char* id, const char* title, imui::Icon icon, imui::TextureHandle texture, Color32 iconColor, bool* open);
+    XG_MODULE_EXPORT void XG_ImUIEndCard(imui::Context* ctx);
+
+    // Placement of the panel being drawn (call from its OnGUI). Returns false outside a panel.
+    XG_MODULE_EXPORT bool XG_ImUIGetPanelPlacement(imui::Context* ctx, imui::PanelPlacement* out);
+
     // Immediate drawing
     XG_MODULE_EXPORT imui::Result XG_ImUIBeginCanvas(imui::Context* ctx, const char* id, const Vec2* size, Rect* outRect);
     XG_MODULE_EXPORT void XG_ImUIEndCanvas(imui::Context* ctx);
@@ -363,6 +422,9 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUIDrawTriangleFilled(imui::Context* ctx, const Vec2* a, const Vec2* b, const Vec2* c, Color32 color);
     XG_MODULE_EXPORT void XG_ImUIDrawPolyline(imui::Context* ctx, const Vec2* points, int count, Color32 color, bool closed, float thickness);
     XG_MODULE_EXPORT void XG_ImUIDrawText(imui::Context* ctx, const Vec2* position, Color32 color, const char* text);
+    // Text turned by quarterTurns * 90 degrees clockwise (1 reads top to bottom, 3 bottom to top). position is the
+    // top-left of the turned text's bounds.
+    XG_MODULE_EXPORT void XG_ImUIDrawTextRotated(imui::Context* ctx, const Vec2* position, Color32 color, const char* text, int quarterTurns);
     XG_MODULE_EXPORT void XG_ImUIDrawIcon(imui::Context* ctx, imui::Icon icon, const Vec2* center, float size, Color32 color);
     XG_MODULE_EXPORT void XG_ImUIDrawImage(imui::Context* ctx, imui::TextureHandle texture, const Rect* rect, const Vec2* uv0, const Vec2* uv1, Color32 tint);
     // Draws a texture owned by the render target (for example an offscreen render view id).

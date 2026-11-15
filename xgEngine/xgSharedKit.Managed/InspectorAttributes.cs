@@ -50,4 +50,15 @@ namespace xg
     public sealed class SerializeFieldAttribute : Attribute
     {
     }
+
+    // Editor icon of a component class (Inspector tabs and cards, Add Component list); also lists the class under Add
+    // Component. Icon is a built-in icon name ("Physics", "Camera") or a PNG/BMP path: absolute, relative to the game
+    // project folder, or relative to gameroot/editor. Color tints a built-in icon ("#RRGGBB").
+    [AttributeUsage(AttributeTargets.Class, Inherited = true)]
+    public sealed class ComponentIconAttribute : Attribute
+    {
+        public ComponentIconAttribute(string icon) => Icon = icon;
+        public string Icon { get; }
+        public string? Color { get; set; }
+    }
 }

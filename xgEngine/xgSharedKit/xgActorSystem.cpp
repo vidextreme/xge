@@ -173,6 +173,16 @@ namespace xg
         };
 
         std::vector<ComponentSource> _componentSources;
+
+        struct ComponentFactory
+        {
+            ScriptEngine* Engine;
+            uint32_t ModuleId;
+            int RuntimeKind;
+            XG_ActorComponentFactoryFn Fn;
+        };
+
+        std::vector<ComponentFactory> _componentFactories;
     }
 }
 
@@ -186,6 +196,37 @@ void XG_ActorRegisterComponentSource(xg::ScriptEngine* engine, uint32_t moduleId
 void XG_ActorUnregisterComponentSource(xg::ScriptEngine* engine, uint32_t moduleId)
 {
     std::erase_if(xg::_componentSources, [&](const xg::ComponentSource& s) { return s.Engine == engine && s.ModuleId == moduleId; });
+}
+
+void XG_ActorRegisterComponentFactory(xg::ScriptEngine* engine, uint32_t moduleId, int runtimeKind, XG_ActorComponentFactoryFn factory)
+{
+    XG_ActorUnregisterComponentFactory(engine, moduleId);
+    if (factory)
+        xg::_componentFactories.push_back({ engine, moduleId, runtimeKind, factory });
+}
+
+void XG_ActorUnregisterComponentFactory(xg::ScriptEngine* engine, uint32_t moduleId)
+{
+    std::erase_if(xg::_componentFactories, [&](const xg::ComponentFactory& f) { return f.Engine == engine && f.ModuleId == moduleId; });
+}
+
+int XG_ActorAddComponent(xg::ScriptEngine* engine, xg::ActorID id, const char* typeKey, int runtimeKind)
+{
+    if (!typeKey || !typeKey[0])
+        return -1;
+    const std::vector<xg::ComponentFactory> factories = xg::_componentFactories;
+    for (int adopt = 0; adopt <= 1; ++adopt)
+    {
+        for (const xg::ComponentFactory& factory : factories)
+        {
+            if (factory.Engine != engine || factory.RuntimeKind != runtimeKind)
+                continue;
+            const int result = factory.Fn(id, typeKey, adopt);
+            if (result != 0)
+                return result;
+        }
+    }
+    return 0;
 }
 
 int XG_ActorGetComponentHandles(xg::ScriptEngine* engine, xg::ActorID id, int runtimeKind, intptr_t* out, int capacity)

@@ -92,6 +92,22 @@ namespace xg::imui
         ListFrame Lists[MaxListDepth];
         int ListDepth = 0;
 
+        static constexpr int MaxScrollDepth = 4;
+        ImVec2 ScrollOrigins[MaxScrollDepth];
+        int ScrollDepth = 0;
+
+        static constexpr int MaxCardDepth = 4;
+        struct CardFrame
+        {
+            ImVec2 Origin;
+            bool BodyOpen = false;
+        };
+        CardFrame Cards[MaxCardDepth];
+        int CardDepth = 0;
+        int CardOverflow = 0;
+
+        ImGuiWindow* PanelWindow = nullptr;
+
         ImVec2 Origin() const { return CanvasDepth > 0 ? CanvasOrigins[CanvasDepth - 1] : ContentOrigin; }
         ImVec2 ToScreen(const Vec2& v) const { const ImVec2 o = Origin(); return ImVec2(o.x + v.x, o.y + v.y); }
         ImDrawList* DrawList() const
@@ -179,6 +195,35 @@ namespace
             result = result | Result::DoubleClicked;
         return result;
     }
+
+    // Layout cursor saved around an item placed at an explicit position (hit areas, placed icon buttons), so the
+    // placed item changes neither where the next item goes (also after SameLine) nor the window's boundaries.
+    struct CursorState
+    {
+        ImVec2 Pos;
+        ImVec2 PrevLinePos;
+        ImVec2 PrevLineSize;
+        float PrevLineTextBaseOffset = 0.0f;
+        bool IsSameLine = false;
+        bool IsSetPos = false;
+
+        static CursorState Save()
+        {
+            const ImGuiWindowTempData& dc = ImGui::GetCurrentWindow()->DC;
+            return CursorState{ dc.CursorPos, dc.CursorPosPrevLine, dc.PrevLineSize, dc.PrevLineTextBaseOffset, dc.IsSameLine, dc.IsSetPos };
+        }
+
+        void Restore() const
+        {
+            ImGuiWindowTempData& dc = ImGui::GetCurrentWindow()->DC;
+            dc.CursorPos = Pos;
+            dc.CursorPosPrevLine = PrevLinePos;
+            dc.PrevLineSize = PrevLineSize;
+            dc.PrevLineTextBaseOffset = PrevLineTextBaseOffset;
+            dc.IsSameLine = IsSameLine;
+            dc.IsSetPos = IsSetPos;
+        }
+    };
 
     Context::LayoutFrame* CurrentLayout(Context* ctx)
     {
@@ -298,12 +343,14 @@ namespace
         if (HasFlag(entry->Flags, PanelFlags::NoScrollbar))
             bodyFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
         const ImVec2 padding = HasFlag(entry->Flags, PanelFlags::NoPadding) ? ImVec2(0.0f, 0.0f) : ImVec2(8.0f, 6.0f);
+        ImGuiWindow* panelWindow = ImGui::GetCurrentWindow();
         imui::detail::BeginBody("##imui_body", padding, bodyFlags);
 
         if (entry->OnGUI)
         {
             Context ctx;
             ctx.Panel = entry;
+            ctx.PanelWindow = panelWindow;
             ctx.ContentOrigin = ImGui::GetCursorScreenPos();
 
             ImGuiErrorRecoveryState state;
@@ -893,7 +940,7 @@ namespace xg
         const float side = size > 0.0f ? size : ImGui::GetFrameHeight();
         if (!position)
             LayoutItem(ctx);
-        const ImVec2 restore = ImGui::GetCursorScreenPos();
+        const CursorState restore = CursorState::Save();
         if (position)
             ImGui::SetCursorScreenPos(ctx->ToScreen(interop::Load(position)));
         ImGui::InvisibleButton(id ? id : "##iconbutton", ImVec2(side, side));
@@ -909,7 +956,7 @@ namespace xg
             imui::detail::DrawIcon(dl, static_cast<imui::detail::Icon>(icon), ImVec2((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f),
                 side * 0.62f, ToImU32(color));
         if (position)
-            ImGui::SetCursorScreenPos(restore);
+            restore.Restore();
         return HasFlag(result, imui::Result::Clicked) ? result | imui::Result::Changed : result;
     }
 
@@ -920,13 +967,13 @@ namespace xg
         const Rect r = interop::Load(rect);
         if (r.Width() <= 0.0f || r.Height() <= 0.0f)
             return imui::Result::None;
-        const ImVec2 restore = ImGui::GetCursorScreenPos();
+        const CursorState restore = CursorState::Save();
         ImGui::SetCursorScreenPos(ctx->ToScreen(r.min));
         ImGui::SetNextItemAllowOverlap();
         ImGui::InvisibleButton(id ? id : "##hitarea", ImVec2(r.Width(), r.Height()),
             ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
         const imui::Result result = ItemResult(false);
-        ImGui::SetCursorScreenPos(restore);
+        restore.Restore();
         return result;
     }
 
@@ -990,6 +1037,40 @@ namespace xg
     {
         if (ctx)
             ImGui::CloseCurrentPopup();
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIBeginPopup(imui::Context* ctx, const char* id, const Vec2* position, const Vec2* size)
+    {
+        if (!ctx || !id)
+            return false;
+        const std::string name = std::string("###") + id;
+        if (!ImGui::IsPopupOpen(name.c_str()))
+            return false;
+        const Vec2 requested = LoadVec2(size);
+        ImGui::SetNextWindowPos(ctx->ToScreen(LoadVec2(position)), ImGuiCond_Always);
+        if (requested.x > 0.0f)
+            ImGui::SetNextWindowSizeConstraints(ImVec2(requested.x, requested.y > 0.0f ? requested.y : 0.0f),
+                ImVec2(requested.x, requested.y > 0.0f ? requested.y : FLT_MAX));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, imui::detail::HeaderBg);
+        ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
+        const bool open = ImGui::BeginPopup(name.c_str(),
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(3);
+        if (!open)
+            return false;
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape) && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+            ImGui::CloseCurrentPopup();
+        BeginLayout(ctx, false, -1.0f, false);
+        return true;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndPopup(imui::Context* ctx)
+    {
+        XG_ImUIEndModal(ctx);
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size)
@@ -1266,6 +1347,177 @@ namespace xg
     }
 
     // ------------------------------------------------------------
+    // Scroll areas and panel placement
+    // ------------------------------------------------------------
+    XG_MODULE_EXPORT bool XG_ImUIBeginScrollArea(imui::Context* ctx, const char* id, const Vec2* size, imui::ScrollAreaFlags flags)
+    {
+        if (!ctx || ctx->ScrollDepth >= imui::Context::MaxScrollDepth)
+            return false;
+
+        const Vec2 requested = LoadVec2(size);
+        LayoutItem(ctx);
+        const ImVec2 areaSize(requested.x > 0.0f ? requested.x : LayoutFill(ctx, true), requested.y > 0.0f ? requested.y : LayoutFill(ctx, false));
+        const bool horizontal = HasFlag(flags, imui::ScrollAreaFlags::Horizontal);
+        const ImGuiWindowFlags windowFlags = horizontal ? ImGuiWindowFlags_HorizontalScrollbar : ImGuiWindowFlags_None;
+        const bool padded = HasFlag(flags, imui::ScrollAreaFlags::Padded);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, padded ? ImVec2(6.0f, 6.0f) : ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
+        ImGui::BeginChild(id ? id : "##scroll", areaSize, padded ? ImGuiChildFlags_AlwaysUseWindowPadding : ImGuiChildFlags_None, windowFlags);
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+
+        if (horizontal && ImGui::IsWindowHovered() && ImGui::GetScrollMaxX() > 0.0f && ImGui::GetScrollMaxY() <= 0.0f)
+        {
+            const float wheel = ImGui::GetIO().MouseWheel;
+            if (wheel != 0.0f)
+                ImGui::SetScrollX(ImGui::GetScrollX() - wheel * ImGui::GetFontSize() * 4.0f);
+        }
+
+        ctx->ScrollOrigins[ctx->ScrollDepth++] = ctx->ContentOrigin;
+        ctx->ContentOrigin = ImGui::GetCursorScreenPos();
+        BeginLayout(ctx, horizontal, -1.0f, false);
+        return true;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndScrollArea(imui::Context* ctx)
+    {
+        if (!ctx || ctx->ScrollDepth <= 0)
+            return;
+        EndLayout(ctx);
+        ImGui::EndChild();
+        ctx->ContentOrigin = ctx->ScrollOrigins[--ctx->ScrollDepth];
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIBeginCard(imui::Context* ctx, const char* id, const char* title, imui::Icon icon, imui::TextureHandle texture, Color32 iconColor, bool* open)
+    {
+        if (!ctx)
+            return false;
+        if (ctx->CardDepth >= imui::Context::MaxCardDepth)
+        {
+            ++ctx->CardOverflow;
+            return false;
+        }
+
+        constexpr float HeaderHeight = 22.0f;
+        LayoutItem(ctx);
+        const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, imui::detail::HeaderBg);
+        ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
+        ImGui::BeginChild(id ? id : "##card", ImVec2(width, 0.0f), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders,
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(3);
+
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const float headerWidth = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
+        ImGui::InvisibleButton("##card_header", ImVec2(headerWidth, HeaderHeight));
+        const bool hovered = open && ImGui::IsItemHovered();
+        if (open && ImGui::IsItemClicked(ImGuiMouseButton_Left))
+            *open = !*open;
+        const bool bodyOpen = !open || *open;
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImVec2 q(p.x + headerWidth, p.y + HeaderHeight);
+        dl->AddRectFilled(p, q, hovered ? imui::detail::PanelHeaderHov : imui::detail::PanelHeaderBg, 4.0f,
+            bodyOpen ? ImDrawFlags_RoundCornersTop : ImDrawFlags_RoundCornersAll);
+        if (bodyOpen)
+            dl->AddLine(ImVec2(p.x, q.y - 0.5f), ImVec2(q.x, q.y - 0.5f), imui::detail::SegmentBg);
+        const float cy = p.y + HeaderHeight * 0.5f;
+        float x = p.x + 8.0f;
+        if (open)
+        {
+            const ImU32 arrow = imui::detail::TextDim;
+            if (*open)
+                dl->AddTriangleFilled(ImVec2(x - 1.0f, cy - 2.5f), ImVec2(x + 7.0f, cy - 2.5f), ImVec2(x + 3.0f, cy + 2.5f), arrow);
+            else
+                dl->AddTriangleFilled(ImVec2(x + 1.0f, cy - 4.0f), ImVec2(x + 6.0f, cy), ImVec2(x + 1.0f, cy + 4.0f), arrow);
+            x += 14.0f;
+        }
+        constexpr float IconSize = 14.0f;
+        if (texture && texture->Data)
+        {
+            dl->AddImage(texture->Data->GetTexRef(), ImVec2(x, cy - IconSize * 0.5f), ImVec2(x + IconSize, cy + IconSize * 0.5f));
+            x += IconSize + 6.0f;
+        }
+        else if (icon > imui::Icon::None && icon < imui::Icon::Count)
+        {
+            imui::detail::DrawIcon(dl, static_cast<imui::detail::Icon>(icon), ImVec2(x + IconSize * 0.5f, cy), IconSize, ToImU32(iconColor));
+            x += IconSize + 6.0f;
+        }
+        if (title && title[0])
+        {
+            XG_ImUIPushFont(ctx, imui::FontStyle::Bold);
+            dl->AddText(ImVec2(x, IM_ROUND(cy - ImGui::GetFontSize() * 0.5f)), imui::detail::TextColor, title);
+            XG_ImUIPopFont(ctx);
+        }
+
+        imui::Context::CardFrame& frame = ctx->Cards[ctx->CardDepth++];
+        frame.Origin = ctx->ContentOrigin;
+        frame.BodyOpen = bodyOpen;
+        if (bodyOpen)
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6.0f, 4.0f));
+            ImGui::BeginChild("##card_body", ImVec2(headerWidth, 0.0f), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysUseWindowPadding,
+                ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+            ImGui::PopStyleVar();
+            ctx->ContentOrigin = ImGui::GetCursorScreenPos();
+            BeginLayout(ctx, false, -1.0f, false);
+        }
+        return bodyOpen;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndCard(imui::Context* ctx)
+    {
+        if (!ctx)
+            return;
+        if (ctx->CardOverflow > 0)
+        {
+            --ctx->CardOverflow;
+            return;
+        }
+        if (ctx->CardDepth <= 0)
+            return;
+        const imui::Context::CardFrame frame = ctx->Cards[--ctx->CardDepth];
+        if (frame.BodyOpen)
+        {
+            EndLayout(ctx);
+            ImGui::EndChild();
+        }
+        ImGui::EndChild();
+        ctx->ContentOrigin = frame.Origin;
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIGetPanelPlacement(imui::Context* ctx, imui::PanelPlacement* out)
+    {
+        if (!ctx || !out || !ctx->PanelWindow)
+            return false;
+        const imui::PanelPlacement current = interop::Load(out);
+        if (current.Size < sizeof(imui::PanelPlacement))
+            return false;
+
+        const auto toRect = [](const ImVec2& pos, const ImVec2& size) { return Rect::FromXYWH(pos.x, pos.y, size.x, size.y); };
+        ImGuiWindow* window = ctx->PanelWindow;
+        imui::PanelPlacement placement;
+        placement.Window = toRect(window->Pos, window->Size);
+        placement.DockNode = placement.Window;
+        placement.DockSpace = placement.Window;
+        if (window->DockIsActive && window->DockNode)
+        {
+            ImGuiDockNode* root = ImGui::DockNodeGetRootNode(window->DockNode);
+            placement.DockNode = toRect(window->DockNode->Pos, window->DockNode->Size);
+            placement.DockSpace = toRect(root->Pos, root->Size);
+            placement.Flags = placement.Flags | imui::PanelPlacementFlags::Docked;
+        }
+        if (window->Viewport == ImGui::GetMainViewport())
+            placement.Flags = placement.Flags | imui::PanelPlacementFlags::MainViewport;
+        interop::Store(out, placement);
+        return true;
+    }
+
+    // ------------------------------------------------------------
     // Immediate drawing
     // ------------------------------------------------------------
     XG_MODULE_EXPORT imui::Result XG_ImUIBeginCanvas(imui::Context* ctx, const char* id, const Vec2* size, Rect* outRect)
@@ -1379,6 +1631,61 @@ namespace xg
             ctx->DrawList()->AddText(ctx->ToScreen(LoadVec2(position)), ToImU32(color), text);
     }
 
+    XG_MODULE_EXPORT void XG_ImUIDrawTextRotated(imui::Context* ctx, const Vec2* position, Color32 color, const char* text, int quarterTurns)
+    {
+        if (!ctx || !text || !text[0])
+            return;
+        const int turns = ((quarterTurns % 4) + 4) % 4;
+        ImDrawList* dl = ctx->DrawList();
+        const ImVec2 topLeft = ctx->ToScreen(LoadVec2(position));
+        if (turns == 0)
+        {
+            dl->AddText(topLeft, ToImU32(color), text);
+            return;
+        }
+
+        const ImVec2 size = ImGui::CalcTextSize(text);
+        ImVec2 pivot = topLeft;
+        if (turns == 1)
+            pivot.x += size.y;
+        else if (turns == 2)
+            pivot = ImVec2(pivot.x + size.x, pivot.y + size.y);
+        else
+            pivot.y += size.x;
+
+        pivot = ImVec2(IM_ROUND(pivot.x), IM_ROUND(pivot.y));
+
+        const int first = dl->VtxBuffer.Size;
+        const ImVec4 unclipped(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX);
+        ImGui::GetFont()->RenderText(dl, ImGui::GetFontSize(), pivot, ToImU32(color), unclipped, text, nullptr, 0.0f, ImDrawTextFlags_None);
+        ImDrawVert* vertices = dl->VtxBuffer.Data;
+        const int end = dl->VtxBuffer.Size;
+        for (int i = first; i < end; ++i)
+        {
+            ImVec2& p = vertices[i].pos;
+            const float dx = p.x - pivot.x;
+            const float dy = p.y - pivot.y;
+            if (turns == 1)
+                p = ImVec2(pivot.x - dy, pivot.y + dx);
+            else if (turns == 2)
+                p = ImVec2(pivot.x - dx, pivot.y - dy);
+            else
+                p = ImVec2(pivot.x + dy, pivot.y - dx);
+        }
+        for (int quad = first; quad + 3 < end; quad += 4)
+        {
+            ImVec2 min = vertices[quad].pos;
+            for (int k = 1; k < 4; ++k)
+                min = ImMin(min, vertices[quad + k].pos);
+            const ImVec2 snap(IM_ROUND(min.x) - min.x, IM_ROUND(min.y) - min.y);
+            for (int k = 0; k < 4; ++k)
+            {
+                vertices[quad + k].pos.x += snap.x;
+                vertices[quad + k].pos.y += snap.y;
+            }
+        }
+    }
+
     XG_MODULE_EXPORT void XG_ImUIDrawIcon(imui::Context* ctx, imui::Icon icon, const Vec2* center, float size, Color32 color)
     {
         if (!ctx || icon <= imui::Icon::None || icon >= imui::Icon::Count)
@@ -1415,6 +1722,8 @@ namespace xg
             PanelBg, PanelHeaderBg, AreaBg, HeaderBg, ToolbarBg, ViewportBg, Outline,
             IconColor, IconObject, IconData, IconComponent, IconMaterial, IconWarning,
             AxisX, AxisY, AxisZ, Grid,
+            TextOnAccent, PanelHeaderHov,
+            TopBarBg, SegmentBg, ButtonBg, ButtonHover, DropdownBorder,
         };
         const int index = static_cast<int>(token);
         interop::Store(outColor, ToColor32(index >= 0 && index < static_cast<int>(imui::StyleColor::Count) ? colors[index] : TextColor));

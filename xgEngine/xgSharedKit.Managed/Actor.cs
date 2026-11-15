@@ -11,6 +11,8 @@ namespace xg
 
         public bool IsValid { get; private set; } = true;
 
+        private bool _adopted;
+
         internal Actor()
         {
         }
@@ -31,15 +33,32 @@ namespace xg
 
         public IReadOnlyList<object> Components => _components;
 
-        public T AddComponent<T>() where T : class, new()
+        public T AddComponent<T>() where T : class, new() => (T)AddComponent(new T());
+
+        // Adds a new component of type (a class with a public parameterless constructor).
+        public object AddComponent(Type type)
+        {
+            ArgumentNullException.ThrowIfNull(type);
+            return AddComponent(Activator.CreateInstance(type) ?? throw new ArgumentException($"Cannot create {type}.", nameof(type)));
+        }
+
+        private object AddComponent(object component)
         {
             ThrowIfDestroyed();
-            T component = new();
             _components.Add(component);
             ActorRegistry.SetOwner(component, this);
             if (component is IComponentUpdate updatable)
                 updatable.Attach();
             return component;
+        }
+
+        // A proxy for an actor another module created, so this module can hold components on it. Destroying the proxy
+        // only drops this module's view of the actor.
+        internal static Actor Adopt(ActorID id)
+        {
+            Actor actor = new() { ID = id, _adopted = true };
+            ActorRegistry.Register(actor);
+            return actor;
         }
 
         public T? GetComponent<T>() where T : class
@@ -70,7 +89,8 @@ namespace xg
                 return;
             Release();
             ActorRegistry.Unregister(this);
-            ActorUtils.XG_DestroyActor(ScriptRuntime._enginePtr, ID);
+            if (!_adopted)
+                ActorUtils.XG_DestroyActor(ScriptRuntime._enginePtr, ID);
         }
 
         public string Name

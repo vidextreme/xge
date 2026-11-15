@@ -13,6 +13,9 @@ namespace xgEditor.CoreCLR
     public sealed class HierarchyPanel : Panel
     {
         private const float RowHeight = 20.0f;
+        // Where XG_ImUIBeginTreeRow puts the row's draw origin: after a 4 px margin, the depth indent and the 16 px arrow.
+        private const float TreeArrowOffset = 20.0f;
+        private const float TreeIndent = 14.0f;
 
         private readonly struct Row
         {
@@ -163,6 +166,8 @@ namespace xgEditor.CoreCLR
                 }
 
                 Painter draw = scope.Draw;
+                if (selected)
+                    EditorStyle.SelectionBar(draw, -(TreeArrowOffset + row.Depth * TreeIndent), RowHeight);
                 draw.Icon(Icon.Object, new Vector2(7.0f, RowHeight * 0.5f), 13.0f, icon);
                 draw.Text(new Vector2(18.0f, textY), selected ? textSelected : text, ActorTree.GetName(new ActorID(row.Id)));
             }
