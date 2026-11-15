@@ -3,7 +3,7 @@
 #include "pch.h"
 
 #include "CodecJSON.h"
-#include "xgJson.h"
+#include "xgJSON.h"
 #include "xgTypeRegistry.h"
 #include "xgStream.h"
 #include <string>
@@ -18,7 +18,7 @@ namespace xg
         const TypeSchema* schema,
         ScriptMessage& out)
     {
-        Json json;
+        JSON json;
 
         for (uint32_t i = 0; i < schema->FieldCount; ++i)
         {
@@ -77,7 +77,7 @@ namespace xg
         void* outObject)
     {
         auto ms = CreateMemoryStream(const_cast<void*>(msg.Payload), msg.PayloadSize);
-        Json json;
+        JSON json;
         if (!json.Load(*ms))
             return false;
 

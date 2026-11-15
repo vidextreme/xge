@@ -61,6 +61,4 @@ namespace xg
         bool _initialized = false;
     };
 
-    static std::wstring ToWide(const std::string& s);
-    
 }

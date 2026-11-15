@@ -8,7 +8,7 @@ namespace xg
     class FileWin : public File
     {
     public:
-        explicit FileWin(const wchar_t* path);
+        explicit FileWin(const char* path);
         ~FileWin() override;
 
         // Stream
@@ -24,7 +24,7 @@ namespace xg
         void Close() override;
         void Flush() override;
         void* GetHandle() override;
-        const wchar_t* GetPath() const override;
+        const char* GetPath() const override;
 
         void* GetBuffer() override { return nullptr; }
 

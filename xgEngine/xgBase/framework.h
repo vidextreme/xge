@@ -13,7 +13,7 @@
 #include "xgEventQueue.h"
 #include "xgEventDispatcher.h"
 #include "xgLog.h"
-#include "xgJson.h"
+#include "xgJSON.h"
 #include "xgPathUtils.h"
 #include "xgRoute.h"
 #include "xgScriptMessage.h"

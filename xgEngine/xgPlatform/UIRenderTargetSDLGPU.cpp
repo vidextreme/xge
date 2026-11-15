@@ -20,6 +20,12 @@ namespace xg {
             float Translate[2];
         };
 
+#if XG_PLATFORM_WINDOWS
+        constexpr SDL_GPUShaderFormat ShaderFormats = SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_DXBC;
+#else
+        constexpr SDL_GPUShaderFormat ShaderFormats = SDL_GPU_SHADERFORMAT_SPIRV;
+#endif
+
         uint32_t AlignUp(uint32_t value, uint32_t alignment)
         {
             return (value + alignment - 1) & ~(alignment - 1);
@@ -32,7 +38,7 @@ namespace xg {
         if (!_main.Window)
             return;
 
-        _device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_DXBC, false, nullptr);
+        _device = SDL_CreateGPUDevice(ShaderFormats, false, nullptr);
         if (!_device)
         {
             SDL_Log("xgPlatform: SDL_CreateGPUDevice failed: %s", SDL_GetError());
@@ -78,19 +84,44 @@ namespace xg {
 
     bool UIRenderTargetSDLGPU::CreatePipeline()
     {
-        const bool dxil = (SDL_GetGPUShaderFormats(_device) & SDL_GPU_SHADERFORMAT_DXIL) != 0;
+        const SDL_GPUShaderFormat formats = SDL_GetGPUShaderFormats(_device);
 
         SDL_GPUShaderCreateInfo vertexInfo = {};
-        vertexInfo.code = dxil ? UIVertexDXIL : UIVertexDXBC;
-        vertexInfo.code_size = dxil ? sizeof(UIVertexDXIL) : sizeof(UIVertexDXBC);
+        SDL_GPUShaderCreateInfo fragmentInfo = {};
+        if (formats & SDL_GPU_SHADERFORMAT_DXIL)
+        {
+            vertexInfo.format = SDL_GPU_SHADERFORMAT_DXIL;
+            vertexInfo.code = UIVertexDXIL;
+            vertexInfo.code_size = sizeof(UIVertexDXIL);
+            fragmentInfo.code = UIFragmentDXIL;
+            fragmentInfo.code_size = sizeof(UIFragmentDXIL);
+        }
+        else if (formats & SDL_GPU_SHADERFORMAT_DXBC)
+        {
+            vertexInfo.format = SDL_GPU_SHADERFORMAT_DXBC;
+            vertexInfo.code = UIVertexDXBC;
+            vertexInfo.code_size = sizeof(UIVertexDXBC);
+            fragmentInfo.code = UIFragmentDXBC;
+            fragmentInfo.code_size = sizeof(UIFragmentDXBC);
+        }
+        else if (formats & SDL_GPU_SHADERFORMAT_SPIRV)
+        {
+            vertexInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+            vertexInfo.code = UIVertexSPIRV;
+            vertexInfo.code_size = sizeof(UIVertexSPIRV);
+            fragmentInfo.code = UIFragmentSPIRV;
+            fragmentInfo.code_size = sizeof(UIFragmentSPIRV);
+        }
+        else
+        {
+            SDL_SetError("no supported shader format (have DXIL, DXBC and SPIR-V)");
+            return false;
+        }
+
         vertexInfo.entrypoint = "VSMain";
-        vertexInfo.format = dxil ? SDL_GPU_SHADERFORMAT_DXIL : SDL_GPU_SHADERFORMAT_DXBC;
         vertexInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;
         vertexInfo.num_uniform_buffers = 1;
 
-        SDL_GPUShaderCreateInfo fragmentInfo = {};
-        fragmentInfo.code = dxil ? UIFragmentDXIL : UIFragmentDXBC;
-        fragmentInfo.code_size = dxil ? sizeof(UIFragmentDXIL) : sizeof(UIFragmentDXBC);
         fragmentInfo.entrypoint = "PSMain";
         fragmentInfo.format = vertexInfo.format;
         fragmentInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;

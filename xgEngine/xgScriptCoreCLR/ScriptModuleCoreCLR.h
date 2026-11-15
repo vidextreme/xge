@@ -27,7 +27,7 @@ namespace xg
         bool LoadEntryPoints(const char* assemblyName,
             const char* assemblyPath,
             const char* typeName,
-            const wchar_t* entryPointName,
+            const char* entryPointName,
             void** func);
 
         ScriptHostCoreCLR* _coreclrHost = nullptr;

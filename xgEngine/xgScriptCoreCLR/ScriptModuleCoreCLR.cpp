@@ -4,6 +4,7 @@
 #include "xgSceneGraph.h"
 #include "ScriptModuleCoreCLR.h"
 #include "ScriptHostCoreCLR.h"
+#include "HostString.h"
 #include <filesystem>
 #include "xgDynamicObject.h"
 #include "xgCodecRegistry.h"
@@ -13,57 +14,8 @@
 
 namespace xg
 {
-
-    std::string GetFullPath(const char* path)
-    {
-        char buffer[MAX_PATH];
-        DWORD len = GetFullPathNameA(path, MAX_PATH, buffer, nullptr);
-        return (len == 0 || len >= MAX_PATH) ? std::string(path) : std::string(buffer);
-    }
-
-    std::wstring ToWide(const std::string& s)
-    {
-        if (s.empty())
-            return std::wstring();
-
-        int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-        if (len <= 0)
-            return std::wstring();
-
-        std::wstring w(len - 1, L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], len);
-        return w;
-    }
-
-    const char_t* ToCharT(const std::wstring& w)
-    {
-#if defined(_WIN32)
-        // Windows: wchar_t == char_t (UTF‑16)
-        return reinterpret_cast<const char_t*>(w.c_str());
-#else
-        // Linux/macOS: wchar_t = UTF‑32 → convert to UTF‑8
-        thread_local std::string utf8;
-
-        utf8.clear();
-        utf8.reserve(w.size());
-
-        for (wchar_t c : w)
-        {
-            if (c < 0x80)
-            {
-                utf8.push_back(static_cast<char>(c));
-            }
-            else
-            {
-                // Full UTF‑32 → UTF‑8 encoding needed here
-                throw std::runtime_error("Non‑ASCII wchar_t conversion not implemented");
-            }
-        }
-
-        return reinterpret_cast<const char_t*>(utf8.c_str());
-#endif
-    }
-
+    using coreclr::GetFullPath;
+    using coreclr::ToHostString;
 
     ScriptModuleCoreCLR::ScriptModuleCoreCLR(const char* id,
         uint32_t moduleID,
@@ -102,15 +54,15 @@ namespace xg
             return false;
 
         // Derive assembly + type name from the DLL path
-        const std::filesystem::path assemblyFile(GetFullPath(path));
-        std::string assemblyName = assemblyFile.stem().string();
-        std::string assemblyPath = assemblyFile.string();
-        std::string runtimeCfg = (assemblyFile.parent_path() / (assemblyName + ".runtimeconfig.json")).string();
+        const std::filesystem::path assemblyFile = coreclr::PathFromUtf8(GetFullPath(path));
+        std::string assemblyName = coreclr::PathToUtf8(assemblyFile.stem());
+        std::string assemblyPath = coreclr::PathToUtf8(assemblyFile);
+        std::string runtimeCfg = coreclr::PathToUtf8(assemblyFile.parent_path() / coreclr::PathFromUtf8(assemblyName + ".runtimeconfig.json"));
         hostfxr_handle ctx = nullptr;
-		std::wstring runtimeCfgW = ToWide(runtimeCfg);
+        const coreclr::HostString runtimeCfgHost = ToHostString(runtimeCfg);
         xg::Log(MessageType::Info, "hostfxr Initialize for runtime config [%s]", runtimeCfg.c_str());
 
-        int rc = _coreclrHost->GetInitializeRuntimeConfigFunc()(runtimeCfgW.c_str(), nullptr, &ctx);
+        int rc = _coreclrHost->GetInitializeRuntimeConfigFunc()(runtimeCfgHost.c_str(), nullptr, &ctx);
 
         if (rc < 0 || ctx == nullptr)
         {
@@ -138,10 +90,10 @@ namespace xg
 
         std::string typeName = assemblyName + "." + XG_SCRIPTENTRY_TYPE;
 
-        if(!LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"Init", (void**)& _managedInit)
-            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"Update", (void**)& _managedUpdate)
-            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"Shutdown", (void**)& _managedShutdown)
-            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), L"OnMessage", (void**)&_managedOnMessageMethod))
+        if(!LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), "Init", (void**)& _managedInit)
+            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), "Update", (void**)& _managedUpdate)
+            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), "Shutdown", (void**)& _managedShutdown)
+            || !LoadEntryPoints(assemblyName.c_str(), assemblyPath.c_str(), typeName.c_str(), "OnMessage", (void**)&_managedOnMessageMethod))
         {
             return false;
         }
@@ -215,7 +167,7 @@ namespace xg
         return _engine->GetSubsystem<SceneGraph>(this);
     }
 
-    bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* assemblyPath, const char* typeName, const wchar_t* entryPointName, void** func)
+    bool ScriptModuleCoreCLR::LoadEntryPoints(const char* assemblyName, const char* assemblyPath, const char* typeName, const char* entryPointName, void** func)
     {
         if (!func)return true;
 
@@ -224,29 +176,23 @@ namespace xg
 
 		std::string assemblyNameStr(assemblyName);
         std::string asmPath = assemblyPath;
-        std::wstring asmPathW = ToWide(asmPath);
-
-        const char_t* asmPathT = ToCharT(asmPathW);               
-        std::wstring typeNameW = ToWide(std::format("{}.{}, {}", assemblyNameStr, XG_SCRIPTENTRY_TYPE, assemblyNameStr));
-
-        const char_t* typeNameT = ToCharT(typeNameW);
-
-        std::wstring methodWide(entryPointName);
-        const char_t* methodT = ToCharT(methodWide);
+        const coreclr::HostString asmPathHost = ToHostString(asmPath);
+        const coreclr::HostString typeNameHost = ToHostString(std::format("{}.{}, {}", assemblyNameStr, XG_SCRIPTENTRY_TYPE, assemblyNameStr));
+        const coreclr::HostString methodHost = ToHostString(entryPointName);
 
         int rc = -1;
 
         rc = _loadAssemblyAndGetFn(
-            asmPathT,
-            typeNameT,
-            methodT,
+            asmPathHost.c_str(),
+            typeNameHost.c_str(),
+            methodHost.c_str(),
             UNMANAGEDCALLERSONLY_METHOD,
             nullptr,
             func);
 
         if (rc != 0 || func == nullptr)
         {
-			xg::Log(MessageType::Error, "Failed to load entry point '%ls' from assembly '%s'. Error code: %d", entryPointName, asmPath.c_str(), rc);
+			xg::Log(MessageType::Error, "Failed to load entry point '%s' from assembly '%s'. Error code: %d", entryPointName, asmPath.c_str(), rc);
             return false;
         }
         return true;

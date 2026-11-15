@@ -28,6 +28,15 @@ namespace xg
 #define XG_PLATFORM_MACOS 0
 #endif
 
+// Native module file extension. Configs and code name modules "<name>.dll"; other platforms load "<name>" + this.
+#if XG_PLATFORM_WINDOWS
+#define XG_MODULE_EXTENSION ".dll"
+#elif XG_PLATFORM_MACOS
+#define XG_MODULE_EXTENSION ".dylib"
+#else
+#define XG_MODULE_EXTENSION ".so"
+#endif
+
 //
 // Build configuration
 //
@@ -77,6 +86,23 @@ namespace xg
 
 #define XG_STRINGIFY2(x) #x
 #define XG_STRINGIFY(x) XG_STRINGIFY2(x)
+
+namespace xg
+{
+    // ASCII case-insensitive compare (portable _stricmp / strcasecmp).
+    inline int StrICmp(const char* a, const char* b)
+    {
+        for (;; ++a, ++b)
+        {
+            const unsigned char ca = static_cast<unsigned char>(*a);
+            const unsigned char cb = static_cast<unsigned char>(*b);
+            const int la = (ca >= 'A' && ca <= 'Z') ? ca + ('a' - 'A') : ca;
+            const int lb = (cb >= 'A' && cb <= 'Z') ? cb + ('a' - 'A') : cb;
+            if (la != lb || la == 0)
+                return la - lb;
+        }
+    }
+}
 
 #define XG_ENABLE_FLAGS(E) \
 inline E operator|(E a, E b) { \

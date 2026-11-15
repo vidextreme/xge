@@ -93,7 +93,7 @@
     <ClInclude Include="CodecBinary.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="CodecJson.h">
+    <ClInclude Include="CodecJSON.h">
       <Filter>private\headers</Filter>
     </ClInclude>
     <ClInclude Include="TreeSceneGraph.h">
@@ -158,7 +158,7 @@
     <ClCompile Include="CodecBinary.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="CodecJson.cpp">
+    <ClCompile Include="CodecJSON.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="TreeSceneGraph.cpp">

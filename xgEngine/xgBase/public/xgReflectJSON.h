@@ -3,7 +3,7 @@
 #pragma once
 #include <deque>
 #include <string>
-#include "xgJson.h"
+#include "xgJSON.h"
 #include "xgTypeRegistry.h"
 
 namespace xg
@@ -23,7 +23,7 @@ namespace xg
     // Fields without a matching key, or with a value of the wrong JSON type, keep their current value.
     // table names a sub-object to read (returns false, object unchanged, when it is missing or not an object);
     // null reads the whole document.
-    bool ReadReflected(const Json& json, const TypeSchema& schema, void* object, ReflectStringStore& strings, const char* table = nullptr);
+    bool ReadReflected(const JSON& json, const TypeSchema& schema, void* object, ReflectStringStore& strings, const char* table = nullptr);
 
     // "Field=value Field=value ..." for the primitive and string fields of a reflected object
     std::string DescribeReflected(const TypeSchema& schema, const void* object);

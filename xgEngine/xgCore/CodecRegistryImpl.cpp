@@ -5,7 +5,7 @@
 #include "xgTypeRegistry.h"
 #include "xgDynamicObject.h"
 #include "xgScriptMessage.h"
-#include "xgJson.h"
+#include "xgJSON.h"
 #include "xgStream.h"
 
 namespace xg
@@ -75,7 +75,7 @@ namespace xg
         if (!schema)
             return false;
 
-        Json json;
+        JSON json;
 
         for (uint32_t i = 0; i < obj.GetFieldCount(); ++i)
         {
@@ -125,7 +125,7 @@ namespace xg
         DynamicObject& outObj) const
     {
         auto ms = CreateMemoryStream(const_cast<void*>(msg.Payload), msg.PayloadSize);
-        Json json;
+        JSON json;
         if (!json.Load(*ms))
             return false;
 

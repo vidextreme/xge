@@ -75,7 +75,7 @@ namespace xg
     public:
         virtual ~File() = default;
 
-        virtual const wchar_t* GetPath() const = 0;
+        virtual const char* GetPath() const = 0;
         virtual bool Open(FileAccessMode mode) = 0;
         virtual void Close() = 0;
         virtual void Flush() = 0;
@@ -87,8 +87,7 @@ namespace xg
     // ------------------------------------------------------------
     // Factory Functions
     // ------------------------------------------------------------
-    XG_API FileUnique LoadFile(const wchar_t* path, FileAccessMode mode);
-    XG_API bool GetExeRootDirectory(wchar_t* output, const wchar_t* localizedPath);
+    XG_API FileUnique LoadFile(const char* path, FileAccessMode mode);
 
     XG_API MemoryStreamUnique CreateMemoryStream(uint64_t capacity = 256);
     XG_API MemoryStreamUnique CreateMemoryStream(void* existingBuffer, size_t size);

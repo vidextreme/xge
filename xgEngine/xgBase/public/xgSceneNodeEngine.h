@@ -35,7 +35,7 @@ namespace xg
     {
         static constexpr SceneNodeFlags Mask = SceneNode_Transform;
 
-        Transform Transform;
+        xg::Transform Transform;
     };
 
     struct SceneNodeMetadata : SceneNodeMixinBase

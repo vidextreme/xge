@@ -1,7 +1,7 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
-#include "xgReflectJson.h"
+#include "xgReflectJSON.h"
 #include <cstring>
 #include <string>
 
@@ -13,13 +13,13 @@ namespace xg
         return _strings.back().c_str();
     }
 
-    bool ReadReflected(const Json& json, const TypeSchema& schema, void* object, ReflectStringStore& strings, const char* table)
+    bool ReadReflected(const JSON& json, const TypeSchema& schema, void* object, ReflectStringStore& strings, const char* table)
     {
         if (!object)
             return false;
         if (table)
         {
-            Json section;
+            JSON section;
             if (!json.GetTable(table, section))
                 return false;
             return ReadReflected(section, schema, object, strings, nullptr);
