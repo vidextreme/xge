@@ -165,7 +165,15 @@ namespace xg::imui
         {
             return Changed(XG_ImUITextField(_ctx, id, hint, buffer, capacity, width));
         }
+        Result TextField(const char* id, const char* hint, char* buffer, int capacity, float width, TextFieldFlags flags) const
+        {
+            return XG_ImUITextFieldEx(_ctx, id, hint, buffer, capacity, width, flags);
+        }
         Result TextArea(const char* id, const char* text, const Vec2& size = Vec2(0.0f, 0.0f)) const { return XG_ImUITextArea(_ctx, id, text, &size); }
+        bool KeyPressed(imui::Key key, bool repeat = true) const { return XG_ImUIIsKeyPressed(_ctx, key, repeat); }
+        bool ItemActive() const { return XG_ImUIIsItemActive(_ctx); }
+        void FocusNext() const { XG_ImUISetKeyboardFocusHere(_ctx); }
+        xg::Rect ItemRect() const { xg::Rect rect; XG_ImUIGetItemRect(_ctx, &rect); return rect; }
 
         bool IconButton(const char* id, imui::Icon icon, float size, Color32 color) const
         {
@@ -215,6 +223,24 @@ namespace xg::imui
         };
 
         [[nodiscard]] PopupScope Popup(const char* id, const Vec2& position, const Vec2& size = Vec2(0.0f, 0.0f)) const { return PopupScope(_ctx, id, position, size); }
+
+        // Floating box that never takes focus (autocomplete lists): if (auto overlay = gui.Overlay(id, position, size)) { ... }.
+        class OverlayScope
+        {
+        public:
+            OverlayScope(Context* ctx, const char* id, const Vec2& position, const Vec2& size)
+                : _ctx(ctx), _open(XG_ImUIBeginOverlay(ctx, id, &position, &size)) {}
+            ~OverlayScope() { if (_ctx && _open) XG_ImUIEndOverlay(_ctx); }
+            OverlayScope(const OverlayScope&) = delete;
+            OverlayScope& operator=(const OverlayScope&) = delete;
+            OverlayScope(OverlayScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _open(o._open) {}
+            explicit operator bool() const { return _open; }
+        private:
+            Context* _ctx;
+            bool _open;
+        };
+
+        [[nodiscard]] OverlayScope Overlay(const char* id, const Vec2& position, const Vec2& size = Vec2(0.0f, 0.0f)) const { return OverlayScope(_ctx, id, position, size); }
 
         void SameLine(float spacing = -1.0f) const { XG_ImUISameLine(_ctx, spacing); }
         void AlignRight(float width) const { XG_ImUIAlignRight(_ctx, width); }
@@ -269,6 +295,7 @@ namespace xg::imui
             return ScrollAreaScope(_ctx, id, size, flags);
         }
         bool Splitter(const char* id, float& size, float minSize, float maxSize) const { return Changed(XG_ImUISplitter(_ctx, id, &size, minSize, maxSize)); }
+        bool SplitterVertical(const char* id, float& size, float minSize, float maxSize) const { return Changed(XG_ImUISplitterVertical(_ctx, id, &size, minSize, maxSize)); }
 
         class FontScope
         {

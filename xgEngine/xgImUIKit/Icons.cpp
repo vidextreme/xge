@@ -359,6 +359,51 @@ namespace xg::imui::detail
             }
             break;
         }
+        case Icon::Tag:
+        {
+            const ImVec2 points[] = {
+                ImVec2(c.x - h * 0.85f, c.y - h * 0.55f), ImVec2(c.x + h * 0.3f, c.y - h * 0.55f), ImVec2(c.x + h * 0.85f, c.y),
+                ImVec2(c.x + h * 0.3f, c.y + h * 0.55f), ImVec2(c.x - h * 0.85f, c.y + h * 0.55f) };
+            dl->AddPolyline(points, 5, col, ImDrawFlags_Closed, 1.2f);
+            dl->AddCircleFilled(ImVec2(c.x - h * 0.45f, c.y), h * 0.14f, col);
+            break;
+        }
+        case Icon::File:
+        {
+            const ImVec2 points[] = {
+                ImVec2(c.x - h * 0.6f, c.y - h * 0.85f), ImVec2(c.x + h * 0.2f, c.y - h * 0.85f), ImVec2(c.x + h * 0.6f, c.y - h * 0.45f),
+                ImVec2(c.x + h * 0.6f, c.y + h * 0.85f), ImVec2(c.x - h * 0.6f, c.y + h * 0.85f) };
+            dl->AddPolyline(points, 5, col, ImDrawFlags_Closed, 1.2f);
+            const ImVec2 fold[] = { ImVec2(c.x + h * 0.2f, c.y - h * 0.85f), ImVec2(c.x + h * 0.2f, c.y - h * 0.45f), ImVec2(c.x + h * 0.6f, c.y - h * 0.45f) };
+            dl->AddPolyline(fold, 3, col, ImDrawFlags_None, 1.2f);
+            break;
+        }
+        case Icon::Filter:
+        {
+            const ImVec2 points[] = {
+                ImVec2(c.x - h * 0.85f, c.y - h * 0.7f), ImVec2(c.x + h * 0.85f, c.y - h * 0.7f), ImVec2(c.x + h * 0.15f, c.y + h * 0.05f),
+                ImVec2(c.x + h * 0.15f, c.y + h * 0.75f), ImVec2(c.x - h * 0.15f, c.y + h * 0.55f), ImVec2(c.x - h * 0.15f, c.y + h * 0.05f) };
+            dl->AddPolyline(points, 6, col, ImDrawFlags_Closed, 1.2f);
+            break;
+        }
+        case Icon::Sort:
+            Arrow(dl, ImVec2(c.x - h * 0.4f, c.y - h * 0.8f), ImVec2(c.x - h * 0.4f, c.y + h * 0.8f), col, h * 0.4f, 1.2f);
+            Arrow(dl, ImVec2(c.x + h * 0.4f, c.y + h * 0.8f), ImVec2(c.x + h * 0.4f, c.y - h * 0.8f), col, h * 0.4f, 1.2f);
+            break;
+        case Icon::View:
+        {
+            const float cell = ImMax(ImFloor(h * 0.75f), 2.0f);
+            const float gap = ImMax(ImFloor(h * 0.25f), 1.0f);
+            const float x0 = ImFloor(c.x - cell - gap * 0.5f);
+            const float y0 = ImFloor(c.y - cell - gap * 0.5f);
+            for (int i = 0; i < 4; ++i)
+            {
+                const float x = x0 + (i % 2) * (cell + gap);
+                const float y = y0 + (i / 2) * (cell + gap);
+                dl->AddRectFilled(ImVec2(x, y), ImVec2(x + cell, y + cell), col, 1.0f);
+            }
+            break;
+        }
         }
     }
 }

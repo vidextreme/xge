@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 11;
+        public const uint ApiVersion = 12;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -147,8 +147,29 @@ namespace xg.imui
         [LibraryImport(DLL, EntryPoint = "XG_ImUIEndPopup")]
         public static partial void EndPopup(nint ctx);
 
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginOverlay")]
+        public static partial byte BeginOverlay(nint ctx, byte* id, Vector2* position, Vector2* size);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndOverlay")]
+        public static partial void EndOverlay(nint ctx);
+
         [LibraryImport(DLL, EntryPoint = "XG_ImUITextField")]
         public static partial Result TextField(nint ctx, byte* id, byte* hint, byte* buffer, int capacity, float width);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUITextFieldEx")]
+        public static partial Result TextFieldEx(nint ctx, byte* id, byte* hint, byte* buffer, int capacity, float width, TextFieldFlags flags);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIIsKeyPressed")]
+        public static partial byte IsKeyPressed(nint ctx, Key key, byte repeat);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIIsItemActive")]
+        public static partial byte IsItemActive(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISetKeyboardFocusHere")]
+        public static partial void SetKeyboardFocusHere(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIGetItemRect")]
+        public static partial byte GetItemRect(nint ctx, Rect* rect);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUITextArea")]
         public static partial Result TextArea(nint ctx, byte* id, byte* text, Vector2* size);
@@ -194,6 +215,9 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUISplitter")]
         public static partial Result Splitter(nint ctx, byte* id, float* size, float minSize, float maxSize);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISplitterVertical")]
+        public static partial Result SplitterVertical(nint ctx, byte* id, float* size, float minSize, float maxSize);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginList")]
         public static partial byte BeginList(nint ctx, byte* id, Vector2* size, ListState* state);

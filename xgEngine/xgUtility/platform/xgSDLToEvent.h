@@ -182,6 +182,7 @@ namespace xg
             e.MouseButton.Button = static_cast<xgMouseButton>(sdl.button.button);
             e.MouseButton.X = static_cast<int>(sdl.button.x);
             e.MouseButton.Y = static_cast<int>(sdl.button.y);
+            e.MouseButton.Clicks = sdl.button.clicks;
             break;
 
         case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -189,6 +190,7 @@ namespace xg
             e.MouseButton.Button = static_cast<xgMouseButton>(sdl.button.button);
             e.MouseButton.X = static_cast<int>(sdl.button.x);
             e.MouseButton.Y = static_cast<int>(sdl.button.y);
+            e.MouseButton.Clicks = sdl.button.clicks;
             break;
 
         case SDL_EVENT_MOUSE_WHEEL:

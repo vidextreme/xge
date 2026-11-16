@@ -28,6 +28,7 @@
     <Compile Include="Menu.cs" />
     <Compile Include="ImUI.cs" />
     <Compile Include="TabStrip.cs" />
+    <Compile Include="ToggleButton.cs" />
     <Compile Include="Ribbon.cs" />
   </ItemGroup>
 

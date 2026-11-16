@@ -278,6 +278,40 @@ namespace xg.imui
             return changed;
         }
 
+        // Text box with flags (SetText after a programmatic edit, CaptureNavKeys for autocomplete). Returns the full
+        // result: Changed when the text changed, Active while it has keyboard focus.
+        public static Result TextField(string id, TextBuffer text, string? hint, float width, TextFieldFlags flags)
+        {
+            Result result;
+            fixed (byte* p = Utf8.Encode(id.AsSpan(), 0))
+            fixed (byte* h = Utf8.Encode(hint, 1))
+            fixed (byte* buffer = text.Buffer)
+                result = Native.TextFieldEx(Context, p, h, buffer, text.Buffer.Length, width, flags);
+            if ((result & Result.Changed) != 0)
+                text.MarkEdited();
+            return result;
+        }
+
+        // Whether key went down this frame (repeat: also while held).
+        public static bool KeyPressed(Key key, bool repeat = true) => Native.IsKeyPressed(Context, key, repeat ? (byte)1 : (byte)0) != 0;
+
+        // Whether the previous item is active (a text field being edited, a button being held).
+        public static bool ItemActive => Native.IsItemActive(Context) != 0;
+
+        // Gives keyboard focus to the next item (a text field starts editing).
+        public static void FocusNext() => Native.SetKeyboardFocusHere(Context);
+
+        // Rect of the previous item in the current draw space (to place an overlay or popup under a field).
+        public static Rect ItemRect
+        {
+            get
+            {
+                Rect rect;
+                Native.GetItemRect(Context, &rect);
+                return rect;
+            }
+        }
+
         // Square flat icon button laid out inline. size <= 0 uses the frame height.
         public static bool IconButton(string id, Icon icon, float size, Color32 color)
         {
@@ -339,6 +373,17 @@ namespace xg.imui
 
         // Closes the current popup or modal.
         public static void ClosePopup() => Native.CloseModal(Context);
+
+        // Floating box above everything that never takes focus when it appears, so a text field keeps editing
+        // (autocomplete lists). It shows on every frame it is submitted: using (var o = Gui.Overlay(id, pos, size)) { if (o.IsOpen) { ... } }.
+        public static OverlayScope Overlay(string id, Vector2 position, Vector2 size = default)
+        {
+            nint ctx = Context;
+            byte open;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                open = Native.BeginOverlay(ctx, p, &position, &size);
+            return new OverlayScope(ctx, open != 0);
+        }
 
         // Read-only, selectable text; size <= 0 fills the available space.
         public static Result TextArea(string id, string text, Vector2 size = default)
@@ -457,6 +502,16 @@ namespace xg.imui
             fixed (byte* p = Utf8.Encode(id.AsSpan()))
             fixed (float* s = &size)
                 result = Native.Splitter(Context, p, s, minSize, maxSize);
+            return (result & Result.Changed) != 0;
+        }
+
+        // Vertical bar between side-by-side areas (in a row); dragging it changes size (the width of the area on its left).
+        public static bool SplitterVertical(string id, ref float size, float minSize, float maxSize)
+        {
+            Result result;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+            fixed (float* s = &size)
+                result = Native.SplitterVertical(Context, p, s, minSize, maxSize);
             return (result & Result.Changed) != 0;
         }
 
@@ -598,6 +653,25 @@ namespace xg.imui
         {
             if (_ctx != 0 && IsOpen)
                 Native.EndPopup(_ctx);
+        }
+    }
+
+    public readonly ref struct OverlayScope
+    {
+        private readonly nint _ctx;
+
+        internal OverlayScope(nint ctx, bool open)
+        {
+            _ctx = ctx;
+            IsOpen = open;
+        }
+
+        public bool IsOpen { get; }
+
+        public void Dispose()
+        {
+            if (_ctx != 0 && IsOpen)
+                Native.EndOverlay(_ctx);
         }
     }
 

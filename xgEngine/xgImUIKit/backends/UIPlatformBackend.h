@@ -16,6 +16,9 @@ namespace xg::imui::detail::platform
     void Shutdown();
     void NewFrame(float deltaTime);
     void ProcessEvent(const xgEvent& e);
+    // After ImGui::NewFrame: replaces ImGui's frame-timed click counts with the OS counts from the press events,
+    // so double-clicks follow the system setting and event timestamps.
+    void ApplyClickCounts();
     // Shows viewport windows ImGui asked to show this frame, after they have been rendered once.
     void ShowPendingWindows();
     // Content scale of the main window (or the XG_UI_DPI_SCALE override); 1 before Init.

@@ -117,6 +117,8 @@ namespace xg {
         xgMouseButton Button;
         int X;
         int Y;
+        // Consecutive clicks counted by the OS (1 = single, 2 = double); 0 when unknown.
+        int Clicks;
     };
 
     struct xgMouseWheelEvent { float X, Y; };
