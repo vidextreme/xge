@@ -25,6 +25,9 @@ namespace xg::imui::detail::platform
             int ButtonsDown = 0;
             int PendingLeaveFrame = 0;
             float DpiOverride = 0.0f;
+            static constexpr int ClickQueueSize = 4;
+            int ClickCounts[3][ClickQueueSize] = {};
+            int ClickCountSize[3] = {};
         };
 
         BackendData* GetData()
@@ -466,6 +469,29 @@ namespace xg::imui::detail::platform
         UpdateMouseCursor(bd);
     }
 
+    void ApplyClickCounts()
+    {
+        BackendData* bd = GetData();
+        if (!bd)
+            return;
+        ImGuiIO& io = ImGui::GetIO();
+        for (int button = 0; button < 3; ++button)
+        {
+            if (!io.MouseClicked[button] || bd->ClickCountSize[button] == 0)
+                continue;
+            int* queue = bd->ClickCounts[button];
+            const int clicks = queue[0];
+            for (int i = 1; i < bd->ClickCountSize[button]; ++i)
+                queue[i - 1] = queue[i];
+            --bd->ClickCountSize[button];
+            if (clicks <= 0)
+                continue;
+            io.MouseClickedCount[button] = static_cast<ImU16>(clicks);
+            io.MouseClickedLastCount[button] = static_cast<ImU16>(clicks);
+            io.MouseDoubleClicked[button] = clicks == 2;
+        }
+    }
+
     void ProcessEvent(const xgEvent& e)
     {
         BackendData* bd = GetData();
@@ -508,6 +534,18 @@ namespace xg::imui::detail::platform
                 io.AddMousePosEvent(pos.x, pos.y);
             }
             io.AddMouseButtonEvent(button, e.Type == xgEventType::MouseButtonDown);
+            if (e.Type == xgEventType::MouseButtonDown && button < 3)
+            {
+                int& size = bd->ClickCountSize[button];
+                int* queue = bd->ClickCounts[button];
+                if (size == BackendData::ClickQueueSize)
+                {
+                    for (int i = 1; i < size; ++i)
+                        queue[i - 1] = queue[i];
+                    --size;
+                }
+                queue[size++] = e.MouseButton.Clicks;
+            }
             if (e.Type == xgEventType::MouseButtonDown)
                 bd->ButtonsDown |= 1 << button;
             else

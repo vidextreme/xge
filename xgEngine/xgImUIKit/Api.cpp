@@ -933,6 +933,105 @@ namespace xg
         return result;
     }
 
+    namespace
+    {
+        struct TextFieldCallbackData
+        {
+            const char* Source;
+            imui::TextFieldFlags Flags;
+        };
+
+        int TextFieldCallback(ImGuiInputTextCallbackData* data)
+        {
+            const TextFieldCallbackData* user = static_cast<const TextFieldCallbackData*>(data->UserData);
+            if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways && HasFlag(user->Flags, imui::TextFieldFlags::SetText))
+            {
+                if (std::strcmp(data->Buf, user->Source) != 0)
+                {
+                    data->DeleteChars(0, data->BufTextLen);
+                    data->InsertChars(0, user->Source);
+                }
+                data->CursorPos = data->SelectionStart = data->SelectionEnd = data->BufTextLen;
+            }
+            return 0;
+        }
+
+        ImGuiKey ToImGuiKey(imui::Key key)
+        {
+            switch (key)
+            {
+            case imui::Key::Tab: return ImGuiKey_Tab;
+            case imui::Key::Left: return ImGuiKey_LeftArrow;
+            case imui::Key::Right: return ImGuiKey_RightArrow;
+            case imui::Key::Up: return ImGuiKey_UpArrow;
+            case imui::Key::Down: return ImGuiKey_DownArrow;
+            case imui::Key::PageUp: return ImGuiKey_PageUp;
+            case imui::Key::PageDown: return ImGuiKey_PageDown;
+            case imui::Key::Home: return ImGuiKey_Home;
+            case imui::Key::End: return ImGuiKey_End;
+            case imui::Key::Delete: return ImGuiKey_Delete;
+            case imui::Key::Backspace: return ImGuiKey_Backspace;
+            case imui::Key::Enter: return ImGuiKey_Enter;
+            case imui::Key::Escape: return ImGuiKey_Escape;
+            default: return ImGuiKey_None;
+            }
+        }
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUITextFieldEx(imui::Context* ctx, const char* id, const char* hint, char* buffer, int capacity, float width, imui::TextFieldFlags flags)
+    {
+        if (!ctx || !buffer || capacity <= 0)
+            return imui::Result::None;
+        LayoutItem(ctx);
+        const float fieldWidth = width > 0.0f ? width : LayoutFill(ctx, true);
+        const std::string source(buffer);
+        TextFieldCallbackData user{ source.c_str(), flags };
+        ImGuiInputTextFlags inputFlags = ImGuiInputTextFlags_CallbackAlways;
+        if (HasFlag(flags, imui::TextFieldFlags::CaptureNavKeys))
+            inputFlags |= ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory;
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::DropdownBg);
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, imui::detail::DropdownHover);
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, imui::detail::DropdownBg);
+        ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
+        ImGui::SetNextItemWidth(fieldWidth);
+        const bool changed = ImGui::InputTextWithHint(id ? id : "##textfield", hint ? hint : "", buffer, static_cast<size_t>(capacity),
+            inputFlags, TextFieldCallback, &user);
+        const imui::Result result = ItemResult(changed || (HasFlag(flags, imui::TextFieldFlags::SetText) && source != buffer));
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(4);
+        return result;
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIIsKeyPressed(imui::Context* ctx, imui::Key key, bool repeat)
+    {
+        const ImGuiKey imKey = ToImGuiKey(key);
+        return ctx && imKey != ImGuiKey_None && ImGui::IsKeyPressed(imKey, repeat);
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIIsItemActive(imui::Context* ctx)
+    {
+        return ctx && ImGui::IsItemActive();
+    }
+
+    XG_MODULE_EXPORT void XG_ImUISetKeyboardFocusHere(imui::Context* ctx)
+    {
+        if (ctx)
+            ImGui::SetKeyboardFocusHere(0);
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIGetItemRect(imui::Context* ctx, Rect* out)
+    {
+        if (!ctx || !out)
+            return false;
+        const ImVec2 origin = ctx->Origin();
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        interop::Store(out, Rect(Vec2(min.x - origin.x, min.y - origin.y), Vec2(max.x - origin.x, max.y - origin.y)));
+        return true;
+    }
+
     XG_MODULE_EXPORT imui::Result XG_ImUIIconButton(imui::Context* ctx, const char* id, imui::Icon icon, const Vec2* position, float size, Color32 color)
     {
         if (!ctx)
@@ -1071,6 +1170,43 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUIEndPopup(imui::Context* ctx)
     {
         XG_ImUIEndModal(ctx);
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIBeginOverlay(imui::Context* ctx, const char* id, const Vec2* position, const Vec2* size)
+    {
+        if (!ctx || !id)
+            return false;
+        const std::string name = std::string("###overlay_") + id;
+        const Vec2 requested = LoadVec2(size);
+        ImGui::SetNextWindowPos(ctx->ToScreen(LoadVec2(position)), ImGuiCond_Always);
+        if (requested.x > 0.0f)
+            ImGui::SetNextWindowSizeConstraints(ImVec2(requested.x, requested.y > 0.0f ? requested.y : 0.0f),
+                ImVec2(requested.x, requested.y > 0.0f ? requested.y : FLT_MAX));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(1.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, imui::detail::HeaderBg);
+        ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
+        ImGui::Begin(name.c_str(), nullptr,
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse
+            | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(4);
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+        BeginLayout(ctx, false, -1.0f, false);
+        return true;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndOverlay(imui::Context* ctx)
+    {
+        if (!ctx)
+            return;
+        const imui::Context::LayoutFrame* frame = CurrentLayout(ctx);
+        if (frame && !frame->Group)
+            EndLayout(ctx);
+        ImGui::End();
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size)
@@ -1220,6 +1356,31 @@ namespace xg
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
         const float y = p.y + Thickness * 0.5f;
         ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x, y), ImVec2(p.x + width, y), hot ? imui::detail::Accent : imui::detail::Outline, hot ? 2.0f : 1.0f);
+        return result;
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUISplitterVertical(imui::Context* ctx, const char* id, float* size, float minSize, float maxSize)
+    {
+        if (!ctx || !size)
+            return imui::Result::None;
+        constexpr float Thickness = 4.0f;
+        LayoutItem(ctx);
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const float height = (std::max)(ImGui::GetContentRegionAvail().y, 1.0f);
+        ImGui::InvisibleButton(id ? id : "##vsplitter", ImVec2(Thickness, height));
+        bool changed = false;
+        if (ImGui::IsItemActive())
+        {
+            const float next = (std::clamp)(*size + ImGui::GetIO().MouseDelta.x, minSize, (std::max)(minSize, maxSize));
+            changed = next != *size;
+            *size = next;
+        }
+        const imui::Result result = ItemResult(changed);
+        const bool hot = ImGui::IsItemHovered() || ImGui::IsItemActive();
+        if (hot)
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        const float x = p.x + Thickness * 0.5f;
+        ImGui::GetWindowDrawList()->AddLine(ImVec2(x, p.y), ImVec2(x, p.y + height), hot ? imui::detail::Accent : imui::detail::Outline, hot ? 2.0f : 1.0f);
         return result;
     }
 

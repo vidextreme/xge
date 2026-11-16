@@ -91,6 +91,7 @@ namespace xg::imui::detail
         WinMinimize, WinMaximize, WinRestore, WinClose,
         Image, Trash,
         Cards,
+        Tag, File, Filter, Sort, View,
     };
 
     inline ImVec2 _segmentStart;

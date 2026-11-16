@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 11;
+    inline constexpr uint32_t ApiVersion = 12;
 
     struct Context;
     struct PanelEntry;
@@ -99,8 +99,27 @@ namespace xg::imui
         WinMinimize, WinMaximize, WinRestore, WinClose,
         Image, Trash,
         Cards,
+        Tag, File, Filter, Sort, View,
         Count
     };
+
+    // Keys for XG_ImUIIsKeyPressed. Order is part of the ABI: append only.
+    enum class Key : int32_t
+    {
+        None = 0,
+        Tab, Left, Right, Up, Down, PageUp, PageDown, Home, End, Delete, Backspace, Enter, Escape,
+        Count
+    };
+
+    enum class TextFieldFlags : uint8_t
+    {
+        None           = 0,
+        // Replaces the text being edited with the buffer's content and puts the caret at its end (after a programmatic edit).
+        SetText        = 1 << 0,
+        // Tab, Up and Down stay with the caller (autocomplete) instead of moving focus or navigating.
+        CaptureNavKeys = 1 << 1,
+    };
+    XG_ENABLE_FLAGS(TextFieldFlags)
 
     // Theme tokens. Order is part of the ABI: append only.
     enum class StyleColor : int32_t
@@ -328,6 +347,8 @@ namespace xg
     // Single-line text box editing a UTF-8 buffer in place; hint shows while empty. width <= 0 fills the line.
     // Returns Changed when the text changed.
     XG_MODULE_EXPORT imui::Result XG_ImUITextField(imui::Context* ctx, const char* id, const char* hint, char* buffer, int capacity, float width);
+    // TextField with flags (ApiVersion 12). Active is set while the field has keyboard focus.
+    XG_MODULE_EXPORT imui::Result XG_ImUITextFieldEx(imui::Context* ctx, const char* id, const char* hint, char* buffer, int capacity, float width, imui::TextFieldFlags flags);
     // Square flat icon button. position null lays it out inline; otherwise it is placed at that point in the current
     // draw space (row or canvas space, like the Draw* calls) over the row, and the layout cursor is left unchanged.
     // size <= 0 uses the frame height. Returns Clicked (and Changed) when pressed.
@@ -336,6 +357,14 @@ namespace xg
     XG_MODULE_EXPORT imui::Result XG_ImUIHitArea(imui::Context* ctx, const char* id, const Rect* rect);
     // Tooltip shown while the previous item is hovered.
     XG_MODULE_EXPORT void XG_ImUIItemTooltip(imui::Context* ctx, const char* text);
+    // Keyboard (ApiVersion 12): whether key went down this frame (repeat: also auto-repeats while held).
+    XG_MODULE_EXPORT bool XG_ImUIIsKeyPressed(imui::Context* ctx, imui::Key key, bool repeat);
+    // Whether the previous item is active (a text field being edited, a button being held).
+    XG_MODULE_EXPORT bool XG_ImUIIsItemActive(imui::Context* ctx);
+    // Gives keyboard focus to the next item (a text field starts editing).
+    XG_MODULE_EXPORT void XG_ImUISetKeyboardFocusHere(imui::Context* ctx);
+    // Rect of the previous item in the current draw space (to place an overlay or popup under a field).
+    XG_MODULE_EXPORT bool XG_ImUIGetItemRect(imui::Context* ctx, Rect* out);
 
     // Modals: OpenPopup(id) once, then each frame if (BeginModal(id, title, size)) { ...; EndModal(); }.
     // The modal is centered on the main window and dims it; size.y <= 0 fits the content. Escape closes it.
@@ -348,6 +377,12 @@ namespace xg
     // (size.y <= 0 fits the content). A click outside or Escape closes it. Call EndPopup only when BeginPopup returned true.
     XG_MODULE_EXPORT bool XG_ImUIBeginPopup(imui::Context* ctx, const char* id, const Vec2* position, const Vec2* size);
     XG_MODULE_EXPORT void XG_ImUIEndPopup(imui::Context* ctx);
+    // Overlay (ApiVersion 12): a borderless floating box drawn above everything at position in the current draw space,
+    // size.x wide (size.y <= 0 fits the content), that never takes keyboard focus when it appears, so a text field
+    // keeps editing (autocomplete lists). Shown on every frame it is submitted; the caller decides when to stop.
+    // Its content is a column. Call EndOverlay only when BeginOverlay returned true.
+    XG_MODULE_EXPORT bool XG_ImUIBeginOverlay(imui::Context* ctx, const char* id, const Vec2* position, const Vec2* size);
+    XG_MODULE_EXPORT void XG_ImUIEndOverlay(imui::Context* ctx);
 
     // Read-only, selectable multi-line text (Ctrl+A / Ctrl+C copy). size <= 0 fills the available space.
     XG_MODULE_EXPORT imui::Result XG_ImUITextArea(imui::Context* ctx, const char* id, const char* text, const Vec2* size);
@@ -379,6 +414,9 @@ namespace xg
     XG_MODULE_EXPORT interop::Vec2Abi XG_ImUIAvailableSize(imui::Context* ctx);
     // Horizontal bar; dragging it changes *size (the height of the area below it), clamped to [minSize, maxSize].
     XG_MODULE_EXPORT imui::Result XG_ImUISplitter(imui::Context* ctx, const char* id, float* size, float minSize, float maxSize);
+    // Vertical bar for side-by-side areas (place it in a row); dragging changes *size (the width of the area on its
+    // left), clamped to [minSize, maxSize]. It takes the available height.
+    XG_MODULE_EXPORT imui::Result XG_ImUISplitterVertical(imui::Context* ctx, const char* id, float* size, float minSize, float maxSize);
 
     // Virtualized lists
     XG_MODULE_EXPORT bool XG_ImUIBeginList(imui::Context* ctx, const char* id, const Vec2* size, imui::ListState* state);

@@ -72,6 +72,25 @@ namespace xg.imui
         WinMinimize, WinMaximize, WinRestore, WinClose,
         Image, Trash,
         Cards,
+        Tag, File, Filter, Sort, View,
+    }
+
+    // Mirrors xg::imui::Key. Order is part of the ABI: append only.
+    public enum Key
+    {
+        None = 0,
+        Tab, Left, Right, Up, Down, PageUp, PageDown, Home, End, Delete, Backspace, Enter, Escape,
+    }
+
+    // Mirrors xg::imui::TextFieldFlags.
+    [Flags]
+    public enum TextFieldFlags : byte
+    {
+        None = 0,
+        // Replaces the text being edited with the buffer's content and puts the caret at its end.
+        SetText = 1 << 0,
+        // Tab, Up and Down stay with the caller (autocomplete) instead of moving focus.
+        CaptureNavKeys = 1 << 1,
     }
 
     // Mirrors xg::imui::StyleColor. Order is part of the ABI: append only.

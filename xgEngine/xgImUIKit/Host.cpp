@@ -166,6 +166,7 @@ namespace xg
 
         imui::detail::platform::NewFrame(deltaTime);
         ImGui::NewFrame();
+        imui::detail::platform::ApplyClickCounts();
 
         if (PrototypeShell())
         {

@@ -584,46 +584,8 @@ namespace xg.imui
             if (!string.IsNullOrEmpty(tip))
                 Gui.Tooltip(tip);
 
-            bool hovered = enabled && hit.Hovered();
-            bool pressed = enabled && (hit & Result.Active) != 0;
-            Color32 fill;
-            if (!enabled)
-                fill = Style.Color(StyleColor.PanelHeaderHover);
-            else if (toggled)
-                fill = Style.Color(hovered ? StyleColor.AccentHover : StyleColor.Accent);
-            else
-                fill = Style.Color(hovered ? StyleColor.ButtonHover : StyleColor.Button);
-            if (enabled)
-            {
-                draw.RectFilled(rect, Style.Color(StyleColor.SegmentBg), ButtonRounding);
-                draw.RectFilled(new Rect(rect.min, new Vector2(rect.max.x, rect.max.y - 1.0f)), fill, ButtonRounding);
-            }
-            else
-            {
-                draw.RectFilled(rect, fill, ButtonRounding);
-            }
-            if (pressed)
-                draw.RectFilled(rect, new Color32(255, 255, 255, 20), ButtonRounding);
-
-            Color32 iconColor;
-            Color32 textColor;
-            if (!enabled)
-            {
-                Color32 dim = Style.Color(StyleColor.TextDim);
-                dim.a = 120;
-                iconColor = dim;
-                textColor = dim;
-            }
-            else if (toggled)
-            {
-                iconColor = Style.Color(StyleColor.TextOnAccent);
-                textColor = iconColor;
-            }
-            else
-            {
-                iconColor = item.IconColor ?? Style.Color(StyleColor.Icon);
-                textColor = Style.Color(StyleColor.Text);
-            }
+            ToggleButton.Background(draw, rect, toggled, enabled, enabled && hit.Hovered(), enabled && (hit & Result.Active) != 0);
+            ToggleButton.Colors(toggled, enabled, item.IconColor, out Color32 iconColor, out Color32 textColor);
 
             if (placed.Kind == PlacedKind.Cell)
             {

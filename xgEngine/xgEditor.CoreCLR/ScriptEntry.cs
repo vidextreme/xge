@@ -110,6 +110,39 @@ namespace xgEditor.CoreCLR
                 console.SelectLatestError();
             }
 
+            NavigatorPanel navigator = xg.imui.Panel.Open<NavigatorPanel>();
+            string? navFolder = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_FOLDER");
+            if (!string.IsNullOrEmpty(navFolder))
+                navigator.SetFolder(navFolder);
+            string? navMode = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_MODE");
+            if (!string.IsNullOrEmpty(navMode))
+                navigator.SetMode(navMode);
+            string? navTags = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_TAGS");
+            if (!string.IsNullOrEmpty(navTags))
+                navigator.SetTags(navTags);
+            string? navType = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_TYPE");
+            if (!string.IsNullOrEmpty(navType))
+                navigator.TypeTags(navType, 30);
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_BOOKMARKS") == "1")
+                navigator.OpenBookmarks(30);
+            string? navSort = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_SORT");
+            if (!string.IsNullOrEmpty(navSort))
+                navigator.SetSort(navSort);
+            string? navOptions = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_OPTIONS");
+            if (!string.IsNullOrEmpty(navOptions))
+                navigator.SetOptions(navOptions);
+            string? navKinds = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_KINDS");
+            if (!string.IsNullOrEmpty(navKinds))
+                navigator.SetKinds(navKinds);
+            string? navView = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_VIEW");
+            if (!string.IsNullOrEmpty(navView))
+                navigator.SetView(navView);
+            string? navDetailSort = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_DETAILSORT");
+            if (!string.IsNullOrEmpty(navDetailSort))
+                navigator.SetDetailSort(navDetailSort);
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "navigator")
+                navigator.Focus();
+
             RibbonPanel ribbon = xg.imui.Panel.Open<RibbonPanel>();
             if (Enum.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_RIBBON_SIDE"), true, out xg.imui.RibbonSide ribbonSide))
                 ribbon.Ribbon.Side = ribbonSide;
