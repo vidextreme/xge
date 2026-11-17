@@ -73,6 +73,7 @@ namespace xg.imui
         Image, Trash,
         Cards,
         Tag, File, Filter, Sort, View,
+        Lock, Unlock,
     }
 
     // Mirrors xg::imui::Key. Order is part of the ABI: append only.

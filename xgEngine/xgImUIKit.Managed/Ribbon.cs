@@ -41,6 +41,9 @@ namespace xg.imui
         public Action? OnGUI { get; set; }
         // Shows a small dot in the corner: the item has options.
         public bool HasOptions { get; set; }
+        // Corner dot drawn by ToggleButton.Dot; State marks a toggle (filled while on, a ring while off). Wins over
+        // HasOptions.
+        public ToggleDot Dot { get; set; }
         public Action? Clicked { get; set; }
 
         internal float GuiHeight { get; set; } = 22.0f;
@@ -654,7 +657,9 @@ namespace xg.imui
                 draw.Text(new Vector2(rect.min.x + 8.0f + 14.0f + 8.0f, MathF.Round(cy - _lineHeight * 0.5f)), textColor, item.Label);
             }
 
-            if (item.HasOptions)
+            if (item.Dot != ToggleDot.None)
+                ToggleButton.Dot(draw, rect, item.Dot, toggled, enabled);
+            else if (item.HasOptions)
                 draw.CircleFilled(new Vector2(rect.max.x - 5.0f, rect.min.y + 5.0f), 2.0f, toggled ? Style.Color(StyleColor.TextOnAccent) : textColor);
 
             if (!enabled || !hit.Clicked())

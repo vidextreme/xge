@@ -404,6 +404,23 @@ namespace xg::imui::detail
             }
             break;
         }
+        case Icon::Lock:
+        case Icon::Unlock:
+        {
+            const bool open = icon == Icon::Unlock;
+            const float halfWidth = h * 0.72f;
+            const ImVec2 bodyMin(ImFloor(c.x - halfWidth), ImFloor(c.y - h * 0.05f));
+            const ImVec2 bodyMax(ImFloor(c.x + halfWidth), ImFloor(c.y + h * 0.85f));
+            dl->AddRectFilled(bodyMin, bodyMax, col, 1.5f);
+            const float radius = h * 0.42f;
+            const float cx = open ? c.x + h * 0.32f : c.x;
+            const float cy = c.y - h * 0.42f;
+            dl->PathArcTo(ImVec2(cx, cy), radius, IM_PI, IM_PI * 2.0f, 12);
+            dl->PathStroke(col, ImDrawFlags_None, 1.4f);
+            dl->AddLine(ImVec2(cx - radius, cy), ImVec2(cx - radius, open ? cy + radius * 0.35f : bodyMin.y), col, 1.4f);
+            dl->AddLine(ImVec2(cx + radius, cy), ImVec2(cx + radius, bodyMin.y), col, 1.4f);
+            break;
+        }
         }
     }
 }

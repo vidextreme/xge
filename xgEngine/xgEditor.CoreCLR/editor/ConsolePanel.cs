@@ -3,6 +3,7 @@
 
 using System.Text;
 using xg;
+using xg.editor;
 using xg.imui;
 using xg.math;
 
@@ -11,7 +12,8 @@ namespace xgEditor.CoreCLR
     // Editor Console: engine and script logs from EditorLog, with per-MessageType filters, search, collapse and a
     // detail pane. Rows are rebuilt from EditorLog.Entries, so the history survives closing the tab (the panel is only
     // hidden) and re-creating the panel; only a module reload, which resets EditorLog, starts empty.
-    public sealed class ConsolePanel : Panel
+    [PanelTool("Console", Icon = "Console", Unique = true, Priority = 20, Tooltip = "Engine and script logs")]
+    public sealed class ConsolePanel : Panel, IPanelTool
     {
         private const float RowHeight = 22.0f;
         private const float SplitterHeight = 4.0f;
@@ -78,6 +80,10 @@ namespace xgEditor.CoreCLR
         }
 
         public override string Title => "Console";
+
+        public int InstanceIndex { get; set; }
+
+        public ToolUsability OnSelectItems(object[] selection) => ToolUsability.Usable;
         public override string? MenuPath => "General/Console";
         public override DockSlot Slot => DockSlot.Bottom;
         public override Icon PanelIcon => Icon.Console;

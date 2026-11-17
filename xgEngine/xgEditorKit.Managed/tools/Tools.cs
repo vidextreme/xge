@@ -13,8 +13,18 @@ namespace xg.editor
     // selection. Many tools can be usable, but only one is active: the user picks it in the Tools ribbon, and the active
     // tool receives the tool events and drives the editor's behaviour (its GUI, later its gizmo and pointer handling).
     // When the active tool stops being usable, the default tool ([EditorTool(ActiveByDefault = true)]) takes over.
+    // Tools that don't implement IActivatableTool are passive (selection only, no ribbon item). Panel tools ([PanelTool]
+    // IPanelTool panels) are passive tools listed under View > Tool Windows, where the ribbon opens or toggles them.
     public sealed class Tools : ISubsystem
     {
+        private sealed class PanelTypeEntry
+        {
+            public required Type Type;
+            public required PanelToolAttribute Attribute;
+            public required int Order;
+            public ComponentIcon Icon;
+        }
+
         private sealed class ToolEntry
         {
             public required ITool Tool;
@@ -66,6 +76,9 @@ namespace xg.editor
 
         private readonly List<ToolEntry> _tools = new();
         private readonly List<ControlEntry> _controls = new();
+        private readonly List<PanelTypeEntry> _panelTypes = new();
+        private readonly List<IPanelTool> _panels = new();
+        private readonly HashSet<IPanelTool> _seenOpen = new();
         private ToolEntry? _active;
         private readonly Dictionary<string, ToolCategoryAttribute> _categories = new();
         private readonly Dictionary<(string, string), ToolGroupAttribute> _groups = new();
@@ -91,6 +104,24 @@ namespace xg.editor
 
         public T? GetTool<T>() where T : class, ITool => _tools.Select(e => e.Tool).OfType<T>().FirstOrDefault();
 
+        // Registered instances of panel tools (any type), e.g. every open or hidden Inspector.
+        public IReadOnlyList<IPanelTool> PanelInstances => _panels;
+
+        public Tools()
+        {
+            _categories[PanelTools.Category] = new ToolCategoryAttribute(PanelTools.Category)
+            {
+                Icon = "View",
+                Priority = 1000,
+                Tooltip = "Tool windows: open, show or hide editor panels",
+            };
+            _groups[(PanelTools.Category, PanelTools.Group)] = new ToolGroupAttribute(PanelTools.Category, PanelTools.Group)
+            {
+                Width = 170.0f,
+                Tooltip = "Toggles show or hide a window; buttons open another instance",
+            };
+        }
+
         // ------------------------------------------------------------
         // Subsystem
         // ------------------------------------------------------------
@@ -115,14 +146,50 @@ namespace xg.editor
                     Safe(entry.Attribute.Name, disposable.Dispose);
             _tools.Clear();
             _controls.Clear();
+            _panelTypes.Clear();
+            _panels.Clear();
+            _seenOpen.Clear();
             _categories.Clear();
             _groups.Clear();
             _assemblies.Clear();
             Version++;
         }
 
-        // Per-frame upkeep (called by the Tools panel): drops selection items that are no longer valid.
-        public void Tick() => Selection.Validate();
+        // Per-frame upkeep (called by the Tools panel): drops selection items that are no longer valid, picks up new
+        // panel-tool instances (and gives them the selection), forgets unregistered ones, and unregisters closed extra
+        // instances (here, never inside their own close callback).
+        public void Tick()
+        {
+            Selection.Validate();
+            SyncPanels();
+        }
+
+        private void SyncPanels()
+        {
+            IReadOnlyList<Panel> registered = ImUI.RegisteredPanels;
+            foreach (Panel panel in registered.ToArray())
+            {
+                if (panel is not IPanelTool tool)
+                    continue;
+                if (!_panels.Contains(tool))
+                {
+                    _panels.Add(tool);
+                    Safe(panel.GetType().Name, () => tool.OnSelectItems(_selection));
+                }
+                if (panel.IsOpen)
+                    _seenOpen.Add(tool);
+                else if (tool.InstanceIndex > 0 && _seenOpen.Contains(tool))
+                    panel.Unregister();
+            }
+            for (int i = _panels.Count - 1; i >= 0; --i)
+            {
+                if (_panels[i] is not Panel panel || !registered.Contains(panel))
+                {
+                    _seenOpen.Remove(_panels[i]);
+                    _panels.RemoveAt(i);
+                }
+            }
+        }
 
         // ------------------------------------------------------------
         // Registration
@@ -150,13 +217,15 @@ namespace xg.editor
             {
                 types = e.Types.Where(t => t is not null).ToArray()!;
             }
+            int panelTypes = _panelTypes.Count;
             foreach (Type type in types.OrderBy(t => t.MetadataToken))
             {
                 ToolEntry? tool = RegisterTool(type);
                 RegisterControls(type, tool);
+                RegisterPanelType(type);
             }
 
-            if (_tools.Count != tools || _controls.Count != controls)
+            if (_tools.Count != tools || _controls.Count != controls || _panelTypes.Count != panelTypes)
             {
                 Version++;
                 if (log)
@@ -214,10 +283,94 @@ namespace xg.editor
                 Icon = ComponentIcons.Resolve(attribute.Icon, attribute.IconColor, imui.Icon.Gizmo),
             };
             entry.Usability = SafeUsability(attribute.Name, () => tool.OnSelectItems(_selection));
-            if (attribute.ActiveByDefault && DefaultTool is ToolEntry existing)
+            if (attribute.ActiveByDefault && tool is not IActivatableTool)
+                Debug.LogWarning($"[Tools] {type.FullName}: ActiveByDefault is ignored on a passive tool (it doesn't implement IActivatableTool)");
+            else if (attribute.ActiveByDefault && DefaultTool is ToolEntry existing)
                 Debug.LogWarning($"[Tools] {type.FullName}: '{existing.Attribute.Name}' is already the default tool; only one ActiveByDefault tool is used");
             _tools.Add(entry);
             return entry;
+        }
+
+        private void RegisterPanelType(Type type)
+        {
+            PanelToolAttribute? attribute = type.GetCustomAttribute<PanelToolAttribute>();
+            if (attribute is null)
+                return;
+            if (type.IsAbstract || !typeof(Panel).IsAssignableFrom(type) || !typeof(IPanelTool).IsAssignableFrom(type)
+                || type.GetConstructor(Type.EmptyTypes) is null)
+            {
+                Debug.LogError($"[Tools] {type.FullName}: [PanelTool] needs a non-abstract Panel that implements IPanelTool and has a parameterless constructor");
+                return;
+            }
+            _panelTypes.Add(new PanelTypeEntry
+            {
+                Type = type,
+                Attribute = attribute,
+                Order = _order++,
+                Icon = ComponentIcons.Resolve(attribute.Icon, attribute.IconColor, imui.Icon.Inspector),
+            });
+        }
+
+        // ------------------------------------------------------------
+        // Panel tools
+        // ------------------------------------------------------------
+        public T? OpenPanel<T>() where T : Panel, IPanelTool => OpenPanel(typeof(T)) as T;
+
+        // The ribbon action of a panel tool. Unique: show the instance (creating it if needed) or hide it when it's
+        // open. Non-unique: reopen the first instance when it's closed, otherwise open another instance. Returns the
+        // panel that was shown, or null when it was hidden.
+        public Panel? OpenPanel(Type type)
+        {
+            PanelTypeEntry? entry = _panelTypes.FirstOrDefault(e => e.Type == type);
+            List<Panel> instances = Instances(type);
+            Panel? first = instances.FirstOrDefault(p => ((IPanelTool)p).InstanceIndex == 0) ?? instances.FirstOrDefault();
+            bool unique = entry?.Attribute.Unique ?? false;
+            if (first is not null && (unique || !first.IsOpen))
+            {
+                if (unique && first.IsOpen)
+                {
+                    first.Close();
+                    return null;
+                }
+                first.Open();
+                first.Focus();
+                return first;
+            }
+            int index = 0;
+            while (instances.Any(p => ((IPanelTool)p).InstanceIndex == index))
+                ++index;
+            Panel? panel = null;
+            Safe(type.Name, () =>
+            {
+                Panel created = (Panel)Activator.CreateInstance(type)!;
+                ((IPanelTool)created).InstanceIndex = index;
+                if (created.Register())
+                {
+                    created.Open();
+                    panel = created;
+                }
+            });
+            SyncPanels();
+            return panel;
+        }
+
+        private static List<Panel> Instances(Type type) => ImUI.RegisteredPanels.Where(p => p.GetType() == type).ToList();
+
+        private RibbonItem PanelItem(PanelTypeEntry entry)
+        {
+            PanelToolAttribute a = entry.Attribute;
+            Type type = entry.Type;
+            RibbonItem item = new()
+            {
+                Label = a.Name,
+                Tooltip = a.Tooltip,
+                Style = RibbonItemStyle.Wide,
+                IsToggled = a.Unique ? () => Instances(type).Any(p => p.IsOpen) : null,
+                Dot = a.Unique ? ToggleDot.State : ToggleDot.None,
+                Clicked = () => OpenPanel(type),
+            };
+            ApplyIcon(item, entry.Icon, a.IconColor);
+            return item;
         }
 
         private void RegisterControls(Type type, ToolEntry? tool)
@@ -296,9 +449,10 @@ namespace xg.editor
             }
         }
 
-        // The ActiveByDefault tool with the lowest priority (then registration order).
+        // The activatable ActiveByDefault tool with the lowest priority (then registration order).
         private ToolEntry? DefaultTool =>
-            _tools.Where(e => e.Attribute.ActiveByDefault).OrderBy(e => e.Attribute.Priority).ThenBy(e => e.Order).FirstOrDefault();
+            _tools.Where(e => e.Attribute.ActiveByDefault && e.Tool is IActivatableTool)
+                .OrderBy(e => e.Attribute.Priority).ThenBy(e => e.Order).FirstOrDefault();
 
         private void ActivateDefault()
         {
@@ -331,7 +485,7 @@ namespace xg.editor
 
         private ToolEntry? Find(ITool tool) => _tools.FirstOrDefault(e => ReferenceEquals(e.Tool, tool));
 
-        private static bool IsUsable(ToolEntry entry) => entry.Usability == ToolUsability.Usable;
+        private static bool IsUsable(ToolEntry entry) => entry.Tool is IActivatableTool && entry.Usability == ToolUsability.Usable;
 
         private void FallBack(ToolEntry leaving)
         {
@@ -350,7 +504,8 @@ namespace xg.editor
                 previous.Active = false;
                 if (previous.Tool is EditorTool previousTool)
                     previousTool.IsActive = false;
-                Safe(previous.Attribute.Name, previous.Tool.OnDeactivate);
+                if (previous.Tool is IActivatableTool leaving)
+                    Safe(previous.Attribute.Name, leaving.OnDeactivate);
             }
             if (entry is null)
                 return;
@@ -359,14 +514,15 @@ namespace xg.editor
             if (entry.Tool is EditorTool editorTool)
                 editorTool.IsActive = true;
             ToolContext context = new(this, entry.Tool);
-            Safe(entry.Attribute.Name, () => entry.Tool.OnActivate(context));
+            if (entry.Tool is IActivatableTool activatable)
+                Safe(entry.Attribute.Name, () => activatable.OnActivate(context));
         }
 
         // ------------------------------------------------------------
         // Selection and validation
         // ------------------------------------------------------------
-        // Called by Selection on every change: re-asks every tool and validator (the active tool hands over to the default
-        // tool when it can no longer work), then delivers an asset selection to the active tool.
+        // Called by Selection on every change: re-asks every tool, panel-tool instance and validator (the active tool hands
+        // over to the default tool when it can no longer work), then delivers an asset selection to the active tool.
         public void NotifySelection(object[] selection)
         {
             _selection = selection;
@@ -399,6 +555,8 @@ namespace xg.editor
                 FallBack(current);
             }
             ActivateDefault();
+            foreach (IPanelTool panel in _panels.ToArray())
+                Safe(panel.GetType().Name, () => panel.OnSelectItems(_selection));
             foreach (ControlEntry control in _controls)
             {
                 MethodInfo? validator = control.Validator;
@@ -472,6 +630,8 @@ namespace xg.editor
             List<Entry> entries = new();
             foreach (ToolEntry tool in _tools)
             {
+                if (tool.Tool is not IActivatableTool)
+                    continue;
                 EditorToolAttribute a = tool.Attribute;
                 string category = a.Category ?? DefaultCategory;
                 string group = a.Group ?? DefaultGroup;
@@ -485,6 +645,8 @@ namespace xg.editor
             }
             foreach (ControlEntry control in _controls)
                 entries.Add(new Entry(control.Category, control.Group, control.Layout.Priority, control.Order, ControlItem(control)));
+            foreach (PanelTypeEntry panel in _panelTypes)
+                entries.Add(new Entry(PanelTools.Category, PanelTools.Group, panel.Attribute.Priority, panel.Order, PanelItem(panel)));
 
             List<string> categoryOrder = entries.Select(e => e.Category).Distinct().ToList();
             List<string> categoryFirstUse = categoryOrder.ToList();
@@ -570,6 +732,7 @@ namespace xg.editor
                 IsEnabled = () => control.Usability == ToolUsability.Usable,
                 IsVisible = () => control.Usability != ToolUsability.NotApplicable,
                 IsToggled = control.IsToggle ? () => control.State : null,
+                Dot = control.IsToggle ? ToggleDot.State : ToggleDot.None,
                 Clicked = () => Invoke(control),
             };
             ApplyIcon(item, control.Icon, a.IconColor);

@@ -76,6 +76,8 @@ namespace xg::imui::detail
         s.PopupBorderSize = 1.0f;
         s.FrameBorderSize = 0.0f;
         s.TabBorderSize = 0.0f;
+        s.TabCloseButtonMinWidthSelected = 0.0f;
+        s.TabCloseButtonMinWidthUnselected = 0.0f;
 
         s.WindowPadding = ImVec2(8.0f, 6.0f);
         s.FramePadding = ImVec2(7.0f, 3.0f);

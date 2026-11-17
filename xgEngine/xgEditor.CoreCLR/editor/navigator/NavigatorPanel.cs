@@ -13,7 +13,8 @@ namespace xgEditor.CoreCLR
     // Editor Navigator: the project's content browser. One panel with a browse section (Directory tree, Tags filter or
     // Search) and the asset grid, side by side when the panel is wide and stacked otherwise. Back/forward walk the
     // runtime history of locations; bookmarks (saved searches and items) are shared through ProjectSettings.
-    public sealed class NavigatorPanel : Panel
+    [PanelTool("Navigator", Icon = "Folder", Unique = true, Priority = 30, Tooltip = "Project content browser")]
+    public sealed class NavigatorPanel : Panel, IPanelTool
     {
         private enum OptionTab { None, View, Filter, Sort }
         private enum SortMode { None, Type, Status, User }
@@ -142,6 +143,10 @@ namespace xgEditor.CoreCLR
         private int _typeTagsIn;
 
         public override string Title => "Navigator";
+
+        public int InstanceIndex { get; set; }
+
+        public ToolUsability OnSelectItems(object[] selection) => ToolUsability.Usable;
         public override string? MenuPath => "General/Navigator";
         public override DockSlot Slot => Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_DOCK")?.ToLowerInvariant() switch
         {

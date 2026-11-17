@@ -155,6 +155,15 @@ namespace xgEditor.CoreCLR
                     hierarchy.SelectByName(inspectTarget);
                 }
             }
+            if (int.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_RIBBON_TAB"), out int ribbonTab))
+                ribbon.Ribbon.SelectedIndex = ribbonTab;
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_LOCK") == "1")
+                inspector.LockWhenShowing();
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_EXTRA") == "1")
+                Subsystem.Get<xg.editor.Tools>()?.OpenPanel<InspectorPanel>();
+            string? selectAfter = Environment.GetEnvironmentVariable("XG_UI_TEST_SELECT_AFTER");
+            if (!string.IsNullOrEmpty(selectAfter))
+                hierarchy.SelectByNameLater(selectAfter, 60);
             string? ribbonMore = Environment.GetEnvironmentVariable("XG_UI_TEST_RIBBON_MORE");
             if (!string.IsNullOrEmpty(ribbonMore))
                 ribbon.Ribbon.RequestOverflow(ribbonMore, 30);

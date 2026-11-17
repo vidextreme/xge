@@ -11,6 +11,9 @@ namespace xg.imui
     public static class ImUI
     {
         internal static readonly List<Panel> Panels = new();
+
+        // Every registered managed panel, in registration order.
+        public static IReadOnlyList<Panel> RegisteredPanels => Panels;
         private static readonly List<IDisposable> _resources = new();
         private static bool? _compatible;
 
