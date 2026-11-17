@@ -17,9 +17,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Editor.EventActor.cs" />
     <Compile Include="PropertyDrawer.cs" />
     <Compile Include="Selection.cs" />
+    <Compile Include="AssetRef.cs" />
+    <Compile Include="tools\ToolUsability.cs" />
+    <Compile Include="tools\ITool.cs" />
+    <Compile Include="tools\ToolAttributes.cs" />
+    <Compile Include="tools\ToolEvents.cs" />
+    <Compile Include="tools\PointerEventData.cs" />
+    <Compile Include="tools\SceneViewContext.cs" />
+    <Compile Include="tools\ToolUndo.cs" />
+    <Compile Include="tools\ToolToggleStore.cs" />
+    <Compile Include="tools\Tools.cs" />
+    <Compile Include="tools\SelectTool.cs" />
+    <Compile Include="tools\SelectionCommands.cs" />
     <Compile Include="SerializedProperty.cs" />
     <Compile Include="SerializedObject.cs" />
     <Compile Include="TypeBridge.cs" />

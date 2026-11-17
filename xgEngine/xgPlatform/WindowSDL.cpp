@@ -30,14 +30,16 @@ namespace xg {
     // ------------------------------------------------------------
     WindowSDL::WindowSDL(const char* title,
         int w,
-        int h)
+        int h,
+        uint32_t flags)
         : _width(w)
         , _height(h)
     {
         SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
         SDL_Init(SDL_INIT_VIDEO);
 
-        _sdlWindow = SDL_CreateWindow(title, _width, _height, SDL_WINDOW_RESIZABLE);
+        _sdlWindow = SDL_CreateWindow(title, _width, _height,
+            SDL_WINDOW_RESIZABLE | ((flags & WindowCreateFlagsHidden) ? SDL_WINDOW_HIDDEN : 0));
         Register();
     }
 

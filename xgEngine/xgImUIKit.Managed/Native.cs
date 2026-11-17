@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 12;
+        public const uint ApiVersion = 13;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -242,6 +242,12 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIEndScrollArea")]
         public static partial void EndScrollArea(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginRegion")]
+        public static partial byte BeginRegion(nint ctx, byte* id, Rect* rect, Vector2* contentSize);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIEndRegion")]
+        public static partial void EndRegion(nint ctx);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIBeginCard")]
         public static partial byte BeginCard(nint ctx, byte* id, byte* title, Icon icon, nint texture, Color32 iconColor, byte* open);

@@ -19,7 +19,8 @@ namespace xg {
     public:
         WindowSDL(const char* title,
             int width,
-            int height);
+            int height,
+            uint32_t flags = 0);
 
         // Secondary window (editor viewport): shares the main window's event pump.
         explicit WindowSDL(const WindowDesc& desc);

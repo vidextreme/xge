@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 12;
+    inline constexpr uint32_t ApiVersion = 13;
 
     struct Context;
     struct PanelEntry;
@@ -434,6 +434,13 @@ namespace xg
     // (a row with ScrollAreaFlags::Horizontal). size <= 0 fills like Canvas. Call EndScrollArea only when Begin returned true.
     XG_MODULE_EXPORT bool XG_ImUIBeginScrollArea(imui::Context* ctx, const char* id, const Vec2* size, imui::ScrollAreaFlags flags);
     XG_MODULE_EXPORT void XG_ImUIEndScrollArea(imui::Context* ctx);
+
+    // Region (ApiVersion 13): a transparent child placed at rect in the current draw space (row, canvas or panel space),
+    // without scrollbars, whose content is an implicit column with its own draw space. It leaves the layout cursor where
+    // it was, so it can host immediate GUI over a canvas. contentSize (optional) receives the content size measured on
+    // the previous frame. Call EndRegion only when Begin returned true.
+    XG_MODULE_EXPORT bool XG_ImUIBeginRegion(imui::Context* ctx, const char* id, const Rect* rect, Vec2* contentSize);
+    XG_MODULE_EXPORT void XG_ImUIEndRegion(imui::Context* ctx);
 
     // Group card (the Ribbon's group look) around ordinary layout content: a full-width bordered box whose header shows
     // an expand arrow (when open isn't null; a click toggles *open), the texture or icon in iconColor and the bold title.

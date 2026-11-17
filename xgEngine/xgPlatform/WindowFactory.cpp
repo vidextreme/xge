@@ -10,6 +10,10 @@ namespace xg {
         return WindowUnique(MakeWindowSDLUniqueHandle(new WindowSDL(title, width, height)));
     }
 
+    XG_API WindowUnique NewWindow(const char* title, int width, int height, uint32_t flags) {
+        return WindowUnique(MakeWindowSDLUniqueHandle(new WindowSDL(title, width, height, flags)));
+    }
+
 } // namespace xg
 
 

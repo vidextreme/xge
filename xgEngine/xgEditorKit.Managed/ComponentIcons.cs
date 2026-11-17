@@ -36,6 +36,7 @@ namespace xg.editor
     public static class ComponentIcons
     {
         private static readonly Dictionary<string, ComponentIcon> _byType = new();
+        private static readonly Dictionary<string, ComponentIcon> _byName = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, Texture?> _textures = new(StringComparer.OrdinalIgnoreCase);
 
         public static ComponentIcon Get(Type type)
@@ -48,10 +49,35 @@ namespace xg.editor
             return icon;
         }
 
+        // Resolves an icon by name: a built-in Icon name or an image path (same rules as [ComponentIcon]), with an optional
+        // "#RRGGBB" tint. Unknown names fall back to fallback.
+        public static ComponentIcon Resolve(string? name, string? colorHex, Icon fallback = Icon.Script)
+        {
+            string key = $"{name}|{colorHex}|{fallback}";
+            if (_byName.TryGetValue(key, out ComponentIcon cached))
+                return cached;
+            Color32 color = Style.Color(StyleColor.Icon);
+            if (colorHex is not null && TryParseColor(colorHex, out Color32 parsed))
+                color = parsed;
+            ComponentIcon icon;
+            if (string.IsNullOrEmpty(name))
+                icon = new ComponentIcon(fallback, null, color);
+            else if (Enum.TryParse(name, true, out Icon builtin) && Enum.IsDefined(builtin))
+                icon = new ComponentIcon(builtin, null, color);
+            else
+            {
+                Texture? texture = LoadTexture(name);
+                icon = new ComponentIcon(texture != null ? Icon.None : fallback, texture, color);
+            }
+            _byName[key] = icon;
+            return icon;
+        }
+
         // Drops cached icons and textures (e.g. after a project reload).
         public static void Clear()
         {
             _byType.Clear();
+            _byName.Clear();
             foreach (Texture? texture in _textures.Values)
                 texture?.Dispose();
             _textures.Clear();

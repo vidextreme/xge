@@ -17,6 +17,19 @@ XG_MODULE_EXPORT bool XG_GetProjectAutoBuild(xg::ScriptEngine* engine)
     return config ? config->ProjectAutoBuild : true;
 }
 
+// Startup splash progress (see ScriptEngine::ReportStartup); a no-op once the splash has closed. Main thread only.
+XG_MODULE_EXPORT void XG_StartupReport(xg::ScriptEngine* engine, const char* step, const char* detail, float progress)
+{
+    if (engine)
+        engine->ReportStartup(step, detail, progress);
+}
+
+XG_MODULE_EXPORT void XG_StartupPump(xg::ScriptEngine* engine)
+{
+    if (engine)
+        engine->PumpStartup();
+}
+
 // Loads a script module at runtime (not during a frame update). parentId null = the caller's parent;
 // group null = the parent's group. Returns false when the parent is unknown or the module fails to load.
 XG_MODULE_EXPORT bool XG_AddScriptModule(xg::ScriptEngine* engine, uint32_t callerModuleId, const char* id, const char* path,

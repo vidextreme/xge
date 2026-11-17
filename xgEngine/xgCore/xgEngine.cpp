@@ -27,6 +27,10 @@
 
 #include "CodecJSON.h"
 #include "CodecBinary.h"
+#include "xgEnv.h"
+
+#include <cmath>
+#include <cstdlib>
 
 namespace xg
 {    
@@ -52,6 +56,10 @@ namespace xg
     {
         _logger = new LoggerImpl();
         xg::SetLogger(_logger);
+
+        char stepLimit[16] = {};
+        if (xg::GetEnv("XG_UI_TEST_SPLASH_STEP", stepLimit, sizeof(stepLimit)))
+            _startupStepLimit = std::atoi(stepLimit);
 
         //MainWindow = NewWindow("xgEngine", 1280, 720);
         _moduleStorage = new ModuleStorage();
@@ -440,6 +448,13 @@ namespace xg
         EventQueue* eventQueue = GetSubsystem<EventQueue>();
         Clock::time_point last = Clock::now();
 
+        double splashHold = 0.0;
+        char hold[32] = {};
+        if (Splash && xg::GetEnv("XG_UI_TEST_SPLASH_HOLD", hold, sizeof(hold)))
+            splashHold = (std::max)(std::atof(hold), 0.0);
+        const Clock::time_point splashUntil = last + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(splashHold));
+        ReportStartup("Ready", "", 1.0f);
+
         while (!MainWindow->ShouldClose())
         {
             const Clock::time_point now = Clock::now();
@@ -462,7 +477,47 @@ namespace xg
 
             if (Renderer)
                 Renderer->Render();
+
+            if (Splash)
+            {
+                if (Clock::now() >= splashUntil)
+                    CloseSplash();
+                else
+                    Splash->Pump();
+            }
         }
+        CloseSplash();
+    }
+
+    void Engine::CloseSplash()
+    {
+        if (!Splash)
+            return;
+        if (MainWindow)
+            MainWindow->Show();
+        Splash.reset();
+    }
+
+    void Engine::ReportStartup(const char* step, const char* detail, float progress)
+    {
+        if (!Splash)
+            return;
+        if (_startupStepLimit >= 0 && _startupSteps > _startupStepLimit)
+            return;
+        if (step && _startupStepLimit >= 0 && ++_startupSteps > _startupStepLimit)
+            return;
+        if (!std::isnan(progress))
+            _startupProgress = progress;
+        Splash->SetStep(step, _startupProgress);
+        if (detail)
+            Splash->SetDetail(detail);
+        Splash->Pump();
+    }
+
+    void Engine::PumpStartup()
+    {
+        if (Splash)
+            Splash->Pump();
     }
 
     void Engine::Shutdown()

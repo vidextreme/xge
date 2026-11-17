@@ -117,5 +117,11 @@ namespace xg
     public:
         // Parent of module in the script tree; null for a root module or one that is not in the tree.
         virtual ScriptModule* GetParentScriptModule(ScriptModule* module) const = 0;
+
+        // Startup splash: step text (null keeps it), detail line (null keeps it, "" clears it) and progress in [0, 1]
+        // (negative = indeterminate, NaN = keep the current value). Both calls do nothing once the splash has closed.
+        virtual void ReportStartup(const char* step, const char* detail, float progress) = 0;
+        // Keeps the splash responsive during long blocking work (call every few tens of milliseconds).
+        virtual void PumpStartup() = 0;
     };
 }
