@@ -42,6 +42,10 @@ namespace xg
 
         XG_FIELD()
         int WindowHeight = 720;
+
+        // Show the startup splash while modules load (xge.exe --no-splash or gameconfig false to skip).
+        XG_FIELD()
+        bool Splash = true;
     };
 
     // One entry of gameconfig.json "ScriptModules" (each entry may have nested "Children" loaded under it).

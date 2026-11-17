@@ -42,6 +42,7 @@ namespace xgEditor.CoreCLR
                 return;
             }
 
+            Startup.Report($"Opening {Current.Name}", Current.Root, Startup.Indeterminate);
             ProjectFiles.Generate(Current);
             Menu.Add("Assets/Open C# Project", OpenCSharpProject);
             Menu.Add("Assets/Build Scripts", () => BuildScripts());
@@ -83,6 +84,7 @@ namespace xgEditor.CoreCLR
             {
                 Assembly editor = LoadFromBytes(context, project.EditorAssemblyPath);
                 int drawers = DrawerRegistry.Register(editor);
+                Subsystem.Get<Tools>()?.RegisterAssembly(editor);
                 Debug.LogSuccess($"[Project] {project.Name}: loaded editor scripts ({drawers} property drawer(s)) from {project.EditorAssemblyPath}");
             }
             catch (Exception e)
@@ -104,6 +106,7 @@ namespace xgEditor.CoreCLR
         // Loads the project's script assembly as "game.project", a sibling of this editor module.
         private static void LoadScriptModule(ProjectInfo project)
         {
+            Startup.Report($"Loading {project.Name} scripts", Path.GetFileName(project.ScriptAssemblyPath), Startup.Indeterminate);
             if (!File.Exists(project.ScriptAssemblyPath))
             {
                 Debug.LogWarning($"[Project] {project.Name}: no script build at {project.ScriptAssemblyPath} (see the Console for build errors, or use Assets > Build Scripts).");
@@ -201,8 +204,9 @@ namespace xgEditor.CoreCLR
             try
             {
                 Debug.Log($"[Project] Building {project.Name} scripts ({reason})...");
+                Startup.Report($"Building {project.Name} scripts", reason, Startup.Indeterminate);
                 Stopwatch clock = Stopwatch.StartNew();
-                if (RunBuild(project))
+                if (RunBuild(project, pumpSplash: true, reason))
                     Debug.LogSuccess($"[Project] {project.Name} scripts built in {clock.Elapsed.TotalSeconds:F1} s");
             }
             finally
@@ -211,7 +215,8 @@ namespace xgEditor.CoreCLR
             }
         }
 
-        private static bool RunBuild(ProjectInfo project)
+        // pumpSplash: called on the main thread during startup; keeps the splash responsive and shows the build output.
+        private static bool RunBuild(ProjectInfo project, bool pumpSplash = false, string? reason = null)
         {
             List<string> inputs = InputStamp(project);
             string target = project.HasEditorScripts ? project.EditorCsprojPath : project.CsprojPath;
@@ -231,12 +236,18 @@ namespace xgEditor.CoreCLR
             HashSet<string> reported = new();
             try
             {
+                string? lastLine = null;
                 using Process process = Process.Start(info)!;
-                process.OutputDataReceived += (_, e) => Report(e.Data, reported, ref errors, ref warnings);
+                process.OutputDataReceived += (_, e) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(e.Data))
+                        Volatile.Write(ref lastLine, e.Data.Trim());
+                    Report(e.Data, reported, ref errors, ref warnings);
+                };
                 process.ErrorDataReceived += (_, e) => Report(e.Data, reported, ref errors, ref warnings);
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
-                if (!process.WaitForExit(BuildTimeoutMilliseconds))
+                if (!(pumpSplash ? WaitPumpingSplash(process, reason ?? Path.GetFileName(target), () => Volatile.Read(ref lastLine)) : process.WaitForExit(BuildTimeoutMilliseconds)))
                 {
                     process.Kill(entireProcessTree: true);
                     MarkFailed(project, true);
@@ -263,6 +274,25 @@ namespace xgEditor.CoreCLR
                 Debug.LogError($"[Project] Could not run dotnet build: {e.Message}");
                 return false;
             }
+        }
+
+        private static bool WaitPumpingSplash(Process process, string what, Func<string?> lastLine)
+        {
+            Stopwatch clock = Stopwatch.StartNew();
+            string? shown = null;
+            while (!process.WaitForExit(50))
+            {
+                if (clock.ElapsedMilliseconds >= BuildTimeoutMilliseconds)
+                    return false;
+                string detail = lastLine() ?? $"{what} · {clock.Elapsed.TotalSeconds:F0} s";
+                if (detail != shown)
+                {
+                    Startup.Report(null, detail, Startup.Indeterminate);
+                    shown = detail;
+                }
+                Startup.Pump();
+            }
+            return true;
         }
 
         // One "path|lastWriteTicks|length" line per build input, sorted; compared with the record of the last build.

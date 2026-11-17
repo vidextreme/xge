@@ -294,6 +294,26 @@ namespace xg::imui
         {
             return ScrollAreaScope(_ctx, id, size, flags);
         }
+        // auto region = gui.Region("##options", rect, &contentSize); immediate GUI placed at rect in the current draw space.
+        class RegionScope
+        {
+        public:
+            RegionScope(Context* ctx, const char* id, const Rect& rect, Vec2* contentSize)
+                : _ctx(ctx), _open(XG_ImUIBeginRegion(ctx, id, &rect, contentSize)) {}
+            ~RegionScope() { if (_ctx && _open) XG_ImUIEndRegion(_ctx); }
+            RegionScope(const RegionScope&) = delete;
+            RegionScope& operator=(const RegionScope&) = delete;
+            RegionScope(RegionScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)), _open(o._open) {}
+            explicit operator bool() const { return _open; }
+        private:
+            Context* _ctx;
+            bool _open = false;
+        };
+
+        [[nodiscard]] RegionScope Region(const char* id, const Rect& rect, Vec2* contentSize = nullptr) const
+        {
+            return RegionScope(_ctx, id, rect, contentSize);
+        }
         bool Splitter(const char* id, float& size, float minSize, float maxSize) const { return Changed(XG_ImUISplitter(_ctx, id, &size, minSize, maxSize)); }
         bool SplitterVertical(const char* id, float& size, float minSize, float maxSize) const { return Changed(XG_ImUISplitterVertical(_ctx, id, &size, minSize, maxSize)); }
 

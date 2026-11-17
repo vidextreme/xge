@@ -96,6 +96,15 @@ namespace xg::imui
         ImVec2 ScrollOrigins[MaxScrollDepth];
         int ScrollDepth = 0;
 
+        static constexpr int MaxRegionDepth = 4;
+        struct RegionFrame
+        {
+            ImVec2 ContentOrigin;
+            int CanvasDepth = 0;
+        };
+        RegionFrame Regions[MaxRegionDepth];
+        int RegionDepth = 0;
+
         static constexpr int MaxCardDepth = 4;
         struct CardFrame
         {
@@ -224,6 +233,8 @@ namespace
             dc.IsSetPos = IsSetPos;
         }
     };
+
+    CursorState _regionCursors[Context::MaxRegionDepth];
 
     Context::LayoutFrame* CurrentLayout(Context* ctx)
     {
@@ -1547,6 +1558,52 @@ namespace xg
         EndLayout(ctx);
         ImGui::EndChild();
         ctx->ContentOrigin = ctx->ScrollOrigins[--ctx->ScrollDepth];
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIBeginRegion(imui::Context* ctx, const char* id, const Rect* rect, Vec2* contentSize)
+    {
+        if (!ctx || !rect || ctx->RegionDepth >= imui::Context::MaxRegionDepth)
+            return false;
+        const Rect r = interop::Load(rect);
+        if (r.Width() <= 0.0f || r.Height() <= 0.0f)
+            return false;
+
+        const int depth = ctx->RegionDepth++;
+        _regionCursors[depth] = CursorState::Save();
+        imui::Context::RegionFrame& frame = ctx->Regions[depth];
+        frame.ContentOrigin = ctx->ContentOrigin;
+        frame.CanvasDepth = ctx->CanvasDepth;
+
+        ImGui::SetCursorScreenPos(ctx->ToScreen(r.min));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
+        ImGui::BeginChild(id ? id : "##region", ImVec2(r.Width(), r.Height()), ImGuiChildFlags_None,
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+
+        if (contentSize)
+        {
+            const ImVec2 content = ImGui::GetCurrentWindow()->ContentSize;
+            interop::Store(contentSize, Vec2(content.x, content.y));
+        }
+        ctx->CanvasDepth = 0;
+        ctx->ContentOrigin = ImGui::GetCursorScreenPos();
+        BeginLayout(ctx, false, -1.0f, false);
+        return true;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndRegion(imui::Context* ctx)
+    {
+        if (!ctx || ctx->RegionDepth <= 0)
+            return;
+        EndLayout(ctx);
+        ImGui::EndChild();
+        const int depth = --ctx->RegionDepth;
+        const imui::Context::RegionFrame& frame = ctx->Regions[depth];
+        ctx->ContentOrigin = frame.ContentOrigin;
+        ctx->CanvasDepth = frame.CanvasDepth;
+        _regionCursors[depth].Restore();
     }
 
     XG_MODULE_EXPORT bool XG_ImUIBeginCard(imui::Context* ctx, const char* id, const char* title, imui::Icon icon, imui::TextureHandle texture, Color32 iconColor, bool* open)

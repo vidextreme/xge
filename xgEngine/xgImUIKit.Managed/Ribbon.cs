@@ -34,25 +34,45 @@ namespace xg.imui
         public RibbonItemStyle Style { get; set; }
         public Func<bool>? IsEnabled { get; set; }
         public Func<bool>? IsToggled { get; set; }
+        // Hidden items take no space; null = always visible.
+        public Func<bool>? IsVisible { get; set; }
+        // Free-form immediate GUI drawn in place of a button, spanning the card width (layout calls, a column). Its height
+        // is the content height measured on the previous frame, so it settles one frame after it appears or grows.
+        public Action? OnGUI { get; set; }
         // Shows a small dot in the corner: the item has options.
         public bool HasOptions { get; set; }
         public Action? Clicked { get; set; }
+
+        internal float GuiHeight { get; set; } = 22.0f;
+        internal bool IsCell => OnGUI == null && Style == RibbonItemStyle.Icon;
     }
 
     public sealed class RibbonGroup
     {
         public string Name { get; set; } = "";
+        public string? Tooltip { get; set; }
         public bool Collapsed { get; set; }
         // Cells per row for runs of icon items; the subgroup keeps this shape in every layout.
         public int IconColumns { get; set; } = 4;
         // Card width when the ribbon is horizontal (docked top or bottom).
         public float Width { get; set; } = 150.0f;
         public List<RibbonItem> Items { get; } = new();
+
+        internal List<RibbonItem> Visible { get; } = new();
+
+        internal void RefreshVisible()
+        {
+            Visible.Clear();
+            foreach (RibbonItem item in Items)
+                if (item.IsVisible?.Invoke() ?? true)
+                    Visible.Add(item);
+        }
     }
 
     public sealed class RibbonCategory
     {
         public string Name { get; set; } = "";
+        public string? Tooltip { get; set; }
         public Icon Icon { get; set; }
         public Color32? IconColor { get; set; }
         public List<RibbonGroup> Groups { get; } = new();
@@ -81,7 +101,7 @@ namespace xg.imui
         private const float MoreHeight = 18.0f;
         private const string OverflowPopupId = "ribbon_more";
 
-        private enum PlacedKind { Card, Header, Segment, Wide, Cell, More }
+        private enum PlacedKind { Card, Header, Segment, Wide, Cell, More, Gui }
 
         private struct Placed
         {
@@ -114,6 +134,15 @@ namespace xg.imui
         public bool IsVertical => _resolved is RibbonSide.Left or RibbonSide.Right;
         public RibbonCategory? SelectedCategory =>
             Categories.Count == 0 ? null : Categories[Math.Clamp(SelectedIndex, 0, Categories.Count - 1)];
+
+        // Removes every category, keeping the side and the selected tab index (for hosts that rebuild their model).
+        public void Clear()
+        {
+            Categories.Clear();
+            _placed.Clear();
+            _popupPlaced.Clear();
+            _overflowGroup = null;
+        }
 
         public void OnGUI()
         {
@@ -212,8 +241,7 @@ namespace xg.imui
                 Result hit;
                 using (Gui.Id(i))
                     hit = Gui.HitArea("##tab", tab);
-                if (iconOnly)
-                    Gui.Tooltip(category.Name);
+                TabTooltip(category, iconOnly);
                 if (hit.Clicked())
                     SelectedIndex = i;
 
@@ -236,6 +264,15 @@ namespace xg.imui
             }
         }
 
+        private static void TabTooltip(RibbonCategory category, bool iconOnly)
+        {
+            string? tip = iconOnly
+                ? (string.IsNullOrEmpty(category.Tooltip) ? category.Name : $"{category.Name}\n{category.Tooltip}")
+                : category.Tooltip;
+            if (!string.IsNullOrEmpty(tip))
+                Gui.Tooltip(tip);
+        }
+
         private void DrawHorizontalTabs()
         {
             using var canvas = Gui.Canvas("##ribbon_tabs", new Vector2(0.0f, StripSize));
@@ -256,8 +293,7 @@ namespace xg.imui
                 Result hit;
                 using (Gui.Id(i))
                     hit = Gui.HitArea("##tab", tab);
-                if (iconOnly)
-                    Gui.Tooltip(category.Name);
+                TabTooltip(category, iconOnly);
                 if (hit.Clicked())
                     SelectedIndex = i;
 
@@ -293,7 +329,11 @@ namespace xg.imui
             Vector2 extent = default;
             _placed.Clear();
             if (category != null)
+            {
+                foreach (RibbonGroup group in category.Groups)
+                    group.RefreshVisible();
                 extent = vertical ? LayoutVertical(category, avail.x) : LayoutHorizontal(category, avail.y);
+            }
             Vector2 canvasSize = new(MathF.Max(extent.x, MathF.Max(avail.x, 1.0f)), MathF.Max(extent.y, MathF.Max(avail.y, 1.0f)));
             using (var canvas = Gui.Canvas("##ribbon_items", canvasSize))
             {
@@ -319,6 +359,9 @@ namespace xg.imui
                             case PlacedKind.More:
                                 DrawMore(draw, placed);
                                 break;
+                            case PlacedKind.Gui:
+                                DrawGuiItem(placed);
+                                break;
                             default:
                                 DrawItem(draw, placed);
                                 break;
@@ -338,7 +381,8 @@ namespace xg.imui
             float cardWidth = MathF.Max(width - AreaPadding * 2.0f, 40.0f);
             float y = AreaPadding;
             foreach (RibbonGroup group in category.Groups)
-                y += LayoutGroup(group, AreaPadding, y, cardWidth, 0.0f) + CardGap;
+                if (group.Visible.Count > 0)
+                    y += LayoutGroup(group, AreaPadding, y, cardWidth, 0.0f) + CardGap;
             return new Vector2(width, y - CardGap + AreaPadding);
         }
 
@@ -350,6 +394,8 @@ namespace xg.imui
             float x = AreaPadding;
             foreach (RibbonGroup group in category.Groups)
             {
+                if (group.Visible.Count == 0)
+                    continue;
                 float width = MathF.Max(group.Width, 60.0f);
                 LayoutGroup(group, x, AreaPadding, width, cardHeight);
                 x += width + CardGap;
@@ -369,7 +415,7 @@ namespace xg.imui
             {
                 float maxBottom = fixedHeight > 0.0f ? top + fixedHeight - 1.0f - Inset : float.MaxValue;
                 int overflow = LayoutItems(_placed, group, 0, x + Inset, y, width - Inset * 2.0f, maxBottom, out y);
-                if (overflow < group.Items.Count)
+                if (overflow < group.Visible.Count)
                 {
                     Rect more = Rect.FromXYWH(x + Inset, maxBottom - MoreHeight, width - Inset * 2.0f, MoreHeight);
                     _placed.Add(new Placed { Kind = PlacedKind.More, Rect = more, Group = group, Index = overflow });
@@ -388,13 +434,17 @@ namespace xg.imui
             return height;
         }
 
-        // Height of the element starting at item index (a wide row, or a whole run of icon items) and the index after it.
+        // Height of the element starting at visible item index (a wide row, a GUI entry, or a whole run of icon items) and
+        // the index after it.
         private static float ElementHeight(RibbonGroup group, int index, out int end)
         {
             end = index + 1;
-            if (group.Items[index].Style == RibbonItemStyle.Wide)
+            RibbonItem first = group.Visible[index];
+            if (first.OnGUI != null)
+                return RowGap + MathF.Max(first.GuiHeight, 4.0f);
+            if (!first.IsCell)
                 return RowGap + RowHeight;
-            while (end < group.Items.Count && group.Items[end].Style == RibbonItemStyle.Icon)
+            while (end < group.Visible.Count && group.Visible[end].IsCell)
                 ++end;
             return Inset + SegmentHeight(group, end - index);
         }
@@ -411,18 +461,20 @@ namespace xg.imui
         private int LayoutItems(List<Placed> target, RibbonGroup group, int start, float x, float y, float width, float maxBottom, out float bottom)
         {
             float remaining = 0.0f;
-            for (int i = start; i < group.Items.Count;)
+            for (int i = start; i < group.Visible.Count;)
                 remaining += ElementHeight(group, i, out i);
             float limit = y + remaining <= maxBottom ? maxBottom : maxBottom - MoreHeight - RowGap;
 
             int index = start;
-            while (index < group.Items.Count)
+            while (index < group.Visible.Count)
             {
                 float height = ElementHeight(group, index, out int end);
                 if (y + height > limit)
                     break;
-                RibbonItem item = group.Items[index];
-                if (item.Style == RibbonItemStyle.Wide)
+                RibbonItem item = group.Visible[index];
+                if (item.OnGUI != null)
+                    target.Add(new Placed { Kind = PlacedKind.Gui, Rect = Rect.FromXYWH(x, y + RowGap, width, height - RowGap), Group = group, Item = item });
+                else if (!item.IsCell)
                     target.Add(new Placed { Kind = PlacedKind.Wide, Rect = Rect.FromXYWH(x, y + RowGap, width, RowHeight), Group = group, Item = item });
                 else
                     LayoutSegment(target, group, index, end, x, y + Inset, width);
@@ -447,7 +499,7 @@ namespace xg.imui
                 float left = MathF.Round(x + SegmentPadding + column * (cellWidth + CellGap));
                 float right = MathF.Round(x + SegmentPadding + column * (cellWidth + CellGap) + cellWidth);
                 float cellTop = y + SegmentPadding + row * (CellHeight + CellGap);
-                target.Add(new Placed { Kind = PlacedKind.Cell, Rect = new Rect(new Vector2(left, cellTop), new Vector2(right, cellTop + CellHeight)), Group = group, Item = group.Items[begin + n] });
+                target.Add(new Placed { Kind = PlacedKind.Cell, Rect = new Rect(new Vector2(left, cellTop), new Vector2(right, cellTop + CellHeight)), Group = group, Item = group.Visible[begin + n] });
             }
         }
 
@@ -477,7 +529,7 @@ namespace xg.imui
             bool open = _overflowGroup == placed.Group;
             draw.RectFilled(rect, Style.Color(hit.Hovered() || open ? StyleColor.PanelHeaderHover : StyleColor.PanelHeaderBg), ButtonRounding);
             draw.Rect(rect, Style.Color(StyleColor.Border), ButtonRounding);
-            string label = $"+{placed.Group.Items.Count - placed.Index} more";
+            string label = $"+{placed.Group.Visible.Count - placed.Index} more";
             Vector2 size = Gui.MeasureText(label);
             float total = size.x + 4.0f + 7.0f;
             float x = MathF.Round(rect.Center.x - total * 0.5f);
@@ -499,7 +551,7 @@ namespace xg.imui
             RibbonGroup? group = _overflowGroup;
             if (group == null)
                 return;
-            if (_overflowStart >= group.Items.Count)
+            if (_overflowStart >= group.Visible.Count)
             {
                 _overflowGroup = null;
                 return;
@@ -536,6 +588,8 @@ namespace xg.imui
                 {
                     if (placed.Kind == PlacedKind.Segment)
                         draw.RectFilled(placed.Rect, Style.Color(StyleColor.SegmentBg), CardRounding);
+                    else if (placed.Kind == PlacedKind.Gui)
+                        DrawGuiItem(placed);
                     else
                         clicked |= DrawItem(draw, placed);
                 }
@@ -551,6 +605,8 @@ namespace xg.imui
         {
             Rect rect = placed.Rect;
             Result hit = Gui.HitArea("##header", rect);
+            if (!string.IsNullOrEmpty(placed.Group.Tooltip))
+                Gui.Tooltip(placed.Group.Tooltip);
             if (hit.Clicked())
                 placed.Group.Collapsed = !placed.Group.Collapsed;
             Color32 fill = Style.Color(hit.Hovered() ? StyleColor.PanelHeaderHover : StyleColor.PanelHeaderBg);
@@ -605,6 +661,19 @@ namespace xg.imui
                 return false;
             item.Clicked?.Invoke();
             return true;
+        }
+
+        private static void DrawGuiItem(in Placed placed)
+        {
+            RibbonItem item = placed.Item!;
+            Vector2 content;
+            using (var region = Gui.Region("##gui", placed.Rect, out content))
+            {
+                if (region.IsOpen)
+                    item.OnGUI!();
+            }
+            if (content.y > 0.0f)
+                item.GuiHeight = MathF.Ceiling(content.y);
         }
 
         private static void DrawItemIcon(Painter draw, RibbonItem item, Rect rect, Color32 color)

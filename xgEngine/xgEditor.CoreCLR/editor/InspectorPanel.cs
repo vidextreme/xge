@@ -27,7 +27,6 @@ namespace xgEditor.CoreCLR
         private readonly Dictionary<string, bool> _open = new();
         private readonly List<ComponentType> _filtered = new();
         private readonly TextBuffer _search = new(64);
-        private HierarchyPanel? _hierarchy;
         private ulong _shown;
         private int _tab;
         private bool _keepTab;
@@ -54,9 +53,6 @@ namespace xgEditor.CoreCLR
             }
         }
 
-        // Follows the selection of this Hierarchy.
-        public void Bind(HierarchyPanel hierarchy) => _hierarchy = hierarchy;
-
         // Opens the Add Component flyout after delayFrames frames (test hook).
         public void OpenAddComponent(int delayFrames = 0) => _openAddDelay = Math.Max(delayFrames, 0);
 
@@ -65,7 +61,7 @@ namespace xgEditor.CoreCLR
 
         protected override void OnGUI()
         {
-            ActorID? selected = _hierarchy?.Selected;
+            ActorID? selected = Selection.ActiveActor;
             bool hasActor = selected is ActorID id && ActorTree.GetName(id).Length > 0;
             ActorID actor = hasActor ? selected!.Value : ActorID.InvalidID;
             if (!hasActor)

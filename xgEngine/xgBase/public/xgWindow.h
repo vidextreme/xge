@@ -104,5 +104,7 @@ namespace xg {
     // Factory implemented in xgPlatform
     XG_DECLARE_UNIQUE(Window)
     XG_API WindowUnique NewWindow(const char* title, int width, int height);
+    // flags are WindowCreateFlags (xgPlatformServices.h); the main window honours WindowCreateFlagsHidden only.
+    XG_API WindowUnique NewWindow(const char* title, int width, int height, uint32_t flags);
 
 } // namespace xg

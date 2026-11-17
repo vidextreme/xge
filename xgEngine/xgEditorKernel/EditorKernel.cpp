@@ -28,6 +28,7 @@
 #include "EditorSceneViewExports.h"
 #include "xgPlatformServices.h"
 #include "xgUIHostSession.h"
+#include <limits>
 
 namespace xg
 {
@@ -186,6 +187,7 @@ namespace xg
     void EditorKernelModule::InitUI()
     {
         auto* engine = static_cast<Engine*>(_engine);
+        engine->ReportStartup("Starting UI host", "xgImUIKit.dll", std::numeric_limits<float>::quiet_NaN());
         UIHostOptions options;
         options.PrototypeShell = _prototypeUI;
         options.MultiViewport = _multiViewport;

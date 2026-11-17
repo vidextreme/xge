@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using xg;
+using xg.editor;
 using xg.imui;
 using xg.math;
 using Debug = xg.Debug;
@@ -1479,7 +1480,11 @@ namespace xgEditor.CoreCLR
             }
             AssetEntry entry = item.Entry!;
             if (hit.Clicked())
+            {
                 _selected = entry.RelPath;
+                if (!entry.IsFolder)
+                    Selection.Set(new AssetRef(entry.RelPath));
+            }
             if ((hit & Result.DoubleClicked) != 0)
             {
                 if (entry.IsFolder)

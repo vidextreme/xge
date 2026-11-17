@@ -11,6 +11,9 @@
 #include "xgStream.h"
 #include "xgPathUtils.h"
 #include "xgEngine.h"
+#include "xgPlatformServices.h"
+#include "xgSplash.h"
+#include "xgVersion.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -22,6 +25,12 @@ namespace
 
     // File name of the config in use, for log messages.
     std::string _configName = "gameconfig.json";
+
+    // Splash progress: module loads share this range of the bar evenly.
+    constexpr float ModuleProgressBegin = 0.15f;
+    constexpr float ModuleProgressEnd = 0.95f;
+    int _startupModuleTotal = 0;
+    int _startupModuleIndex = 0;
 
     enum class ConfigResult
     {
@@ -49,6 +58,37 @@ namespace
             return fs::current_path();
         buffer.resize(length);
         return FromUtf8(buffer.c_str()).parent_path();
+    }
+
+    const char* RendererLabel(const char* module)
+    {
+        if (!module || !*module)
+            return "SDL GPU";
+        const std::string name = module;
+        if (name.find("DX12") != std::string::npos)
+            return "DX12";
+        if (name.find("Vulkan") != std::string::npos)
+            return "Vulkan";
+        return module;
+    }
+
+    int CountScriptModules(const xg::JSON& json, const char* key)
+    {
+        int count = 0;
+        const int size = json.GetObjectSize(key);
+        for (int i = 0; i < size; ++i)
+        {
+            ++count;
+            xg::JSON entry;
+            if (!json.GetObjectItem(key, i, entry))
+                continue;
+            if (const char* childrenKey = entry.FindKey("children"))
+            {
+                const std::string children = childrenKey;
+                count += CountScriptModules(entry, children.c_str());
+            }
+        }
+        return count;
     }
 }
 
@@ -125,6 +165,10 @@ static int LoadScriptModules(xg::Engine& engine, const xg::JSON& json, const cha
             continue;
         }
 
+        const float progress = ModuleProgressBegin + (ModuleProgressEnd - ModuleProgressBegin)
+            * static_cast<float>(_startupModuleIndex++) / static_cast<float>((std::max)(_startupModuleTotal, 1));
+        const std::string step = std::string("Loading module ") + desc.Id;
+        engine.ReportStartup(step.c_str(), desc.Path, progress);
         xg::ScriptModule* module = engine.AddScriptModule(desc.Id, desc.Path, parent, desc.Group);
         if (!module)
         {
@@ -203,6 +247,8 @@ int main(int argc, char** argv)
     {
         if (std::strcmp(argv[i], "--no-script-build") == 0)
             config.ProjectAutoBuild = false;
+        else if (std::strcmp(argv[i], "--no-splash") == 0)
+            config.Splash = false;
     }
     if (!newProjectPath.empty())
         newProjectPath = projectPath;
@@ -219,9 +265,33 @@ int main(int argc, char** argv)
     if (config.ProjectPath)
         xg::Log(xg::MessageType::Info, "Project: %s%s", config.ProjectPath, config.NewProjectPath ? " (new)" : "");
 
+    if (config.Splash)
+    {
+        const std::string projectName = projectPath.empty() ? std::string() : ToUtf8(FromUtf8(projectPath.c_str()).filename());
+        xg::SplashDesc splash = {};
+        splash.Size = sizeof(splash);
+        splash.Title = "xge";
+        splash.Tagline = "Cross-Game Engine";
+        splash.Version = XGE_VERSION;
+        splash.Config = XGE_BUILD_CONFIG;
+        splash.Renderer = RendererLabel(config.RendererModule);
+        splash.Project = projectName.c_str();
+        splash.Copyright = "\xC2\xA9 2026 John David Uy \xC2\xB7 MIT";
+        splash.LogoPath = "../editor/splash-mark.png";
+        splash.FontDirectory = "../editor/fonts";
+        engine.Splash = xg::NewSplashScreen(splash);
+        if (!engine.Splash)
+            xg::Log(xg::MessageType::Warning, "Splash screen unavailable");
+    }
+    _startupModuleTotal = CountScriptModules(gameConfig, "ScriptModules");
+
+    engine.ReportStartup("Creating main window", "", 0.03f);
     const char* windowTitle = (config.WindowTitle && *config.WindowTitle) ? config.WindowTitle : "xgEngine";
     engine.MainWindow = xg::NewWindow(windowTitle, config.WindowWidth > 0 ? config.WindowWidth : 1280,
-        config.WindowHeight > 0 ? config.WindowHeight : 720);
+        config.WindowHeight > 0 ? config.WindowHeight : 720, engine.Splash ? xg::WindowCreateFlagsHidden : 0u);
+    const bool hasRenderer = config.RendererModule && *config.RendererModule;
+    engine.ReportStartup(hasRenderer ? "Creating renderer" : "Starting engine",
+        hasRenderer ? (std::string(config.RendererModule) + ".dll").c_str() : "", 0.07f);
     if (!engine.Initialize(config))
         return -1;
 

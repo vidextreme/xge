@@ -11,6 +11,7 @@
 #include "xgEventDispatcher.h"
 #include "xgLog.h"
 #include "xgEngineDef.h"
+#include "xgSplash.h"
 namespace xg
 {
     class ScriptModule;
@@ -50,6 +51,8 @@ namespace xg
 
         RendererUnique Renderer;
         WindowUnique MainWindow;
+        // Startup splash, set by the host before Initialize; Run shows MainWindow and closes it after the first frame.
+        SplashScreenUnique Splash;
 
 		TypeRegistry* GetTypeRegistry() override { return _typeRegistry.get(); }
 
@@ -82,7 +85,15 @@ namespace xg
 		bool UnregisterSubsystemImpl(ScriptModule* module, TypeID id) override;
     public:
         ScriptModule* GetParentScriptModule(ScriptModule* module) const override;
+        void ReportStartup(const char* step, const char* detail, float progress) override;
+        void PumpStartup() override;
     private:
+        void CloseSplash();
+
+        int _startupSteps = 0;
+        int _startupStepLimit = -1;
+        float _startupProgress = 0.0f;
+
         std::unordered_map<TypeID, Subsystem*> _subsystems;
 
         LoggerImpl* _logger = nullptr;

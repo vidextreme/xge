@@ -11,7 +11,8 @@ using Stopwatch = System.Diagnostics.Stopwatch;
 namespace xgHub.CoreCLR
 {
     // Project Hub window: the project list (search, add, create, open, preview, remove) filling the main window.
-    // Opening or creating a project starts a separate xge.exe (default config), then the hub closes.
+    // Opening or creating a project starts a separate xge.exe (default config) and shows an "Opening project" card until
+    // the editor has a window (its splash), then the hub closes.
     public sealed class HubPanel : Panel
     {
         private const float RowHeight = 84.0f;
@@ -25,6 +26,13 @@ namespace xgHub.CoreCLR
         private const double RefreshInterval = 1.0;
         private const string NewPopupId = "hub_new";
         private const string RemovePopupId = "hub_remove";
+        private const string LaunchPopupId = "hub_launch";
+        private const float LaunchPopupWidth = 440.0f;
+        private const double LaunchMinSeconds = 0.8;
+        private const double LaunchWaitingSeconds = 2.0;
+        private const double LaunchSlowSeconds = 6.0;
+        private const double LaunchTimeoutSeconds = 15.0;
+        private const double LaunchCreatingSeconds = 1.2;
 
         private static readonly Color32[] _placeholderColors =
         {
@@ -48,6 +56,16 @@ namespace xgHub.CoreCLR
         private string _status = string.Empty;
         private bool _statusError;
         private double _nextRefresh = RefreshInterval;
+        private Process? _launch;
+        private HubProject? _launchProject;
+        private string _launchName = string.Empty;
+        private string _launchPath = string.Empty;
+        private bool _launchCreating;
+        private double _launchStart;
+        private string _launchError = string.Empty;
+        private bool _openLaunchPopup;
+        private bool _quitRequested;
+        private int _frames;
 
         public HubPanel()
         {
@@ -90,12 +108,35 @@ namespace xgHub.CoreCLR
                 _openRemovePopup = false;
                 Gui.OpenPopup(RemovePopupId);
             }
+            if (_openLaunchPopup)
+            {
+                _openLaunchPopup = false;
+                Gui.OpenPopup(LaunchPopupId);
+            }
             DrawNewProjectPopup();
             DrawRemovePopup();
+            DrawLaunchPopup();
+            UpdateLaunch();
+            if (++_frames == 30)
+                TestOpenProject();
+        }
+
+        private void TestOpenProject()
+        {
+            string? name = Environment.GetEnvironmentVariable("XG_UI_TEST_HUB_OPEN");
+            if (string.IsNullOrEmpty(name))
+                return;
+            HubProject? project = _projects.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (project is null || project.Missing)
+                Debug.LogWarning($"[Hub] XG_UI_TEST_HUB_OPEN: no project named {name}");
+            else
+                OpenProject(project);
         }
 
         protected override void OnDestroy()
         {
+            _launch?.Dispose();
+            _launch = null;
             foreach (HubProject project in _projects)
                 project.Dispose();
             _projects.Clear();
@@ -329,6 +370,130 @@ namespace xgHub.CoreCLR
             }
         }
 
+        private void DrawLaunchPopup()
+        {
+            using ModalScope modal = Gui.Modal(LaunchPopupId, "Opening project", new Vector2(LaunchPopupWidth, 0.0f));
+            if (!modal.IsOpen)
+                return;
+
+            const float thumbSize = 56.0f;
+            const float textX = thumbSize + 12.0f;
+            double elapsed = _clock.Elapsed.TotalSeconds - _launchStart;
+            bool failed = _launchError.Length > 0;
+            using (CanvasScope card = Gui.Canvas("##hub_launch_card", new Vector2(0.0f, 72.0f)))
+            {
+                Painter draw = card.Draw;
+                Rect thumb = Rect.FromXYWH(0.0f, 4.0f, thumbSize, thumbSize);
+                if (_launchProject is not null)
+                {
+                    DrawThumbnail(draw, _launchProject, thumb, false);
+                }
+                else
+                {
+                    draw.RectFilled(thumb, _placeholderColors[(int)((uint)StableHash(_launchName) % (uint)_placeholderColors.Length)], 4.0f);
+                    using (Gui.Font(FontStyle.Bold))
+                    {
+                        string initials = Initials(_launchName);
+                        Vector2 size = Gui.MeasureText(initials);
+                        draw.Text(new Vector2(thumb.min.x + (thumb.Width - size.x) * 0.5f, thumb.min.y + (thumb.Height - size.y) * 0.5f),
+                            new Color32(240, 240, 240), initials);
+                    }
+                }
+
+                float textWidth = card.Size.x - textX;
+                using (Gui.Font(FontStyle.Bold))
+                    draw.Text(new Vector2(textX, 2.0f), Style.Color(StyleColor.Text), _launchName);
+                using (Gui.Font(FontStyle.Mono))
+                    draw.Text(new Vector2(textX, 22.0f), Style.Color(StyleColor.TextDim), Fit(_launchPath, textWidth));
+
+                Rect bar = Rect.FromXYWH(textX, 44.0f, textWidth, 3.0f);
+                draw.RectFilled(bar, Style.Color(StyleColor.SegmentBg));
+                if (!failed)
+                {
+                    float segment = bar.Width * 0.3f;
+                    float t = (float)(elapsed / 1.4 % 1.0);
+                    float start = -segment + t * (bar.Width + segment);
+                    float from = MathF.Max(start, 0.0f);
+                    float to = MathF.Min(start + segment, bar.Width);
+                    if (to > from)
+                        draw.RectFilled(Rect.FromXYWH(bar.min.x + from, bar.min.y, to - from, bar.Height), Style.Color(StyleColor.Accent));
+                }
+                draw.Text(new Vector2(textX, 52.0f), failed ? Style.Color(StyleColor.IconMaterial) : Style.Color(StyleColor.TextDim),
+                    failed ? _launchError : LaunchStatus(elapsed));
+            }
+
+            if (failed)
+            {
+                using (Gui.Horizontal())
+                {
+                    Gui.FlexibleSpace();
+                    if (Gui.Button("Close"))
+                    {
+                        _launchError = string.Empty;
+                        Gui.CloseModal();
+                    }
+                }
+            }
+        }
+
+        private string LaunchStatus(double elapsed)
+        {
+            if (_launchCreating && elapsed < LaunchCreatingSeconds)
+                return $"Creating {_launchName}…";
+            if (elapsed >= LaunchSlowSeconds)
+                return "Still starting, the first script build can take a while…";
+            if (elapsed >= LaunchWaitingSeconds)
+                return "Waiting for the editor window…";
+            return "Starting the editor…";
+        }
+
+        private static string Fit(string text, float width)
+        {
+            if (Gui.MeasureText(text).x <= width)
+                return text;
+            const string ellipsis = "…";
+            int keep = text.Length;
+            while (keep > 1 && Gui.MeasureText(ellipsis + text[^keep..]).x > width)
+                --keep;
+            return ellipsis + text[^keep..];
+        }
+
+        private void BeginLaunch(Process process, string name, string path, HubProject? project, bool creating)
+        {
+            _launch?.Dispose();
+            _launch = process;
+            _launchName = name;
+            _launchPath = path;
+            _launchProject = project;
+            _launchCreating = creating;
+            _launchStart = _clock.Elapsed.TotalSeconds;
+            _launchError = string.Empty;
+            _openLaunchPopup = true;
+        }
+
+        private void UpdateLaunch()
+        {
+            if (_launch is null || _quitRequested)
+                return;
+            double elapsed = _clock.Elapsed.TotalSeconds - _launchStart;
+            _launch.Refresh();
+            if (_launch.HasExited)
+            {
+                _launchError = $"The editor exited (code {_launch.ExitCode})";
+                SetStatus($"{_launchName}: {_launchError}", true);
+                _launch.Dispose();
+                _launch = null;
+                return;
+            }
+            bool hasWindow = OperatingSystem.IsWindows() ? _launch.MainWindowHandle != 0 : elapsed >= LaunchWaitingSeconds;
+            if ((hasWindow && elapsed >= LaunchMinSeconds) || elapsed >= LaunchTimeoutSeconds)
+            {
+                Debug.Log($"[Hub] Editor for {_launchName} is up after {elapsed:F1} s (window: {hasWindow}); closing the hub");
+                _quitRequested = true;
+                ScriptRuntime.RequestQuit();
+            }
+        }
+
         // ------------------------------------------------------------
         // Actions
         // ------------------------------------------------------------
@@ -377,11 +542,14 @@ namespace xgHub.CoreCLR
 
         private void OpenProject(HubProject project)
         {
-            if (!StartXge("--project", project.Path))
+            if (_launch is not null)
+                return;
+            Process? process = StartXge("--project", project.Path);
+            if (process is null)
                 return;
             HubStore.Touch(project.Path);
             SetStatus($"Opening {project.Name}...", false);
-            ScriptRuntime.RequestQuit();
+            BeginLaunch(process, project.Name, project.Path, project, false);
         }
 
         // Returns false (with _newError set) when the project cannot be created.
@@ -408,7 +576,10 @@ namespace xgHub.CoreCLR
                 _newError = $"Cannot use this location: {e.Message}";
                 return false;
             }
-            if (!StartXge("--new-project", target))
+            if (_launch is not null)
+                return false;
+            Process? process = StartXge("--new-project", target);
+            if (process is null)
             {
                 _newError = _status;
                 return false;
@@ -419,7 +590,7 @@ namespace xgHub.CoreCLR
             SyncProjects();
             _selected = _projects.FirstOrDefault(p => HubStore.SamePath(p.Path, target));
             SetStatus($"Creating {target}...", false);
-            ScriptRuntime.RequestQuit();
+            BeginLaunch(process, Path.GetFileName(target), target, _selected, true);
             return true;
         }
 
@@ -452,13 +623,13 @@ namespace xgHub.CoreCLR
             SetStatus($"Removed {project.Name} from the list (files are untouched)", false);
         }
 
-        private bool StartXge(string flag, string path)
+        private Process? StartXge(string flag, string path)
         {
             string? exe = Environment.ProcessPath;
             if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
             {
                 SetStatus("Cannot find xge.exe", true);
-                return false;
+                return null;
             }
             try
             {
@@ -467,14 +638,14 @@ namespace xgHub.CoreCLR
                     UseShellExecute = true,
                     WorkingDirectory = Path.GetDirectoryName(exe)!,
                 };
-                using Process? process = Process.Start(info);
+                Process? process = Process.Start(info);
                 Debug.Log($"[Hub] Started xge.exe {flag} \"{path}\" (pid {process?.Id})");
-                return process is not null;
+                return process;
             }
             catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
             {
                 SetStatus($"Cannot start xge.exe: {e.Message}", true);
-                return false;
+                return null;
             }
         }
 

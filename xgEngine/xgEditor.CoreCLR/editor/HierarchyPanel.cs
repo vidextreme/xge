@@ -48,19 +48,17 @@ namespace xgEditor.CoreCLR
         public override Icon PanelIcon => Icon.Hierarchy;
         public override PanelFlags Flags => PanelFlags.NoPadding | PanelFlags.NoScrollbar;
 
-        public ActorID Selected => _selected == 0 ? ActorID.InvalidID : _selected;
+        public ActorID Selected => Selection.ActiveActor;
 
+        // Makes the actor the whole selection (InvalidID clears it). The editor selection lives in Selection, which also
+        // raises the select/deselect events.
         public void Select(ActorID actor)
         {
-            ulong id = actor;
-            if (id == _selected)
-                return;
-            ActorID previous = Selected;
-            _selected = id;
-            if (previous != ActorID.InvalidID)
-                Editor.BroadcastEvent(EditorEventActor.OnDeselectActor, previous);
-            if (actor != ActorID.InvalidID)
-                Editor.BroadcastEvent(EditorEventActor.OnSelectActor, actor);
+            if (actor == ActorID.InvalidID)
+                Selection.Clear();
+            else
+                Selection.Set(actor);
+            _selected = Selection.ActiveActor;
         }
 
         // Expands every actor with children on the next frame (used by the XG_UI_TEST_FOCUS=hierarchy hook).
@@ -71,6 +69,7 @@ namespace xgEditor.CoreCLR
 
         protected override void OnGUI()
         {
+            _selected = Selection.ActiveActor;
             using (Gui.Toolbar())
                 Gui.SearchField("##hierarchy_search", _search, 0.0f);
 
@@ -148,7 +147,7 @@ namespace xgEditor.CoreCLR
             for (int i = _list.First; i < _list.Last && i < _rows.Count; ++i)
             {
                 Row row = _rows[i];
-                bool selected = row.Id == _selected;
+                bool selected = Selection.Contains(new ActorID(row.Id));
                 bool expanded = _expanded.Contains(row.Id);
                 TreeRowFlags flags = (row.HasChildren ? TreeRowFlags.HasChildren : TreeRowFlags.None)
                     | (expanded ? TreeRowFlags.Expanded : TreeRowFlags.None)

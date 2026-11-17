@@ -495,6 +495,20 @@ namespace xg.imui
             return new ScrollAreaScope(ctx, open != 0);
         }
 
+        // using (Gui.Region("##options", rect, out Vector2 content)) { ... }: immediate GUI placed at rect in the current draw
+        // space (for example inside a canvas). Its content is a column; content is the size it measured on the previous
+        // frame, so a host can size the rect to fit one frame later. The layout cursor is left where it was.
+        public static RegionScope Region(string id, Rect rect, out Vector2 contentSize)
+        {
+            nint ctx = Context;
+            Vector2 measured = default;
+            byte open;
+            fixed (byte* p = Utf8.Encode(id.AsSpan()))
+                open = Native.BeginRegion(ctx, p, &rect, &measured);
+            contentSize = measured;
+            return new RegionScope(ctx, open != 0);
+        }
+
         // Horizontal bar; dragging it changes size (the height of the area below it).
         public static bool Splitter(string id, ref float size, float minSize, float maxSize)
         {
@@ -691,6 +705,25 @@ namespace xg.imui
         {
             if (_ctx != 0 && IsOpen)
                 Native.EndScrollArea(_ctx);
+        }
+    }
+
+    public readonly ref struct RegionScope
+    {
+        private readonly nint _ctx;
+
+        internal RegionScope(nint ctx, bool open)
+        {
+            _ctx = ctx;
+            IsOpen = open;
+        }
+
+        public bool IsOpen { get; }
+
+        public void Dispose()
+        {
+            if (_ctx != 0 && IsOpen)
+                Native.EndRegion(_ctx);
         }
     }
 

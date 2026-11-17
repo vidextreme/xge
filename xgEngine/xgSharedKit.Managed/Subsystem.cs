@@ -58,6 +58,7 @@ namespace xg
 
     // Managed subsystems registered on this module's node, keyed by alias. Native lookup walks up the module tree,
     // so a name registered here overrides the same alias on parent modules. ScriptRuntime.Shutdown calls UnregisterAll.
+    // By default a subsystem is keyed by its type name (Register<T>(), Get<T>()); the name overloads register an alias.
     public static class Subsystem
     {
         private readonly struct Entry
@@ -76,6 +77,12 @@ namespace xg
         private static readonly List<string> _order = new();
 
         public static IReadOnlyCollection<string> Names => _order;
+
+        // Registers a new T under its type name (typeof(T).Name).
+        public static T Register<T>() where T : ISubsystem, new() => Register<T>(typeof(T).Name);
+
+        // Registers subsystem under its static type's name (typeof(T).Name).
+        public static T Register<T>(T subsystem) where T : ISubsystem => Register(subsystem, typeof(T).Name);
 
         public static T Register<T>(string name) where T : ISubsystem, new()
         {
@@ -153,6 +160,19 @@ namespace xg
             _entries.Clear();
             _order.Clear();
         }
+
+        // The subsystem registered under typeof(T).Name, or else the first registered instance of T (any alias).
+        public static T? Get<T>() where T : class, ISubsystem
+        {
+            if (_entries.TryGetValue(typeof(T).Name, out Entry entry) && entry.Instance is T byName)
+                return byName;
+            foreach (string name in _order)
+                if (_entries[name].Instance is T match)
+                    return match;
+            return null;
+        }
+
+        public static bool Unregister<T>() where T : ISubsystem => Unregister(typeof(T).Name);
 
         public static T? Get<T>(string name) where T : class, ISubsystem =>
             _entries.TryGetValue(name, out Entry entry) ? entry.Instance as T : null;

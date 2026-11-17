@@ -26,6 +26,7 @@ namespace xgEditor.CoreCLR
         {
             ScriptRuntime.Initialize(enginePtr, moduleID);
             EditorLog.Attach();
+            Subsystem.Register<xg.editor.Tools>();
             ProjectService.Open();
 
             // Example: register a managed log callback
@@ -87,7 +88,6 @@ namespace xgEditor.CoreCLR
             }
 
             InspectorPanel inspector = xg.imui.Panel.Open<InspectorPanel>();
-            inspector.Bind(hierarchy);
             string? inspectTarget = Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT");
             if (int.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_TAB"), out int inspectTab))
                 inspector.SelectedTab = inspectTab;
@@ -143,11 +143,18 @@ namespace xgEditor.CoreCLR
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "navigator")
                 navigator.Focus();
 
-            RibbonPanel ribbon = xg.imui.Panel.Open<RibbonPanel>();
+            ToolsPanel ribbon = xg.imui.Panel.Open<ToolsPanel>();
             if (Enum.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_RIBBON_SIDE"), true, out xg.imui.RibbonSide ribbonSide))
                 ribbon.Ribbon.Side = ribbonSide;
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "ribbon")
+            {
                 ribbon.Focus();
+                if (!string.IsNullOrEmpty(inspectTarget))
+                {
+                    hierarchy.ExpandAll();
+                    hierarchy.SelectByName(inspectTarget);
+                }
+            }
             string? ribbonMore = Environment.GetEnvironmentVariable("XG_UI_TEST_RIBBON_MORE");
             if (!string.IsNullOrEmpty(ribbonMore))
                 ribbon.Ribbon.RequestOverflow(ribbonMore, 30);
