@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <string>
 
 namespace xg::imui::detail
 {
@@ -92,6 +93,7 @@ namespace xg::imui::detail
         Image, Trash,
         Cards,
         Tag, File, Filter, Sort, View,
+        Lock, Unlock,
     };
 
     inline ImVec2 _segmentStart;
@@ -175,7 +177,15 @@ namespace xg::imui::detail
     bool SearchField(const char* id, char* buffer, size_t size, float width);
     bool FlatButton(const char* label, bool active = false);
     void AlignRight(float width);
-    bool BeginStyledPanel(const char* name, ImU32 bodyCol, bool defaultTab = false);
+    bool BeginStyledPanel(const char* name, ImU32 bodyCol, bool defaultTab = false, Icon icon = Icon::None);
+
+    // ImGui window name of a panel: the visible label (the title up to an optional "###"), led by spaces that leave room
+    // for a tab icon when withIcon, and a stable id ("###" + the title), so the label can change without moving the
+    // panel's docking state.
+    std::string PanelWindowName(const char* title, bool withIcon);
+    // Draws the icon on the current window's dock tab (dimmed while the tab isn't selected), or in its title bar when it
+    // floats. Call right after Begin.
+    void DrawPanelTabIcon(Icon icon);
     void BeginHeader();
     void EndHeader();
     void BeginBody(const char* id, ImVec2 padding = ImVec2(8.0f, 6.0f), ImGuiWindowFlags flags = 0);

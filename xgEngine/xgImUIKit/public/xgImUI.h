@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 13;
+    inline constexpr uint32_t ApiVersion = 14;
 
     struct Context;
     struct PanelEntry;
@@ -100,6 +100,7 @@ namespace xg::imui
         Image, Trash,
         Cards,
         Tag, File, Filter, Sort, View,
+        Lock, Unlock,
         Count
     };
 

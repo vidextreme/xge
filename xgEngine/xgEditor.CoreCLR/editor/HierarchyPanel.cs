@@ -10,7 +10,8 @@ namespace xgEditor.CoreCLR
 {
     // Editor Hierarchy: the engine's actor tree (every module's actors, read through ActorTree), with expand/collapse,
     // selection and a name search that shows matches as a flat list.
-    public sealed class HierarchyPanel : Panel
+    [PanelTool("Hierarchy", Icon = "Hierarchy", Unique = true, Priority = 10, Tooltip = "Actor tree of the scene")]
+    public sealed class HierarchyPanel : Panel, IPanelTool
     {
         private const float RowHeight = 20.0f;
         // Where XG_ImUIBeginTreeRow puts the row's draw origin: after a 4 px margin, the depth indent and the 16 px arrow.
@@ -41,8 +42,14 @@ namespace xgEditor.CoreCLR
         private bool _selectedSeen;
         private bool _expandAll;
         private string? _selectName;
+        private string? _laterName;
+        private int _laterFrames;
 
         public override string Title => "Hierarchy";
+
+        public int InstanceIndex { get; set; }
+
+        public ToolUsability OnSelectItems(object[] selection) => ToolUsability.Usable;
         public override string? MenuPath => "General/Hierarchy";
         public override DockSlot Slot => DockSlot.Left;
         public override Icon PanelIcon => Icon.Hierarchy;
@@ -67,8 +74,20 @@ namespace xgEditor.CoreCLR
         // Selects the first actor with this name on the next frame (used by the XG_UI_TEST_FOCUS=hierarchy hook).
         public void SelectByName(string name) => _selectName = name;
 
+        // Selects the first actor with this name after delayFrames frames (test hook).
+        public void SelectByNameLater(string name, int delayFrames)
+        {
+            _laterName = name;
+            _laterFrames = Math.Max(delayFrames, 0);
+        }
+
         protected override void OnGUI()
         {
+            if (_laterName is not null && _laterFrames-- <= 0)
+            {
+                _selectName = _laterName;
+                _laterName = null;
+            }
             _selected = Selection.ActiveActor;
             using (Gui.Toolbar())
                 Gui.SearchField("##hierarchy_search", _search, 0.0f);

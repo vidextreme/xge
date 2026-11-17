@@ -18,6 +18,7 @@ namespace xg::imui
     struct PanelEntry
     {
         std::string Title;
+        std::string WindowName;
         std::string MenuPath;
         DockSlot Slot = DockSlot::Floating;
         Icon PanelIcon = Icon::None;
@@ -396,7 +397,7 @@ namespace
         const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings
             | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-        const bool visible = ImGui::Begin(entry->Title.c_str(), nullptr, flags);
+        const bool visible = ImGui::Begin(entry->WindowName.c_str(), nullptr, flags);
         ImGui::PopStyleVar(3);
         if (visible)
             DrawPanelBody(entry);
@@ -443,11 +444,13 @@ namespace
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
         bool open = true;
-        const bool visible = ImGui::Begin(entry->Title.c_str(), &open,
+        const bool visible = ImGui::Begin(entry->WindowName.c_str(), &open,
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
         ImGui::PopStyleVar();
         if (shellStyle)
             ImGui::PopStyleColor();
+        if (entry->PanelIcon > imui::Icon::None && entry->PanelIcon < imui::Icon::Count)
+            imui::detail::DrawPanelTabIcon(static_cast<imui::detail::Icon>(entry->PanelIcon));
 
         if (visible)
         {
@@ -520,7 +523,7 @@ namespace xg::imui::detail
         _dockIds[static_cast<int>(DockSlot::Bottom)] = bottom;
         for (PanelEntry* entry : _panels)
             if (!entry->Removed && entry->Slot != DockSlot::Floating)
-                ImGui::DockBuilderDockWindow(entry->Title.c_str(), _dockIds[static_cast<int>(entry->Slot)]);
+                ImGui::DockBuilderDockWindow(entry->WindowName.c_str(), _dockIds[static_cast<int>(entry->Slot)]);
     }
 
     void SetDefaultDockSpace(ImGuiID id)
@@ -542,7 +545,7 @@ namespace xg::imui::detail
                 ImGui::Separator();
                 separated = true;
             }
-            const std::string path = entry->MenuPath.empty() ? entry->Title : entry->MenuPath;
+            const std::string path = entry->MenuPath.empty() ? entry->Title.substr(0, entry->Title.find("###")) : entry->MenuPath;
             bool open = entry->Open;
             bool activated = false;
             DrawMenuPath(path, nullptr, &open, activated);
@@ -625,6 +628,8 @@ namespace xg
 
         auto* entry = new imui::PanelEntry();
         entry->Title = desc->Title;
+        entry->WindowName = imui::detail::PanelWindowName(desc->Title, desc->PanelIcon != imui::Icon::None
+            && !HasFlag(desc->Flags, imui::PanelFlags::FillViewport));
         entry->MenuPath = desc->MenuPath ? desc->MenuPath : "";
         entry->Slot = (desc->Slot >= imui::DockSlot::Floating && desc->Slot <= imui::DockSlot::Bottom) ? desc->Slot : imui::DockSlot::Floating;
         entry->PanelIcon = desc->PanelIcon;

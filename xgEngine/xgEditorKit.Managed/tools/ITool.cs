@@ -3,15 +3,20 @@
 
 namespace xg.editor
 {
-    // An editor tool. Mark the class with [EditorTool] (and a parameterless constructor) and Tools registers it; one
-    // instance exists per registration. Only one tool is active at a time: the user activates a usable tool in the
-    // ribbon, and the active tool receives the event interfaces in ToolEvents.cs and changes how the editor behaves.
+    // An editor tool: anything that follows the selection. A tool that only implements ITool is passive: it gets
+    // OnSelectItems on every selection change and nothing else (panel tools such as the Inspector are passive).
+    // Register a class with [EditorTool] (parameterless constructor; one instance each) or as a panel with [PanelTool].
     public interface ITool
     {
-        // Called on every selection change (and when tools register): whether the tool can be activated with this
-        // selection, is disabled, or is hidden.
+        // Called on every selection change (and when the tool registers). For an activatable tool the result decides
+        // whether it can be activated with this selection, is disabled, or is hidden; passive tools usually return Usable.
         ToolUsability OnSelectItems(object[] selection);
+    }
 
+    // A tool the user can activate from the ribbon. Only one is active at a time; the active tool receives the event
+    // interfaces in ToolEvents.cs and changes how the editor behaves.
+    public interface IActivatableTool : ITool
+    {
         void OnActivate(ToolContext context);
 
         void OnDeactivate();
@@ -35,8 +40,9 @@ namespace xg.editor
         public object[] Selection => System.CurrentSelection;
     }
 
-    // Convenience base: usable with any selection, no-op activation, and IsActive/Context while it's the active tool.
-    public abstract class EditorTool : ITool
+    // Convenience base for activatable tools: usable with any selection, no-op activation, and IsActive/Context while
+    // it's the active tool.
+    public abstract class EditorTool : IActivatableTool
     {
         public bool IsActive { get; internal set; }
         public ToolContext? Context { get; private set; }

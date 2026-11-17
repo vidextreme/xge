@@ -22,6 +22,7 @@
     <Compile Include="AssetRef.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
+    <Compile Include="tools\PanelTools.cs" />
     <Compile Include="tools\ToolAttributes.cs" />
     <Compile Include="tools\ToolEvents.cs" />
     <Compile Include="tools\PointerEventData.cs" />

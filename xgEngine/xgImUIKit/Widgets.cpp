@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE for details.
 #include "ImUIInternal.h"
 
+#include <cstring>
+
 namespace xg::imui::detail
 {
     bool IconButton(const char* id, Icon icon, bool active, float size, ImU32 iconCol)
@@ -147,7 +149,46 @@ namespace xg::imui::detail
     }
 
 
-    bool BeginStyledPanel(const char* name, ImU32 bodyCol, bool defaultTab)
+    std::string PanelWindowName(const char* title, bool withIcon)
+    {
+        const char* hashes = std::strstr(title, "###");
+        const std::string label = hashes ? std::string(title, hashes) : std::string(title);
+        const std::string id = hashes ? std::string(hashes + 3) : std::string(title);
+        return (withIcon ? std::string("      ") : std::string()) + label + "###" + id;
+    }
+
+    void DrawPanelTabIcon(Icon icon)
+    {
+        if (icon == Icon::None)
+            return;
+        constexpr float IconSize = 13.0f;
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        const float padding = ImGui::GetStyle().FramePadding.x;
+        if (window->DockIsActive)
+        {
+            ImGuiDockNode* node = window->DockNode;
+            if (!node || !node->HostWindow || !node->TabBar || node->IsHiddenTabBar() || node->IsNoTabBar())
+                return;
+            const ImRect tab = window->DC.DockTabItemRect;
+            if (tab.GetWidth() <= 0.0f)
+                return;
+            const bool selected = node->TabBar && node->TabBar->VisibleTabId == window->TabId;
+            ImDrawList* dl = node->HostWindow->DrawList;
+            dl->PushClipRect(tab.Min, tab.Max, false);
+            DrawIcon(dl, icon, ImVec2(ImFloor(tab.Min.x + padding + IconSize * 0.5f + 1.0f), ImFloor(tab.GetCenter().y)), IconSize,
+                selected ? IconColor : WithAlpha(IconColor, 0.55f));
+            dl->PopClipRect();
+            return;
+        }
+        if ((window->Flags & ImGuiWindowFlags_NoTitleBar) != 0 || window->SkipItems)
+            return;
+        const ImRect bar = window->TitleBarRect();
+        window->DrawList->PushClipRect(bar.Min, bar.Max, false);
+        DrawIcon(window->DrawList, icon, ImVec2(ImFloor(bar.Min.x + padding + IconSize * 0.5f + 1.0f), ImFloor(bar.GetCenter().y)), IconSize, IconColor);
+        window->DrawList->PopClipRect();
+    }
+
+    bool BeginStyledPanel(const char* name, ImU32 bodyCol, bool defaultTab, Icon icon)
     {
         ImGuiWindowClass wc;
         wc.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoWindowMenuButton;
@@ -156,10 +197,11 @@ namespace xg::imui::detail
         ImGui::SetNextWindowSize(ImVec2(420.0f, 320.0f), ImGuiCond_FirstUseEver);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::PushStyleColor(ImGuiCol_WindowBg, GapBg);
-        bool open = ImGui::Begin(name, nullptr,
+        bool open = ImGui::Begin(PanelWindowName(name, icon != Icon::None).c_str(), nullptr,
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
         ImGui::PopStyleColor();
         ImGui::PopStyleVar();
+        DrawPanelTabIcon(icon);
 
         ImGuiWindow* window = ImGui::GetCurrentWindow();
         if (defaultTab && _selectDefaultTabs > 0 && window->DockNode && window->DockNode->TabBar)

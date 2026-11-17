@@ -12,7 +12,11 @@ namespace xgEditor.CoreCLR
     // PropertyDrawers (built-in ones, or a project's own from its Editor scripts). A vertical tab strip on the side away
     // from the dock edge shows All (every card), one tab per component (its [ComponentIcon]) and + (Add Component).
     // Edits apply immediately to the live components, which may belong to any CoreCLR module.
-    public sealed class InspectorPanel : Panel
+    // It's a passive panel tool: it keeps its own copy of the selection (given by Tools on every change), which the lock
+    // freezes. Any number of Inspectors can be open (View > Tool Windows > Inspector opens another one).
+    [PanelTool("Inspector", Icon = "Inspector", Priority = 0,
+        Tooltip = "Components of the selected actor. Open more to compare, and lock one to keep its selection")]
+    public sealed class InspectorPanel : Panel, IPanelTool
     {
         private const float StripSize = 30.0f;
         private const float TabSize = 28.0f;
@@ -35,10 +39,16 @@ namespace xgEditor.CoreCLR
         private bool _openAdd;
         private int _openAddDelay = -1;
         private string? _pendingAddType;
+        private object[] _selection = Array.Empty<object>();
+        private bool _locked;
+        private bool _lockWhenShowing;
 
-        public override string Title => "Inspector";
-        public override string? MenuPath => "General/Inspector";
-        public override DockSlot Slot => DockSlot.Right;
+        public int InstanceIndex { get; set; }
+        public override string Title => PanelTools.Title("Inspector", InstanceIndex);
+        public override string? MenuPath => InstanceIndex == 0 ? "General/Inspector" : null;
+        public override DockSlot Slot => InstanceIndex == 0 ? DockSlot.Right : DockSlot.Floating;
+        public override Rect? InitialRect =>
+            InstanceIndex == 0 ? null : Rect.FromXYWH(380.0f + InstanceIndex * 28.0f, 110.0f + InstanceIndex * 28.0f, 320.0f, 420.0f);
         public override Icon PanelIcon => Icon.Inspector;
         public override PanelFlags Flags => PanelFlags.NoPadding | PanelFlags.NoScrollbar;
 
@@ -53,6 +63,33 @@ namespace xgEditor.CoreCLR
             }
         }
 
+        // Locked: keep showing the current selection and ignore selection changes. Unlocking takes the current selection.
+        public bool Locked
+        {
+            get => _locked;
+            set
+            {
+                if (_locked == value)
+                    return;
+                _locked = value;
+                if (!value)
+                    _selection = Selection.Objects;
+            }
+        }
+
+        // This Inspector's selection (the editor selection, or what it held when it was locked).
+        public IReadOnlyList<object> InspectedObjects => _selection;
+
+        public ToolUsability OnSelectItems(object[] selection)
+        {
+            if (!_locked)
+                _selection = selection;
+            return ToolUsability.Usable;
+        }
+
+        // Locks and focuses the Inspector as soon as it shows an actor (test hook).
+        public void LockWhenShowing() => _lockWhenShowing = true;
+
         // Opens the Add Component flyout after delayFrames frames (test hook).
         public void OpenAddComponent(int delayFrames = 0) => _openAddDelay = Math.Max(delayFrames, 0);
 
@@ -61,9 +98,16 @@ namespace xgEditor.CoreCLR
 
         protected override void OnGUI()
         {
-            ActorID? selected = Selection.ActiveActor;
-            bool hasActor = selected is ActorID id && ActorTree.GetName(id).Length > 0;
-            ActorID actor = hasActor ? selected!.Value : ActorID.InvalidID;
+            ActorID actor = _selection.OfType<ActorID>().LastOrDefault();
+            bool hasActor = actor != ActorID.InvalidID && ActorTree.GetName(actor).Length > 0;
+            if (!hasActor)
+                actor = ActorID.InvalidID;
+            if (hasActor && _lockWhenShowing)
+            {
+                _lockWhenShowing = false;
+                Locked = true;
+                Focus();
+            }
             if (!hasActor)
             {
                 _serialized.Clear();
@@ -108,6 +152,16 @@ namespace xgEditor.CoreCLR
                     DrawTabs(TabEdge.Right, hasActor);
             }
             DrawAddPopup(actor, hasActor, stripRight);
+        }
+
+        private void DrawLock()
+        {
+            bool locked = _locked;
+            Color32 color = Style.Color(locked ? StyleColor.Accent : StyleColor.Text);
+            if (Gui.IconToggle("##lock", locked ? Icon.Lock : Icon.Unlock, ref locked, color))
+                Locked = locked;
+            Gui.Tooltip(locked ? "Locked: keeps showing this selection. Click to follow the selection again"
+                : "Lock: keep showing this selection");
         }
 
         // ------------------------------------------------------------
@@ -176,19 +230,24 @@ namespace xgEditor.CoreCLR
             Vector2 avail = Gui.AvailableSize;
             Gui.Draw.RectFilled(new Rect(new Vector2(-6.0f, -6.0f), new Vector2(avail.x + 6.0f, 100000.0f)), Style.Color(StyleColor.ToolbarBg));
 
-            if (!hasActor)
-            {
-                Gui.Label("Select an actor in the Hierarchy.");
-                return;
-            }
-
             using (Gui.Horizontal())
             {
-                using (Gui.Font(FontStyle.Bold))
-                    Gui.Label(ActorTree.GetName(actor));
-                Gui.FlexibleSpace();
-                Gui.Label($"ID {actor.Value}");
+                if (hasActor)
+                {
+                    using (Gui.Font(FontStyle.Bold))
+                        Gui.Label(ActorTree.GetName(actor));
+                    Gui.FlexibleSpace();
+                    Gui.Label($"ID {actor.Value}");
+                }
+                else
+                {
+                    Gui.Label(_locked ? "The locked selection has no actor." : "Select an actor in the Hierarchy.");
+                    Gui.FlexibleSpace();
+                }
+                DrawLock();
             }
+            if (!hasActor)
+                return;
             Gui.Space(2.0f);
 
             if (_components.Count == 0)

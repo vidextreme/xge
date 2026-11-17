@@ -227,14 +227,14 @@ namespace xg::imui::detail
 
     void DrawSceneView()
     {
-        if (BeginStyledPanel("Scene", ViewportBg, true))
+        if (BeginStyledPanel("Scene", ViewportBg, true, Icon::Scene))
             DrawSceneTab();
         ImGui::End();
     }
 
     void DrawGameView()
     {
-        if (BeginStyledPanel("Game", ViewportBg))
+        if (BeginStyledPanel("Game", ViewportBg, false, Icon::Game))
             DrawGameTab();
         ImGui::End();
     }
@@ -286,7 +286,7 @@ namespace xg::imui::detail
 
     void DrawLighting()
     {
-        if (BeginStyledPanel("Lighting", HeaderBg))
+        if (BeginStyledPanel("Lighting", HeaderBg, false, Icon::Lighting))
             DrawInspectorLighting();
         ImGui::End();
     }
@@ -421,7 +421,7 @@ namespace xg::imui::detail
 
     void DrawProject()
     {
-        if (BeginStyledPanel("Project", AreaBg, true))
+        if (BeginStyledPanel("Project", AreaBg, true, Icon::Project))
             DrawProjectTab();
         ImGui::End();
     }
