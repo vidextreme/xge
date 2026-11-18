@@ -49,7 +49,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
 | Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `tools/verify/`. |
 | Immediate UI kit (`xgImUIKit`) | 🟢 Working | Panels, menus, widgets, virtualized lists, modals, layout groups (`Gui.Horizontal`/`Vertical`/`FlexibleSpace`), FreeType fonts (Noto), per-monitor DPI. Multi-viewport on DX12 and SDL GPU. |
-| Editor UI | 🟡 Partial | Real panels: Console (fed by the engine log), Hierarchy (actor tree) and Inspector (components of the selected actor, drawn by Unity-style property drawers). The editor shell (`EditorUI: true`) and its other panels are still a non-functional prototype. |
+| Editor UI | 🟡 Partial | Editor shell (`EditorUI: true`: main menu, toolbar, status bar, dock layout) with real panels: Scene and Game (render views, showing a test cube and grid until actors render), Hierarchy, Inspector (drawn by Unity-style property drawers), Console, Navigator and Tools. |
 | Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Scripts under `Editor` folders build into a separate editor-only assembly (property drawers). Next: an Assets watcher with hot reload, then asset import and a NativeAOT player build. |
 | Project Hub | 🟢 Working | `xge.exe --config hub.config`: add, create, open and remove projects, with a preview image per project. |
 | Renderer (DX12) | 🟠 Very rough | Device, swap chains for every UI window, and a UI pass behind the generic `xg::UIRenderTarget` API (no ImGui in the renderer, no DX12 in the UI kit). Offscreen render views draw a test cube and grid for the scene views; no real 3D pipeline yet. |
@@ -114,7 +114,7 @@ By default xge reads `gameconfig.json` next to `xge.exe`, wherever it's started 
 | `EngineConfig` key | Meaning |
 |---|---|
 | `RendererModule` | Renderer DLL, for example `xgRendererDX12`. Empty uses the SDL GPU fallback (no 3D views). |
-| `EditorUI` | `true` shows the editor shell prototype; `false` shows an empty dockspace, where the real panels (Console, Hierarchy) still dock. |
+| `EditorUI` | `true` shows the editor shell (title bar, main menu, toolbar, status bar and the dock layout); `false` shows an empty dockspace, where the panels still dock. |
 | `EditorMultiViewport` | Panels dragged outside the main window become OS windows. |
 | `ProjectPath`, `ProjectAutoBuild` | Project to open (relative to the config file) and whether to build its scripts first. |
 | `WindowTitle`, `WindowWidth`, `WindowHeight` | Main window title and size. |

@@ -72,7 +72,7 @@ namespace xg
         _engine = engine;
         if (const EngineConfig* config = engine->GetEngineConfig())
         {
-            _prototypeUI = config->EditorUI;
+            _editorShell = config->EditorUI;
             _multiViewport = config->EditorMultiViewport;
         }
 
@@ -189,7 +189,7 @@ namespace xg
         auto* engine = static_cast<Engine*>(_engine);
         engine->ReportStartup("Starting UI host", "xgImUIKit.dll", std::numeric_limits<float>::quiet_NaN());
         UIHostOptions options;
-        options.PrototypeShell = _prototypeUI;
+        options.EditorShell = _editorShell;
         options.MultiViewport = _multiViewport;
         auto host = std::make_unique<UIHostSession>();
         if (!host->Start(*engine, options))

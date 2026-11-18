@@ -30,9 +30,9 @@ namespace
 
     HostState _hostState;
 
-    bool PrototypeShell()
+    bool EditorShell()
     {
-        return HasFlag(_hostState.Flags, xg::imui::HostFlags::PrototypeShell);
+        return HasFlag(_hostState.Flags, xg::imui::HostFlags::EditorShell);
     }
 
     bool CustomFrame()
@@ -84,9 +84,9 @@ namespace xg::imui::detail
         return _hostState.Target;
     }
 
-    bool HostPrototypeShell()
+    bool HostEditorShell()
     {
-        return PrototypeShell();
+        return EditorShell();
     }
 }
 
@@ -130,7 +130,7 @@ namespace xg
         LoadFont(fonts, "NotoSans-Bold.ttf", "DejaVuSans-Bold.ttf", 14.0f);
         LoadFont(fonts, "NotoSansMono-Regular.ttf", "DejaVuSans.ttf", 14.0f);
 
-        if (PrototypeShell() || CustomFrame())
+        if (EditorShell() || CustomFrame())
         {
             imui::detail::ApplyTheme();
             _hostState.Window->SetCustomFrame(true);
@@ -173,10 +173,9 @@ namespace xg
         ImGui::NewFrame();
         imui::detail::platform::ApplyClickCounts();
 
-        if (PrototypeShell())
+        if (EditorShell())
         {
             imui::detail::DrawMainDockspace(_hostState.Window);
-            imui::detail::DrawPrototypePanels();
         }
         else
         {
@@ -204,7 +203,7 @@ namespace xg
         if (!_hostState.Ready || !rgba || width <= 0 || height <= 0)
             return;
         _hostState.Window->SetIconRGBA(rgba, width, height);
-        if (PrototypeShell() || CustomFrame())
+        if (EditorShell() || CustomFrame())
         {
             ReleaseAppIcon();
             imui::detail::_appIcon = imui::detail::CreateIconTexture(rgba, width, height, imui::detail::AppIconSize);

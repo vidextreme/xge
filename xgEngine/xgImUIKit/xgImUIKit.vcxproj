@@ -116,6 +116,8 @@
     <ClCompile Include="Widgets.cpp" />
     <ClCompile Include="SceneViewDraw.cpp" />
     <ClCompile Include="PrototypePanels.cpp" />
+    <ClCompile Include="PrototypeShell.cpp" />
+    <ClCompile Include="PrototypeWidgets.cpp" />
     <ClCompile Include="Shell.cpp" />
     <ClCompile Include="backends\UIPlatformBackend.cpp" />
     <ClCompile Include="backends\UIRenderBackend.cpp" />

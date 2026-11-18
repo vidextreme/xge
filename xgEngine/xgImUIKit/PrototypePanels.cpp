@@ -1,6 +1,9 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
+// Retired prototype UI, kept for reference only. It is never compiled.
+#if 0
 #include "ImUIInternal.h"
+#include "PrototypeInternal.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -427,3 +430,4 @@ namespace xg::imui::detail
     }
 
 }
+#endif

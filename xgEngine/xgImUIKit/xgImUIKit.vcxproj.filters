@@ -80,6 +80,12 @@
     <ClCompile Include="PrototypePanels.cpp">
       <Filter>source</Filter>
     </ClCompile>
+    <ClCompile Include="PrototypeShell.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="PrototypeWidgets.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
     <ClCompile Include="Shell.cpp">
       <Filter>source</Filter>
     </ClCompile>

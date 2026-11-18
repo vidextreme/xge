@@ -49,7 +49,7 @@ namespace xg
         desc.Size = sizeof(desc);
         desc.MainWindow = window;
         desc.RenderTarget = _target;
-        desc.Flags = (options.PrototypeShell ? imui::HostFlags::PrototypeShell : imui::HostFlags::None)
+        desc.Flags = (options.EditorShell ? imui::HostFlags::EditorShell : imui::HostFlags::None)
             | (options.MultiViewport ? imui::HostFlags::MultiViewport : imui::HostFlags::None)
             | (options.CustomFrame ? imui::HostFlags::CustomFrame : imui::HostFlags::None);
         desc.Platform = GetPlatformServices();

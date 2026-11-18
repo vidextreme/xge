@@ -61,7 +61,7 @@ A config file is JSON with two tables. Table names keep their case. `EngineConfi
 | Key | Type | Default | Effect |
 |---|---|---|---|
 | `RendererModule` | string | empty | Renderer DLL to load, for example `xgRendererDX12`. When it's empty, the UI draws through xgPlatform's SDL GPU fallback (D3D12, no 3D views). |
-| `EditorUI` | bool | `true` | `true` shows the editor shell prototype (menus, toolbar, mock panels). `false` leaves an empty dockspace with the OS frame, where the registered panels (Console, Hierarchy, ...) still dock. |
+| `EditorUI` | bool | `true` | `true` shows the editor shell (title bar, main menu, toolbar, status bar and the dock layout). `false` leaves an empty dockspace with the OS frame, where the registered panels (Console, Hierarchy, ...) still dock. |
 | `EditorMultiViewport` | bool | `true` | Panels dragged outside the main window become OS windows. |
 | `ProjectPath` | string | empty | Game project to open. A relative path is resolved against the config file's folder. `--project` overrides it. |
 | `ProjectAutoBuild` | bool | `true` | Build stale project scripts before loading them. `--no-script-build` sets it to false. |

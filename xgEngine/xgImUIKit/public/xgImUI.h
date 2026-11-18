@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 14;
+    inline constexpr uint32_t ApiVersion = 15;
 
     struct Context;
     struct PanelEntry;
@@ -162,7 +162,8 @@ namespace xg::imui
     enum class HostFlags : uint8_t
     {
         None           = 0,
-        PrototypeShell = 1 << 0,
+        // The editor shell: title bar, main menu, dock layout from panel slots, shell bars and theme.
+        EditorShell    = 1 << 0,
         // Panels dragged outside the main window become OS windows. Needs Platform and a render target with surfaces.
         MultiViewport  = 1 << 1,
         // Editor theme and window frame (title bar, window buttons, resize edges) without the rest of the shell.
@@ -172,11 +173,21 @@ namespace xg::imui
 
     enum class SceneViewFlags : uint8_t
     {
-        None    = 0,
-        Hovered = 1 << 0,
-        Active  = 1 << 1,
+        None       = 0,
+        Hovered    = 1 << 0,
+        Active     = 1 << 1,
+        LeftDown   = 1 << 2,
+        RightDown  = 1 << 3,
+        MiddleDown = 1 << 4,
     };
     XG_ENABLE_FLAGS(SceneViewFlags)
+
+    // Bars of the editor shell whose content an application draws (ApiVersion 15).
+    enum class ShellBar : int32_t
+    {
+        Toolbar = 0,
+        StatusBar,
+    };
 
     using PanelGUIFn = void (*)(Context* ctx, void* user);
     using PanelEventFn = void (*)(void* user);
@@ -316,6 +327,12 @@ namespace xg
 
     XG_MODULE_EXPORT imui::MenuItemHandle XG_ImUIRegisterMenuItem(const char* path, const char* shortcut, imui::MenuFn callback, void* user);
     XG_MODULE_EXPORT void XG_ImUIUnregisterMenuItem(imui::MenuItemHandle item);
+
+    // Editor shell (ApiVersion 15). The callback draws the bar's content, an implicit row, every frame; null clears it.
+    // The toolbar takes no space without a callback.
+    XG_MODULE_EXPORT void XG_ImUISetShellBar(imui::ShellBar bar, imui::PanelGUIFn callback, void* user);
+    // Rebuilds the dock layout from the panel slots on the next frame.
+    XG_MODULE_EXPORT void XG_ImUIResetLayout();
 
     // Identity
     XG_MODULE_EXPORT void XG_ImUIPushID(imui::Context* ctx, const char* id);

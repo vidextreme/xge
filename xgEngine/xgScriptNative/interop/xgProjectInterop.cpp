@@ -4,6 +4,12 @@
 #include "xgScriptEngine.h"
 #include "xgEngineDef.h"
 #include "xgScriptModule.h"
+#include "xgVersion.h"
+
+XG_MODULE_EXPORT const char* XG_GetEngineVersion()
+{
+    return XGE_VERSION;
+}
 
 XG_MODULE_EXPORT const char* XG_GetProjectPath(xg::ScriptEngine* engine)
 {

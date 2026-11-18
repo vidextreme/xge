@@ -169,6 +169,16 @@ namespace xg.imui
         None = 0,
         Hovered = 1 << 0,
         Active = 1 << 1,
+        LeftDown = 1 << 2,
+        RightDown = 1 << 3,
+        MiddleDown = 1 << 4,
+    }
+
+    // Mirrors xg::imui::ShellBar.
+    public enum ShellBar
+    {
+        Toolbar = 0,
+        StatusBar,
     }
 
     // Mirrors xg::imui::SceneViewState. Set TextureId (and optionally Placeholder text) before Gui.SceneView; read the rest after.

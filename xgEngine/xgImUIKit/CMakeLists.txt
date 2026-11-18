@@ -15,7 +15,7 @@ set_source_files_properties(${_freetypeSources} PROPERTIES COMPILE_DEFINITIONS "
 xge_quiet_sources(${_freetypeSources} ${_imgui}/misc/freetype/imgui_freetype.cpp)
 
 xge_target(xgImUIKit SHARED
-    SOURCES Api.cpp Host.cpp Theme.cpp Icons.cpp Widgets.cpp SceneViewDraw.cpp PrototypePanels.cpp Shell.cpp
+    SOURCES Api.cpp Host.cpp Theme.cpp Icons.cpp Widgets.cpp SceneViewDraw.cpp PrototypePanels.cpp PrototypeShell.cpp PrototypeWidgets.cpp Shell.cpp
             backends/UIPlatformBackend.cpp backends/UIRenderBackend.cpp
             ${_imgui}/imgui.cpp ${_imgui}/imgui_demo.cpp ${_imgui}/imgui_draw.cpp ${_imgui}/imgui_tables.cpp
             ${_imgui}/imgui_widgets.cpp ${_imgui}/misc/freetype/imgui_freetype.cpp

@@ -11,12 +11,16 @@ namespace xg::imui::detail
     void DrawRegisteredPanels();
     void DockRegisteredPanels(ImGuiID center, ImGuiID left, ImGuiID right, ImGuiID bottom);
     void DrawRegisteredPanelsMenu();
-    void DrawRegisteredMenuItems(const char* topLevel);
+    bool HasRegisteredMenuItems(const char* topLevel);
+    void DrawRegisteredMenuItems(const char* topLevel, bool separate);
     void DrawExtraTopLevelMenus(const char* const* builtIn, int builtInCount);
     void ReleaseUserTextures();
     void SetDefaultDockSpace(ImGuiID id);
+    bool HasShellToolbar();
+    void DrawShellToolbar();
+    void DrawShellStatusBar();
 
     // Host state (Host.cpp).
     UIRenderTarget* HostRenderTarget();
-    bool HostPrototypeShell();
+    bool HostEditorShell();
 }

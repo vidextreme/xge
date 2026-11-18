@@ -108,6 +108,8 @@ namespace xg
 
         public static PayloadMode PayloadMode => XG_GetPayloadMode(_enginePtr);
 
+        public static string EngineVersion => Marshal.PtrToStringUTF8(XG_GetEngineVersion()) ?? string.Empty;
+
         // Absolute game project folder (xge.exe --project / gameconfig ProjectPath); empty when no project is open.
         public static string ProjectPath => _enginePtr == 0 ? string.Empty : Marshal.PtrToStringUTF8(XG_GetProjectPath(_enginePtr)) ?? string.Empty;
 
@@ -145,6 +147,9 @@ namespace xg
         [LibraryImport(NativeLib, EntryPoint = "XG_GetProjectAutoBuild")]
         [return: MarshalAs(UnmanagedType.U1)]
         private static partial bool XG_GetProjectAutoBuild(nint enginePtr);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_GetEngineVersion")]
+        private static partial nint XG_GetEngineVersion();
 
         [LibraryImport(NativeLib, EntryPoint = "XG_GetProjectPath")]
         private static partial nint XG_GetProjectPath(nint enginePtr);

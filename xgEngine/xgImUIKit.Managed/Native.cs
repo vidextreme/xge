@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 14;
+        public const uint ApiVersion = 15;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -62,6 +62,12 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIUnregisterMenuItem")]
         public static partial void UnregisterMenuItem(nint item);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISetShellBar")]
+        public static partial void SetShellBar(ShellBar bar, delegate* unmanaged<nint, nint, void> callback, nint user);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIResetLayout")]
+        public static partial void ResetLayout();
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIPushID")]
         public static partial void PushID(nint ctx, byte* id);

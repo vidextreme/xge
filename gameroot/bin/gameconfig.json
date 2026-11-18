@@ -1,7 +1,7 @@
 {
     "EngineConfig": {
         "RendererModule": "xgRendererDX12",
-        "EditorUI": false,
+        "EditorUI": true,
         "EditorMultiViewport": true
     },
     "ScriptModules": {
