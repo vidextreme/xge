@@ -13,6 +13,7 @@ namespace xg
         constexpr uint32_t UIHostPrototypeShell = 1u << 0;
         constexpr uint32_t UIHostMultiViewport = 1u << 1;
         constexpr uint32_t UIHostNoLayoutFile = 1u << 2;
+        constexpr uint32_t UIHostCustomFrame = 1u << 3;
 
         std::unique_ptr<UIHostSession> _uiHostSession;
         ScriptEngine* _uiHostEngine = nullptr;
@@ -25,7 +26,7 @@ namespace xg
 }
 
 // Starts the xgImUIKit host on the engine's main window for a module that runs without the editor kernel.
-// flags: bit 0 = prototype editor shell, bit 1 = multi-viewport, bit 2 = don't load or save imgui.ini. Returns false when a host is already running.
+// flags: bit 0 = prototype editor shell, bit 1 = multi-viewport, bit 2 = don't load or save imgui.ini, bit 3 = editor theme and window frame. Returns false when a host is already running.
 XG_MODULE_EXPORT bool XG_UIHostStart(xg::ScriptEngine* engine, uint32_t callerModuleId, uint32_t flags)
 {
     if (!engine || xg::_uiHostSession)
@@ -34,6 +35,7 @@ XG_MODULE_EXPORT bool XG_UIHostStart(xg::ScriptEngine* engine, uint32_t callerMo
     xg::UIHostOptions options;
     options.PrototypeShell = (flags & xg::UIHostPrototypeShell) != 0;
     options.MultiViewport = (flags & xg::UIHostMultiViewport) != 0;
+    options.CustomFrame = (flags & xg::UIHostCustomFrame) != 0;
     if (flags & xg::UIHostNoLayoutFile)
         options.LayoutFile = "";
     auto session = std::make_unique<xg::UIHostSession>();

@@ -70,6 +70,15 @@ namespace xgEditor.CoreCLR
             return _states[++_index];
         }
 
+        // Rewrites the folders of every state and the recent folders (after a folder rename or move).
+        public void Remap(Func<string, string> map)
+        {
+            for (int i = 0; i < _states.Count; i++)
+                _states[i] = _states[i] with { Folder = map(_states[i].Folder) };
+            for (int i = 0; i < _recentFolders.Count; i++)
+                _recentFolders[i] = map(_recentFolders[i]);
+        }
+
         private void Visit(string folder)
         {
             if (folder.Length == 0)

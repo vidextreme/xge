@@ -279,6 +279,53 @@ namespace xg::imui::detail
         ImGui::PopStyleColor();
     }
 
+    static void DrawAppIcon(ImDrawList* dl, float iconX, float barCenterY)
+    {
+        const float iconSize = static_cast<float>(detail::AppIconSize);
+        if (detail::_appIcon)
+        {
+            const ImVec2 i0(iconX, ImFloor(barCenterY - iconSize * 0.5f));
+            dl->AddImage(detail::_appIcon->GetTexRef(),
+                i0, detail::Offset(i0, iconSize, iconSize), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), detail::TextColor);
+        }
+        else
+        {
+            dl->AddCircleFilled(ImVec2(iconX + iconSize * 0.5f, barCenterY), 8.0f, detail::Accent, 20);
+            dl->AddText(ImVec2(iconX + iconSize * 0.5f - 3.5f, barCenterY - ImGui::GetFontSize() * 0.5f), IM_COL32_WHITE, "X");
+        }
+    }
+
+    static void DrawWindowOutline(Window* mainWindow)
+    {
+        if (!mainWindow || !mainWindow->HasCustomFrame() || mainWindow->IsMaximized())
+            return;
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::GetForegroundDrawList(viewport)->AddRect(viewport->Pos,
+            ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(58, 58, 58, 255));
+    }
+
+    void DrawWindowFrame(Window* mainWindow)
+    {
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, TopBarBg);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
+        if (ImGui::BeginViewportSideBar("##WindowFrame", viewport, ImGuiDir_Up, detail::TopBarHeight, flags))
+        {
+            const ImGuiWindow* window = ImGui::GetCurrentWindow();
+            const ImRect bar(window->Pos, detail::Offset(window->Pos, window->Size.x, window->Size.y));
+            const float iconX = bar.Min.x + 8.0f;
+            DrawAppIcon(ImGui::GetWindowDrawList(), iconX, ImFloor((bar.Min.y + bar.Max.y) * 0.5f));
+            if (mainWindow && mainWindow->HasCustomFrame())
+                detail::DrawTitleBarControls(mainWindow, bar, iconX + static_cast<float>(detail::AppIconSize) + 4.0f);
+        }
+        ImGui::End();
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor();
+        DrawWindowOutline(mainWindow);
+    }
+
     void DrawMainDockspace(Window* mainWindow)
     {
         detail::DrawStatusBar();
@@ -317,17 +364,7 @@ namespace xg::imui::detail
             const float barCenterY = ImFloor((bar.Min.y + bar.Max.y) * 0.5f);
             const float iconX = bar.Min.x + 8.0f;
             const float iconSize = static_cast<float>(detail::AppIconSize);
-            if (detail::_appIcon)
-            {
-                const ImVec2 i0(iconX, ImFloor(barCenterY - iconSize * 0.5f));
-                dl->AddImage(detail::_appIcon->GetTexRef(),
-                    i0, detail::Offset(i0, iconSize, iconSize), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), detail::TextColor);
-            }
-            else
-            {
-                dl->AddCircleFilled(ImVec2(iconX + iconSize * 0.5f, barCenterY), 8.0f, detail::Accent, 20);
-                dl->AddText(ImVec2(iconX + iconSize * 0.5f - 3.5f, barCenterY - ImGui::GetFontSize() * 0.5f), IM_COL32_WHITE, "X");
-            }
+            DrawAppIcon(dl, iconX, barCenterY);
 
             const float textTop = ImFloor(barCenterY - ImGui::GetFontSize() * 0.5f);
             ImGui::SetCursorScreenPos(ImVec2(iconX + iconSize + 4.0f, textTop - ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset));
@@ -373,11 +410,7 @@ namespace xg::imui::detail
             ImGui::DockBuilderFinish(dockspaceID);
         }
 
-        if (mainWindow && mainWindow->HasCustomFrame() && !mainWindow->IsMaximized())
-        {
-            ImGui::GetForegroundDrawList(viewport)->AddRect(viewport->Pos,
-                ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(58, 58, 58, 255));
-        }
+        DrawWindowOutline(mainWindow);
 
         ImGui::End();
     }

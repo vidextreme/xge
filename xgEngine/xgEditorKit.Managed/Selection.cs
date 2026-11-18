@@ -60,6 +60,29 @@ namespace xg.editor
                 Apply(Array.Empty<object>());
         }
 
+        // Rewrites selected asset paths, e.g. after a rename or move (map returns the path unchanged when unaffected).
+        public static void RemapAssets(Func<string, string> map)
+        {
+            bool changed = false;
+            object[] next = new object[_objects.Length];
+            for (int i = 0; i < _objects.Length; i++)
+            {
+                object item = _objects[i];
+                if (item is AssetRef asset)
+                {
+                    string path = map(asset.Path);
+                    if (!string.Equals(path, asset.Path, StringComparison.Ordinal))
+                    {
+                        item = new AssetRef(path);
+                        changed = true;
+                    }
+                }
+                next[i] = item;
+            }
+            if (changed)
+                Apply(next);
+        }
+
         // Drops actors that no longer exist (every call) and assets whose file is gone (every 30th call).
         public static void Validate()
         {

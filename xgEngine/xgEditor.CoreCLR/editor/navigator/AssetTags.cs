@@ -4,6 +4,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using xg.editor;
+using xg.math;
 using Debug = xg.Debug;
 
 namespace xgEditor.CoreCLR
@@ -38,6 +40,28 @@ namespace xgEditor.CoreCLR
         }
 
         public override string ToString() => string.Join(' ', Chips);
+
+        // Paths matching a query of user tags only, from the tag index: (all plain chips) or (any "+" chip). Null when the
+        // query has attribute chips (@type, @ext), which need Matches per entry.
+        public HashSet<string>? MatchingPaths(AssetTags tags)
+        {
+            if (Chips.Count == 0 || Chips.Any(c => c.IsAttribute))
+                return null;
+            HashSet<string>? all = null;
+            HashSet<string> result = new(StringComparer.OrdinalIgnoreCase);
+            foreach (TagChip chip in Chips)
+            {
+                if (chip.Or)
+                    result.UnionWith(tags.PathsWithTag(chip.Tag));
+                else if (all is null)
+                    all = new HashSet<string>(tags.PathsWithTag(chip.Tag), StringComparer.OrdinalIgnoreCase);
+                else
+                    all.IntersectWith(tags.PathsWithTag(chip.Tag));
+            }
+            if (all is not null)
+                result.UnionWith(all);
+            return result;
+        }
 
         public bool Matches(AssetEntry entry, AssetTags tags)
         {
@@ -80,58 +104,66 @@ namespace xgEditor.CoreCLR
         }
     }
 
-    // User tags of the project's assets, kept in ProjectSettings/AssetTags.json (path -> tags), plus built-in attribute
-    // tags computed from the index and never stored: @type:<kind> and @ext:<extension>.
+    // User tags of the project's assets, stored in each asset's meta file and indexed by the asset database, plus
+    // built-in attribute tags computed from the index and never stored: @type:<kind> and @ext:<extension>. Optional
+    // per-tag settings (description, colour) live in ProjectSettings/Tags.json.
     public sealed class AssetTags
     {
-        private sealed class TagFile
+        private sealed class TagInfo
+        {
+            [JsonPropertyName("description")]
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+            public string Description { get; set; } = string.Empty;
+
+            [JsonPropertyName("color")]
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public string? Color { get; set; }
+        }
+
+        private sealed class SettingsFile
+        {
+            [JsonPropertyName("tags")]
+            public SortedDictionary<string, TagInfo> Tags { get; set; } = new(StringComparer.Ordinal);
+        }
+
+        private sealed class LegacyTagFile
         {
             [JsonPropertyName("tags")]
             public Dictionary<string, List<string>> Tags { get; set; } = new();
         }
 
-        private static readonly JsonSerializerOptions _options = new() { WriteIndented = true };
-        private static readonly string[] _fakeTags = { "prototype", "wip", "hero", "enemy", "environment", "ui", "props", "night", "boss", "forest" };
-
-        private readonly Dictionary<string, List<string>> _tags = new(StringComparer.OrdinalIgnoreCase);
-        private readonly string _path;
+        private readonly AssetDatabase _db;
+        private readonly string _settingsPath;
+        private readonly SettingsFile _settings = new();
         private List<TagCount>? _userTags;
+        private int _userVersion = -1;
         private List<TagCount>? _attributeTags;
         private int _attributeVersion = -1;
 
-        private AssetTags(string path) => _path = path;
-
-        public string FilePath => _path;
-
-        public static AssetTags Load(string projectRoot, AssetIndex index)
+        internal AssetTags(AssetDatabase db)
         {
-            AssetTags tags = new(Path.Combine(projectRoot, "ProjectSettings", "AssetTags.json"));
-            if (File.Exists(tags._path))
+            _db = db;
+            _settingsPath = Path.Combine(db.ProjectRoot, "ProjectSettings", "Tags.json");
+            if (!File.Exists(_settingsPath))
+                return;
+            try
             {
-                try
-                {
-                    TagFile? file = JsonSerializer.Deserialize<TagFile>(File.ReadAllText(tags._path), _options);
-                    if (file is not null)
-                        foreach (KeyValuePair<string, List<string>> pair in file.Tags)
-                            tags._tags[AssetIndex.Normalize(pair.Key)] = pair.Value.Select(NormalizeTag).Where(t => t.Length > 0 && !t.StartsWith('@')).Distinct().ToList();
-                }
-                catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-                {
-                    Debug.LogError($"[Navigator] Could not read {tags._path}: {e.Message}");
-                }
+                SettingsFile? file = JSONFile.Read<SettingsFile>(_settingsPath);
+                if (file is not null)
+                    foreach (KeyValuePair<string, TagInfo> pair in file.Tags)
+                        _settings.Tags[NormalizeTag(pair.Key)] = pair.Value;
             }
-            else
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
             {
-                tags.Seed(index);
-                tags.Save();
+                Debug.LogError($"[Navigator] Could not read {_settingsPath}: {e.Message}");
             }
-            return tags;
         }
+
+        public string SettingsPath => _settingsPath;
 
         public static string NormalizeTag(string tag) => tag.Trim().ToLowerInvariant().Replace(' ', '_');
 
-        public IReadOnlyList<string> Get(string relPath) =>
-            _tags.TryGetValue(relPath, out List<string>? list) ? list : Array.Empty<string>();
+        public IReadOnlyList<string> Get(string relPath) => _db.TagsOf(relPath);
 
         public bool IsUntagged(string relPath) => Get(relPath).Count == 0;
 
@@ -140,23 +172,17 @@ namespace xgEditor.CoreCLR
             tag = NormalizeTag(tag);
             if (tag.Length == 0 || tag.StartsWith('@'))
                 return;
-            if (!_tags.TryGetValue(relPath, out List<string>? list))
-                _tags[relPath] = list = new List<string>();
-            if (list.Contains(tag))
+            IReadOnlyList<string> tags = Get(relPath);
+            if (tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
                 return;
-            list.Add(tag);
-            _userTags = null;
-            Save();
+            _db.SetTags(relPath, tags.Append(tag));
         }
 
         public void Remove(string relPath, string tag)
         {
-            if (!_tags.TryGetValue(relPath, out List<string>? list) || !list.Remove(tag))
-                return;
-            if (list.Count == 0)
-                _tags.Remove(relPath);
-            _userTags = null;
-            Save();
+            IReadOnlyList<string> tags = Get(relPath);
+            if (tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                _db.SetTags(relPath, tags.Where(t => !string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)));
         }
 
         public bool HasTag(AssetEntry entry, string tag)
@@ -182,6 +208,14 @@ namespace xgEditor.CoreCLR
             return false;
         }
 
+        // Paths of the assets with this user tag (from the tag index).
+        public IEnumerable<string> PathsWithTag(string tag)
+        {
+            foreach (string guid in _db.GuidsWithTag(tag))
+                if (_db.PathOf(guid) is string path)
+                    yield return path;
+        }
+
         public static string TypeName(AssetKind kind) => kind.ToString().ToLowerInvariant();
 
         public static bool TryParseType(string value, out AssetKind kind)
@@ -201,14 +235,10 @@ namespace xgEditor.CoreCLR
         // User tags with the number of assets carrying each, by count then name.
         public IReadOnlyList<TagCount> UserTags()
         {
-            if (_userTags is not null)
+            if (_userTags is not null && _userVersion == _db.Version)
                 return _userTags;
-            Dictionary<string, int> counts = new(StringComparer.OrdinalIgnoreCase);
-            foreach (List<string> list in _tags.Values)
-                foreach (string tag in list)
-                    counts[tag] = counts.TryGetValue(tag, out int n) ? n + 1 : 1;
-            _userTags = counts.Select(p => new TagCount(p.Key, p.Value))
-                .OrderByDescending(t => t.Count).ThenBy(t => t.Tag, StringComparer.OrdinalIgnoreCase).ToList();
+            _userTags = _db.TagCounts.OrderByDescending(t => t.Count).ThenBy(t => t.Tag, StringComparer.OrdinalIgnoreCase).ToList();
+            _userVersion = _db.Version;
             return _userTags;
         }
 
@@ -236,49 +266,101 @@ namespace xgEditor.CoreCLR
             return _attributeTags;
         }
 
-        private void Seed(AssetIndex index)
+        public string Description(string tag) => _settings.Tags.TryGetValue(tag, out TagInfo? info) ? info.Description : string.Empty;
+
+        public void SetDescription(string tag, string description)
         {
-            foreach (AssetEntry entry in index.Entries)
+            description = description.Trim();
+            if (Description(tag) == description)
+                return;
+            if (!_settings.Tags.TryGetValue(tag, out TagInfo? info))
+                _settings.Tags[tag] = info = new TagInfo();
+            info.Description = description;
+            if (info.Description.Length == 0 && info.Color is null)
+                _settings.Tags.Remove(tag);
+            SaveSettings();
+        }
+
+        // The tag's colour from Tags.json ("#RRGGBB"), if any.
+        public Color32? Color(string tag)
+        {
+            if (!_settings.Tags.TryGetValue(tag, out TagInfo? info) || info.Color is not { Length: 7 } hex || hex[0] != '#'
+                || !uint.TryParse(hex.AsSpan(1), System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
+                return null;
+            return new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);
+        }
+
+        // Renames a user tag on every asset (and its settings). Returns the number of assets changed.
+        public int Rename(string from, string to)
+        {
+            to = NormalizeTag(to);
+            if (to.Length == 0 || to.StartsWith('@') || string.Equals(from, to, StringComparison.Ordinal))
+                return 0;
+            int count = _db.RenameTag(from, to);
+            if (_settings.Tags.Remove(from, out TagInfo? info))
             {
-                if (entry.IsFolder)
-                    continue;
-                List<string> list = new();
-                string[] folders = entry.Parent.Split('/');
-                for (int i = 1; i < folders.Length; i++)
-                    AddUnique(list, NormalizeTag(folders[i]));
-                uint hash = Fnv(entry.RelPath);
-                AddUnique(list, _fakeTags[hash % (uint)_fakeTags.Length]);
-                if ((hash >> 8) % 3 == 0)
-                    AddUnique(list, _fakeTags[(hash >> 12) % (uint)_fakeTags.Length]);
-                _tags[entry.RelPath] = list;
+                _settings.Tags.TryAdd(to, info);
+                SaveSettings();
+            }
+            Debug.Log($"[Assets] Renamed tag '{from}' to '{to}' on {count} asset(s)");
+            return count;
+        }
+
+        // Removes a user tag from every asset (and its settings). Returns the number of assets changed.
+        public int Delete(string tag)
+        {
+            int count = _db.DeleteTag(tag);
+            if (_settings.Tags.Remove(tag))
+                SaveSettings();
+            Debug.Log($"[Assets] Deleted tag '{tag}' from {count} asset(s)");
+            return count;
+        }
+
+        // Moves the tags of the old ProjectSettings/AssetTags.json (path -> tags) into the meta files once, then renames
+        // the old file to AssetTags.json.migrated.
+        internal void Migrate()
+        {
+            string legacy = Path.Combine(_db.ProjectRoot, "ProjectSettings", "AssetTags.json");
+            if (!File.Exists(legacy))
+                return;
+            try
+            {
+                LegacyTagFile? file = JSONFile.Read<LegacyTagFile>(legacy);
+                int moved = 0;
+                int missing = 0;
+                if (file is not null)
+                {
+                    foreach (KeyValuePair<string, List<string>> pair in file.Tags)
+                    {
+                        string path = AssetIndex.Normalize(pair.Key);
+                        if (_db.GuidOf(path) is null)
+                        {
+                            missing++;
+                            continue;
+                        }
+                        if (_db.SetTags(path, Get(path).Concat(pair.Value)))
+                            moved++;
+                    }
+                }
+                File.Move(legacy, legacy + ".migrated", true);
+                Debug.Log($"[Assets] Moved the tags of {moved} asset(s) from AssetTags.json into their meta files"
+                    + (missing > 0 ? $" ({missing} path(s) no longer exist)" : string.Empty) + "; the old file is AssetTags.json.migrated");
+            }
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            {
+                Debug.LogError($"[Assets] Could not migrate {legacy}: {e.Message}");
             }
         }
 
-        private static void AddUnique(List<string> list, string tag)
-        {
-            if (tag.Length > 0 && !list.Contains(tag))
-                list.Add(tag);
-        }
-
-        private static uint Fnv(string text)
-        {
-            uint hash = 2166136261;
-            foreach (char c in text.ToLowerInvariant())
-                hash = (hash ^ c) * 16777619;
-            return hash;
-        }
-
-        private void Save()
+        private void SaveSettings()
         {
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-                TagFile file = new() { Tags = _tags.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(p => p.Key, p => p.Value) };
-                File.WriteAllText(_path, JsonSerializer.Serialize(file, _options));
+                JSONFile.Write(_settingsPath, _settings);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-                Debug.LogError($"[Navigator] Could not save {_path}: {e.Message}");
+                Debug.LogError($"[Navigator] Could not save {_settingsPath}: {e.Message}");
             }
         }
     }

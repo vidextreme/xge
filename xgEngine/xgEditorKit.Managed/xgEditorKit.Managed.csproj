@@ -20,6 +20,9 @@
     <Compile Include="PropertyDrawer.cs" />
     <Compile Include="Selection.cs" />
     <Compile Include="AssetRef.cs" />
+    <Compile Include="assets\JSONFile.cs" />
+    <Compile Include="assets\AssetMeta.cs" />
+    <Compile Include="assets\AssetReconciler.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
     <Compile Include="tools\PanelTools.cs" />

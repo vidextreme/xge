@@ -214,5 +214,6 @@ namespace xg::imui::detail
     void DrawMenus(Window* mainWindow);
     void DrawStatusBar();
     void DrawMainDockspace(Window* mainWindow);
+    void DrawWindowFrame(Window* mainWindow);
     void DrawPrototypePanels();
 }

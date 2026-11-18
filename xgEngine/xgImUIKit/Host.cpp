@@ -35,6 +35,11 @@ namespace
         return HasFlag(_hostState.Flags, xg::imui::HostFlags::PrototypeShell);
     }
 
+    bool CustomFrame()
+    {
+        return HasFlag(_hostState.Flags, xg::imui::HostFlags::CustomFrame);
+    }
+
     bool FileExists(const std::string& path)
     {
         std::error_code error;
@@ -125,7 +130,7 @@ namespace xg
         LoadFont(fonts, "NotoSans-Bold.ttf", "DejaVuSans-Bold.ttf", 14.0f);
         LoadFont(fonts, "NotoSansMono-Regular.ttf", "DejaVuSans.ttf", 14.0f);
 
-        if (PrototypeShell())
+        if (PrototypeShell() || CustomFrame())
         {
             imui::detail::ApplyTheme();
             _hostState.Window->SetCustomFrame(true);
@@ -175,6 +180,8 @@ namespace xg
         }
         else
         {
+            if (CustomFrame())
+                imui::detail::DrawWindowFrame(_hostState.Window);
             imui::detail::SetDefaultDockSpace(ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode));
         }
         imui::detail::DrawRegisteredPanels();
@@ -197,7 +204,7 @@ namespace xg
         if (!_hostState.Ready || !rgba || width <= 0 || height <= 0)
             return;
         _hostState.Window->SetIconRGBA(rgba, width, height);
-        if (PrototypeShell())
+        if (PrototypeShell() || CustomFrame())
         {
             ReleaseAppIcon();
             imui::detail::_appIcon = imui::detail::CreateIconTexture(rgba, width, height, imui::detail::AppIconSize);

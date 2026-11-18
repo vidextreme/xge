@@ -27,6 +27,8 @@ namespace xgEditor.CoreCLR
         private static int _building;
 
         public static ProjectInfo? Current { get; private set; }
+        // The open project's assets (meta files, tags, bookmarks); null without a project.
+        public static AssetDatabase? Assets { get; private set; }
         public static bool IsBuilding => Volatile.Read(ref _building) != 0;
 
         public static void Open()
@@ -47,6 +49,8 @@ namespace xgEditor.CoreCLR
             Menu.Add("Assets/Open C# Project", OpenCSharpProject);
             Menu.Add("Assets/Build Scripts", () => BuildScripts());
             Debug.Log($"[Project] Opened {Current.Name} ({Current.Root})");
+            Startup.Report("Indexing assets", Current.Root, Startup.Indeterminate);
+            Assets = new AssetDatabase(Current.Root);
 
             if (ScriptRuntime.ProjectAutoBuild)
             {
