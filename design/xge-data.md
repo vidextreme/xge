@@ -87,14 +87,30 @@ renderer/drawer component
 * GUIDs are authoritative. Users connect things by name in the `.xc*` editors, and GUIDs stay visible.
 * The name-to-GUID tree in the `.xmd` of an `.xc*` provides readable labels, and repairs a reference whose GUID no longer resolves.
 
-**Proposed.**
-
 * The text form is `<file-guid>/<chunk-guid>`. `<file-guid>` alone addresses the whole file.
 * The source's `.xmd` holds the authoritative item table: data kind + hierarchical name path -> chunk GUID. This is what lets chunk GUIDs survive deleting `Library/`.
 * The `.xmd` of an `.xc*` keeps its own copy of the names it uses.
-* Duplicate names within one source are told apart by occurrence order.
-* An item that disappears from the source keeps its table entry, so it recovers its GUID if it returns.
+* An item that disappears from the source keeps its table entry, marked missing, so it recovers its GUID if it returns.
 * A renamed item gets a new GUID, and the editor offers to relink existing references through the name tree.
+* Duplicate names within one source produce an import warning. Occurrence order is only the fallback that lets the import finish.
+
+The `.xmd` format:
+
+```json
+{
+  "version": 2,
+  "guid": "<file-guid>",
+  "tags": [],
+  "importer": {
+    "import": {},
+    "process": {}
+  },
+  "items": [
+    { "kind": "mesh", "path": "Root/Body", "guid": "<chunk-guid>" },
+    { "kind": "mesh", "path": "Root/Old", "guid": "<chunk-guid>", "missing": true }
+  ]
+}
+```
 
 ## Chunks
 
@@ -115,12 +131,16 @@ dog.fbx.xrv                 file GUID = GUID in dog.fbx.xmd
 reference: <file-guid>/7f3a...
 ```
 
-**Proposed.**
+**File format (version 1).** All values are little-endian.
 
-* Keep the old chunk header fields: type bits, flags, size and extra.
-* Add what the old format lacked: a file header with magic and format version.
-* Use 64-bit sizes. The old `DWORD` size limits a chunk to 4 GB.
-* Item chunks carry their GUID, and typed data chunks nest inside them.
+| Part | Layout |
+|---|---|
+| File header, 32 bytes | magic `XGCF`, version, file kind bits, flags, file GUID |
+| Chunk header, 24 bytes | type bits, flags, 64-bit size, 64-bit extra |
+| Chunk | header, `size` payload bytes, padding to the next 8-byte boundary |
+| Item chunk | type `ITEM`, payload is a 16-byte GUID followed by typed data chunks |
+
+* Readers reject a bad magic, a newer version, truncated data, zero or repeated item GUIDs, and nested items.
 * `.xr*` files store separate channel tags. `.xd*` files store interleaved vertex data under its own tag.
 
 ## Shaders
@@ -139,13 +159,18 @@ reference: <file-guid>/7f3a...
 
 ## Library and rebuilds
 
-**Proposed.**
+**Decided.**
 
 * `Library/` is addressed by GUID: `Library/Data/<guid prefix>/<guid>/dog.fbx.xdv`. The file name is for people only, and nothing links through it. Renames don't move data, and same-named sources don't collide.
+* `manifest.json` in each folder records the build keys and generated files. It is written last, so an interrupted build runs again.
 * Raw output is keyed by source hash + import settings + importer version.
-* Processed output is keyed by raw hash + process settings + processor version.
-* The `importer` block of `.xmd` is split into `import` and `process` sections.
-* `.xrt` is skipped at first. PNG decoding is cheap and raw pixels are large, so textures can go from source to `.xdt`. The pipeline must allow a missing raw stage.
+* Processed output is keyed by raw hash + process settings + processor versions.
+* A failed build keeps the last good output and isn't retried until its inputs change.
+* Generated data of deleted assets is removed.
+* `.xrt` isn't stored. Textures keep decoded pixels in memory between importing and processing, and go from source to `.xdt`.
+* Builds run on the main thread within a per-frame time budget until the threading decision is made.
+
+**Texture data.** `.xdt` has one `texture` item with `TXHD` (width, height, format 1 = RGBA8, mip count) and `TXPX` (tightly packed pixels, largest mip first). PNG and BMP are supported. Settings: `import.flipY` and `process.mipmaps`.
 
 ## Open questions
 

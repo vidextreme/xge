@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using xg.editor;
+using xg;
 using Debug = xg.Debug;
 
 namespace xgEditor.CoreCLR
@@ -108,6 +110,7 @@ namespace xgEditor.CoreCLR
     {
         private const long OrphanGraceMilliseconds = 2000;
         private const long CacheSaveDelayMilliseconds = 2000;
+        private const long BuildBudgetMilliseconds = 8;
 
         private sealed record MetaInfo(string Guid, IReadOnlyList<string> Tags);
 
@@ -122,12 +125,21 @@ namespace xgEditor.CoreCLR
         private bool _cacheDirty;
         private long _cacheDirtySince;
         private int _syncedIndexVersion = -1;
+        private readonly Queue<string> _buildQueue = new();
+        private readonly HashSet<string> _queuedBuilds = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, (long Size, long Modified, long MetaModified)> _buildStamps = new(StringComparer.OrdinalIgnoreCase);
+        private int _buildsDone;
+        private int _buildsFailed;
+        private bool _collectLibrary;
 
         public AssetDatabase(string projectRoot)
         {
             ProjectRoot = projectRoot;
+            MigrateMetas(projectRoot);
             Index = new AssetIndex(projectRoot);
             _cache = AssetCache.Load(Path.Combine(projectRoot, "Library", "AssetCache.json"));
+            Pipeline = new AssetPipeline(Path.Combine(projectRoot, "Library", "Data"));
+            TextureAssets.Register(Pipeline, DecodeImage);
             Sync();
             Tags = new AssetTags(this);
             Bookmarks = Bookmarks.Load(projectRoot, this);
@@ -136,8 +148,18 @@ namespace xgEditor.CoreCLR
             SaveCache();
         }
 
+        private static void MigrateMetas(string projectRoot)
+        {
+            AssetMetaMigrationResult result = AssetMetaMigration.Run(Path.Combine(projectRoot, AssetIndex.RootFolder));
+            if (result.Migrated + result.Unreadable > 0)
+                Debug.Log($"[Assets] Migrated {result.Migrated + result.Unreadable} meta file(s) from {AssetMeta.LegacyExtension} to {AssetMeta.Extension}");
+            foreach (string problem in result.Problems)
+                Debug.LogWarning($"[Assets] Meta migration: {problem}");
+        }
+
         public string ProjectRoot { get; }
         public AssetIndex Index { get; }
+        public AssetPipeline Pipeline { get; }
         public AssetTags Tags { get; }
         public Bookmarks Bookmarks { get; }
         // Changes whenever metas, tags or the index change.
@@ -166,10 +188,14 @@ namespace xgEditor.CoreCLR
             if (Index.Refresh() || Index.Version != _syncedIndexVersion)
                 Sync();
             ProcessOrphans();
+            ProcessBuilds(BuildBudgetMilliseconds);
             ApplyHashes();
             if (_cacheDirty && Environment.TickCount64 - _cacheDirtySince >= CacheSaveDelayMilliseconds)
                 SaveCache();
         }
+
+        // Runs every queued asset build now instead of spreading them over frames.
+        public void BuildAll() => ProcessBuilds(long.MaxValue);
 
         // Writes pending cache changes now (the editor calls it on shutdown).
         public void Flush()
@@ -224,6 +250,39 @@ namespace xgEditor.CoreCLR
             return true;
         }
 
+        // Stores an import result in the asset's meta: known items keep their chunk GUIDs, new ones get random GUIDs.
+        // Returns null when the asset has no usable meta.
+        public AssetItemUpdate? UpdateItems(string path, IEnumerable<ImportedAssetItem> imported)
+        {
+            path = AssetIndex.Normalize(path);
+            if (!_metas.ContainsKey(path))
+                return null;
+            string metaPath = FullPath(AssetMeta.PathFor(path));
+            try
+            {
+                AssetMeta meta = AssetMeta.Read(metaPath);
+                AssetItemUpdate update = AssetItemTable.Update(meta.Items, imported);
+                foreach (string warning in update.Warnings)
+                    Debug.LogWarning($"[Assets] {path}: {warning}");
+                meta.Items = update.Items;
+                if (meta.Write(metaPath))
+                {
+                    if (_cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
+                    {
+                        record.MetaModified = File.GetLastWriteTimeUtc(metaPath).Ticks;
+                        MarkCacheDirty();
+                    }
+                    Version++;
+                }
+                return update;
+            }
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            {
+                Debug.LogError($"[Assets] Could not update the items of {path}: {e.Message}");
+                return null;
+            }
+        }
+
         // Renames the tag on every asset that has it. Returns the number of assets changed.
         public int RenameTag(string from, string to)
         {
@@ -254,8 +313,8 @@ namespace xgEditor.CoreCLR
                 return "Names starting with '.' are hidden";
             if (name.EndsWith(' ') || name.EndsWith('.'))
                 return "A name can't end with a space or a dot";
-            if (AssetMeta.IsMetaPath(name))
-                return $"'{AssetMeta.Extension}' is reserved for meta files";
+            if (AssetMeta.IsMetaPath(name) || AssetMeta.IsLegacyMetaPath(name))
+                return $"'{AssetMeta.Extension}' and '{AssetMeta.LegacyExtension}' are reserved for meta files";
             if (name.EndsWith('~') || name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
                 return "Names ending with '~' or '.tmp' are treated as temporary files";
             return null;
@@ -492,10 +551,107 @@ namespace xgEditor.CoreCLR
                 _cache.ByPath[path] = record;
             MarkCacheDirty();
             StartHashing();
+            QueueBuilds();
 
             Version++;
             foreach (AssetMove move in moves)
                 OnMoved(move);
+        }
+
+        private static DecodedImage? DecodeImage(string path)
+        {
+            byte[]? pixels = ImageFile.LoadRGBA(path, out int width, out int height);
+            return pixels is null ? null : new DecodedImage(width, height, pixels);
+        }
+
+        private void QueueBuilds()
+        {
+            _collectLibrary = true;
+            foreach (AssetCache.Record record in _cache.ByPath.Values.OrderBy(r => r.Path, StringComparer.Ordinal))
+            {
+                if (!_metas.ContainsKey(record.Path) || !Pipeline.CanImport(record.Path))
+                    continue;
+                if (_buildStamps.TryGetValue(record.Path, out var stamp) && stamp == (record.Size, record.Modified, record.MetaModified))
+                    continue;
+                if (_queuedBuilds.Add(record.Path))
+                    _buildQueue.Enqueue(record.Path);
+            }
+        }
+
+        private void ProcessBuilds(long budgetMilliseconds)
+        {
+            long start = Stopwatch.GetTimestamp();
+            while (_buildQueue.Count > 0)
+            {
+                string path = _buildQueue.Dequeue();
+                _queuedBuilds.Remove(path);
+                BuildAsset(path);
+                if (Stopwatch.GetElapsedTime(start).TotalMilliseconds >= budgetMilliseconds)
+                    break;
+            }
+            if (_buildQueue.Count > 0)
+                return;
+            if (_buildsDone + _buildsFailed > 0)
+            {
+                Debug.Log($"[Assets] Built {_buildsDone} asset(s), {_buildsFailed} failed");
+                _buildsDone = 0;
+                _buildsFailed = 0;
+            }
+            if (_collectLibrary && _orphanDeadlines.Count == 0)
+            {
+                _collectLibrary = false;
+                CollectLibrary();
+            }
+        }
+
+        private void BuildAsset(string path)
+        {
+            if (!_metas.TryGetValue(path, out MetaInfo? info) || !_cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
+                return;
+            string metaPath = FullPath(AssetMeta.PathFor(path));
+            AssetBuildResult result;
+            try
+            {
+                AssetMeta meta = AssetMeta.Read(metaPath);
+                result = Pipeline.Build(new AssetBuildRequest(info.Guid, FullPath(path), record.Hash, meta.ImportSettings, meta.ProcessSettings, meta.Items,
+                    items => UpdateItems(path, items)));
+            }
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            {
+                result = new AssetBuildResult(AssetBuildStatus.Failed, e.Message);
+            }
+
+            switch (result.Status)
+            {
+                case AssetBuildStatus.Imported:
+                case AssetBuildStatus.Processed:
+                    _buildsDone++;
+                    break;
+                case AssetBuildStatus.Failed:
+                    _buildsFailed++;
+                    Debug.LogError($"[Assets] Could not build {path}: {result.Error}");
+                    break;
+            }
+            if (_cache.ByPath.TryGetValue(path, out record))
+                _buildStamps[path] = (record.Size, record.Modified, record.MetaModified);
+        }
+
+        private void CollectLibrary()
+        {
+            HashSet<string> live = new(StringComparer.OrdinalIgnoreCase);
+            foreach ((string path, MetaInfo info) in _metas)
+                if (Pipeline.CanImport(path))
+                    live.Add(info.Guid);
+            try
+            {
+                int removed = Pipeline.RemoveOrphans(live);
+                if (removed > 0)
+                    Debug.Log($"[Assets] Removed generated data of {removed} deleted asset(s)");
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Debug.LogWarning($"[Assets] Could not clean the Library: {e.Message}");
+            }
         }
 
         private void ProcessOrphans()

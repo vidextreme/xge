@@ -92,7 +92,7 @@ namespace xgEditor.CoreCLR
         public IReadOnlyList<AssetEntry> Entries => _entries;
         // Every directory path ("Assets", "Assets/Scripts", ...) in path order.
         public IReadOnlyList<string> Directories => _directories;
-        // Project-relative paths of every meta file ("Assets/Sword.png.xgm").
+        // Project-relative paths of every meta file ("Assets/Sword.png.xmd").
         public IReadOnlyList<string> MetaFiles => _metaFiles;
 
         public AssetEntry? Find(string relPath) => _byPath.TryGetValue(Normalize(relPath), out AssetEntry? entry) ? entry : null;
@@ -247,6 +247,8 @@ namespace xgEditor.CoreCLR
                     _metaFiles.Add(relDir + "/" + name);
                     continue;
                 }
+                if (AssetMeta.IsLegacyMetaPath(name))
+                    continue;
                 FileInfo info = new(file);
                 Add(new AssetEntry(relDir + "/" + name, file, KindOf(Path.GetExtension(name).TrimStart('.')), info.LastWriteTime, info.Length));
             }

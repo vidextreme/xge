@@ -69,6 +69,10 @@ internal static class Program
         Run(nameof(TestGeometryInterop), TestGeometryInterop);
         Run(nameof(TestEventX), TestEventX);
         Run(nameof(TestAssetMeta), TestAssetMeta);
+        Run(nameof(TestAssetItems), TestAssetItems);
+        Run(nameof(TestAssetMetaMigration), TestAssetMetaMigration);
+        Run(nameof(TestChunkFile), TestChunkFile);
+        Run(nameof(TestAssetPipeline), TestAssetPipeline);
         Run(nameof(TestResourceID), TestResourceID);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
@@ -553,15 +557,15 @@ internal static class Program
     {
         AssetMeta meta = new() { Guid = "0123456789abcdef0123456789abcdef", Tags = ["forest", "enemy", "enemy", ""] };
         string json = meta.ToJSON();
-        string expected = "{\r\n  \"version\": 1,\r\n  \"guid\": \"0123456789abcdef0123456789abcdef\",\r\n  \"tags\": [\r\n    \"enemy\",\r\n    \"forest\"\r\n  ],\r\n  \"importer\": {}\r\n}\r\n";
+        string expected = "{\r\n  \"version\": 2,\r\n  \"guid\": \"0123456789abcdef0123456789abcdef\",\r\n  \"tags\": [\r\n    \"enemy\",\r\n    \"forest\"\r\n  ],\r\n  \"importer\": {\r\n    \"import\": {},\r\n    \"process\": {}\r\n  },\r\n  \"items\": []\r\n}\r\n";
         Check(json == expected, "meta JSON is pretty-printed with sorted, distinct tags:\n" + json);
         AssetMeta parsed = AssetMeta.Parse("{ \"guid\": \"0123456789abcdef0123456789abcdef\", \"tags\": [\"a\"], \"importer\": { \"scale\": 2 }, \"custom\": true }");
-        Check(parsed.Importer["scale"]!.GetValue<int>() == 2, "importer settings parsed");
+        Check(parsed.ImportSettings["scale"]!.GetValue<int>() == 2 && parsed.Importer["scale"] is null, "version 1 importer settings move into import");
         string round = parsed.ToJSON();
         Check(round.Contains("\"custom\": true") && round.Contains("\"scale\": 2"), "unknown keys and importer kept on rewrite");
         Check(AssetMeta.Parse(round).ToJSON() == round, "meta round trip is stable");
         Check(AssetMeta.IsValidGuid(AssetMeta.NewGuid()) && !AssetMeta.IsValidGuid("xyz") && !AssetMeta.IsValidGuid(null), "GUID validation");
-        Check(AssetMeta.AssetPathOf("Assets/a.png.xgm") == "Assets/a.png" && AssetMeta.IsMetaPath("A.PNG.XGM") && !AssetMeta.IsMetaPath("a.png.meta"), "meta paths");
+        Check(AssetMeta.AssetPathOf("Assets/a.png.xmd") == "Assets/a.png" && AssetMeta.IsMetaPath("A.PNG.XMD") && !AssetMeta.IsMetaPath("a.png.xgm") && AssetMeta.IsLegacyMetaPath("A.PNG.XGM"), "meta paths");
 
         AssetMove folder = new("Assets/A", "Assets/B", true);
         Check(folder.Apply("Assets/A") == "Assets/B" && folder.Apply("Assets/A/x.png") == "Assets/B/x.png", "folder move applies inside");
@@ -608,5 +612,257 @@ internal static class Program
 
         actions = AssetReconciler.Reconcile([new("Assets/gone.png", 1, 1)], [new("Assets/gone.png", g1), new("Assets/deleted.png", g2)], noCache, NoHash);
         Check(actions.Count == 1 && actions[0] is { Kind: AssetReconcileKind.Delete, Path: "Assets/deleted.png" }, "deleted asset: orphan meta deleted: " + Describe(actions));
+    }
+
+    private static void TestAssetItems()
+    {
+        int next = 0;
+        string NewGuid() => (++next).ToString("x32");
+        ImportedAssetItem[] imported = [new("mesh", "Root/Body"), new("mesh", "Root/Body"), new("hierarchy", "Root")];
+
+        AssetItemUpdate first = AssetItemTable.Update([], imported, NewGuid);
+        Check(first.Changed && first.Items.Count == 3 && first.Assigned.Count == 3, "first import assigns every item");
+        Check(first.Assigned[0].Occurrence == 0 && first.Assigned[1].Occurrence == 1 && first.Assigned[0].Guid != first.Assigned[1].Guid, "duplicates fall back to occurrence order");
+        Check(first.Warnings.Count == 1 && first.Warnings[0].Contains("share the name"), "duplicate names are reported");
+        Check(first.Items[0].Kind == "hierarchy" && first.Items[1].Occurrence == 0 && first.Items[2].Occurrence == 1, "items are sorted");
+
+        AssetItemUpdate again = AssetItemTable.Update(first.Items, imported, NewGuid);
+        Check(!again.Changed && again.Assigned.SequenceEqual(first.Assigned), "reimport keeps every GUID");
+
+        AssetItemUpdate renamed = AssetItemTable.Update(first.Items, [new("mesh", "Root/Torso"), new("hierarchy", "Root")], NewGuid);
+        Check(renamed.Changed && renamed.Items.Count == 4 && renamed.Items.Count(i => i.Missing) == 2, "renamed item is new, old entries stay as missing");
+        Check(renamed.Assigned[0].Guid != first.Assigned[0].Guid && renamed.Assigned[1].Guid == first.Assigned[2].Guid, "rename gets a new GUID, others keep theirs");
+
+        AssetItemUpdate restored = AssetItemTable.Update(renamed.Items, imported, NewGuid);
+        Check(restored.Assigned.SequenceEqual(first.Assigned) && restored.Items.Single(i => i.Path == "Root/Torso").Missing, "returning items recover their GUIDs");
+
+        string shared = 7.ToString("x32");
+        AssetItemUpdate repaired = AssetItemTable.Update(
+            [new AssetItem { Kind = "mesh", Path = "A", Guid = shared }, new AssetItem { Kind = "mesh", Path = "B", Guid = shared }, new AssetItem { Kind = "mesh", Path = "C", Guid = new string('0', 32) }, new AssetItem { Kind = "mesh", Path = "C", Guid = 9.ToString("x32") }],
+            [new("mesh", "A"), new("mesh", "B"), new("mesh", "C"), new("", "ignored")], NewGuid);
+        Check(repaired.Assigned.Count == 3 && repaired.Assigned.Select(a => a.Guid).Distinct().Count() == 3 && repaired.Assigned.All(a => AssetItemTable.IsValidChunkGuid(a.Guid)), "bad stored GUIDs are repaired");
+        Check(repaired.Warnings.Count == 4, "repairs and ignored items are reported: " + string.Join("; ", repaired.Warnings));
+
+        AssetMeta meta = new() { Guid = 1.ToString("x32"), Items = restored.Items };
+        AssetMeta parsed = AssetMeta.Parse(meta.ToJSON());
+        Check(parsed.ToJSON() == meta.ToJSON() && parsed.Items.Count == restored.Items.Count, "items round trip through the meta");
+    }
+
+    private sealed class CountingImporter : IAssetImporter
+    {
+        public int Calls;
+        public string Id => "test.import";
+        public int Version { get; set; } = 1;
+        public bool Accepts(string extension) => extension == ".src";
+        public IReadOnlyList<AssetDataFile> Import(string sourcePath, System.Text.Json.Nodes.JsonObject settings)
+        {
+            Calls++;
+            string text = File.ReadAllText(sourcePath);
+            if (text == "bad")
+                throw new InvalidDataException("bad source");
+            byte[] data = System.Text.Encoding.UTF8.GetBytes(text.Trim());
+            return [new AssetDataFile(".xrv", ChunkTag.Make("XRV "), [new AssetDataItem("mesh", "Root/Body", [new ChunkData(ChunkTag.Make("PVEC"), data)])])];
+        }
+    }
+
+    private sealed class CountingProcessor : IAssetProcessor
+    {
+        public int Calls;
+        public string Id => "test.process";
+        public int Version => 1;
+        public bool Accepts(string rawExtension) => rawExtension == ".xrv";
+        public AssetDataFile Process(AssetDataFile raw, System.Text.Json.Nodes.JsonObject settings)
+        {
+            Calls++;
+            return new AssetDataFile(".xdv", ChunkTag.Make("XDV "), raw.Items.Select(i => new AssetDataItem(i.Kind, i.Path, [new ChunkData(ChunkTag.Make("VTXS"), i.Chunks[0].Data)])).ToList());
+        }
+    }
+
+    private static void TestChunkFile()
+    {
+        const string fileGuid = "0123456789abcdef0011223344556677";
+        const string itemGuid = "fedcba98765432107766554433221100";
+        uint positions = ChunkTag.Make("PVEC");
+        uint normals = ChunkTag.Make("NVEC");
+        Check(positions == 0x43455650u && ChunkTag.Name(positions) == "PVEC", "chunk tag bits match XGCHUNK order");
+        ChunkFile file = new()
+        {
+            Kind = ChunkTag.Make("XRV "),
+            FileGuid = fileGuid,
+            Chunks = { new ChunkData(ChunkTag.Make("INFO"), [9]) },
+            Items = { new ChunkItem(itemGuid, [new ChunkData(positions, [1, 2, 3], 7, 42), new ChunkData(normals, [4, 5, 6, 7, 8, 9, 10, 11])]) },
+        };
+        byte[] bytes = file.ToBytes();
+        Check(bytes.Length % 8 == 0, "chunks are padded to 8 bytes");
+        ChunkFile parsed = ChunkFile.Parse(bytes);
+        Check(parsed.FileGuid == fileGuid && parsed.Kind == file.Kind && parsed.Items[0].Guid == itemGuid, "managed header round trip");
+        Check(parsed.Items[0].Chunks[0] is { Flags: 7, Extra: 42 } && parsed.Items[0].Chunks[0].Data.SequenceEqual(new byte[] { 1, 2, 3 }), "managed chunk round trip");
+        Check(parsed.ToBytes().SequenceEqual(bytes), "writing is stable");
+
+        Check(Resources.ValidateChunkFile(bytes) == ChunkFileStatus.Valid, "native reader accepts managed output");
+        ResourceGUID item = ResourceID.Parse(fileGuid + "/" + itemGuid).Chunk;
+        Check(Resources.FindChunk(bytes, item, normals, out ulong offset, out ulong size) && size == 8 && bytes[(int)offset] == 4, "native reader finds an item's chunk");
+        Check(Resources.FindChunk(bytes, default, ChunkTag.Make("INFO"), out offset, out size) && size == 1 && bytes[(int)offset] == 9, "native reader finds a file-level chunk");
+        Check(!Resources.FindChunk(bytes, item, ChunkTag.Make("NONE"), out _, out _), "missing type isn't found");
+
+        void Rejected(byte[] data, ChunkFileStatus status, string what)
+        {
+            Check(Resources.ValidateChunkFile(data) == status, $"native rejects {what}");
+            bool threw = false;
+            try { ChunkFile.Parse(data); }
+            catch (InvalidDataException) { threw = true; }
+            Check(threw, $"managed rejects {what}");
+        }
+        Rejected(bytes[..31], ChunkFileStatus.TooSmall, "a short file");
+        byte[] broken = (byte[])bytes.Clone();
+        broken[0] = 0;
+        Rejected(broken, ChunkFileStatus.BadMagic, "a bad magic");
+        broken = (byte[])bytes.Clone();
+        broken[4] = 2;
+        Rejected(broken, ChunkFileStatus.UnsupportedVersion, "a newer version");
+        Rejected(bytes[..^8], ChunkFileStatus.Truncated, "a truncated file");
+        broken = (byte[])bytes.Clone();
+        BitConverter.TryWriteBytes(broken.AsSpan(40), ulong.MaxValue);
+        Rejected(broken, ChunkFileStatus.Truncated, "an oversized chunk");
+        ChunkFile repeated = new() { Kind = 1, FileGuid = fileGuid, Items = { new ChunkItem(itemGuid, []), new ChunkItem(itemGuid, []) } };
+        Rejected(repeated.ToBytes(), ChunkFileStatus.BadItem, "a repeated item GUID");
+    }
+
+    private static void TestAssetPipeline()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "xge-pipeline-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string library = Path.Combine(root, "Library", "Data");
+            string source = Path.Combine(root, "dog.src");
+            const string guid = "abcdef00000000000000000000000001";
+            File.WriteAllText(source, "one");
+            AssetMeta meta = new() { Guid = guid };
+            CountingImporter importer = new();
+            CountingProcessor processor = new();
+            AssetPipeline NewPipeline()
+            {
+                AssetPipeline created = new(library);
+                created.Register(importer);
+                created.Register(processor);
+                return created;
+            }
+            AssetPipeline pipeline = NewPipeline();
+            AssetBuildStatus Build()
+            {
+                AssetBuildRequest request = new(guid, source, null, meta.ImportSettings, meta.ProcessSettings, meta.Items, items =>
+                {
+                    AssetItemUpdate update = AssetItemTable.Update(meta.Items, items);
+                    meta.Items = update.Items;
+                    return update;
+                });
+                return pipeline.Build(request).Status;
+            }
+
+            Check(pipeline.CanImport("a/dog.SRC") == false && pipeline.CanImport("a/dog.src") && Build() == AssetBuildStatus.Imported, "first build imports");
+            string chunkGuid = meta.Items.Single().Guid;
+            string raw = pipeline.FindFile(guid, ".xrv")!;
+            string processed = pipeline.FindFile(guid, ".xdv")!;
+            Check(Path.GetFileName(raw) == "dog.src.xrv" && Path.GetFileName(processed) == "dog.src.xdv" && Path.GetDirectoryName(processed) == Path.Combine(library, "ab", guid), "Library is addressed by GUID");
+            Check(Resources.ValidateChunkFile(File.ReadAllBytes(processed)) == ChunkFileStatus.Valid, "processed file is valid for the native reader");
+            Check(ChunkFile.Parse(File.ReadAllBytes(processed)).Items.Single().Guid == chunkGuid, "processed item uses the kept chunk GUID");
+            byte[] first = File.ReadAllBytes(processed);
+
+            Check(Build() == AssetBuildStatus.UpToDate && importer.Calls == 1 && processor.Calls == 1, "unchanged inputs do nothing");
+
+            meta.ProcessSettings["quality"] = 2;
+            Check(Build() == AssetBuildStatus.Processed && importer.Calls == 1 && processor.Calls == 2, "process settings reuse stored raw data");
+
+            meta.ImportSettings["scale"] = 2;
+            Check(Build() == AssetBuildStatus.ManifestUpdated && importer.Calls == 2 && processor.Calls == 2, "import settings with identical raw output skip processing");
+
+            File.WriteAllText(source, "two");
+            Check(Build() == AssetBuildStatus.Imported && importer.Calls == 3 && processor.Calls == 3, "source change rebuilds both stages");
+            Check(meta.Items.Single().Guid == chunkGuid, "rebuild keeps the chunk GUID");
+
+            File.WriteAllText(source, "bad");
+            byte[] good = File.ReadAllBytes(processed);
+            int calls = importer.Calls;
+            Check(Build() == AssetBuildStatus.Failed && File.ReadAllBytes(processed).SequenceEqual(good), "failure keeps the last good output");
+            Check(Build() == AssetBuildStatus.PreviouslyFailed && importer.Calls == calls + 1, "unchanged failure isn't retried");
+            File.WriteAllText(source, "one");
+            meta.ImportSettings.Remove("scale");
+            meta.ProcessSettings.Remove("quality");
+            Check(Build() == AssetBuildStatus.Imported, "fixing the source recovers");
+
+            Directory.Delete(Path.Combine(root, "Library"), true);
+            pipeline = NewPipeline();
+            Check(Build() == AssetBuildStatus.Imported && meta.Items.Single().Guid == chunkGuid, "deleting Library keeps references");
+            Check(File.ReadAllBytes(pipeline.FindFile(guid, ".xdv")!).SequenceEqual(first), "rebuild is byte-identical");
+
+            importer.Version = 2;
+            Check(Build() == AssetBuildStatus.ManifestUpdated, "importer version is part of the key");
+
+            Directory.CreateDirectory(pipeline.DirectoryOf(guid) + ".build~");
+            Check(pipeline.RemoveOrphans(new HashSet<string> { guid }) == 0 && !Directory.Exists(pipeline.DirectoryOf(guid) + ".build~") && File.Exists(pipeline.FindFile(guid, ".xdv")), "live data is kept, temporary folders go");
+            Check(pipeline.RemoveOrphans(new HashSet<string>()) == 1 && !Directory.Exists(Path.Combine(library, "ab")), "orphaned data is removed");
+
+            AssetPipeline textures = new(Path.Combine(root, "Textures"));
+            TextureAssets.Register(textures, _ => new DecodedImage(2, 2, [255, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 255, 0, 255]));
+            string image = Path.Combine(root, "cat.png");
+            File.WriteAllText(image, "image");
+            const string textureGuid = "cdef0000000000000000000000000001";
+            AssetMeta textureMeta = new() { Guid = textureGuid };
+            textureMeta.ImportSettings["flipY"] = true;
+            textureMeta.ProcessSettings["mipmaps"] = true;
+            AssetBuildResult built = textures.Build(new AssetBuildRequest(textureGuid, image, null, textureMeta.ImportSettings, textureMeta.ProcessSettings, textureMeta.Items, items =>
+            {
+                AssetItemUpdate update = AssetItemTable.Update(textureMeta.Items, items);
+                textureMeta.Items = update.Items;
+                return update;
+            }));
+            Check(built.Status == AssetBuildStatus.Imported, "texture builds: " + built.Error);
+            Check(textures.FindFile(textureGuid, TextureAssets.RawExtension) is null, "texture raw data isn't stored");
+            ChunkItem texture = ChunkFile.Parse(File.ReadAllBytes(textures.FindFile(textureGuid, TextureAssets.ProcessedExtension)!)).Items.Single();
+            byte[] header = texture.Chunks.Single(c => c.Type == TextureAssets.HeaderChunk).Data;
+            byte[] pixels = texture.Chunks.Single(c => c.Type == TextureAssets.PixelsChunk).Data;
+            Check(BitConverter.ToInt32(header, 0) == 2 && BitConverter.ToInt32(header, 4) == 2 && BitConverter.ToInt32(header, 8) == TextureAssets.FormatRGBA8 && BitConverter.ToInt32(header, 12) == 2, "texture header");
+            Check(pixels.Length == 20 && pixels[5] == 255 && pixels[8] == 255 && pixels[16] == 64 && pixels[17] == 64 && pixels[18] == 0 && pixels[19] == 255, "flipY and box-filtered mips");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static void TestAssetMetaMigration()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "xge-meta-migration-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string folder = Path.Combine(root, "Models");
+            Directory.CreateDirectory(folder);
+            const string g1 = "11111111111111111111111111111111";
+            const string g2 = "22222222222222222222222222222222";
+            string V1(string guid) => $"{{ \"version\": 1, \"guid\": \"{guid}\", \"tags\": [\"a\"], \"importer\": {{ \"scale\": 2 }}, \"custom\": true }}";
+            File.WriteAllText(Path.Combine(folder, "dog.fbx.xgm"), V1(g1));
+            File.WriteAllText(Path.Combine(folder, "same.png.xgm"), V1(g1));
+            File.WriteAllText(Path.Combine(folder, "same.png.xmd"), V1(g1));
+            File.WriteAllText(Path.Combine(folder, "clash.png.xgm"), V1(g1));
+            File.WriteAllText(Path.Combine(folder, "clash.png.xmd"), V1(g2));
+            File.WriteAllText(Path.Combine(folder, "broken.png.xgm"), "{ not json");
+
+            AssetMetaMigrationResult result = AssetMetaMigration.Run(root);
+            Check(result.Migrated == 2 && result.Unreadable == 1 && result.Problems.Count == 1, $"migration counts {result.Migrated}/{result.Unreadable}/{result.Problems.Count}");
+            AssetMeta dog = AssetMeta.Read(Path.Combine(folder, "dog.fbx.xmd"));
+            Check(!File.Exists(Path.Combine(folder, "dog.fbx.xgm")) && dog.Guid == g1 && dog.Tags.SequenceEqual(["a"]), "GUID and tags survive migration");
+            Check(dog.Version == AssetMeta.CurrentVersion && dog.ImportSettings["scale"]!.GetValue<int>() == 2 && dog.ProcessSettings.Count == 0, "settings move into import");
+            Check(dog.ToJSON().Contains("\"custom\": true"), "unknown keys survive migration");
+            Check(!File.Exists(Path.Combine(folder, "same.png.xgm")), "repeated run removes a finished legacy file");
+            Check(File.Exists(Path.Combine(folder, "clash.png.xgm")) && AssetMeta.Read(Path.Combine(folder, "clash.png.xmd")).Guid == g2, "conflict leaves both files");
+            Check(File.ReadAllText(Path.Combine(folder, "broken.png.xmd")) == "{ not json", "unreadable meta moves unchanged");
+            Check(AssetMetaMigration.Run(root) is { Migrated: 0, Unreadable: 0 }, "second run has nothing to do");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
     }
 }
