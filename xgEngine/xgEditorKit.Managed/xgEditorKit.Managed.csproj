@@ -23,6 +23,11 @@
     <Compile Include="assets\JSONFile.cs" />
     <Compile Include="assets\AssetMeta.cs" />
     <Compile Include="assets\AssetReconciler.cs" />
+    <Compile Include="assets\AssetItems.cs" />
+    <Compile Include="assets\AssetMetaMigration.cs" />
+    <Compile Include="assets\ChunkFile.cs" />
+    <Compile Include="assets\AssetPipeline.cs" />
+    <Compile Include="assets\TextureAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
     <Compile Include="tools\PanelTools.cs" />

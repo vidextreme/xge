@@ -1,6 +1,7 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
+#include "xgChunkFile.h"
 #include "xgLog.h"
 #include "xgResources.h"
 #include "xgScriptEngine.h"
@@ -41,6 +42,21 @@ XG_MODULE_EXPORT bool XG_ResourceParseID(const char* text, xg::ResourceID* outId
 XG_MODULE_EXPORT int32_t XG_ResourceFormatID(const xg::ResourceID* id, char* buffer, int32_t capacity)
 {
     return xg::FormatResourceID(id, buffer, capacity);
+}
+
+XG_MODULE_EXPORT int32_t XG_ChunkFileValidate(const void* data, uint64_t size)
+{
+    return static_cast<int32_t>(xg::ValidateChunkFile(data, size));
+}
+
+XG_MODULE_EXPORT bool XG_ChunkFileFind(const void* data, uint64_t size, const xg::ResourceGUID* item, uint32_t type, uint64_t* outOffset, uint64_t* outSize)
+{
+    xg::ChunkView chunk;
+    if (!outOffset || !outSize || !xg::FindChunk(data, size, item, type, &chunk))
+        return false;
+    *outOffset = chunk.Offset;
+    *outSize = chunk.Size;
+    return true;
 }
 
 XG_MODULE_EXPORT uint32_t XG_ResourceFindType(xg::ScriptEngine* engine, const char* name)

@@ -19,6 +19,11 @@
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\JSONFile.cs" Link="assets\JSONFile.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetMeta.cs" Link="assets\AssetMeta.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetReconciler.cs" Link="assets\AssetReconciler.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetItems.cs" Link="assets\AssetItems.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetMetaMigration.cs" Link="assets\AssetMetaMigration.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\ChunkFile.cs" Link="assets\ChunkFile.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetPipeline.cs" Link="assets\AssetPipeline.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\TextureAssets.cs" Link="assets\TextureAssets.cs" />
   </ItemGroup>
 
 </Project>

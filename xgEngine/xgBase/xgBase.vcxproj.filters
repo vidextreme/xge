@@ -110,6 +110,9 @@
     <ClInclude Include="public\xgResources.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgChunkFile.h">
+      <Filter>public</Filter>
+    </ClInclude>
     <ClInclude Include="public\xgSceneGraphFactory.h">
       <Filter>public</Filter>
     </ClInclude>

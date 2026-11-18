@@ -48,6 +48,7 @@ namespace xgEditor.CoreCLR
             ProjectFiles.Generate(Current);
             Menu.Add("Assets/Open C# Project", OpenCSharpProject);
             Menu.Add("Assets/Build Scripts", () => BuildScripts());
+            Menu.Add("Assets/Refresh", () => Assets?.Refresh());
             Debug.Log($"[Project] Opened {Current.Name} ({Current.Root})");
             Startup.Report("Indexing assets", Current.Root, Startup.Indeterminate);
             Assets = new AssetDatabase(Current.Root);

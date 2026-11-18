@@ -227,6 +227,35 @@ namespace xgEditor.CoreCLR
                 string? error = ProjectService.Assets?.Rename(navRename[..renameColon], navRename[(renameColon + 1)..]);
                 Debug.Log($"[Debug] Navigator rename {navRename}: {error ?? "ok"}");
             }
+            string? testItems = Environment.GetEnvironmentVariable("XG_ASSET_TEST_ITEMS");
+            if (!string.IsNullOrEmpty(testItems) && ProjectService.Assets is { } testAssets)
+            {
+                xg.editor.ImportedAssetItem[] imported = { new("mesh", "Root/Body"), new("mesh", "Root/Body"), new("hierarchy", "Root") };
+                var first = testAssets.UpdateItems(testItems, imported);
+                var second = testAssets.UpdateItems(testItems, imported);
+                var renamed = testAssets.UpdateItems(testItems, new xg.editor.ImportedAssetItem[] { new("mesh", "Root/Torso"), new("hierarchy", "Root") });
+                var restored = testAssets.UpdateItems(testItems, imported);
+                Debug.Log($"[Assets] items of {testItems}: {first?.Assigned.Count} assigned, reimport keeps GUIDs {first?.Assigned.SequenceEqual(second!.Assigned)}, " +
+                    $"rename adds {renamed?.Items.Count - second?.Items.Count}, restore keeps GUIDs {first?.Assigned.SequenceEqual(restored!.Assigned)}");
+            }
+            if (Environment.GetEnvironmentVariable("XG_ASSET_TEST_IMPORT") == "1" && ProjectService.Assets is { } importAssets)
+            {
+                importAssets.BuildAll();
+                int built = 0, valid = 0;
+                foreach (AssetEntry entry in importAssets.Index.Entries.Where(e => !e.IsFolder && importAssets.Pipeline.CanImport(e.RelPath)))
+                {
+                    string guid = importAssets.GuidOf(entry.RelPath)!;
+                    if (importAssets.Pipeline.FindFile(guid, xg.editor.TextureAssets.ProcessedExtension) is not string file)
+                        continue;
+                    built++;
+                    byte[] bytes = File.ReadAllBytes(file);
+                    xg.editor.AssetMeta meta = xg.editor.AssetMeta.Read(importAssets.FullPath(xg.editor.AssetMeta.PathFor(entry.RelPath)));
+                    ResourceID id = ResourceID.Parse($"{guid}/{meta.Items[0].Guid}");
+                    if (Resources.ValidateChunkFile(bytes) == ChunkFileStatus.Valid && Resources.FindChunk(bytes, id.Chunk, xg.editor.TextureAssets.PixelsChunk, out _, out ulong size) && size > 0)
+                        valid++;
+                }
+                Debug.Log($"[Assets] import test: {built} texture(s) built, {valid} readable by the native chunk reader");
+            }
             string? navRenameOpen = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_RENAME_OPEN");
             if (!string.IsNullOrEmpty(navRenameOpen))
                 navigator.OpenRename(navRenameOpen, 30);

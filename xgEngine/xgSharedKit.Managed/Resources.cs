@@ -62,6 +62,16 @@ namespace xg
         Failed = 3,
     }
 
+    public enum ChunkFileStatus
+    {
+        Valid = 0,
+        TooSmall = 1,
+        BadMagic = 2,
+        UnsupportedVersion = 3,
+        Truncated = 4,
+        BadItem = 5,
+    }
+
     // One reference held by this module. A copy is the same reference, so dispose it once.
     public readonly struct ResourceHandle : IDisposable, IEquatable<ResourceHandle>
     {
@@ -104,6 +114,20 @@ namespace xg
         public static uint RegisterTestType(string name) =>
             ScriptRuntime._enginePtr == 0 ? 0 : XG_ResourceRegisterTestType(ScriptRuntime._enginePtr, ScriptRuntime.ModuleID, name);
 
+        // Validates a generated .xr* or .xd* file with the native reader the runtime uses.
+        public static ChunkFileStatus ValidateChunkFile(ReadOnlySpan<byte> data)
+        {
+            fixed (byte* bytes = data)
+                return (ChunkFileStatus)XG_ChunkFileValidate(bytes, (ulong)data.Length);
+        }
+
+        // Finds a chunk inside an item, or at file level with a default item GUID.
+        public static bool FindChunk(ReadOnlySpan<byte> data, in ResourceGUID item, uint type, out ulong offset, out ulong size)
+        {
+            fixed (byte* bytes = data)
+                return XG_ChunkFileFind(bytes, (ulong)data.Length, item, type, out offset, out size);
+        }
+
         internal static bool ParseID(string text, out ResourceID id) => XG_ResourceParseID(text, out id);
 
         internal static string FormatID(in ResourceID id)
@@ -112,6 +136,13 @@ namespace xg
             int length = XG_ResourceFormatID(id, buffer, IDTextCapacity);
             return Encoding.ASCII.GetString(buffer, length);
         }
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ChunkFileValidate")]
+        private static partial int XG_ChunkFileValidate(byte* data, ulong size);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ChunkFileFind")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_ChunkFileFind(byte* data, ulong size, in ResourceGUID item, uint type, out ulong offset, out ulong chunkSize);
 
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceParseID", StringMarshalling = StringMarshalling.Utf8)]
         [return: MarshalAs(UnmanagedType.U1)]
