@@ -19,6 +19,7 @@
 #include "CodecRegistryImpl.h"
 #include "DynamicObjectImpl.h"
 #include "ActorRegistryImpl.h"
+#include "ResourceSystemImpl.h"
 #include "LoggerImpl.h"
 #include "SceneGraphFactoryImpl.h"
 
@@ -73,6 +74,7 @@ namespace xg
         //auto ha = MessengerImpl::SuperTypeID;
 		RegisterSubsystem(_rootModule, new MessengerImpl(_scriptTree));
         RegisterSubsystem(_rootModule, new ActorRegistryImpl());
+        RegisterSubsystem(_rootModule, new ResourceSystemImpl());
         
         auto eventDispatcher = new EventDispatcherImpl();
         RegisterSubsystem(_rootModule, eventDispatcher);
@@ -416,6 +418,8 @@ namespace xg
 
                 ScriptHost* host = module->GetHost();
                 module->Shutdown();
+                if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
+                    resources->ReleaseModule(module->GetModuleId());
                 delete module;
                 XG_RELEASE_ONE(host);
                 return;
@@ -477,6 +481,9 @@ namespace xg
 
             if (Renderer)
                 Renderer->Render();
+
+            if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
+                resources->Collect();
 
             if (Splash)
             {
@@ -545,6 +552,8 @@ namespace xg
 
             ScriptHost* host = module->GetHost();
             module->Shutdown();
+            if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
+                resources->ReleaseModule(module->GetModuleId());
             delete module;
             XG_RELEASE_ONE(host);
         }
