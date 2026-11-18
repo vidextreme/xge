@@ -19,6 +19,78 @@ namespace xgEditor.CoreCLR
         public void Shutdown() => Debug.Log($"[Debug] Subsystem {Name}: shutdown");
     }
 
+    // Test hook (XG_RESOURCE_TEST=1): exercises the shared resource cache, then quits so shutdown cleanup is visible.
+    internal static class ResourceSmoke
+    {
+        const string SharedId = "a0000000000000000000000000000001/c0000000000000000000000000000001";
+        const string TransientId = "a0000000000000000000000000000002";
+        const string FailingId = "ffffffffffffffff0000000000000001";
+        const string DemoOwnedId = "d0000000000000000000000000000001";
+
+        static bool _enabled;
+        static int _step;
+        static uint _type;
+        static ResourceHandle _shared;
+        static ResourceHandle _transient;
+        static ResourceHandle _demoOwned;
+
+        public static void Init()
+        {
+            _enabled = Environment.GetEnvironmentVariable("XG_RESOURCE_TEST") == "1";
+            if (!_enabled)
+                return;
+            _type = Resources.RegisterTestType("test.shared");
+            _shared = Resources.Acquire(_type, ResourceID.Parse(SharedId));
+            Debug.Log($"[Resources] editor shared handle {_shared.Value:x}, state {_shared.State}");
+        }
+
+        public static void Update(long frames)
+        {
+            if (!_enabled)
+                return;
+            if (_step == 0 && frames >= 5)
+            {
+                _step++;
+                ResourceHandle failing = Resources.Acquire(_type, ResourceID.Parse(FailingId));
+                Debug.Log($"[Resources] failing resource state {failing.State}");
+                failing.Dispose();
+            }
+            else if (_step == 1 && frames >= 10)
+            {
+                _step++;
+                ResourceHandle first = Resources.Acquire(_type, ResourceID.Parse(TransientId));
+                first.Dispose();
+                _transient = Resources.Acquire(_type, ResourceID.Parse(TransientId));
+                _transient.Dispose();
+                Debug.Log($"[Resources] transient reacquired in one frame: same handle {first.Equals(_transient)}, state {_transient.State}");
+            }
+            else if (_step == 2 && frames >= 12)
+            {
+                _step++;
+                Debug.Log($"[Resources] transient after collect: state {_transient.State}, second release {Resources.Release(_transient)}");
+            }
+            else if (_step == 3 && frames >= 20)
+            {
+                _step++;
+                _demoOwned = Resources.Acquire(Resources.FindType("test.demo"), ResourceID.Parse(DemoOwnedId));
+                Debug.Log($"[Resources] editor acquired demo-owned resource: state {_demoOwned.State}");
+            }
+            else if (_step == 4 && frames >= 40)
+            {
+                _step++;
+                ScriptRuntime.RequestQuit();
+            }
+        }
+
+        public static void Shutdown()
+        {
+            if (!_enabled)
+                return;
+            Debug.Log($"[Resources] editor shutdown: demo-owned state {_demoOwned.State}, shared state {_shared.State}");
+            _shared.Dispose();
+        }
+    }
+
     public static unsafe class ScriptEntry
     {
         [UnmanagedCallersOnly]
@@ -192,6 +264,7 @@ namespace xgEditor.CoreCLR
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "managed")
                 _testWindow.Focus();
             Debug.Log($"[Debug] Managed Test registered: {_testWindow.IsRegistered}, xgImUIKit API {xg.imui.ImUI.NativeApiVersion}");
+            ResourceSmoke.Init();
             return 1;
         }
 
@@ -210,6 +283,7 @@ namespace xgEditor.CoreCLR
         {
             ProjectService.Assets?.Update();
             long frames = ActorRegistry.FrameCount;
+            ResourceSmoke.Update(frames);
             if (frames == 1 && !_clock.IsRunning)
             {
                 _elapsedAtStart = _player.ElapsedTime;
@@ -235,6 +309,7 @@ namespace xgEditor.CoreCLR
         [UnmanagedCallersOnly]
         public static void Shutdown()
         {
+            ResourceSmoke.Shutdown();
             xg.imui.ImUI.ShutdownAll();
             ProjectService.Assets?.Flush();
             EditorLog.Detach();

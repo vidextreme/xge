@@ -102,6 +102,9 @@
     <ClInclude Include="ActorRegistryImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="ResourceSystemImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
     <ClInclude Include="SceneGraphFactoryImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
@@ -165,6 +168,9 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="ActorRegistryImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourceSystemImpl.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="SceneGraphFactoryImpl.cpp">

@@ -96,6 +96,7 @@
     <ClCompile Include="InteropSubsystem.cpp" />
     <ClCompile Include="interop\xgLogInterop.cpp" />
     <ClCompile Include="interop\xgProjectInterop.cpp" />
+    <ClCompile Include="interop\xgResourceInterop.cpp" />
     <ClCompile Include="interop\xgUIHostInterop.cpp" />
     <ClCompile Include="interop\xgMat4x4Interop.cpp" />
     <ClCompile Include="interop\xgQuatInterop.cpp" />

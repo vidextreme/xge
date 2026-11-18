@@ -16,6 +16,12 @@ namespace GameDemoModule
             Console.WriteLine("wow");
 
             _enemy = Actor.Create("demo enemy").AddComponent<EnemyComponent>();
+            if (Environment.GetEnvironmentVariable("XG_RESOURCE_TEST") == "1")
+            {
+                Resources.RegisterTestType("test.demo");
+                ResourceHandle shared = Resources.Acquire(Resources.FindType("test.shared"), ResourceID.Parse("a0000000000000000000000000000001/c0000000000000000000000000000001"));
+                Debug.Log($"[Resources] NativeAOT shared handle {shared.Value:x}, state {shared.State}");
+            }
             return 1;
         }
 

@@ -107,6 +107,9 @@
     <ClInclude Include="public\xgActorRegistry.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgResources.h">
+      <Filter>public</Filter>
+    </ClInclude>
     <ClInclude Include="public\xgSceneGraphFactory.h">
       <Filter>public</Filter>
     </ClInclude>

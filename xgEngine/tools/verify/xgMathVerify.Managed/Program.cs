@@ -69,9 +69,45 @@ internal static class Program
         Run(nameof(TestGeometryInterop), TestGeometryInterop);
         Run(nameof(TestEventX), TestEventX);
         Run(nameof(TestAssetMeta), TestAssetMeta);
+        Run(nameof(TestResourceID), TestResourceID);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
+    }
+
+    // ------------------------------------------------------------
+    // Resource IDs
+    // ------------------------------------------------------------
+    private static void TestResourceID()
+    {
+        Check(Unsafe.SizeOf<ResourceGUID>() == 16, "ResourceGUID size");
+        Check(Unsafe.SizeOf<ResourceID>() == 32, "ResourceID size");
+
+        const string file = "0123456789abcdef0011223344556677";
+        const string chunk = "fedcba98765432107766554433221100";
+        Check(ResourceID.TryParse(file, out ResourceID fileOnly), "file-only parse");
+        Check(fileOnly.File.Hi == 0x0123456789abcdefUL && fileOnly.File.Lo == 0x0011223344556677UL, "text order maps to Hi, Lo");
+        Check(fileOnly.Chunk.IsZero, "file-only chunk is zero");
+        Check(fileOnly.ToString() == file, "file-only format");
+
+        string breadcrumb = file + "/" + chunk;
+        Check(ResourceID.TryParse(breadcrumb, out ResourceID full), "breadcrumb parse");
+        Check(full.Chunk.ToString() == chunk, "chunk text");
+        Check(full.ToString() == breadcrumb, "breadcrumb format");
+        Check(ResourceID.TryParse(breadcrumb.ToUpperInvariant(), out ResourceID upper) && upper.Equals(full), "uppercase parse");
+
+        string assetGuid = AssetMeta.NewGuid();
+        Check(ResourceID.TryParse(assetGuid, out ResourceID asset) && asset.ToString() == assetGuid && asset.File.ToString() == assetGuid, "asset meta GUID");
+
+        string zero = new('0', 32);
+        string[] invalid =
+        {
+            "", file[..31], file + "0", new string('g', 32), file + "/", file + "/" + chunk[..31], file + "/" + chunk + "0",
+            "/" + chunk, file + "-" + chunk, zero, zero + "/" + chunk, file + "/" + zero,
+        };
+        foreach (string text in invalid)
+            Check(!ResourceID.TryParse(text, out _), $"rejects '{text}'");
+        Check(!ResourceID.TryParse(null, out _), "rejects null");
     }
 
     // ------------------------------------------------------------
