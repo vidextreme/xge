@@ -318,6 +318,13 @@ namespace xgEditor.CoreCLR
             return true;
         }
 
+        internal static void LevelVisual(MessageType type, out Icon icon, out StyleColor color)
+        {
+            LevelStyle level = StyleOf(type);
+            icon = level.Icon;
+            color = level.Color;
+        }
+
         private static LevelStyle StyleOf(MessageType type)
         {
             foreach (LevelStyle level in _levels)

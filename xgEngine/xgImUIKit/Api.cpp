@@ -29,6 +29,9 @@ namespace xg::imui
         void* User = nullptr;
         bool Open = true;
         bool FocusRequest = false;
+        // Frames left to keep this panel the selected tab of its dock node: windows appearing in a rebuilt layout
+        // take the selection for the first frames.
+        int SelectTabFrames = 0;
         Rect InitialRect;
         bool Removed = false;
     };
@@ -349,6 +352,45 @@ namespace
             entry->OnClose(entry->User);
     }
 
+    void RunGUI(PanelGUIFn callback, void* user, PanelEntry* panel, ImGuiWindow* ownerWindow, bool row)
+    {
+        Context ctx;
+        ctx.Panel = panel;
+        ctx.PanelWindow = ownerWindow;
+        ctx.ContentOrigin = ImGui::GetCursorScreenPos();
+
+        ImGuiErrorRecoveryState state;
+        ImGui::ErrorRecoveryStoreState(&state);
+        ImDrawList* bodyList = ImGui::GetWindowDrawList();
+        const int clipDepth = bodyList->_ClipRectStack.Size;
+        BeginLayout(&ctx, row, -1.0f, false);
+        callback(&ctx, user);
+        ImGui::ErrorRecoveryTryToRecoverState(&state);
+        ctx.LayoutOverflow = 0;
+        ctx.LayoutDepth = (std::min)(ctx.LayoutDepth, 1);
+        if (ImGui::GetCurrentWindow() == ctx.Layouts[0].Window)
+            EndLayout(&ctx);
+        while (bodyList->_ClipRectStack.Size > clipDepth)
+            bodyList->PopClipRect();
+        ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
+        while (foreground->_ClipRectStack.Size > 1)
+            foreground->PopClipRect();
+    }
+
+    struct ShellBarEntry
+    {
+        PanelGUIFn Callback = nullptr;
+        void* User = nullptr;
+    };
+    ShellBarEntry _shellBars[2];
+
+    void DrawShellBar(ShellBar bar)
+    {
+        const ShellBarEntry& entry = _shellBars[static_cast<int>(bar)];
+        if (entry.Callback)
+            RunGUI(entry.Callback, entry.User, nullptr, ImGui::GetCurrentWindow(), true);
+    }
+
     void DrawPanelBody(PanelEntry* entry)
     {
         ImGuiWindowFlags bodyFlags = ImGuiWindowFlags_None;
@@ -359,29 +401,7 @@ namespace
         imui::detail::BeginBody("##imui_body", padding, bodyFlags);
 
         if (entry->OnGUI)
-        {
-            Context ctx;
-            ctx.Panel = entry;
-            ctx.PanelWindow = panelWindow;
-            ctx.ContentOrigin = ImGui::GetCursorScreenPos();
-
-            ImGuiErrorRecoveryState state;
-            ImGui::ErrorRecoveryStoreState(&state);
-            ImDrawList* bodyList = ImGui::GetWindowDrawList();
-            const int clipDepth = bodyList->_ClipRectStack.Size;
-            BeginLayout(&ctx, false, -1.0f, false);
-            entry->OnGUI(&ctx, entry->User);
-            ImGui::ErrorRecoveryTryToRecoverState(&state);
-            ctx.LayoutOverflow = 0;
-            ctx.LayoutDepth = (std::min)(ctx.LayoutDepth, 1);
-            if (ImGui::GetCurrentWindow() == ctx.Layouts[0].Window)
-                EndLayout(&ctx);
-            while (bodyList->_ClipRectStack.Size > clipDepth)
-                bodyList->PopClipRect();
-            ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
-            while (foreground->_ClipRectStack.Size > 1)
-                foreground->PopClipRect();
-        }
+            RunGUI(entry->OnGUI, entry->User, entry, panelWindow, false);
         ImGui::EndChild();
     }
 
@@ -416,13 +436,16 @@ namespace
         const int slot = static_cast<int>(entry->Slot);
         if (entry->Slot != DockSlot::Floating && _dockIds[slot] != 0)
             ImGui::SetNextWindowDockID(_dockIds[slot], ImGuiCond_FirstUseEver);
-        if (entry->FocusRequest && imui::detail::_selectDefaultTabs == 0)
+        if (entry->FocusRequest && !imui::detail::_layoutJustReset)
         {
             ImGui::SetNextWindowFocus();
             entry->FocusRequest = false;
+            for (PanelEntry* other : _panels)
+                if (other->Slot == entry->Slot)
+                    other->SelectTabFrames = 0;
         }
 
-        const bool shellStyle = imui::detail::HostPrototypeShell();
+        const bool shellStyle = imui::detail::HostEditorShell();
         if (shellStyle)
         {
             ImGuiWindowClass windowClass;
@@ -451,6 +474,15 @@ namespace
             ImGui::PopStyleColor();
         if (entry->PanelIcon > imui::Icon::None && entry->PanelIcon < imui::Icon::Count)
             imui::detail::DrawPanelTabIcon(static_cast<imui::detail::Icon>(entry->PanelIcon));
+        if (entry->SelectTabFrames > 0)
+        {
+            const ImGuiWindow* window = ImGui::GetCurrentWindow();
+            if (window->DockNode && window->DockNode->TabBar)
+            {
+                window->DockNode->TabBar->NextSelectedTabId = window->TabId;
+                --entry->SelectTabFrames;
+            }
+        }
 
         if (visible)
         {
@@ -521,9 +553,20 @@ namespace xg::imui::detail
         _dockIds[static_cast<int>(DockSlot::Left)] = left;
         _dockIds[static_cast<int>(DockSlot::Right)] = right;
         _dockIds[static_cast<int>(DockSlot::Bottom)] = bottom;
+        bool slotHasTab[static_cast<int>(DockSlot::Bottom) + 1] = {};
         for (PanelEntry* entry : _panels)
-            if (!entry->Removed && entry->Slot != DockSlot::Floating)
-                ImGui::DockBuilderDockWindow(entry->WindowName.c_str(), _dockIds[static_cast<int>(entry->Slot)]);
+        {
+            if (entry->Removed || entry->Slot == DockSlot::Floating)
+                continue;
+            const int slot = static_cast<int>(entry->Slot);
+            ImGui::DockBuilderDockWindow(entry->WindowName.c_str(), _dockIds[slot]);
+            if (entry->Open && !slotHasTab[slot])
+            {
+                slotHasTab[slot] = true;
+                entry->SelectTabFrames = 3;
+                entry->FocusRequest = entry->FocusRequest || entry->Slot == DockSlot::Center;
+            }
+        }
     }
 
     void SetDefaultDockSpace(ImGuiID id)
@@ -557,9 +600,29 @@ namespace xg::imui::detail
         }
     }
 
-    void DrawRegisteredMenuItems(const char* topLevel)
+    bool HasRegisteredMenuItems(const char* topLevel)
     {
-        bool separated = false;
+        return std::any_of(_menuItems.begin(), _menuItems.end(), [&](const MenuItemEntry* item) { return !item->Removed && item->TopLevel == topLevel; });
+    }
+
+    bool HasShellToolbar()
+    {
+        return _shellBars[static_cast<int>(ShellBar::Toolbar)].Callback != nullptr;
+    }
+
+    void DrawShellToolbar()
+    {
+        DrawShellBar(ShellBar::Toolbar);
+    }
+
+    void DrawShellStatusBar()
+    {
+        DrawShellBar(ShellBar::StatusBar);
+    }
+
+    void DrawRegisteredMenuItems(const char* topLevel, bool separate)
+    {
+        bool separated = !separate;
         for (size_t i = 0; i < _menuItems.size(); ++i)
         {
             MenuItemEntry* item = _menuItems[i];
@@ -592,7 +655,7 @@ namespace xg::imui::detail
         {
             if (ImGui::BeginMenu(top.c_str()))
             {
-                DrawRegisteredMenuItems(top.c_str());
+                DrawRegisteredMenuItems(top.c_str(), false);
                 ImGui::EndMenu();
             }
         }
@@ -707,6 +770,18 @@ namespace xg
         item->Removed = true;
         if (!InFrame())
             FlushRemoved();
+    }
+
+    XG_MODULE_EXPORT void XG_ImUISetShellBar(imui::ShellBar bar, imui::PanelGUIFn callback, void* user)
+    {
+        if (bar != imui::ShellBar::Toolbar && bar != imui::ShellBar::StatusBar)
+            return;
+        _shellBars[static_cast<int>(bar)] = { callback, callback ? user : nullptr };
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIResetLayout()
+    {
+        imui::detail::_resetLayout = true;
     }
 
     // ------------------------------------------------------------
@@ -1988,7 +2063,10 @@ namespace xg
         state->DragMiddle = active && ImGui::IsMouseDown(ImGuiMouseButton_Middle) ? delta : Vec2();
         state->Wheel = hovered ? io.MouseWheel : 0.0f;
         state->Flags = (hovered ? imui::SceneViewFlags::Hovered : imui::SceneViewFlags::None)
-            | (active ? imui::SceneViewFlags::Active : imui::SceneViewFlags::None);
+            | (active ? imui::SceneViewFlags::Active : imui::SceneViewFlags::None)
+            | (active && ImGui::IsMouseDown(ImGuiMouseButton_Left) ? imui::SceneViewFlags::LeftDown : imui::SceneViewFlags::None)
+            | (active && ImGui::IsMouseDown(ImGuiMouseButton_Right) ? imui::SceneViewFlags::RightDown : imui::SceneViewFlags::None)
+            | (active && ImGui::IsMouseDown(ImGuiMouseButton_Middle) ? imui::SceneViewFlags::MiddleDown : imui::SceneViewFlags::None);
 
         const Rect local(Vec2(0.0f, 0.0f), Vec2(rect.Width(), rect.Height()));
         const Vec2 uv0(0.0f, 0.0f);

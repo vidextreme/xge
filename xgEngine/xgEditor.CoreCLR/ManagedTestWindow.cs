@@ -20,6 +20,8 @@ namespace xgEditor.CoreCLR
         public override string? MenuPath => "Tests/Managed Test";
         public override DockSlot Slot => DockSlot.Right;
         public override Icon PanelIcon => Icon.Script;
+        public override PanelFlags Flags =>
+            Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "managed" || _throw ? PanelFlags.None : PanelFlags.StartClosed;
 
         protected override void OnEnable() => Debug.Log("[Debug] Managed Test: window enabled");
         protected override void OnDisable() => Debug.Log("[Debug] Managed Test: window disabled");
@@ -70,6 +72,9 @@ namespace xgEditor.CoreCLR
         public override string? MenuPath => "Tests/Managed Floating";
         public override DockSlot Slot => DockSlot.Floating;
         public override Icon PanelIcon => Icon.Script;
+        public override PanelFlags Flags =>
+            Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "managed" || Environment.GetEnvironmentVariable("XG_UI_TEST_FLOAT_OUTSIDE") == "1"
+                ? PanelFlags.None : PanelFlags.StartClosed;
         public override Rect? InitialRect =>
             Environment.GetEnvironmentVariable("XG_UI_TEST_FLOAT_OUTSIDE") == "1"
                 ? Rect.FromXYWH(1100.0f, 320.0f, 300.0f, 230.0f)

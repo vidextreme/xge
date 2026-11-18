@@ -22,6 +22,7 @@ namespace xg
         settings.MenuPath = "Tests/Native Test";
         settings.Slot = imui::DockSlot::Right;
         settings.PanelIcon = imui::Icon::Script;
+        settings.Flags = EnvEquals("XG_UI_TEST_FOCUS", "native") || _unbalanced ? imui::PanelFlags::None : imui::PanelFlags::StartClosed;
         Register(settings);
 
         if (EnvEquals("XG_UI_TEST_FOCUS", "native"))
@@ -82,6 +83,7 @@ namespace xg
         settings.MenuPath = "Tests/Native Floating";
         settings.Slot = imui::DockSlot::Floating;
         settings.PanelIcon = imui::Icon::Script;
+        settings.Flags = EnvEquals("XG_UI_TEST_FOCUS", "native") || TestFloatOutside() ? imui::PanelFlags::None : imui::PanelFlags::StartClosed;
         settings.InitialRect = TestFloatOutside() ? Rect::FromXYWH(1100.0f, 60.0f, 300.0f, 230.0f) : Rect::FromXYWH(250.0f, 140.0f, 300.0f, 230.0f);
         Register(settings);
     }

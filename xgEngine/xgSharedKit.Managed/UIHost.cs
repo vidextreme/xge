@@ -9,7 +9,7 @@ namespace xg
     public static partial class UIHost
     {
         private const string NativeLib = "xgScriptNative";
-        private const uint PrototypeShellFlag = 1u << 0;
+        private const uint EditorShellFlag = 1u << 0;
         private const uint MultiViewportFlag = 1u << 1;
         private const uint NoLayoutFileFlag = 1u << 2;
         private const uint CustomFrameFlag = 1u << 3;
@@ -18,11 +18,11 @@ namespace xg
 
         // saveLayout false: the window layout is neither loaded from nor saved to imgui.ini (shared with the editor).
         // customFrame: the editor's theme and window frame (title bar, window buttons, resize edges) without its shell.
-        public static bool Start(bool prototypeShell = false, bool multiViewport = false, bool saveLayout = true, bool customFrame = false)
+        public static bool Start(bool editorShell = false, bool multiViewport = false, bool saveLayout = true, bool customFrame = false)
         {
             if (IsRunning || ScriptRuntime._enginePtr == 0)
                 return false;
-            uint flags = (prototypeShell ? PrototypeShellFlag : 0) | (multiViewport ? MultiViewportFlag : 0)
+            uint flags = (editorShell ? EditorShellFlag : 0) | (multiViewport ? MultiViewportFlag : 0)
                 | (saveLayout ? 0 : NoLayoutFileFlag) | (customFrame ? CustomFrameFlag : 0);
             IsRunning = XG_UIHostStart(ScriptRuntime._enginePtr, ScriptRuntime.ModuleID, flags);
             return IsRunning;

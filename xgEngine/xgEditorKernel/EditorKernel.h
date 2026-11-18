@@ -52,7 +52,7 @@ namespace xg
         ScriptEngine* _engine = nullptr;
 
         bool _isValid = true;
-        bool _prototypeUI = true;
+        bool _editorShell = true;
         bool _multiViewport = true;
 
         std::unique_ptr<UIHostSession> _uiHost;

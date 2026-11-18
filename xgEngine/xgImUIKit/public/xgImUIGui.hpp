@@ -496,6 +496,9 @@ namespace xg::imui
         PanelHandle _handle = nullptr;
     };
 
+    inline void SetShellBar(ShellBar bar, PanelGUIFn callback, void* user) { XG_ImUISetShellBar(bar, callback, user); }
+    inline void ResetLayout() { XG_ImUIResetLayout(); }
+
     // Main menu command, unregistered on destruction. Path "Tools/Rebuild" creates a Tools menu if needed.
     class MenuCommand
     {

@@ -79,6 +79,14 @@ namespace xgEditor.CoreCLR
             ActorTree.GetChildren(actor.ID, children);
             Debug.Log($"[Debug] Hierarchy sample: {actor.Name} children [{string.Join(", ", children.Select(ActorTree.GetName))}], Muzzle parent {muzzle.Parent?.Name}");
 
+            EditorShell.Install();
+            ScenePanel scene = xg.imui.Panel.Open<ScenePanel>();
+            GamePanel game = xg.imui.Panel.Open<GamePanel>();
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "scenepanel")
+                scene.Focus();
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "game")
+                game.Focus();
+
             HierarchyPanel hierarchy = xg.imui.Panel.Open<HierarchyPanel>();
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "hierarchy")
             {

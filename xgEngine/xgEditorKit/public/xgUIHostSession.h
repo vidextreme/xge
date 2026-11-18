@@ -12,9 +12,9 @@ namespace xg
 
     struct UIHostOptions
     {
-        bool PrototypeShell = false;
+        bool EditorShell = false;
         bool MultiViewport = false;
-        // The editor's theme and window frame, for a host without the prototype shell.
+        // The editor's theme and window frame, for a host without the editor shell.
         bool CustomFrame = false;
         const char* FontDirectory = "../editor/fonts";
         const char* IconPath = "../editor/xge-icon.bmp";
