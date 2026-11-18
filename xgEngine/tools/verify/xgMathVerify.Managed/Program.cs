@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using xg;
+using xg.editor;
 using xg.math;
 
 internal static class Program
@@ -67,6 +68,7 @@ internal static class Program
         Run(nameof(TestExistingInterop), TestExistingInterop);
         Run(nameof(TestGeometryInterop), TestGeometryInterop);
         Run(nameof(TestEventX), TestEventX);
+        Run(nameof(TestAssetMeta), TestAssetMeta);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -506,5 +508,69 @@ internal static class Program
 
         XFG.Core.EventX.ClearAllSystems();
         Check(XFG.Core.EventX<EvKey, int>.Count(EvKey.Threads) == 0 && XFG.Core.EventX<EvKey>.Count(EvKey.Alloc) == 0, "ClearAllSystems clears every bus");
+    }
+
+    // ------------------------------------------------------------
+    // Asset meta files and reconciling them with asset files
+    // ------------------------------------------------------------
+    private static void TestAssetMeta()
+    {
+        AssetMeta meta = new() { Guid = "0123456789abcdef0123456789abcdef", Tags = ["forest", "enemy", "enemy", ""] };
+        string json = meta.ToJSON();
+        string expected = "{\r\n  \"version\": 1,\r\n  \"guid\": \"0123456789abcdef0123456789abcdef\",\r\n  \"tags\": [\r\n    \"enemy\",\r\n    \"forest\"\r\n  ],\r\n  \"importer\": {}\r\n}\r\n";
+        Check(json == expected, "meta JSON is pretty-printed with sorted, distinct tags:\n" + json);
+        AssetMeta parsed = AssetMeta.Parse("{ \"guid\": \"0123456789abcdef0123456789abcdef\", \"tags\": [\"a\"], \"importer\": { \"scale\": 2 }, \"custom\": true }");
+        Check(parsed.Importer["scale"]!.GetValue<int>() == 2, "importer settings parsed");
+        string round = parsed.ToJSON();
+        Check(round.Contains("\"custom\": true") && round.Contains("\"scale\": 2"), "unknown keys and importer kept on rewrite");
+        Check(AssetMeta.Parse(round).ToJSON() == round, "meta round trip is stable");
+        Check(AssetMeta.IsValidGuid(AssetMeta.NewGuid()) && !AssetMeta.IsValidGuid("xyz") && !AssetMeta.IsValidGuid(null), "GUID validation");
+        Check(AssetMeta.AssetPathOf("Assets/a.png.xgm") == "Assets/a.png" && AssetMeta.IsMetaPath("A.PNG.XGM") && !AssetMeta.IsMetaPath("a.png.meta"), "meta paths");
+
+        AssetMove folder = new("Assets/A", "Assets/B", true);
+        Check(folder.Apply("Assets/A") == "Assets/B" && folder.Apply("Assets/A/x.png") == "Assets/B/x.png", "folder move applies inside");
+        Check(folder.Apply("Assets/AB/x.png") == "Assets/AB/x.png" && folder.Apply("Assets/a/y") == "Assets/B/y", "folder move prefix edges");
+        Check(new AssetMove("Assets/A", "Assets/B", false).Apply("Assets/A/x") == "Assets/A/x", "file move doesn't touch children");
+
+        const string g1 = "11111111111111111111111111111111";
+        const string g2 = "22222222222222222222222222222222";
+        const string g3 = "33333333333333333333333333333333";
+        Dictionary<string, AssetCacheState> noCache = new();
+        static string? NoHash(string path) => null;
+        static string Describe(List<AssetReconcileAction> actions) => string.Join("; ", actions.Select(a => $"{a.Kind} {a.Path} {a.From} {a.Guid}"));
+
+        var actions = AssetReconciler.Reconcile([new("Assets/new.png", 10, 1)], [], noCache, NoHash);
+        Check(actions.Count == 1 && actions[0].Kind == AssetReconcileKind.Create, "new asset gets a meta: " + Describe(actions));
+
+        actions = AssetReconciler.Reconcile([new("Assets/b/tree.png", 10, 1)], [new("Assets/a/tree.png", g1)], noCache, NoHash);
+        Check(actions.Count == 1 && actions[0] is { Kind: AssetReconcileKind.Recover, Path: "Assets/b/tree.png", From: "Assets/a/tree.png", Guid: g1 },
+            "moved without its meta, same name: recovered: " + Describe(actions));
+
+        Dictionary<string, AssetCacheState> cache = new() { [g1] = new("Assets/a/tree.png", 99, 1, "aa") };
+        actions = AssetReconciler.Reconcile([new("Assets/b/tree.png", 10, 1)], [new("Assets/a/tree.png", g1)], cache, NoHash);
+        Check(actions.Count == 2 && actions.Any(a => a.Kind == AssetReconcileKind.Create) && actions.Any(a => a.Kind == AssetReconcileKind.Delete),
+            "moved and edited (size differs): no recovery: " + Describe(actions));
+
+        cache = new() { [g1] = new("Assets/a/tree.png", 10, 1, "aa") };
+        actions = AssetReconciler.Reconcile([new("Assets/b/oak.png", 10, 2)], [new("Assets/a/tree.png", g1)], cache, p => p == "Assets/b/oak.png" ? "AA" : null);
+        Check(actions.Count == 1 && actions[0] is { Kind: AssetReconcileKind.Recover, Guid: g1 }, "moved and renamed, same hash: recovered: " + Describe(actions));
+
+        actions = AssetReconciler.Reconcile([new("Assets/b/tree.png", 10, 1), new("Assets/c/tree.png", 10, 1)], [new("Assets/a/tree.png", g1)], noCache, NoHash);
+        Check(actions.Count(a => a.Kind == AssetReconcileKind.Create) == 2 && actions.Count(a => a.Kind == AssetReconcileKind.Delete) == 1,
+            "ambiguous match: two new metas, orphan deleted: " + Describe(actions));
+
+        cache = new() { [g2] = new("Assets/orig.png", 5, 1, null) };
+        actions = AssetReconciler.Reconcile([new("Assets/orig.png", 5, 1), new("Assets/copy.png", 5, 1)], [new("Assets/orig.png", g2), new("Assets/copy.png", g2)], cache, NoHash);
+        Check(actions.Count == 1 && actions[0] is { Kind: AssetReconcileKind.Regenerate, Path: "Assets/copy.png" }, "duplicate GUID: the copy gets a new one: " + Describe(actions));
+
+        actions = AssetReconciler.Reconcile([new("Assets/x.png", 5, 1)], [new("Assets/x.png", "bad")], noCache, NoHash);
+        Check(actions.Count == 1 && actions[0].Kind == AssetReconcileKind.Regenerate, "invalid GUID regenerated: " + Describe(actions));
+
+        actions = AssetReconciler.Reconcile([new("Assets/k.png", 5, 1), new("Assets/m/k.png", 5, 1)], [new("Assets/k.png", g3), new("Assets/old/k.png", g3)], noCache, NoHash);
+        Check(actions.Count == 2 && actions.Any(a => a is { Kind: AssetReconcileKind.Create, Path: "Assets/m/k.png" }) && actions.Any(a => a is { Kind: AssetReconcileKind.Delete, Path: "Assets/old/k.png" }),
+            "orphan whose GUID is still live is never recovered: " + Describe(actions));
+
+        actions = AssetReconciler.Reconcile([new("Assets/gone.png", 1, 1)], [new("Assets/gone.png", g1), new("Assets/deleted.png", g2)], noCache, NoHash);
+        Check(actions.Count == 1 && actions[0] is { Kind: AssetReconcileKind.Delete, Path: "Assets/deleted.png" }, "deleted asset: orphan meta deleted: " + Describe(actions));
     }
 }

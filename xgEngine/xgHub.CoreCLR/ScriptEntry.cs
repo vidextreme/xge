@@ -13,7 +13,7 @@ namespace xgHub.CoreCLR
         public static int Init(nint enginePtr, uint moduleID)
         {
             ScriptRuntime.Initialize(enginePtr, moduleID);
-            if (!UIHost.Start(saveLayout: false))
+            if (!UIHost.Start(saveLayout: false, customFrame: true))
             {
                 Debug.LogError("[Hub] UI host failed to start");
                 return 0;

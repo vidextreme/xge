@@ -48,8 +48,8 @@ namespace xg.imui
             }
             else if (on)
             {
-                icon = Style.Color(StyleColor.TextOnAccent);
-                text = icon;
+                text = Style.Color(StyleColor.TextOnAccent);
+                icon = iconColor ?? text;
             }
             else
             {
@@ -90,8 +90,8 @@ namespace xg.imui
             return MathF.Ceiling(width + 4.0f);
         }
 
-        // Draws the button in rect (current draw space) and returns its hit result. A null label draws the icon only;
-        // badge is dim text after the label (a count). The tooltip shows on hover.
+        // Draws the button in rect (current draw space) and returns its hit result. A null label and badge draw the icon
+        // only; badge is dim text after the label, or after the icon without a label (a count). The tooltip shows on hover.
         public static Result Draw(Painter draw, string id, Rect rect, Icon icon, Color32? iconColor, string? label, string? badge,
             string? tooltip, bool on, bool enabled, ToggleDot dot)
         {
@@ -102,15 +102,23 @@ namespace xg.imui
             Colors(on, enabled, iconColor, out Color32 iconTint, out Color32 text);
             float cy = rect.min.y + rect.Height * 0.5f;
             float lineHeight = Gui.MeasureText("A").y;
-            bool iconOnly = string.IsNullOrEmpty(label);
+            bool hasLabel = !string.IsNullOrEmpty(label);
+            bool iconOnly = !hasLabel && string.IsNullOrEmpty(badge);
             float x = iconOnly ? rect.min.x + (rect.Width - IconSize) * 0.5f : rect.min.x + 6.0f;
             if (icon != Icon.None)
+            {
                 draw.Icon(icon, new Vector2(x + IconSize * 0.5f, cy), IconSize, iconTint);
-            x += IconSize + 6.0f;
+                x += IconSize + 6.0f;
+            }
+            else if (hasLabel && string.IsNullOrEmpty(badge))
+                x = MathF.Round(rect.min.x + (rect.Width - Gui.MeasureText(label!).x) * 0.5f);
             if (!iconOnly)
             {
-                draw.Text(new Vector2(x, MathF.Round(cy - lineHeight * 0.5f)), text, label!);
-                x += Gui.MeasureText(label!).x + 6.0f;
+                if (hasLabel)
+                {
+                    draw.Text(new Vector2(x, MathF.Round(cy - lineHeight * 0.5f)), text, label!);
+                    x += Gui.MeasureText(label!).x + 6.0f;
+                }
                 if (!string.IsNullOrEmpty(badge))
                 {
                     Color32 badgeColor = on ? text : Style.Color(StyleColor.TextDim);

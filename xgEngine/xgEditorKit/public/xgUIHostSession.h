@@ -14,6 +14,8 @@ namespace xg
     {
         bool PrototypeShell = false;
         bool MultiViewport = false;
+        // The editor's theme and window frame, for a host without the prototype shell.
+        bool CustomFrame = false;
         const char* FontDirectory = "../editor/fonts";
         const char* IconPath = "../editor/xge-icon.bmp";
         // Window layout file; null = "imgui.ini", "" = no layout file.

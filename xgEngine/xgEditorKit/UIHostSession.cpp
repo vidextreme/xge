@@ -50,7 +50,8 @@ namespace xg
         desc.MainWindow = window;
         desc.RenderTarget = _target;
         desc.Flags = (options.PrototypeShell ? imui::HostFlags::PrototypeShell : imui::HostFlags::None)
-            | (options.MultiViewport ? imui::HostFlags::MultiViewport : imui::HostFlags::None);
+            | (options.MultiViewport ? imui::HostFlags::MultiViewport : imui::HostFlags::None)
+            | (options.CustomFrame ? imui::HostFlags::CustomFrame : imui::HostFlags::None);
         desc.Platform = GetPlatformServices();
         desc.FontDirectory = options.FontDirectory;
         desc.LayoutFile = options.LayoutFile;

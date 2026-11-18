@@ -140,6 +140,16 @@ namespace xgEditor.CoreCLR
             string? navDetailSort = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_DETAILSORT");
             if (!string.IsNullOrEmpty(navDetailSort))
                 navigator.SetDetailSort(navDetailSort);
+            string? navRename = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_RENAME");
+            int renameColon = navRename?.LastIndexOf(':') ?? -1;
+            if (navRename is not null && renameColon > 0)
+            {
+                string? error = ProjectService.Assets?.Rename(navRename[..renameColon], navRename[(renameColon + 1)..]);
+                Debug.Log($"[Debug] Navigator rename {navRename}: {error ?? "ok"}");
+            }
+            string? navRenameOpen = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_RENAME_OPEN");
+            if (!string.IsNullOrEmpty(navRenameOpen))
+                navigator.OpenRename(navRenameOpen, 30);
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "navigator")
                 navigator.Focus();
 
@@ -190,6 +200,7 @@ namespace xgEditor.CoreCLR
         [UnmanagedCallersOnly]
         public static void Update(float dt)
         {
+            ProjectService.Assets?.Update();
             long frames = ActorRegistry.FrameCount;
             if (frames == 1 && !_clock.IsRunning)
             {
@@ -217,6 +228,7 @@ namespace xgEditor.CoreCLR
         public static void Shutdown()
         {
             xg.imui.ImUI.ShutdownAll();
+            ProjectService.Assets?.Flush();
             EditorLog.Detach();
             ScriptRuntime.Shutdown();
         }

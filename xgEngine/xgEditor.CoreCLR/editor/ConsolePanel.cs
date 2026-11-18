@@ -20,6 +20,8 @@ namespace xgEditor.CoreCLR
         private const float MinPaneHeight = 40.0f;
         private const float ScrollbarAllowance = 16.0f;
         private const float ToggleSpacing = 8.0f;
+        private const float ToggleGap = 2.0f;
+        private const float ToggleHeight = 22.0f;
         private const float DetailPadding = 6.0f;
         private const float CardHeaderHeight = 34.0f;
 
@@ -146,9 +148,17 @@ namespace xgEditor.CoreCLR
                     EditorLog.Clear();
                     Select(null);
                 }
-                if (Gui.Toggle("Collapse", ref _collapse))
-                    _dirty = true;
-                Gui.Toggle("Timestamps", ref _timestamps);
+                float collapseWidth = MathF.Ceiling(Gui.MeasureText("Collapse").x + 24.0f);
+                float timestampsWidth = MathF.Ceiling(Gui.MeasureText("Timestamps").x + 24.0f);
+                using (var canvas = Gui.Canvas("##console_options", new Vector2(collapseWidth + ToggleGap + timestampsWidth, ToggleHeight)))
+                {
+                    Painter draw = canvas.Draw;
+                    if (DrawToggle(draw, "##collapse", Rect.FromXYWH(0.0f, 0.0f, collapseWidth, ToggleHeight), "Collapse",
+                        "Collapse identical messages", ref _collapse))
+                        _dirty = true;
+                    DrawToggle(draw, "##timestamps", Rect.FromXYWH(collapseWidth + ToggleGap, 0.0f, timestampsWidth, ToggleHeight), "Timestamps",
+                        "Show the time of each message", ref _timestamps);
+                }
                 Gui.Space(8.0f);
                 if (Gui.SearchField("##console_search", _search, 220.0f))
                     _dirty = true;
@@ -165,6 +175,14 @@ namespace xgEditor.CoreCLR
                     }
                 }
             }
+        }
+
+        private static bool DrawToggle(Painter draw, string id, Rect rect, string label, string tooltip, ref bool on)
+        {
+            if (!ToggleButton.Draw(draw, id, rect, Icon.None, null, label, null, tooltip, on, true, ToggleDot.State).Clicked())
+                return false;
+            on = !on;
+            return true;
         }
 
         private void DrawList(float width, bool grew)

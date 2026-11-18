@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
+using xg.editor;
 using xg.imui;
 using xg.math;
 
@@ -42,13 +43,16 @@ namespace xgEditor.CoreCLR
         public string Extension { get; }
         public AssetKind Kind { get; }
         public DateTime Modified { get; }
+        public long ModifiedTicksUtc => Modified.ToUniversalTime().Ticks;
         // File size in bytes (0 for folders).
         public long Size { get; }
         public bool IsFolder => Kind == AssetKind.Folder;
     }
 
     // Everything under the project's Assets folder, rescanned when a directory changes (checked at most once a second)
-    // or on request. Version changes after every rescan so views can rebuild their caches.
+    // or on request. Version changes after every rescan so views can rebuild their caches. Meta files never become
+    // entries (the Navigator never sees them); MetaFiles lists them for the asset database. Hidden names (".x") and
+    // temporary files ("x~", "x.tmp") are skipped.
     public sealed class AssetIndex
     {
         public const string RootFolder = "Assets";
@@ -72,6 +76,7 @@ namespace xgEditor.CoreCLR
         private readonly Dictionary<string, AssetEntry> _byPath = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, List<AssetEntry>> _children = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _directories = new();
+        private readonly List<string> _metaFiles = new();
         private DateTime _stamp;
         private long _lastCheck;
 
@@ -87,6 +92,8 @@ namespace xgEditor.CoreCLR
         public IReadOnlyList<AssetEntry> Entries => _entries;
         // Every directory path ("Assets", "Assets/Scripts", ...) in path order.
         public IReadOnlyList<string> Directories => _directories;
+        // Project-relative paths of every meta file ("Assets/Sword.png.xgm").
+        public IReadOnlyList<string> MetaFiles => _metaFiles;
 
         public AssetEntry? Find(string relPath) => _byPath.TryGetValue(Normalize(relPath), out AssetEntry? entry) ? entry : null;
 
@@ -192,6 +199,7 @@ namespace xgEditor.CoreCLR
             _byPath.Clear();
             _children.Clear();
             _directories.Clear();
+            _metaFiles.Clear();
             _directories.Add(RootFolder);
             _children[RootFolder] = new List<AssetEntry>();
             _stamp = ComputeStamp();
@@ -232,8 +240,13 @@ namespace xgEditor.CoreCLR
             foreach (string file in files)
             {
                 string name = Path.GetFileName(file);
-                if (name.StartsWith('.'))
+                if (name.StartsWith('.') || name.EndsWith('~') || name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
                     continue;
+                if (AssetMeta.IsMetaPath(name))
+                {
+                    _metaFiles.Add(relDir + "/" + name);
+                    continue;
+                }
                 FileInfo info = new(file);
                 Add(new AssetEntry(relDir + "/" + name, file, KindOf(Path.GetExtension(name).TrimStart('.')), info.LastWriteTime, info.Length));
             }

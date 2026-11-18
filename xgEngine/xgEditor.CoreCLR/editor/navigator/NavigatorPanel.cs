@@ -81,6 +81,8 @@ namespace xgEditor.CoreCLR
         private const string ContextPopupId = "nav_context";
         private const string KindMorePopupId = "nav_kind_more";
         private const string EditTagsModalId = "nav_edit_tags";
+        private const string RenameModalId = "nav_rename";
+        private const string TagModalId = "nav_tag";
 
         private static readonly AssetKind[] _filterKinds =
         {
@@ -101,7 +103,12 @@ namespace xgEditor.CoreCLR
         private readonly Dictionary<string, (Texture? Texture, DateTime Modified)> _thumbnails = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<(string, int), string> _ellipsized = new();
 
-        private string? _projectRoot;
+        private readonly TextBuffer _renameText = new(256);
+        private readonly TextBuffer _tagRenameText = new(128);
+        private readonly TextBuffer _tagDescriptionText = new(256);
+
+        private AssetDatabase? _db;
+        private int _seenIndexVersion = -1;
         private AssetIndex? _index;
         private AssetTags? _tags;
         private Bookmarks? _bookmarks;
@@ -141,6 +148,15 @@ namespace xgEditor.CoreCLR
         private string? _typeTags;
         private string? _pendingFolder;
         private int _typeTagsIn;
+        private bool _openRename;
+        private string? _renameHookPath;
+        private int _renameHookIn;
+        private bool _renameSetText;
+        private string? _renamePath;
+        private string? _renameError;
+        private bool _openTag;
+        private bool _tagConfirmDelete;
+        private string? _tagEdit;
 
         public override string Title => "Navigator";
 
@@ -240,8 +256,9 @@ namespace xgEditor.CoreCLR
                 return;
             }
 
-            if (_index!.Refresh())
+            if (_index!.Version != _seenIndexVersion)
             {
+                _seenIndexVersion = _index.Version;
                 _thumbnails.Clear();
                 if (!_index.IsDirectory(_folder))
                     _folder = AssetIndex.RootFolder;
@@ -276,19 +293,25 @@ namespace xgEditor.CoreCLR
             }
 
             DrawEditTagsModal();
+            DrawRenameModal();
+            DrawTagModal();
         }
 
         private bool EnsureProject()
         {
-            ProjectInfo? project = ProjectService.Current;
-            if (project is null)
+            AssetDatabase? db = ProjectService.Assets;
+            if (db is null)
                 return false;
-            if (_projectRoot != project.Root)
+            if (_db != db)
             {
-                _projectRoot = project.Root;
-                _index = new AssetIndex(project.Root);
-                _tags = AssetTags.Load(project.Root, _index);
-                _bookmarks = Bookmarks.Load(project.Root);
+                if (_db is not null)
+                    _db.Moved -= OnAssetMoved;
+                _db = db;
+                _db.Moved += OnAssetMoved;
+                _index = db.Index;
+                _tags = db.Tags;
+                _bookmarks = db.Bookmarks;
+                _seenIndexVersion = _index.Version;
                 _thumbnails.Clear();
                 _folder = AssetIndex.RootFolder;
                 _history.Push(CurrentState());
@@ -308,6 +331,11 @@ namespace xgEditor.CoreCLR
         {
             if (_openBookmarksIn > 0 && --_openBookmarksIn == 0)
                 _openBookmarks = true;
+            if (_renameHookPath is not null && _renameHookIn > 0 && --_renameHookIn == 0)
+            {
+                OpenRename(_renameHookPath);
+                _renameHookPath = null;
+            }
             if (_typeTags is not null && _typeTagsIn > 0 && --_typeTagsIn == 0)
             {
                 if (_mode != NavigatorMode.Tags)
@@ -394,7 +422,7 @@ namespace xgEditor.CoreCLR
             IEnumerable<AssetEntry> source = _mode switch
             {
                 NavigatorMode.Directory => index.Children(_folder),
-                NavigatorMode.Tags => _tagInput.Query.IsEmpty ? Enumerable.Empty<AssetEntry>() : index.Entries.Where(e => !e.IsFolder && _tagInput.Query.Matches(e, tags)),
+                NavigatorMode.Tags => TagSource(index, tags),
                 _ => SearchSource(index, tags),
             };
             foreach (AssetEntry entry in source)
@@ -478,6 +506,17 @@ namespace xgEditor.CoreCLR
             if (size < 1024 * 1024)
                 return $"{size / 1024.0:0.#} KB";
             return $"{size / (1024.0 * 1024.0):0.#} MB";
+        }
+
+        private IEnumerable<AssetEntry> TagSource(AssetIndex index, AssetTags tags)
+        {
+            TagQuery query = _tagInput.Query;
+            if (query.IsEmpty)
+                return Enumerable.Empty<AssetEntry>();
+            HashSet<string>? paths = query.MatchingPaths(tags);
+            if (paths is null)
+                return index.Entries.Where(e => !e.IsFolder && query.Matches(e, tags));
+            return paths.Select(index.Find).OfType<AssetEntry>();
         }
 
         private IEnumerable<AssetEntry> SearchSource(AssetIndex index, AssetTags tags)
@@ -581,7 +620,7 @@ namespace xgEditor.CoreCLR
                         ApplyState(forward, false);
                     if (SegGlyph(draw, "##refresh", cells[2], "Refresh", false, true, DrawRefresh).Clicked())
                     {
-                        _index!.Refresh(true);
+                        _db!.Refresh();
                         _thumbnails.Clear();
                     }
                     if (SegIcon(draw, "##bookmarks", cells[3], Icon.Star, "Bookmarks", false, true).Clicked())
@@ -747,8 +786,15 @@ namespace xgEditor.CoreCLR
                     hit = Gui.HitArea("##tag_row", row);
                 if (hit.Hovered())
                     draw.RectFilled(row, Style.Color(StyleColor.Accent), 3.0f);
+                bool user = !all[i].Tag.StartsWith('@');
+                if (user)
+                {
+                    string description = _tags.Description(all[i].Tag);
+                    Gui.Tooltip(description.Length > 0 ? description + "\nRight-click to rename, describe or delete" : "Right-click to rename, describe or delete");
+                }
                 Color32 text = hit.Hovered() ? Style.Color(StyleColor.TextOnAccent) : Style.Color(StyleColor.Text);
-                draw.Icon(all[i].Tag.StartsWith('@') ? Icon.File : Icon.Tag, new Vector2(row.min.x + 10.0f, row.min.y + RowHeight * 0.5f), 12.0f, text);
+                Color32 iconColor = !hit.Hovered() && user && _tags.Color(all[i].Tag) is Color32 tint ? tint : text;
+                draw.Icon(user ? Icon.Tag : Icon.File, new Vector2(row.min.x + 10.0f, row.min.y + RowHeight * 0.5f), 12.0f, iconColor);
                 draw.Text(new Vector2(row.min.x + 22.0f, row.min.y + textY), text, all[i].Tag);
                 string count = all[i].Count.ToString();
                 draw.Text(new Vector2(row.max.x - Gui.MeasureText(count).x - 8.0f, row.min.y + textY), hit.Hovered() ? text : Style.Color(StyleColor.TextDim), count);
@@ -756,6 +802,11 @@ namespace xgEditor.CoreCLR
                 {
                     _tagInput.AddChip(all[i].Tag, false);
                     _history.Push(CurrentState());
+                    Gui.ClosePopup();
+                }
+                else if (user && (hit & Result.RightClicked) != 0)
+                {
+                    OpenTagModal(all[i].Tag);
                     Gui.ClosePopup();
                 }
             }
@@ -1521,7 +1572,7 @@ namespace xgEditor.CoreCLR
             if (!popup.IsOpen || _contextPath is null)
                 return;
             bool bookmarked = _bookmarks!.IsBookmarked(_contextPath);
-            using var canvas = Gui.Canvas("##nav_context_rows", new Vector2(width, 3.0f * (SegHeight + 2.0f) + 6.0f));
+            using var canvas = Gui.Canvas("##nav_context_rows", new Vector2(width, 4.0f * (SegHeight + 2.0f) + 6.0f));
             Painter draw = canvas.Draw;
             float inner = width - 8.0f;
             AssetEntry? entry = _index!.Find(_contextPath);
@@ -1548,6 +1599,157 @@ namespace xgEditor.CoreCLR
                 RevealInExplorer(entry.FullPath);
                 Gui.ClosePopup();
             }
+            if (ToggleButton.Draw(draw, "##ctx_rename", Rect.FromXYWH(4.0f, 10.0f + SegHeight * 3.0f, inner, SegHeight), Icon.File, null,
+                "Rename...", null, null, false, entry is not null, ToggleDot.None).Clicked() && entry is not null)
+            {
+                OpenRename(entry.RelPath);
+                Gui.ClosePopup();
+            }
+        }
+
+        // ------------------------------------------------------------
+        // Rename and tag management
+        // ------------------------------------------------------------
+        // Opens the Rename modal for an asset or folder, after the given number of frames (test hooks).
+        public void OpenRename(string relPath, int frames = 0)
+        {
+            if (frames > 0)
+            {
+                _renameHookPath = relPath;
+                _renameHookIn = frames;
+                return;
+            }
+            _renamePath = relPath;
+            _renameText.Text = Path.GetFileName(relPath);
+            _renameError = null;
+            _renameSetText = true;
+            _openRename = true;
+        }
+
+        private void DrawRenameModal()
+        {
+            if (_openRename)
+            {
+                _openRename = false;
+                Gui.OpenPopup(RenameModalId);
+            }
+            using var modal = Gui.Modal(RenameModalId, "Rename", new Vector2(360.0f, 0.0f));
+            if (!modal.IsOpen || _renamePath is null)
+                return;
+            Gui.Label(_renamePath);
+            Gui.Space(4.0f);
+            if (_renameSetText)
+                Gui.FocusNext();
+            TextFieldFlags flags = _renameSetText ? TextFieldFlags.SetText : TextFieldFlags.None;
+            _renameSetText = false;
+            if ((Gui.TextField("##nav_rename_name", _renameText, "New name", 0.0f, flags) & Result.Changed) != 0)
+                _renameError = AssetDatabase.ValidateName(_renameText.Text.Trim());
+            if (_renameError is not null)
+            {
+                using var error = Gui.Canvas("##nav_rename_error", new Vector2(0.0f, 18.0f));
+                error.Draw.Text(new Vector2(0.0f, 2.0f), Style.Color(StyleColor.IconWarning), _renameError);
+            }
+            Gui.Space(6.0f);
+            bool commit = Gui.KeyPressed(Key.Enter, false);
+            using (Gui.Horizontal())
+            {
+                Gui.FlexibleSpace();
+                if (Gui.Button("Cancel") || Gui.KeyPressed(Key.Escape, false))
+                {
+                    Gui.ClosePopup();
+                    return;
+                }
+                commit |= Gui.Button("Rename");
+            }
+            if (!commit)
+                return;
+            string? result = _db!.Rename(_renamePath, _renameText.Text);
+            if (result is null)
+                Gui.ClosePopup();
+            else
+                _renameError = result;
+        }
+
+        private void OpenTagModal(string tag)
+        {
+            _tagEdit = tag;
+            _tagRenameText.Text = tag;
+            _tagDescriptionText.Text = _tags!.Description(tag);
+            _tagConfirmDelete = false;
+            _openTag = true;
+        }
+
+        private void DrawTagModal()
+        {
+            if (_openTag)
+            {
+                _openTag = false;
+                Gui.OpenPopup(TagModalId);
+            }
+            using var modal = Gui.Modal(TagModalId, "Tag", new Vector2(360.0f, 0.0f));
+            if (!modal.IsOpen || _tagEdit is null)
+                return;
+            AssetTags tags = _tags!;
+            int count = tags.PathsWithTag(_tagEdit).Count();
+            Gui.Label($"'{_tagEdit}' is on {count} asset(s)");
+            Gui.Space(4.0f);
+            Gui.Field("Name", _tagRenameText);
+            Gui.Field("Description", _tagDescriptionText);
+            Gui.Space(6.0f);
+            using (Gui.Horizontal())
+            {
+                if (!_tagConfirmDelete)
+                {
+                    if (Gui.Button("Delete from all assets"))
+                        _tagConfirmDelete = true;
+                }
+                else if (Gui.Button($"Really delete from {count} asset(s)"))
+                {
+                    tags.Delete(_tagEdit);
+                    _tagInput.SetQuery(string.Join(' ', _tagInput.Query.Chips.Where(c => c.Tag != _tagEdit)));
+                    Gui.ClosePopup();
+                    return;
+                }
+                Gui.FlexibleSpace();
+                if (Gui.Button("Cancel"))
+                {
+                    Gui.ClosePopup();
+                    return;
+                }
+                if (Gui.Button("Save"))
+                {
+                    string name = AssetTags.NormalizeTag(_tagRenameText.Text);
+                    if (name.Length > 0 && !name.StartsWith('@') && name != _tagEdit)
+                    {
+                        tags.Rename(_tagEdit, name);
+                        _tagInput.SetQuery(string.Join(' ', _tagInput.Query.Chips.Select(c => c.Tag == _tagEdit ? c with { Tag = name } : c)));
+                        _tagEdit = name;
+                    }
+                    tags.SetDescription(_tagEdit, _tagDescriptionText.Text);
+                    Gui.ClosePopup();
+                }
+            }
+        }
+
+        private void OnAssetMoved(AssetMove move)
+        {
+            _folder = move.Apply(_folder);
+            if (_selected is not null)
+                _selected = move.Apply(_selected);
+            if (_contextPath is not null)
+                _contextPath = move.Apply(_contextPath);
+            if (_editTagsPath is not null)
+                _editTagsPath = move.Apply(_editTagsPath);
+            if (move.IsFolder)
+            {
+                List<string> expanded = _expanded.Select(move.Apply).ToList();
+                _expanded.Clear();
+                _expanded.UnionWith(expanded);
+                _history.Remap(move.Apply);
+                if (_mode == NavigatorMode.Directory)
+                    _pathField.SetText(_folder, false);
+            }
+            _thumbnails.Clear();
         }
 
         private void DrawEditTagsModal()

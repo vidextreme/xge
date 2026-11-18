@@ -165,6 +165,8 @@ namespace xg::imui
         PrototypeShell = 1 << 0,
         // Panels dragged outside the main window become OS windows. Needs Platform and a render target with surfaces.
         MultiViewport  = 1 << 1,
+        // Editor theme and window frame (title bar, window buttons, resize edges) without the rest of the shell.
+        CustomFrame    = 1 << 2,
     };
     XG_ENABLE_FLAGS(HostFlags)
 
