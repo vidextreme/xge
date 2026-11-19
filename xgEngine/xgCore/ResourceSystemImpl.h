@@ -1,10 +1,12 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
+#include <mutex>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include "xgJobs.h"
 #include "xgResources.h"
 
 namespace xg
@@ -13,7 +15,7 @@ namespace xg
     {
         XG_DECLARE_SUBSYSTEM(ResourceSystemImpl, ResourceSystem)
     public:
-        ResourceSystemImpl();
+        explicit ResourceSystemImpl(JobSystem* jobs);
         ~ResourceSystemImpl() override;
 
         void Shutdown() override;
@@ -31,6 +33,11 @@ namespace xg
 
         void ReleaseModule(uint32_t moduleId) override;
         void Collect() override;
+        ResourceState Wait(ResourceHandle handle) override;
+        uint32_t AddDirectorySource(uint32_t moduleId, const char* root) override;
+        bool RemoveSource(uint32_t moduleId, uint32_t source) override;
+        bool ReadFile(const ResourceGUID* file, const char* extension, ResourceBlob* out) override;
+        void FreeBlob(ResourceBlob* blob) override;
 
     private:
         struct TypeEntry
@@ -57,7 +64,30 @@ namespace xg
             void* Data = nullptr;
             uint32_t TotalReferences = 0;
             std::vector<ModuleReference> References;
+            JobHandle Job = 0;
         };
+
+        struct Source
+        {
+            uint32_t Id = 0;
+            uint32_t Module = 0;
+            std::string Root;
+        };
+
+        struct LoadTask
+        {
+            ResourceSystemImpl* System = nullptr;
+            ResourceHandle Handle = 0;
+            ResourceID Id = {};
+            ResourceTypeDesc Desc = {};
+            void* Data = nullptr;
+            bool Loaded = false;
+        };
+
+        static void RunLoad(void* user);
+        static void RunComplete(void* user);
+        void CompleteLoad(LoadTask& task);
+        void WaitForJobs(ResourceTypeID type);
 
         struct Key
         {
@@ -85,5 +115,9 @@ namespace xg
         std::vector<ResourceHandle> _unloadQueue;
         std::unordered_map<Key, uint32_t, KeyHash> _lookup;
         std::thread::id _mainThread;
+        JobSystem* _jobs = nullptr;
+        mutable std::mutex _sourceMutex;
+        std::vector<Source> _sources;
+        uint32_t _nextSource = 1;
     };
 }

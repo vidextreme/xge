@@ -20,6 +20,8 @@
 #include "DynamicObjectImpl.h"
 #include "ActorRegistryImpl.h"
 #include "ResourceSystemImpl.h"
+#include "JobSystemImpl.h"
+#include "TextureResources.h"
 #include "LoggerImpl.h"
 #include "SceneGraphFactoryImpl.h"
 
@@ -30,8 +32,11 @@
 #include "CodecBinary.h"
 #include "xgEnv.h"
 
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
+#include <set>
+#include <thread>
 
 namespace xg
 {    
@@ -74,7 +79,9 @@ namespace xg
         //auto ha = MessengerImpl::SuperTypeID;
 		RegisterSubsystem(_rootModule, new MessengerImpl(_scriptTree));
         RegisterSubsystem(_rootModule, new ActorRegistryImpl());
-        RegisterSubsystem(_rootModule, new ResourceSystemImpl());
+        auto* jobs = new JobSystemImpl();
+        RegisterSubsystem(_rootModule, jobs);
+        RegisterSubsystem(_rootModule, new ResourceSystemImpl(jobs));
         
         auto eventDispatcher = new EventDispatcherImpl();
         RegisterSubsystem(_rootModule, eventDispatcher);
@@ -156,18 +163,80 @@ namespace xg
         if (config.RendererModule && !SetRendererModule(config.RendererModule))
             return false;
 
+        if (xg::EnvEquals("XG_JOB_TEST", "1"))
+            RunJobTest();
+
         return true;
     }
 
     bool Engine::SetRendererModule(const char* path)
     {
+        ResourceSystem* resources = GetSubsystem<ResourceSystem>();
+        if (resources && _textureType != 0)
+            resources->UnregisterType(_rootModule->GetModuleId(), _textureType);
+        _textureType = 0;
         Renderer.reset();
 
         xg::RendererDLL = path;
         xg::RendererLib = nullptr;
 
         Renderer = CreateRenderer(*MainWindow);
-        return Renderer.valid();
+        if (!Renderer.valid())
+            return false;
+        if (resources)
+            _textureType = RegisterTextureResources(*resources, _rootModule->GetModuleId(), Renderer.get());
+        return true;
+    }
+
+    namespace
+    {
+        struct JobTest
+        {
+            static constexpr int Count = 16;
+            std::atomic<int> Ran{ 0 };
+            std::mutex Mutex;
+            std::set<std::thread::id> Threads;
+            std::thread::id Main;
+        };
+
+        void RunJobTestWork(void* user)
+        {
+            auto* test = static_cast<JobTest*>(user);
+            std::this_thread::sleep_for(std::chrono::milliseconds(4));
+            {
+                std::lock_guard<std::mutex> lock(test->Mutex);
+                test->Threads.insert(std::this_thread::get_id());
+            }
+            ++test->Ran;
+        }
+
+        void RunJobTestJoin(void* user)
+        {
+            auto* test = static_cast<JobTest*>(user);
+            xg::Log(xg::MessageType::Info, "[Jobs] continuation after %d/%d jobs, on the main thread: %s, worker threads used: %d",
+                test->Ran.load(), JobTest::Count, std::this_thread::get_id() == test->Main ? "yes" : "no", static_cast<int>(test->Threads.size()));
+            delete test;
+        }
+    }
+
+    // XG_JOB_TEST=1: fan out worker jobs, join them in a main-thread continuation (run by the first frame's PumpMain).
+    void Engine::RunJobTest()
+    {
+        JobSystem* jobs = GetSubsystem<JobSystem>();
+        if (!jobs)
+            return;
+        auto* test = new JobTest();
+        test->Main = std::this_thread::get_id();
+        std::vector<JobHandle> work;
+        for (int i = 0; i < JobTest::Count; ++i)
+        {
+            const JobDesc desc{ &RunJobTestWork, test, nullptr, 0, JobQueue::Worker, 0 };
+            work.push_back(jobs->Schedule(&desc));
+        }
+        const JobDesc join{ &RunJobTestJoin, test, work.data(), static_cast<uint32_t>(work.size()), JobQueue::Main, 0 };
+        const JobHandle joined = jobs->Schedule(&join);
+        xg::Log(xg::MessageType::Info, "[Jobs] %u worker(s), scheduled %d jobs and a continuation (done before the frame: %s)",
+            jobs->WorkerCount(), JobTest::Count, jobs->IsDone(joined) ? "yes" : "no");
     }
 
     static bool IsCoreCLRModule(const char* path)
@@ -418,6 +487,8 @@ namespace xg
 
                 ScriptHost* host = module->GetHost();
                 module->Shutdown();
+                if (JobSystem* jobs = GetSubsystem<JobSystem>())
+                    jobs->WaitModule(module->GetModuleId());
                 if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
                     resources->ReleaseModule(module->GetModuleId());
                 delete module;
@@ -447,6 +518,7 @@ namespace xg
     void Engine::Run()
     {
         static constexpr float MaxDeltaTime = 0.25f;
+        static constexpr float MainJobBudget = 0.008f;
 
         using Clock = std::chrono::steady_clock;
         EventQueue* eventQueue = GetSubsystem<EventQueue>();
@@ -473,6 +545,9 @@ namespace xg
             if (eventQueue)
                 eventQueue->Clear();
             MainWindow->PollEvents();
+
+            if (JobSystem* jobs = GetSubsystem<JobSystem>())
+                jobs->PumpMain(MainJobBudget);
 
             _scriptTree->Update(dt);
 
@@ -552,12 +627,16 @@ namespace xg
 
             ScriptHost* host = module->GetHost();
             module->Shutdown();
+            if (JobSystem* jobs = GetSubsystem<JobSystem>())
+                jobs->WaitModule(module->GetModuleId());
             if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
                 resources->ReleaseModule(module->GetModuleId());
             delete module;
             XG_RELEASE_ONE(host);
         }
 
+        if (JobSystem* jobs = GetSubsystem<JobSystem>())
+            jobs->WaitIdle();
         _scriptTree->Shutdown();
 
         // Destroy hosts

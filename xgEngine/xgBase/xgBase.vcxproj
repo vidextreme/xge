@@ -129,6 +129,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgActorRegistry.h" />
     <ClInclude Include="public\xgResources.h" />
+    <ClInclude Include="public\xgJobs.h" />
     <ClInclude Include="public\xgChunkFile.h" />
     <ClInclude Include="public\xgBase.h" />
     <ClInclude Include="public\xgCodecRegistry.h" />

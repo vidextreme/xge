@@ -31,6 +31,11 @@ namespace xg {
         void DestroyRenderView(uint64_t id) override;
         void SetRenderViewCamera(uint64_t id, const RenderViewCamera* camera) override;
 
+        bool SupportsTextureFormat(TextureFormat format) const override;
+        uint64_t CreateTexture(const TextureDesc* desc, const TextureMip* mips) override;
+        void DestroyTexture(uint64_t id) override;
+        void SetRenderViewTexture(uint64_t viewId, uint64_t textureId, RenderViewTextureMode mode) override;
+
         bool SupportsSurfaces() const override { return !_failed; }
         uint64_t CreateUISurface(Window& window) override;
         void DestroyUISurface(uint64_t surface) override;
@@ -45,6 +50,8 @@ namespace xg {
             ComPtr<ID3D12Resource> Resource;
             int32_t Width = 0;
             int32_t Height = 0;
+            // Created by CreateTexture (any format, mips): not updatable with UpdateUITexture.
+            bool Sampled = false;
         };
 
         static constexpr UINT FrameCount = 2;
@@ -101,9 +108,12 @@ namespace xg {
             UINT Width = 0;
             UINT Height = 0;
             RenderViewCamera Camera = {};
+            uint64_t Texture = 0;
+            RenderViewTextureMode Mode = RenderViewTextureMode::Color;
         };
 
         bool CreateScenePipeline();
+        bool CreateTexturedPipeline();
         bool CreateRenderViewTargets(RenderView& view, UINT width, UINT height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);
@@ -142,17 +152,24 @@ namespace xg {
 
         static constexpr UINT MaxRenderViews = 16;
         static constexpr DXGI_FORMAT DepthFormat = DXGI_FORMAT_D32_FLOAT;
+        // Render view color: typeless storage, written through an sRGB RTV (shaders output linear color) and read by
+        // the UI through a UNORM SRV.
+        static constexpr DXGI_FORMAT ViewColorStorage = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+        static constexpr DXGI_FORMAT ViewColorTarget = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         std::vector<RenderView> _renderViews;
         std::vector<UINT> _freeViewTargets;
         ComPtr<ID3D12DescriptorHeap> _viewRtvHeap;
         ComPtr<ID3D12DescriptorHeap> _viewDsvHeap;
         UINT _dsvDescriptorSize = 0;
         ComPtr<ID3D12RootSignature> _sceneRootSignature;
-        ComPtr<ID3D12PipelineState> _sceneTrianglePipeline;
         ComPtr<ID3D12PipelineState> _sceneLinePipeline;
         ComPtr<ID3D12Resource> _sceneVertexBuffer;
-        UINT _sceneTriangleCount = 0;
         UINT _sceneLineVertexCount = 0;
+        ComPtr<ID3D12RootSignature> _texturedRootSignature;
+        ComPtr<ID3D12PipelineState> _texturedPipeline;
+        ComPtr<ID3D12Resource> _cubeVertexBuffer;
+        UINT _cubeVertexCount = 0;
+        uint64_t _whiteTexture = 0;
     };
 
 }

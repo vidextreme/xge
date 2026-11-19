@@ -13,6 +13,9 @@ namespace xgEditor.CoreCLR
         private ulong _view;
         private int _width;
         private int _height;
+        private ulong _texture;
+        private int _textureMode;
+        private ulong _textureView;
 
         public override DockSlot Slot => DockSlot.Center;
         public override PanelFlags Flags => PanelFlags.NoPadding | PanelFlags.NoScrollbar;
@@ -28,6 +31,14 @@ namespace xgEditor.CoreCLR
 
         // Reads View's input and sets the camera properties.
         protected abstract void UpdateView();
+
+        // Shows a renderer texture on the view's test cube (0 = none). mode: 0 color, 1 normal, 2 luminance.
+        public void SetTexture(ulong textureId, int mode)
+        {
+            _texture = textureId;
+            _textureMode = mode;
+            _textureView = 0;
+        }
 
         protected override void OnGUI()
         {
@@ -62,6 +73,11 @@ namespace xgEditor.CoreCLR
             camera.FarZ = CameraFarZ;
             camera.ClearColor = ClearColor;
             SceneViews.SetCamera(_view, &camera);
+            if (_textureView != _view)
+            {
+                SceneViews.SetTexture(_view, _texture, _textureMode);
+                _textureView = _view;
+            }
         }
 
         protected override void OnDestroy()

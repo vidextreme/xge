@@ -89,7 +89,33 @@ namespace xg
         public override int GetHashCode() => Value.GetHashCode();
     }
 
+    // GPU texture formats (xg::TextureFormat; the editor's TextureHardwareFormat values).
+    public enum TextureFormat : uint
+    {
+        RGBA8 = 1,
+        BC1 = 2,
+        BC3 = 3,
+        BC4 = 4,
+        BC5 = 5,
+    }
+
+    // Mirrors xg::TextureResourceInfo (xgCore/public/xgRenderer.h): the data of a Ready "texture" resource. TextureId is
+    // also a UI texture id. Usage is the editor's TextureUsage (0 color, 1 normal, 2 luminance); Flags bit 0 = sRGB.
+    [StructLayout(LayoutKind.Sequential)]
+    public struct TextureInfo
+    {
+        public ulong TextureId;
+        public int Width;
+        public int Height;
+        public int MipCount;
+        public TextureFormat Format;
+        public uint Usage;
+        public uint Flags;
+    }
+
     // The engine-wide resource cache. Main thread only. A resource can be Pending or Failed after Acquire, so check State.
+    // Async types (like "texture") load on job workers: Acquire returns Pending and the resource becomes Ready or Failed
+    // in a later frame (or call Wait).
     public static unsafe partial class Resources
     {
         private const string NativeLib = "xgScriptNative";
@@ -109,6 +135,28 @@ namespace xg
 
         public static ResourceState GetState(ResourceHandle handle) =>
             ScriptRuntime._enginePtr == 0 ? ResourceState.Invalid : (ResourceState)XG_ResourceGetState(ScriptRuntime._enginePtr, handle.Value);
+
+        // Blocks until a Pending resource is Ready or Failed (runs jobs meanwhile).
+        public static ResourceState Wait(ResourceHandle handle) =>
+            ScriptRuntime._enginePtr == 0 ? ResourceState.Invalid : (ResourceState)XG_ResourceWait(ScriptRuntime._enginePtr, handle.Value);
+
+        // Adds a folder searched for "<guid>.<extension>" (directly or one folder down), e.g. a project's Library/Data.
+        // Returns the source id (0 when the folder is missing); sources go away with this module.
+        public static uint AddDirectorySource(string root) =>
+            ScriptRuntime._enginePtr == 0 ? 0 : XG_ResourceAddDirectorySource(ScriptRuntime._enginePtr, ScriptRuntime.ModuleID, root);
+
+        public static bool RemoveSource(uint source) =>
+            ScriptRuntime._enginePtr != 0 && XG_ResourceRemoveSource(ScriptRuntime._enginePtr, ScriptRuntime.ModuleID, source);
+
+        // The GPU texture of a Ready "texture" resource (TextureType).
+        public static bool GetTexture(ResourceHandle handle, out TextureInfo info)
+        {
+            info = default;
+            return ScriptRuntime._enginePtr != 0 && XG_ResourceGetTexture(ScriptRuntime._enginePtr, handle.Value, out info);
+        }
+
+        // The engine's texture resource type (registered when a renderer exists): breadcrumb <asset guid>/<texture item guid>.
+        public const string TextureType = "texture";
 
         // Test hook: registers a native in-memory type owned by this module.
         public static uint RegisterTestType(string name) =>
@@ -167,6 +215,20 @@ namespace xg
 
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetState")]
         private static partial int XG_ResourceGetState(nint engine, ulong handle);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceWait")]
+        private static partial int XG_ResourceWait(nint engine, ulong handle);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceAddDirectorySource", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial uint XG_ResourceAddDirectorySource(nint engine, uint moduleId, string root);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceRemoveSource")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_ResourceRemoveSource(nint engine, uint moduleId, uint source);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetTexture")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_ResourceGetTexture(nint engine, ulong handle, out TextureInfo info);
 
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceRegisterTestType", StringMarshalling = StringMarshalling.Utf8)]
         private static partial uint XG_ResourceRegisterTestType(nint engine, uint moduleId, string name);

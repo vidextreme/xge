@@ -46,3 +46,10 @@ XG_MODULE_EXPORT void XG_EditorSetSceneViewCamera(uint64_t id, const xg::RenderV
     const xg::RenderViewCamera local = xg::interop::Load(camera);
     _sceneRenderer->SetRenderViewCamera(id, &local);
 }
+
+XG_MODULE_EXPORT void XG_EditorSetSceneViewTexture(uint64_t id, uint64_t textureId, int32_t mode)
+{
+    if (!_sceneRenderer || mode < 0 || mode > 2)
+        return;
+    _sceneRenderer->SetRenderViewTexture(id, textureId, static_cast<xg::RenderViewTextureMode>(mode));
+}

@@ -52,6 +52,7 @@ namespace xgEditor.CoreCLR
             Debug.Log($"[Project] Opened {Current.Name} ({Current.Root})");
             Startup.Report("Indexing assets", Current.Root, Startup.Indeterminate);
             Assets = new AssetDatabase(Current.Root);
+            AddResourceSource(Current);
 
             if (ScriptRuntime.ProjectAutoBuild)
             {
@@ -63,6 +64,15 @@ namespace xgEditor.CoreCLR
             }
             LoadScriptModule(Current);
             LoadEditorAssembly(Current);
+        }
+
+        // The engine's resource system reads generated data (Library/Data/<Type>/<guid>.<ext>) by GUID from here.
+        private static void AddResourceSource(ProjectInfo project)
+        {
+            string data = Path.Combine(project.Root, "Library", "Data");
+            Directory.CreateDirectory(data);
+            if (Resources.AddDirectorySource(data) == 0)
+                Debug.LogWarning($"[Project] Could not add {data} as a resource source");
         }
 
         // Loads the project's editor scripts (<Name>.Editor.dll) into this module's load context, so its drawers derive

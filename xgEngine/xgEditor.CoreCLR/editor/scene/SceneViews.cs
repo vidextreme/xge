@@ -38,5 +38,9 @@ namespace xgEditor.CoreCLR
 
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewCamera")]
         public static partial void SetCamera(ulong id, Camera* camera);
+
+        // mode: 0 color, 1 tangent-space normal (BC5), 2 luminance (BC4). textureId 0 = untextured.
+        [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewTexture")]
+        public static partial void SetTexture(ulong id, ulong textureId, int mode);
     }
 }

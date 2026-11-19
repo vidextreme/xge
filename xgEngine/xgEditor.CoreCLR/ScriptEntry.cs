@@ -19,6 +19,56 @@ namespace xgEditor.CoreCLR
         public void Shutdown() => Debug.Log($"[Debug] Subsystem {Name}: shutdown");
     }
 
+    // Test hook (XG_RESOURCE_TEST_TEXTURE=<asset path>): builds the image asset, acquires its texture through the resource
+    // system by breadcrumb <asset guid>/<texture item guid> (loaded on a job worker, uploaded on the main thread) and puts
+    // it on the Scene panel's test cube.
+    internal static class TextureSmoke
+    {
+        static ResourceHandle _handle;
+        static bool _waiting;
+        static int _frames;
+
+        public static void Init()
+        {
+            string? path = Environment.GetEnvironmentVariable("XG_RESOURCE_TEST_TEXTURE");
+            if (string.IsNullOrEmpty(path) || xgEditor.CoreCLR.ProjectService.Assets is not { } assets)
+                return;
+            assets.BuildAll();
+            string? guid = assets.GuidOf(path);
+            xg.editor.AssetMeta meta = xg.editor.AssetMeta.Read(assets.FullPath(xg.editor.AssetMeta.PathFor(path)));
+            xg.editor.AssetItem? item = meta.Items.FirstOrDefault(i => i.Kind == xg.editor.TextureAssets.ItemKind && !i.Missing);
+            uint type = Resources.FindType(Resources.TextureType);
+            if (guid is null || item is null || type == 0)
+            {
+                Debug.LogWarning($"[Textures] test: no texture for {path} (guid {guid ?? "none"}, item {item?.Guid ?? "none"}, type {type})");
+                return;
+            }
+            ResourceID id = ResourceID.Parse($"{guid}/{item.Guid}");
+            _handle = Resources.Acquire(type, id);
+            _waiting = true;
+            Debug.Log($"[Textures] test: acquired {id} for {path}, state {_handle.State}");
+        }
+
+        public static void Update()
+        {
+            if (!_waiting)
+                return;
+            ++_frames;
+            ResourceState state = _handle.State;
+            if (state == ResourceState.Pending)
+                return;
+            _waiting = false;
+            if (state != ResourceState.Ready || !Resources.GetTexture(_handle, out TextureInfo info))
+            {
+                Debug.LogWarning($"[Textures] test: {state} after {_frames} frame(s)");
+                return;
+            }
+            Debug.Log($"[Textures] test: Ready after {_frames} frame(s): {info.Width}x{info.Height}, {info.MipCount} mip(s), {info.Format}, usage {info.Usage}, sRGB {(info.Flags & 1) != 0}, texture id {info.TextureId}");
+            foreach (ScenePanel panel in xg.imui.ImUI.RegisteredPanels.OfType<ScenePanel>())
+                panel.SetTexture(info.TextureId, (int)Math.Min(info.Usage, 2u));
+        }
+    }
+
     // Test hook (XG_RESOURCE_TEST=1): exercises the shared resource cache, then quits so shutdown cleanup is visible.
     internal static class ResourceSmoke
     {
@@ -322,6 +372,7 @@ namespace xgEditor.CoreCLR
                 }
             }
             ResourceSmoke.Init();
+            TextureSmoke.Init();
             return 1;
         }
 
@@ -360,6 +411,7 @@ namespace xgEditor.CoreCLR
             UpdateSelectionHooks();
             long frames = ActorRegistry.FrameCount;
             ResourceSmoke.Update(frames);
+            TextureSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)
             {
                 _elapsedAtStart = _player.ElapsedTime;

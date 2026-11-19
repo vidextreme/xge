@@ -18,13 +18,6 @@ namespace xgEditor.CoreCLR
         private const float TypeRowHeight = 24.0f;
         private const float ActionRowHeight = 22.0f;
 
-        private static readonly string[] _formats = { "Standard (BC)", "Uncompressed" };
-        private static readonly string[] _qualities = { "Normal", "High" };
-        private static readonly string[] _alphas = { "Auto", "No alpha", "Keep alpha" };
-        private static readonly string[] _mipFilters = { "None", "Box (default)" };
-        private static readonly string[] _scales = { "No scaling", "Half", "Quarter" };
-        private static readonly string[] _types = { "Color", "Normal", "Luminance" };
-
         public ToolUsability OnSelectItems(object[] selection) =>
             selection.LastOrDefault() is AssetRef asset && ProjectService.Assets is { } assets && assets.Pipeline.CanImport(asset.Path)
                 ? ToolUsability.Usable
@@ -70,7 +63,7 @@ namespace xgEditor.CoreCLR
             using (Gui.Card("##configuration", "Configuration", Icon.View, null, iconColor))
             {
                 Gui.PropertyLabel("Default", plan.Format.ToString());
-                settings = Choice("Format", settings, settings.Format, _formats, (s, v) => s with { Format = v });
+                settings = Choice("Format", settings, settings.Format, (s, v) => s with { Format = v });
             }
             Gui.Space(2.0f);
 
@@ -89,11 +82,11 @@ namespace xgEditor.CoreCLR
             using (Gui.Card("##compression", "Compression", Icon.Filter, null, iconColor))
             {
                 if (settings.Format == TextureCompression.Standard)
-                    settings = Choice("Quality", settings, settings.Quality, _qualities, (s, v) => s with { Quality = v });
+                    settings = Choice("Quality", settings, settings.Quality, (s, v) => s with { Quality = v });
                 if (settings.Type == TextureUsage.Color)
-                    settings = Choice("Alpha channel", settings, settings.Alpha, _alphas, (s, v) => s with { Alpha = v });
-                settings = Choice("Mipmap filtering", settings, settings.MipFilter, _mipFilters, (s, v) => s with { MipFilter = v });
-                settings = Choice("Scale", settings, settings.Scale, _scales, (s, v) => s with { Scale = v });
+                    settings = Choice("Alpha channel", settings, settings.Alpha, (s, v) => s with { Alpha = v });
+                settings = Choice("Mipmap filtering", settings, settings.MipFilter, (s, v) => s with { MipFilter = v });
+                settings = Choice("Scale", settings, settings.Scale, (s, v) => s with { Scale = v });
                 plan = TextureFormats.Plan(settings, width, height, driver.HasAlpha);
                 Gui.PropertyLabel("Import format", plan.Format.ToString());
                 Gui.PropertyLabel("Output", $"{plan.Width} x {plan.Height}, {plan.MipCount} mip(s), {FormatSize(plan.ByteSize)}");
@@ -129,23 +122,25 @@ namespace xgEditor.CoreCLR
                 DrawPendingActions(driver);
         }
 
-        private static TextureSettings Choice<T>(string label, TextureSettings settings, T value, string[] items, Func<TextureSettings, T, TextureSettings> set) where T : struct, Enum
+        private static TextureSettings Choice<T>(string label, TextureSettings settings, T value, Func<TextureSettings, T, TextureSettings> set) where T : struct, Enum
         {
-            int index = Convert.ToInt32(value);
-            return Gui.Combo(label, ref index, items) ? set(settings, (T)Enum.ToObject(typeof(T), index)) : settings;
+            int index = EnumDescriptions<T>.IndexOf(value);
+            return Gui.Combo(label, ref index, EnumDescriptions<T>.Labels) ? set(settings, EnumDescriptions<T>.Values[index]) : settings;
         }
 
         private static TextureSettings DrawType(TextureSettings settings)
         {
             float width = MathF.Max(Gui.AvailableSize.x, 90.0f);
             using var canvas = Gui.Canvas("##texture_type", new Vector2(width, TypeRowHeight));
-            float cell = width / _types.Length;
-            for (int i = 0; i < _types.Length; i++)
+            TextureUsage[] types = EnumDescriptions<TextureUsage>.Values;
+            float cell = width / types.Length;
+            for (int i = 0; i < types.Length; i++)
             {
+                TextureUsage type = types[i];
                 Rect rect = Rect.FromXYWH(i * cell + 1.0f, 1.0f, cell - 2.0f, TypeRowHeight - 2.0f);
-                bool on = (int)settings.Type == i;
-                if (ToggleButton.Draw(canvas.Draw, "##type" + i, rect, Icon.None, null, _types[i], null, null, on, true, ToggleDot.Radio).Clicked() && !on)
-                    settings = settings with { Type = (TextureUsage)i, FlipGreen = (TextureUsage)i == TextureUsage.Normal && settings.FlipGreen };
+                bool on = settings.Type == type;
+                if (ToggleButton.Draw(canvas.Draw, "##type" + i, rect, Icon.None, null, EnumDescriptions<TextureUsage>.Labels[i], null, null, on, true, ToggleDot.Radio).Clicked() && !on)
+                    settings = settings with { Type = type, FlipGreen = type == TextureUsage.Normal && settings.FlipGreen };
             }
             return settings;
         }

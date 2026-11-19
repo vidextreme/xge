@@ -30,6 +30,11 @@ namespace xg {
         void DestroyRenderView(uint64_t id) override;
         void SetRenderViewCamera(uint64_t id, const RenderViewCamera* camera) override;
 
+        bool SupportsTextureFormat(TextureFormat format) const override;
+        uint64_t CreateTexture(const TextureDesc* desc, const TextureMip* mips) override;
+        void DestroyTexture(uint64_t id) override;
+        void SetRenderViewTexture(uint64_t viewId, uint64_t textureId, RenderViewTextureMode mode) override;
+
         bool SupportsSurfaces() const override { return !_failed; }
         uint64_t CreateUISurface(Window& window) override;
         void DestroyUISurface(uint64_t surface) override;
@@ -49,6 +54,8 @@ namespace xg {
             VkImage Handle = VK_NULL_HANDLE;
             VkDeviceMemory Memory = VK_NULL_HANDLE;
             VkImageView View = VK_NULL_HANDLE;
+            // Render view color only: the sRGB attachment view (View is the UNORM view the UI samples).
+            VkImageView TargetView = VK_NULL_HANDLE;
         };
 
         struct UITexture
@@ -56,6 +63,8 @@ namespace xg {
             Image Target;
             int32_t Width = 0;
             int32_t Height = 0;
+            // Created by CreateTexture (any format, mips): not updatable with UpdateUITexture.
+            bool Sampled = false;
         };
 
         // One swapchain-backed presentation target: the main window, or a secondary editor viewport window.
@@ -95,6 +104,8 @@ namespace xg {
             uint32_t Width = 0;
             uint32_t Height = 0;
             RenderViewCamera Camera = {};
+            uint64_t Texture = 0;
+            RenderViewTextureMode Mode = RenderViewTextureMode::Color;
         };
 
         bool CreateInstance();
@@ -117,7 +128,8 @@ namespace xg {
 
         bool CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, Buffer& buffer);
         void DestroyBuffer(Buffer& buffer);
-        bool CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect, Image& image);
+        bool CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect, Image& image,
+            uint32_t mipLevels = 1, VkImageCreateFlags flags = 0);
         void DestroyImage(Image& image);
         bool FindMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, uint32_t& index) const;
         VkCommandBuffer BeginUpload();
@@ -130,13 +142,16 @@ namespace xg {
         bool Check(VkResult result, const char* what);
 
         bool CreateScenePipeline();
+        bool CreateTexturedPipeline();
         bool CreateRenderViewTargets(RenderView& view, uint32_t width, uint32_t height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);
 
         static constexpr uint32_t TextureSlots = 256;
         static constexpr uint32_t MaxRenderViews = 16;
-        static constexpr VkFormat TextureFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        static constexpr VkFormat UITextureFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        // Render views write linear color through an sRGB view of their UNORM color image.
+        static constexpr VkFormat ViewColorTarget = VK_FORMAT_R8G8B8A8_SRGB;
         static constexpr VkFormat DepthFormat = VK_FORMAT_D32_SFLOAT;
 
         Surface _main;
@@ -157,6 +172,7 @@ namespace xg {
 
         float _clearColor[4] = { 0.1f, 0.2f, 0.4f, 1.0f };
         bool _failed = false;
+        bool _supportsBC = false;
 
         VkSampler _sampler = VK_NULL_HANDLE;
         VkDescriptorSetLayout _uiSetLayout = VK_NULL_HANDLE;
@@ -171,11 +187,14 @@ namespace xg {
 
         std::vector<RenderView> _renderViews;
         VkPipelineLayout _scenePipelineLayout = VK_NULL_HANDLE;
-        VkPipeline _sceneTrianglePipeline = VK_NULL_HANDLE;
         VkPipeline _sceneLinePipeline = VK_NULL_HANDLE;
         Buffer _sceneVertexBuffer;
-        uint32_t _sceneTriangleCount = 0;
         uint32_t _sceneLineVertexCount = 0;
+        VkPipelineLayout _texturedPipelineLayout = VK_NULL_HANDLE;
+        VkPipeline _texturedPipeline = VK_NULL_HANDLE;
+        Buffer _cubeVertexBuffer;
+        uint32_t _cubeVertexCount = 0;
+        uint64_t _whiteTexture = 0;
     };
 
 }

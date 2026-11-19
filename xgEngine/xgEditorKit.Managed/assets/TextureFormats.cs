@@ -1,6 +1,7 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
@@ -16,12 +17,45 @@ namespace xg.editor
         BC5 = 5,
     }
 
-    public enum TextureCompression { Standard, Uncompressed }
-    public enum TextureUsage { Color, Normal, Luminance }
-    public enum TextureAlpha { Auto, None, Keep }
-    public enum TextureQuality { Normal, High }
-    public enum TextureMipFilter { None, Box }
-    public enum TextureScale { None, Half, Quarter }
+    // The [Description] of each setting value is its label in the editor.
+    public enum TextureCompression
+    {
+        [Description("Standard (BC)")] Standard,
+        [Description("Uncompressed")] Uncompressed,
+    }
+
+    public enum TextureUsage
+    {
+        [Description("Color")] Color,
+        [Description("Normal")] Normal,
+        [Description("Luminance")] Luminance,
+    }
+
+    public enum TextureAlpha
+    {
+        [Description("Auto")] Auto,
+        [Description("No alpha")] None,
+        [Description("Keep alpha")] Keep,
+    }
+
+    public enum TextureQuality
+    {
+        [Description("Normal")] Normal,
+        [Description("High")] High,
+    }
+
+    public enum TextureMipFilter
+    {
+        [Description("None")] None,
+        [Description("Box (default)")] Box,
+    }
+
+    public enum TextureScale
+    {
+        [Description("No scaling")] None,
+        [Description("Half")] Half,
+        [Description("Quarter")] Quarter,
+    }
 
     // The settings in importer.process.texture of a texture's .xmd.
     public sealed record TextureSettings
