@@ -89,6 +89,9 @@ namespace xg
         void PumpStartup() override;
     private:
         void CloseSplash();
+        void RunJobTest();
+
+        uint32_t _textureType = 0;
 
         int _startupSteps = 0;
         int _startupStepLimit = -1;

@@ -1,7 +1,8 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 //
-// Test scene for render views (xg::shaders::SceneVertex): unlit vertex colors.
+// Test scene for render views (xg::shaders::SceneVertex): unlit vertex colors. Render views write through an sRGB
+// target, so the sRGB vertex colors are converted to linear.
 
 struct SceneConstants
 {
@@ -22,11 +23,16 @@ struct PSInput
     [[vk::location(0)]] float4 col : COLOR0;
 };
 
+float3 ToLinear(float3 c)
+{
+    return select(c <= 0.04045f, c / 12.92f, pow((c + 0.055f) / 1.055f, 2.4f));
+}
+
 PSInput VSMain(VSInput input)
 {
     PSInput output;
     output.pos = mul(float4(input.pos, 1.0f), _constants.ViewProjection);
-    output.col = input.col;
+    output.col = float4(ToLinear(input.col.rgb), input.col.a);
     return output;
 }
 

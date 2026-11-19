@@ -3,6 +3,7 @@
 #include "pch.h"
 #include "xgChunkFile.h"
 #include "xgLog.h"
+#include "xgRenderer.h"
 #include "xgResources.h"
 #include "xgScriptEngine.h"
 
@@ -87,6 +88,38 @@ XG_MODULE_EXPORT int32_t XG_ResourceGetState(xg::ScriptEngine* engine, uint64_t 
 {
     xg::ResourceSystem* resources = ResourcesOf(engine);
     return static_cast<int32_t>(resources ? resources->GetState(handle) : xg::ResourceState::Invalid);
+}
+
+XG_MODULE_EXPORT int32_t XG_ResourceWait(xg::ScriptEngine* engine, uint64_t handle)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    return static_cast<int32_t>(resources ? resources->Wait(handle) : xg::ResourceState::Invalid);
+}
+
+XG_MODULE_EXPORT uint32_t XG_ResourceAddDirectorySource(xg::ScriptEngine* engine, uint32_t moduleId, const char* root)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    return resources ? resources->AddDirectorySource(moduleId, root) : 0;
+}
+
+XG_MODULE_EXPORT bool XG_ResourceRemoveSource(xg::ScriptEngine* engine, uint32_t moduleId, uint32_t source)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    return resources && resources->RemoveSource(moduleId, source);
+}
+
+// Copies the TextureResourceInfo of a Ready "texture" resource. False for other types or states.
+XG_MODULE_EXPORT bool XG_ResourceGetTexture(xg::ScriptEngine* engine, uint64_t handle, xg::TextureResourceInfo* outInfo)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    if (!resources || !outInfo)
+        return false;
+    const xg::ResourceTypeID type = resources->FindType(xg::TextureResourceType);
+    const auto* info = static_cast<const xg::TextureResourceInfo*>(resources->GetData(handle));
+    if (type == 0 || !info)
+        return false;
+    *outInfo = *info;
+    return true;
 }
 
 // Test hook: an in-memory type that logs its loads and unloads. IDs whose file GUID starts with 16 'f' digits fail to load.

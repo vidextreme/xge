@@ -37,13 +37,32 @@ namespace xg
         Failed = 3,
     };
 
-    // Name is copied by RegisterType. Load and Unload must stay callable until the type is unregistered.
+    enum class ResourceTypeFlags : uint32_t
+    {
+        None = 0,
+        // Load runs on a job worker; Acquire returns a Pending resource that becomes Ready or Failed in a later frame.
+        Async = 1u << 0,
+    };
+
+    // Name is copied by RegisterType. The callbacks must stay callable until the type is unregistered.
+    // Load reads the resource (on a worker for Async types, so no GPU or main-thread-only calls there). Finalize is
+    // optional and runs on the main thread after an Async Load: it takes ownership of the loaded data, returns the
+    // final data (e.g. after a GPU upload), and frees the loaded data itself when it fails. Unload frees final data.
     struct ResourceTypeDesc
     {
         const char* Name;
         bool (*Load)(const ResourceID* id, void* user, void** outData);
         void (*Unload)(void* data, void* user);
         void* User;
+        bool (*Finalize)(void* data, void* user, void** outData);
+        ResourceTypeFlags Flags;
+    };
+
+    // Bytes read from a resource source. Free them with ResourceSystem::FreeBlob.
+    struct ResourceBlob
+    {
+        void* Data;
+        uint64_t Size;
     };
 
     inline constexpr int32_t ResourceGUIDTextLength = 32;
@@ -120,8 +139,9 @@ namespace xg
         return length;
     }
 
-    // The engine-wide resource cache, shared by every module. Main thread only for now.
-    // Acquire may return a resource that is Pending or Failed, so callers check GetState before using it.
+    // The engine-wide resource cache, shared by every module. Its calls are main thread only, except ReadFile and
+    // FreeBlob, which resource loads use from job workers. Acquire may return a resource that is Pending or Failed,
+    // so callers check GetState before using it.
     class ResourceSystem : public Subsystem
     {
         XG_DECLARE_BASE_SUBSYSTEM(ResourceSystem)
@@ -153,5 +173,17 @@ namespace xg
 
         // Unloads resources that have no references. The engine calls it after each rendered frame.
         virtual void Collect() = 0;
+
+        // Blocks until a Pending resource is Ready or Failed (running jobs meanwhile). Returns its state.
+        virtual ResourceState Wait(ResourceHandle handle) = 0;
+
+        // Adds a folder that ReadFile searches for "<guid>.<extension>", directly or one folder down (e.g. a project's
+        // Library/Data). Returns 0 when the folder is missing. Sources are removed with their module.
+        virtual uint32_t AddDirectorySource(uint32_t moduleId, const char* root) = 0;
+        virtual bool RemoveSource(uint32_t moduleId, uint32_t source) = 0;
+
+        // Reads the file "<file-guid>.<extension>" from the first source that has it. Thread-safe.
+        virtual bool ReadFile(const ResourceGUID* file, const char* extension, ResourceBlob* out) = 0;
+        virtual void FreeBlob(ResourceBlob* blob) = 0;
     };
 }

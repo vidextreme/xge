@@ -104,9 +104,11 @@ namespace xg {
             _textures.clear();
 
             DestroyBuffer(_sceneVertexBuffer);
-            if (_sceneTrianglePipeline) vkDestroyPipeline(_device, _sceneTrianglePipeline, nullptr);
+            DestroyBuffer(_cubeVertexBuffer);
             if (_sceneLinePipeline) vkDestroyPipeline(_device, _sceneLinePipeline, nullptr);
             if (_scenePipelineLayout) vkDestroyPipelineLayout(_device, _scenePipelineLayout, nullptr);
+            if (_texturedPipeline) vkDestroyPipeline(_device, _texturedPipeline, nullptr);
+            if (_texturedPipelineLayout) vkDestroyPipelineLayout(_device, _texturedPipelineLayout, nullptr);
 
             for (auto& entry : _uiPipelines)
                 vkDestroyPipeline(_device, entry.second, nullptr);
@@ -286,13 +288,20 @@ namespace xg {
         queueInfo.queueCount = 1;
         queueInfo.pQueuePriorities = &priority;
 
+        VkPhysicalDeviceFeatures supported = {};
+        vkGetPhysicalDeviceFeatures(_physicalDevice, &supported);
+        _supportsBC = supported.textureCompressionBC == VK_TRUE;
+
         VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
         features13.dynamicRendering = VK_TRUE;
         features13.synchronization2 = VK_TRUE;
+        VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+        features.pNext = &features13;
+        features.features.textureCompressionBC = _supportsBC ? VK_TRUE : VK_FALSE;
 
         const char* extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
         VkDeviceCreateInfo info = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-        info.pNext = &features13;
+        info.pNext = &features;
         info.queueCreateInfoCount = 1;
         info.pQueueCreateInfos = &queueInfo;
         info.enabledExtensionCount = 1;
@@ -548,13 +557,15 @@ namespace xg {
         buffer = {};
     }
 
-    bool RendererVulkan::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect, Image& image)
+    bool RendererVulkan::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect, Image& image,
+        uint32_t mipLevels, VkImageCreateFlags flags)
     {
         VkImageCreateInfo info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        info.flags = flags;
         info.imageType = VK_IMAGE_TYPE_2D;
         info.format = format;
         info.extent = { width, height, 1 };
-        info.mipLevels = 1;
+        info.mipLevels = mipLevels;
         info.arrayLayers = 1;
         info.samples = VK_SAMPLE_COUNT_1_BIT;
         info.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -585,7 +596,7 @@ namespace xg {
         viewInfo.image = image.Handle;
         viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         viewInfo.format = format;
-        viewInfo.subresourceRange = { aspect, 0, 1, 0, 1 };
+        viewInfo.subresourceRange = { aspect, 0, mipLevels, 0, 1 };
         if (!Check(vkCreateImageView(_device, &viewInfo, nullptr, &image.View), "vkCreateImageView"))
         {
             DestroyImage(image);
@@ -596,6 +607,8 @@ namespace xg {
 
     void RendererVulkan::DestroyImage(Image& image)
     {
+        if (image.TargetView)
+            vkDestroyImageView(_device, image.TargetView, nullptr);
         if (image.View)
             vkDestroyImageView(_device, image.View, nullptr);
         if (image.Handle)
@@ -1096,7 +1109,7 @@ namespace xg {
             return 0;
 
         Image image;
-        if (!CreateImage(static_cast<uint32_t>(width), static_cast<uint32_t>(height), TextureFormat,
+        if (!CreateImage(static_cast<uint32_t>(width), static_cast<uint32_t>(height), UITextureFormat,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT, image))
             return 0;
         if (!UploadTextureRegion(image.Handle, 0, 0, width, height, rgba, width * 4, true))
@@ -1116,10 +1129,124 @@ namespace xg {
         return static_cast<uint64_t>(slot) + 1;
     }
 
+    bool RendererVulkan::SupportsTextureFormat(TextureFormat format) const
+    {
+        switch (format)
+        {
+        case TextureFormat::RGBA8:
+            return true;
+        case TextureFormat::BC1:
+        case TextureFormat::BC3:
+        case TextureFormat::BC4:
+        case TextureFormat::BC5:
+            return _supportsBC;
+        default:
+            return false;
+        }
+    }
+
+    uint64_t RendererVulkan::CreateTexture(const TextureDesc* desc, const TextureMip* mips)
+    {
+        if (_failed || !desc || !mips || desc->Width <= 0 || desc->Height <= 0 || desc->MipCount <= 0 || desc->MipCount > 16
+            || _freeTextureSlots.empty() || !SupportsTextureFormat(desc->Format))
+            return 0;
+
+        const bool srgb = (static_cast<uint32_t>(desc->Flags) & static_cast<uint32_t>(TextureFlags::SRGB)) != 0;
+        VkFormat format = srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+        switch (desc->Format)
+        {
+        case TextureFormat::BC1: format = srgb ? VK_FORMAT_BC1_RGBA_SRGB_BLOCK : VK_FORMAT_BC1_RGBA_UNORM_BLOCK; break;
+        case TextureFormat::BC3: format = srgb ? VK_FORMAT_BC3_SRGB_BLOCK : VK_FORMAT_BC3_UNORM_BLOCK; break;
+        case TextureFormat::BC4: format = VK_FORMAT_BC4_UNORM_BLOCK; break;
+        case TextureFormat::BC5: format = VK_FORMAT_BC5_UNORM_BLOCK; break;
+        default: break;
+        }
+
+        const uint32_t mipCount = static_cast<uint32_t>(desc->MipCount);
+        VkDeviceSize total = 0;
+        for (uint32_t mip = 0; mip < mipCount; ++mip)
+        {
+            if (!mips[mip].Data)
+                return 0;
+            total += mips[mip].Size;
+        }
+
+        Image image;
+        if (!CreateImage(static_cast<uint32_t>(desc->Width), static_cast<uint32_t>(desc->Height), format,
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT, image, mipCount))
+            return 0;
+        Buffer staging;
+        if (!CreateBuffer(total, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, staging))
+        {
+            DestroyImage(image);
+            return 0;
+        }
+
+        std::vector<VkBufferImageCopy> regions(mipCount);
+        VkDeviceSize offset = 0;
+        uint32_t width = static_cast<uint32_t>(desc->Width);
+        uint32_t height = static_cast<uint32_t>(desc->Height);
+        for (uint32_t mip = 0; mip < mipCount; ++mip)
+        {
+            std::memcpy(static_cast<uint8_t*>(staging.Mapped) + offset, mips[mip].Data, static_cast<size_t>(mips[mip].Size));
+            VkBufferImageCopy& region = regions[mip];
+            region.bufferOffset = offset;
+            region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, mip, 0, 1 };
+            region.imageExtent = { width, height, 1 };
+            offset += mips[mip].Size;
+            width = (std::max)(1u, width / 2);
+            height = (std::max)(1u, height / 2);
+        }
+
+        const VkCommandBuffer commands = BeginUpload();
+        if (!commands)
+        {
+            DestroyBuffer(staging);
+            DestroyImage(image);
+            return 0;
+        }
+        VkImageMemoryBarrier2 toCopy = ImageBarrier(image.Handle, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_2_NONE, 0, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        toCopy.subresourceRange.levelCount = mipCount;
+        PipelineBarrier(commands, &toCopy, 1);
+        vkCmdCopyBufferToImage(commands, staging.Handle, image.Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipCount, regions.data());
+        VkImageMemoryBarrier2 toShader = ImageBarrier(image.Handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        toShader.subresourceRange.levelCount = mipCount;
+        PipelineBarrier(commands, &toShader, 1);
+        const bool uploaded = EndUpload();
+        DestroyBuffer(staging);
+        if (!uploaded)
+        {
+            DestroyImage(image);
+            return 0;
+        }
+
+        const uint32_t slot = _freeTextureSlots.back();
+        _freeTextureSlots.pop_back();
+        WriteTextureDescriptor(slot, image.View);
+        UITexture& texture = _textures[slot];
+        texture.Target = image;
+        texture.Width = desc->Width;
+        texture.Height = desc->Height;
+        texture.Sampled = true;
+        return static_cast<uint64_t>(slot) + 1;
+    }
+
+    void RendererVulkan::DestroyTexture(uint64_t id)
+    {
+        if (id == 0 || id == _whiteTexture)
+            return;
+        for (RenderView& view : _renderViews)
+            if (view.Texture == id)
+                view.Texture = 0;
+        DestroyUITexture(id);
+    }
+
     void RendererVulkan::UpdateUITexture(uint64_t id, int32_t x, int32_t y, int32_t width, int32_t height, const void* rgba, int32_t pitch)
     {
         UITexture* texture = FindTexture(id);
-        if (!texture || !rgba || width <= 0 || height <= 0 || FindRenderView(id))
+        if (!texture || texture->Sampled || !rgba || width <= 0 || height <= 0 || FindRenderView(id))
             return;
         if (x < 0 || y < 0 || x + width > texture->Width || y + height > texture->Height)
             return;
@@ -1135,6 +1262,7 @@ namespace xg {
         DestroyImage(texture->Target);
         texture->Width = 0;
         texture->Height = 0;
+        texture->Sampled = false;
         _freeTextureSlots.push_back(static_cast<uint32_t>(id - 1));
     }
 

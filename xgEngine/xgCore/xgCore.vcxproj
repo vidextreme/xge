@@ -109,7 +109,8 @@
     <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="CodecRegistryImpl.h" />
     <ClInclude Include="CompositeSceneGraph.h" />
-    <ClInclude Include="DispatchSystem.h" />
+    <ClInclude Include="JobSystemImpl.h" />
+    <ClInclude Include="TextureResources.h" />
     <ClInclude Include="DynamicObjectImpl.h" />
     <ClInclude Include="EventDispatcherImpl.h" />
     <ClInclude Include="EventQueueImpl.h" />
@@ -141,7 +142,8 @@
     <ClCompile Include="ActorRegistryImpl.cpp" />
     <ClCompile Include="ResourceSystemImpl.cpp" />
     <ClCompile Include="CompositeSceneGraph.cpp" />
-    <ClCompile Include="DispatchSystem.cpp" />
+    <ClCompile Include="JobSystemImpl.cpp" />
+    <ClCompile Include="TextureResources.cpp" />
     <ClCompile Include="LoggerImpl.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="SceneGraphFactoryImpl.cpp" />

@@ -51,7 +51,7 @@
     <ClInclude Include="ScriptTree.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="DispatchSystem.h">
+    <ClInclude Include="JobSystemImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
     <ClInclude Include="public\xgEngineDef.h">
@@ -134,7 +134,7 @@
     <ClCompile Include="ScriptTree.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
-    <ClCompile Include="DispatchSystem.cpp">
+    <ClCompile Include="JobSystemImpl.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="MessengerImpl.cpp">

@@ -647,10 +647,156 @@ namespace xg {
         return static_cast<uint64_t>(slot) + 1;
     }
 
+    bool RendererDX12::SupportsTextureFormat(TextureFormat format) const
+    {
+        switch (format)
+        {
+        case TextureFormat::RGBA8:
+        case TextureFormat::BC1:
+        case TextureFormat::BC3:
+        case TextureFormat::BC4:
+        case TextureFormat::BC5:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    uint64_t RendererDX12::CreateTexture(const TextureDesc* desc, const TextureMip* mips)
+    {
+        if (_failed || !desc || !mips || desc->Width <= 0 || desc->Height <= 0 || desc->MipCount <= 0 || desc->MipCount > 16
+            || _freeTextureSlots.empty() || !SupportsTextureFormat(desc->Format))
+            return 0;
+
+        const bool srgb = (static_cast<uint32_t>(desc->Flags) & static_cast<uint32_t>(TextureFlags::SRGB)) != 0;
+        DXGI_FORMAT storage = DXGI_FORMAT_R8G8B8A8_UNORM;
+        DXGI_FORMAT view = srgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+        switch (desc->Format)
+        {
+        case TextureFormat::BC1:
+            storage = DXGI_FORMAT_BC1_UNORM;
+            view = srgb ? DXGI_FORMAT_BC1_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM;
+            break;
+        case TextureFormat::BC3:
+            storage = DXGI_FORMAT_BC3_UNORM;
+            view = srgb ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC3_UNORM;
+            break;
+        case TextureFormat::BC4:
+            storage = view = DXGI_FORMAT_BC4_UNORM;
+            break;
+        case TextureFormat::BC5:
+            storage = view = DXGI_FORMAT_BC5_UNORM;
+            break;
+        default:
+            break;
+        }
+
+        D3D12_HEAP_PROPERTIES heap = {};
+        heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+        D3D12_RESOURCE_DESC resourceDesc = {};
+        resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resourceDesc.Width = static_cast<UINT64>(desc->Width);
+        resourceDesc.Height = static_cast<UINT>(desc->Height);
+        resourceDesc.DepthOrArraySize = 1;
+        resourceDesc.MipLevels = static_cast<UINT16>(desc->MipCount);
+        resourceDesc.Format = storage;
+        resourceDesc.SampleDesc.Count = 1;
+        resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+        ComPtr<ID3D12Resource> resource;
+        if (!Check(_device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &resourceDesc,
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource)), "CreateCommittedResource (texture)"))
+            return 0;
+
+        const UINT mipCount = static_cast<UINT>(desc->MipCount);
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT layouts[16] = {};
+        UINT rowCounts[16] = {};
+        UINT64 rowSizes[16] = {};
+        UINT64 total = 0;
+        _device->GetCopyableFootprints(&resourceDesc, 0, mipCount, 0, layouts, rowCounts, rowSizes, &total);
+
+        ComPtr<ID3D12Resource> upload;
+        if (!CreateUploadBuffer(_device.Get(), static_cast<size_t>(total), upload))
+        {
+            xg::Log(xg::MessageType::Error, "RendererDX12: texture upload buffer of %llu bytes failed", static_cast<unsigned long long>(total));
+            return 0;
+        }
+        uint8_t* mapped = nullptr;
+        D3D12_RANGE noRead = { 0, 0 };
+        if (!Check(upload->Map(0, &noRead, reinterpret_cast<void**>(&mapped)), "texture upload Map"))
+            return 0;
+        for (UINT mip = 0; mip < mipCount; ++mip)
+        {
+            const TextureMip& source = mips[mip];
+            const uint64_t rowBytes = (std::min)(static_cast<uint64_t>(rowSizes[mip]), static_cast<uint64_t>(source.RowPitch));
+            for (UINT row = 0; row < rowCounts[mip]; ++row)
+            {
+                const uint64_t offset = static_cast<uint64_t>(row) * source.RowPitch;
+                if (!source.Data || offset + rowBytes > source.Size)
+                    break;
+                std::memcpy(mapped + layouts[mip].Offset + static_cast<uint64_t>(row) * layouts[mip].Footprint.RowPitch,
+                    static_cast<const uint8_t*>(source.Data) + offset, static_cast<size_t>(rowBytes));
+            }
+        }
+        upload->Unmap(0, nullptr);
+
+        if (!Check(_uploadAllocator->Reset(), "upload allocator Reset")
+            || !Check(_uploadList->Reset(_uploadAllocator.Get(), nullptr), "upload list Reset"))
+            return 0;
+        for (UINT mip = 0; mip < mipCount; ++mip)
+        {
+            D3D12_TEXTURE_COPY_LOCATION destination = {};
+            destination.pResource = resource.Get();
+            destination.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            destination.SubresourceIndex = mip;
+            D3D12_TEXTURE_COPY_LOCATION sourceLocation = {};
+            sourceLocation.pResource = upload.Get();
+            sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            sourceLocation.PlacedFootprint = layouts[mip];
+            _uploadList->CopyTextureRegion(&destination, 0, 0, 0, &sourceLocation, nullptr);
+        }
+        D3D12_RESOURCE_BARRIER toShader = Transition(resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        _uploadList->ResourceBarrier(1, &toShader);
+        if (!Check(_uploadList->Close(), "upload list Close"))
+            return 0;
+        ID3D12CommandList* lists[] = { _uploadList.Get() };
+        _commandQueue->ExecuteCommandLists(1, lists);
+        if (!WaitForGPU())
+            return 0;
+
+        const UINT slot = _freeTextureSlots.back();
+        _freeTextureSlots.pop_back();
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
+        srv.Format = view;
+        srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srv.Texture2D.MipLevels = mipCount;
+        srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        D3D12_CPU_DESCRIPTOR_HANDLE cpu = _srvHeap->GetCPUDescriptorHandleForHeapStart();
+        cpu.ptr += static_cast<SIZE_T>(slot) * _srvDescriptorSize;
+        _device->CreateShaderResourceView(resource.Get(), &srv, cpu);
+
+        UITexture& texture = _textures[slot];
+        texture.Resource = resource;
+        texture.Width = desc->Width;
+        texture.Height = desc->Height;
+        texture.Sampled = true;
+        return static_cast<uint64_t>(slot) + 1;
+    }
+
+    void RendererDX12::DestroyTexture(uint64_t id)
+    {
+        if (id == 0 || id == _whiteTexture)
+            return;
+        for (RenderView& view : _renderViews)
+            if (view.Texture == id)
+                view.Texture = 0;
+        DestroyUITexture(id);
+    }
+
     void RendererDX12::UpdateUITexture(uint64_t id, int32_t x, int32_t y, int32_t width, int32_t height, const void* rgba, int32_t pitch)
     {
         UITexture* texture = FindTexture(id);
-        if (!texture || !rgba || width <= 0 || height <= 0)
+        if (!texture || texture->Sampled || !rgba || width <= 0 || height <= 0)
             return;
         if (x < 0 || y < 0 || x + width > texture->Width || y + height > texture->Height)
             return;
@@ -666,6 +812,7 @@ namespace xg {
         texture->Resource.Reset();
         texture->Width = 0;
         texture->Height = 0;
+        texture->Sampled = false;
         _freeTextureSlots.push_back(static_cast<UINT>(id - 1));
     }
 

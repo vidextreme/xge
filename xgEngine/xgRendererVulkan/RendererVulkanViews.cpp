@@ -2,19 +2,24 @@
 // Licensed under the MIT License. See LICENSE for details.
 //
 // Offscreen render views: color + depth targets that share the UI texture table, so a panel can draw them.
-// The scene content is a test cube and ground grid until a real scene renderer exists.
+// The scene content is a textured test cube and ground grid until a real scene renderer exists. Views render in
+// linear color through an sRGB attachment view.
 #include "pch.h"
 #include "RendererVulkan.h"
 #include "xgLog.h"
 #include "xgShaderTypes.h"
+#include "spv.scene.textured.h"
 #include "spv.scene.unlit.h"
 #include "xgMat4x4.h"
+#include <cmath>
 #include <cstring>
 
 namespace xg {
 
     namespace
     {
+        using shaders::SceneTexturedConstants;
+        using shaders::SceneTexturedVertex;
         using shaders::SceneVertex;
 
         constexpr Color32 Rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
@@ -32,14 +37,17 @@ namespace xg {
             std::memcpy(out, &viewProjection, sizeof(float) * 16);
         }
 
-        void BuildTestScene(std::vector<SceneVertex>& vertices, uint32_t& triangleVertexCount, uint32_t& lineVertexCount)
+        // The cube's faces: corners in order bottom-left, top-left, top-right, bottom-right as seen from outside, so every
+        // face shows the texture upright. Each face keeps its own gray shade (multiplied with the texture).
+        void BuildTestCube(std::vector<SceneTexturedVertex>& vertices)
         {
             static const float corners[8][3] =
             {
                 { -0.5f, 0.0f, -0.5f }, { 0.5f, 0.0f, -0.5f }, { 0.5f, 1.0f, -0.5f }, { -0.5f, 1.0f, -0.5f },
                 { -0.5f, 0.0f,  0.5f }, { 0.5f, 0.0f,  0.5f }, { 0.5f, 1.0f,  0.5f }, { -0.5f, 1.0f,  0.5f },
             };
-            static const int faces[6][4] = { { 0, 3, 2, 1 }, { 4, 5, 6, 7 }, { 0, 4, 7, 3 }, { 1, 2, 6, 5 }, { 3, 7, 6, 2 }, { 0, 1, 5, 4 } };
+            static const int faces[6][4] = { { 0, 3, 2, 1 }, { 5, 6, 7, 4 }, { 4, 7, 3, 0 }, { 1, 2, 6, 5 }, { 3, 7, 6, 2 }, { 4, 0, 1, 5 } };
+            static const float uvs[4][2] = { { 0.0f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f } };
             static const Color32 shades[6] =
             {
                 Rgba(150, 150, 156), Rgba(120, 120, 126), Rgba(135, 135, 141), Rgba(165, 165, 171), Rgba(200, 200, 206), Rgba(90, 90, 96),
@@ -52,11 +60,19 @@ namespace xg {
                 for (int i : order)
                 {
                     const float* c = corners[faces[f][i]];
-                    vertices.push_back({ c[0], c[1], c[2], shades[f] });
+                    vertices.push_back({ c[0], c[1], c[2], uvs[i][0], uvs[i][1], shades[f] });
                 }
             }
-            triangleVertexCount = static_cast<uint32_t>(vertices.size());
+        }
 
+        float ToLinear(float c)
+        {
+            return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
+        }
+
+        void BuildTestLines(std::vector<SceneVertex>& vertices, uint32_t& lineVertexCount)
+        {
+            vertices.clear();
             const float extent = 10.0f;
             for (int i = -10; i <= 10; ++i)
             {
@@ -70,7 +86,7 @@ namespace xg {
             }
             vertices.push_back({ 0.0f, 0.0f, 0.0f, Rgba(111, 160, 74) });
             vertices.push_back({ 0.0f, 2.0f, 0.0f, Rgba(111, 160, 74) });
-            lineVertexCount = static_cast<uint32_t>(vertices.size()) - triangleVertexCount;
+            lineVertexCount = static_cast<uint32_t>(vertices.size());
         }
 
         RenderViewCamera DefaultCamera()
@@ -189,7 +205,7 @@ namespace xg {
         dynamic.dynamicStateCount = 2;
         dynamic.pDynamicStates = dynamicStates;
 
-        const VkFormat colorFormat = TextureFormat;
+        const VkFormat colorFormat = ViewColorTarget;
         VkPipelineRenderingCreateInfo rendering = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
         rendering.colorAttachmentCount = 1;
         rendering.pColorAttachmentFormats = &colorFormat;
@@ -209,29 +225,145 @@ namespace xg {
         info.pDynamicState = &dynamic;
         info.layout = _scenePipelineLayout;
 
-        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        bool ok = Check(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &info, nullptr, &_sceneTrianglePipeline), "vkCreateGraphicsPipelines (scene triangles)");
         inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-        ok = ok && Check(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &info, nullptr, &_sceneLinePipeline), "vkCreateGraphicsPipelines (scene lines)");
+        const bool ok = Check(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &info, nullptr, &_sceneLinePipeline), "vkCreateGraphicsPipelines (scene lines)");
         vkDestroyShaderModule(_device, vertexShader, nullptr);
         vkDestroyShaderModule(_device, pixelShader, nullptr);
         if (!ok)
             return false;
 
         std::vector<SceneVertex> vertices;
-        BuildTestScene(vertices, _sceneTriangleCount, _sceneLineVertexCount);
+        BuildTestLines(vertices, _sceneLineVertexCount);
         if (!CreateBuffer(vertices.size() * sizeof(SceneVertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _sceneVertexBuffer))
             return false;
         std::memcpy(_sceneVertexBuffer.Mapped, vertices.data(), vertices.size() * sizeof(SceneVertex));
-        return true;
+
+        if (!CreateTexturedPipeline())
+            return false;
+        std::vector<SceneTexturedVertex> cube;
+        BuildTestCube(cube);
+        _cubeVertexCount = static_cast<uint32_t>(cube.size());
+        if (!CreateBuffer(cube.size() * sizeof(SceneTexturedVertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _cubeVertexBuffer))
+            return false;
+        std::memcpy(_cubeVertexBuffer.Mapped, cube.data(), cube.size() * sizeof(SceneTexturedVertex));
+
+        const uint8_t white[4] = { 255, 255, 255, 255 };
+        const TextureMip mip{ white, sizeof(white), 4 };
+        const TextureDesc desc{ 1, 1, 1, TextureFormat::RGBA8, TextureFlags::None };
+        _whiteTexture = CreateTexture(&desc, &mip);
+        return _whiteTexture != 0;
+    }
+
+    bool RendererVulkan::CreateTexturedPipeline()
+    {
+        VkPushConstantRange push = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SceneTexturedConstants) };
+        VkPipelineLayoutCreateInfo layoutInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+        layoutInfo.setLayoutCount = 1;
+        layoutInfo.pSetLayouts = &_uiSetLayout;
+        layoutInfo.pushConstantRangeCount = 1;
+        layoutInfo.pPushConstantRanges = &push;
+        if (!Check(vkCreatePipelineLayout(_device, &layoutInfo, nullptr, &_texturedPipelineLayout), "vkCreatePipelineLayout (scene textured)"))
+            return false;
+
+        const VkShaderModule vertexShader = CreateShaderModule(shaders::spirv::_sceneTexturedVS, sizeof(shaders::spirv::_sceneTexturedVS));
+        const VkShaderModule pixelShader = CreateShaderModule(shaders::spirv::_sceneTexturedPS, sizeof(shaders::spirv::_sceneTexturedPS));
+        if (!vertexShader || !pixelShader)
+        {
+            if (vertexShader) vkDestroyShaderModule(_device, vertexShader, nullptr);
+            if (pixelShader) vkDestroyShaderModule(_device, pixelShader, nullptr);
+            return false;
+        }
+
+        VkPipelineShaderStageCreateInfo stages[2] = {};
+        stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+        stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+        stages[0].module = vertexShader;
+        stages[0].pName = "VSMain";
+        stages[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+        stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        stages[1].module = pixelShader;
+        stages[1].pName = "PSMain";
+
+        VkVertexInputBindingDescription binding = { 0, sizeof(SceneTexturedVertex), VK_VERTEX_INPUT_RATE_VERTEX };
+        VkVertexInputAttributeDescription attributes[3] = {
+            { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(SceneTexturedVertex, X)) },
+            { 1, 0, VK_FORMAT_R32G32_SFLOAT,    static_cast<uint32_t>(offsetof(SceneTexturedVertex, U)) },
+            { 2, 0, VK_FORMAT_R8G8B8A8_UNORM,   static_cast<uint32_t>(offsetof(SceneTexturedVertex, Color)) },
+        };
+        VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+        vertexInput.vertexBindingDescriptionCount = 1;
+        vertexInput.pVertexBindingDescriptions = &binding;
+        vertexInput.vertexAttributeDescriptionCount = 3;
+        vertexInput.pVertexAttributeDescriptions = attributes;
+
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        VkPipelineViewportStateCreateInfo viewport = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+        viewport.viewportCount = 1;
+        viewport.scissorCount = 1;
+        VkPipelineRasterizationStateCreateInfo raster = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+        raster.polygonMode = VK_POLYGON_MODE_FILL;
+        raster.cullMode = VK_CULL_MODE_NONE;
+        raster.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        raster.lineWidth = 1.0f;
+        VkPipelineMultisampleStateCreateInfo multisample = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+        multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        VkPipelineDepthStencilStateCreateInfo depth = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+        depth.depthTestEnable = VK_TRUE;
+        depth.depthWriteEnable = VK_TRUE;
+        depth.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        VkPipelineColorBlendAttachmentState blend = {};
+        blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        VkPipelineColorBlendStateCreateInfo colorBlend = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+        colorBlend.attachmentCount = 1;
+        colorBlend.pAttachments = &blend;
+        const VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+        VkPipelineDynamicStateCreateInfo dynamic = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+        dynamic.dynamicStateCount = 2;
+        dynamic.pDynamicStates = dynamicStates;
+
+        const VkFormat colorFormat = ViewColorTarget;
+        VkPipelineRenderingCreateInfo rendering = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+        rendering.colorAttachmentCount = 1;
+        rendering.pColorAttachmentFormats = &colorFormat;
+        rendering.depthAttachmentFormat = DepthFormat;
+
+        VkGraphicsPipelineCreateInfo info = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+        info.pNext = &rendering;
+        info.stageCount = 2;
+        info.pStages = stages;
+        info.pVertexInputState = &vertexInput;
+        info.pInputAssemblyState = &inputAssembly;
+        info.pViewportState = &viewport;
+        info.pRasterizationState = &raster;
+        info.pMultisampleState = &multisample;
+        info.pDepthStencilState = &depth;
+        info.pColorBlendState = &colorBlend;
+        info.pDynamicState = &dynamic;
+        info.layout = _texturedPipelineLayout;
+        const bool ok = Check(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &info, nullptr, &_texturedPipeline), "vkCreateGraphicsPipelines (scene textured)");
+        vkDestroyShaderModule(_device, vertexShader, nullptr);
+        vkDestroyShaderModule(_device, pixelShader, nullptr);
+        return ok;
     }
 
     bool RendererVulkan::CreateRenderViewTargets(RenderView& view, uint32_t width, uint32_t height)
     {
         Image color;
         Image depth;
-        if (!CreateImage(width, height, TextureFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, color))
+        if (!CreateImage(width, height, UITextureFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, color,
+            1, VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT))
             return false;
+        VkImageViewCreateInfo targetInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        targetInfo.image = color.Handle;
+        targetInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        targetInfo.format = ViewColorTarget;
+        targetInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+        if (!Check(vkCreateImageView(_device, &targetInfo, nullptr, &color.TargetView), "vkCreateImageView (view target)"))
+        {
+            DestroyImage(color);
+            return false;
+        }
         if (!CreateImage(width, height, DepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, depth))
         {
             DestroyImage(color);
@@ -280,7 +412,7 @@ namespace xg {
 
     uint64_t RendererVulkan::CreateRenderView(int32_t width, int32_t height)
     {
-        if (_failed || !_sceneTrianglePipeline || _freeTextureSlots.empty() || _renderViews.size() >= MaxRenderViews)
+        if (_failed || !_texturedPipeline || _freeTextureSlots.empty() || _renderViews.size() >= MaxRenderViews)
             return 0;
 
         RenderView view;
@@ -331,6 +463,15 @@ namespace xg {
             view->Camera = *camera;
     }
 
+    void RendererVulkan::SetRenderViewTexture(uint64_t viewId, uint64_t textureId, RenderViewTextureMode mode)
+    {
+        RenderView* view = FindRenderView(viewId);
+        if (!view)
+            return;
+        view->Texture = textureId != viewId && FindTexture(textureId) ? textureId : 0;
+        view->Mode = mode;
+    }
+
     void RendererVulkan::RecordRenderViews()
     {
         if (_renderViews.empty())
@@ -350,11 +491,11 @@ namespace xg {
             ViewBarriers(_frameCommands, toTarget, 2);
 
             VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-            colorAttachment.imageView = color.View;
+            colorAttachment.imageView = color.TargetView;
             colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorAttachment.clearValue.color = { { view.Camera.ClearColor.r, view.Camera.ClearColor.g, view.Camera.ClearColor.b, view.Camera.ClearColor.a } };
+            colorAttachment.clearValue.color = { { ToLinear(view.Camera.ClearColor.r), ToLinear(view.Camera.ClearColor.g), ToLinear(view.Camera.ClearColor.b), view.Camera.ClearColor.a } };
 
             VkRenderingAttachmentInfo depthAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
             depthAttachment.imageView = view.Depth.View;
@@ -377,16 +518,24 @@ namespace xg {
             vkCmdSetViewport(_frameCommands, 0, 1, &viewport);
             vkCmdSetScissor(_frameCommands, 0, 1, &scissor);
 
-            float viewProjection[16];
-            ViewProjectionLH(view.Camera, static_cast<float>(view.Width) / static_cast<float>(view.Height), viewProjection);
-            vkCmdPushConstants(_frameCommands, _scenePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, shaders::ConstantsSize, viewProjection);
+            SceneTexturedConstants constants = {};
+            ViewProjectionLH(view.Camera, static_cast<float>(view.Width) / static_cast<float>(view.Height), constants.ViewProjection);
+            constants.Mode = static_cast<uint32_t>(view.Mode);
+            const uint64_t texture = view.Texture != 0 && FindTexture(view.Texture) ? view.Texture : _whiteTexture;
             const VkDeviceSize offset = 0;
-            vkCmdBindVertexBuffers(_frameCommands, 0, 1, &_sceneVertexBuffer.Handle, &offset);
 
-            vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _sceneTrianglePipeline);
-            vkCmdDraw(_frameCommands, _sceneTriangleCount, 1, 0, 0);
+            vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _texturedPipeline);
+            vkCmdBindDescriptorSets(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _texturedPipelineLayout, 0, 1,
+                &_textureSets[static_cast<size_t>(texture - 1)], 0, nullptr);
+            vkCmdPushConstants(_frameCommands, _texturedPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                sizeof(SceneTexturedConstants), &constants);
+            vkCmdBindVertexBuffers(_frameCommands, 0, 1, &_cubeVertexBuffer.Handle, &offset);
+            vkCmdDraw(_frameCommands, _cubeVertexCount, 1, 0, 0);
+
             vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _sceneLinePipeline);
-            vkCmdDraw(_frameCommands, _sceneLineVertexCount, 1, _sceneTriangleCount, 0);
+            vkCmdPushConstants(_frameCommands, _scenePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, shaders::ConstantsSize, constants.ViewProjection);
+            vkCmdBindVertexBuffers(_frameCommands, 0, 1, &_sceneVertexBuffer.Handle, &offset);
+            vkCmdDraw(_frameCommands, _sceneLineVertexCount, 1, 0, 0);
 
             vkCmdEndRendering(_frameCommands);
 

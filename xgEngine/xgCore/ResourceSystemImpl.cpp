@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
 #include "ResourceSystemImpl.h"
+#include <filesystem>
+#include <fstream>
 #include "xgLog.h"
 
 namespace xg
@@ -23,6 +25,36 @@ namespace xg
             char Text[ResourceIDTextCapacity] = {};
             explicit IDText(const ResourceID& id) { FormatResourceID(&id, Text, ResourceIDTextCapacity); }
         };
+
+        std::filesystem::path PathFromUTF8(const std::string& text)
+        {
+            return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size()));
+        }
+
+        bool ReadWholeFile(const std::filesystem::path& path, ResourceBlob* out)
+        {
+            std::ifstream stream(path, std::ios::binary | std::ios::ate);
+            if (!stream)
+                return false;
+            const std::streamoff size = stream.tellg();
+            if (size < 0)
+                return false;
+            stream.seekg(0);
+            auto* bytes = new uint8_t[static_cast<size_t>(size) + 1];
+            if (size > 0 && !stream.read(reinterpret_cast<char*>(bytes), size))
+            {
+                delete[] bytes;
+                return false;
+            }
+            out->Data = bytes;
+            out->Size = static_cast<uint64_t>(size);
+            return true;
+        }
+
+        bool IsAsync(const ResourceTypeDesc& desc)
+        {
+            return (static_cast<uint32_t>(desc.Flags) & static_cast<uint32_t>(ResourceTypeFlags::Async)) != 0;
+        }
     }
 
     bool ResourceSystemImpl::Key::operator==(const Key& other) const
@@ -42,8 +74,9 @@ namespace xg
         return static_cast<size_t>(hash);
     }
 
-    ResourceSystemImpl::ResourceSystemImpl()
+    ResourceSystemImpl::ResourceSystemImpl(JobSystem* jobs)
         : _mainThread(std::this_thread::get_id())
+        , _jobs(jobs)
     {}
 
     ResourceSystemImpl::~ResourceSystemImpl() = default;
@@ -123,6 +156,7 @@ namespace xg
             xg::Log(xg::MessageType::Warning, "[Resources] UnregisterType: module %u doesn't own type %u", moduleId, type);
             return false;
         }
+        WaitForJobs(type);
         _types[type - 1].Active = false;
         for (uint32_t index = 0; index < static_cast<uint32_t>(_slots.size()); ++index)
         {
@@ -203,21 +237,93 @@ namespace xg
         _lookup.emplace(key, index);
         const ResourceHandle handle = MakeHandle(index, slot.Generation);
 
-        void* data = nullptr;
-        const bool loaded = desc.Load(&resourceId, desc.User, &data);
-
-        Slot* current = Resolve(handle);
-        if (!current)
+        if (IsAsync(desc) && _jobs)
         {
-            if (loaded && desc.Unload)
-                desc.Unload(data, desc.User);
-            return 0;
+            auto* task = new LoadTask{ this, handle, resourceId, desc };
+            const JobDesc load{ &RunLoad, task, nullptr, 0, JobQueue::Worker, entry->Owner };
+            const JobHandle loadJob = _jobs->Schedule(&load);
+            const JobDesc complete{ &RunComplete, task, &loadJob, 1, JobQueue::Main, entry->Owner };
+            const JobHandle completeJob = loadJob != 0 ? _jobs->Schedule(&complete) : 0;
+            if (completeJob != 0)
+            {
+                slot.Job = completeJob;
+                return handle;
+            }
+            if (loadJob != 0)
+                _jobs->Wait(loadJob);
+            else
+                RunLoad(task);
+            CompleteLoad(*task);
+            delete task;
+            return Resolve(handle) ? handle : 0;
         }
-        current->State = loaded ? ResourceState::Ready : ResourceState::Failed;
-        current->Data = loaded ? data : nullptr;
+
+        LoadTask task{ this, handle, resourceId, desc };
+        RunLoad(&task);
+        CompleteLoad(task);
+        return Resolve(handle) ? handle : 0;
+    }
+
+    void ResourceSystemImpl::RunLoad(void* user)
+    {
+        auto* task = static_cast<LoadTask*>(user);
+        task->Loaded = task->Desc.Load(&task->Id, task->Desc.User, &task->Data);
+        if (!task->Loaded)
+            task->Data = nullptr;
+    }
+
+    void ResourceSystemImpl::RunComplete(void* user)
+    {
+        auto* task = static_cast<LoadTask*>(user);
+        task->System->CompleteLoad(*task);
+        delete task;
+    }
+
+    void ResourceSystemImpl::CompleteLoad(LoadTask& task)
+    {
+        void* data = task.Data;
+        bool loaded = task.Loaded;
+        if (loaded && task.Desc.Finalize)
+        {
+            void* finalData = nullptr;
+            loaded = task.Desc.Finalize(data, task.Desc.User, &finalData);
+            data = loaded ? finalData : nullptr;
+        }
+        Slot* slot = Resolve(task.Handle);
+        if (!slot)
+        {
+            if (loaded && task.Desc.Unload)
+                task.Desc.Unload(data, task.Desc.User);
+            return;
+        }
+        slot->Job = 0;
+        slot->State = loaded ? ResourceState::Ready : ResourceState::Failed;
+        slot->Data = loaded ? data : nullptr;
         if (!loaded)
-            xg::Log(xg::MessageType::Warning, "[Resources] failed to load %s", IDText(resourceId).Text);
-        return handle;
+            xg::Log(xg::MessageType::Warning, "[Resources] failed to load %s", IDText(task.Id).Text);
+        if (slot->TotalReferences == 0)
+            _unloadQueue.push_back(task.Handle);
+    }
+
+    void ResourceSystemImpl::WaitForJobs(ResourceTypeID type)
+    {
+        if (!_jobs)
+            return;
+        for (uint32_t index = 0; index < static_cast<uint32_t>(_slots.size()); ++index)
+        {
+            const Slot& slot = _slots[index];
+            if (slot.Used && slot.Type == type && slot.Job != 0)
+                _jobs->Wait(slot.Job);
+        }
+    }
+
+    ResourceState ResourceSystemImpl::Wait(ResourceHandle handle)
+    {
+        CheckThread();
+        const Slot* slot = Resolve(handle);
+        if (slot && slot->Job != 0 && _jobs)
+            _jobs->Wait(slot->Job);
+        return GetState(handle);
     }
 
     bool ResourceSystemImpl::AddRef(uint32_t moduleId, ResourceHandle handle)
@@ -299,6 +405,76 @@ namespace xg
             if (_types[i].Active && _types[i].Owner == moduleId)
                 UnregisterType(moduleId, static_cast<ResourceTypeID>(i + 1));
         }
+
+        std::lock_guard<std::mutex> lock(_sourceMutex);
+        std::erase_if(_sources, [moduleId](const Source& source) { return source.Module == moduleId; });
+    }
+
+    uint32_t ResourceSystemImpl::AddDirectorySource(uint32_t moduleId, const char* root)
+    {
+        CheckThread();
+        std::error_code error;
+        if (!root || !*root || !std::filesystem::is_directory(PathFromUTF8(root), error))
+        {
+            xg::Log(xg::MessageType::Warning, "[Resources] AddDirectorySource: '%s' is not a folder", root ? root : "");
+            return 0;
+        }
+        std::lock_guard<std::mutex> lock(_sourceMutex);
+        const uint32_t id = _nextSource++;
+        _sources.push_back({ id, moduleId, root });
+        return id;
+    }
+
+    bool ResourceSystemImpl::RemoveSource(uint32_t moduleId, uint32_t source)
+    {
+        CheckThread();
+        std::lock_guard<std::mutex> lock(_sourceMutex);
+        const size_t removed = std::erase_if(_sources, [&](const Source& entry) { return entry.Id == source && entry.Module == moduleId; });
+        return removed != 0;
+    }
+
+    bool ResourceSystemImpl::ReadFile(const ResourceGUID* file, const char* extension, ResourceBlob* out)
+    {
+        if (!file || IsZero(*file) || !extension || !out)
+            return false;
+        out->Data = nullptr;
+        out->Size = 0;
+        const ResourceID id{ *file, {} };
+        IDText guid(id);
+        const std::string name = std::string(guid.Text) + "." + extension;
+
+        std::vector<std::string> roots;
+        {
+            std::lock_guard<std::mutex> lock(_sourceMutex);
+            for (const Source& source : _sources)
+                roots.push_back(source.Root);
+        }
+        std::error_code error;
+        for (const std::string& rootText : roots)
+        {
+            const std::filesystem::path root = PathFromUTF8(rootText);
+            const std::filesystem::path direct = root / PathFromUTF8(name);
+            if (std::filesystem::is_regular_file(direct, error))
+                return ReadWholeFile(direct, out);
+            for (std::filesystem::directory_iterator it(root, error), end; !error && it != end; it.increment(error))
+            {
+                if (!it->is_directory(error))
+                    continue;
+                const std::filesystem::path nested = it->path() / PathFromUTF8(name);
+                if (std::filesystem::is_regular_file(nested, error))
+                    return ReadWholeFile(nested, out);
+            }
+        }
+        return false;
+    }
+
+    void ResourceSystemImpl::FreeBlob(ResourceBlob* blob)
+    {
+        if (!blob)
+            return;
+        delete[] static_cast<uint8_t*>(blob->Data);
+        blob->Data = nullptr;
+        blob->Size = 0;
     }
 
     void ResourceSystemImpl::Collect()
@@ -311,7 +487,7 @@ namespace xg
             for (ResourceHandle handle : queue)
             {
                 const Slot* slot = Resolve(handle);
-                if (slot && slot->TotalReferences == 0)
+                if (slot && slot->TotalReferences == 0 && slot->State != ResourceState::Pending)
                     DestroySlot(static_cast<uint32_t>(handle) - 1);
             }
         }
@@ -332,6 +508,7 @@ namespace xg
         slot.Data = nullptr;
         slot.TotalReferences = 0;
         slot.References.clear();
+        slot.Job = 0;
         if (++slot.Generation == 0)
             slot.Generation = 1;
         _freeSlots.push_back(index);

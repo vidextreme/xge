@@ -170,7 +170,7 @@ reference: <file-guid>/7f3a...
 * A failed build keeps the last good output and isn't retried until its inputs change.
 * Generated data of deleted assets is removed.
 * `.xrt` isn't stored. Textures keep decoded pixels in memory between importing and processing, and go from source to `.xdt`.
-* Builds run on the main thread within a per-frame time budget until the threading decision is made.
+* Builds run on the main thread within a per-frame time budget.
 
 **Texture data.** `.xdt` has one `texture` item with:
 
@@ -189,14 +189,23 @@ Settings live in `importer.process.texture`: `format`, `type`, `alpha`, `quality
 | Standard, luminance | BC4 |
 | Standard, normal | BC5 |
 
-Color mips are averaged in linear space, and normal mips are renormalized. BC textures are resized to multiples of 4. Tier 5 must use sRGB views for color BC1/BC3 and rebuild normal Z in shaders.
+Color mips are averaged in linear space, and normal mips are renormalized. BC textures are resized to multiples of 4. At runtime, color BC1/BC3/RGBA8 are sampled through sRGB views, and normal Z is rebuilt in shaders.
+
+## Runtime loading
+
+**Decided** (Tier 5).
+
+* **Threading:** an engine job system (`xg::JobSystem`, `xgBase/public/xgJobs.h`). Worker threads run jobs once their dependencies are done; main-thread jobs run from a per-frame pump (8 ms budget) or a main-thread `Wait`. The engine waits for a module's jobs before unloading it.
+* **Async resources:** a type flagged `Async` runs `Load` on a worker (file reads, parsing; no GPU), then `Finalize` as a main-thread continuation (GPU upload). `Acquire` returns `Pending`; the resource becomes `Ready` or `Failed` in a later frame, or at once through `ResourceSystem::Wait`. The resource system's calls stay main thread only.
+* **Sources:** `ResourceSystem::ReadFile(file-guid, extension)` searches directory sources for `<guid>.<extension>`, directly or one folder down. The editor adds `<project>/Library/Data`; a player build will add a package source instead.
+* **Textures:** the engine registers the `texture` type when a renderer exists. `<asset-guid>/<texture-item-guid>` loads the item's `TXHD` and the first `TXPX` the renderer supports; the data is a renderer texture id (also a UI texture id) with size, format and usage. DX12 always supports BC; Vulkan needs `textureCompressionBC`.
+* **Render views** render in linear color through an sRGB target, so sampled sRGB textures and blending are correct; their test cube shows a texture (`SetRenderViewTexture`).
 
 ## Open questions
 
 * **Physics:** `.xco` includes physics, but no data type holds it.
 * **Composition format:** proposed as pretty-printed JSON, for readable diffs and merges.
 * **Player builds:** proposed to package `.xd*` and composition data by GUID and never ship `.xr*`.
-* **Threading:** undecided. It must be settled before runtime texture loading.
 
 ## Implementation tiers
 
@@ -207,13 +216,12 @@ Color mips are averaged in linear space, and normal mips are renormalized. BC te
 | 2. Metadata | Make identity durable | `.xgm` -> `.xmd` with project migration, import and process settings, item table | Reimport gives every item its original GUID |
 | 3. Chunk container | Define the binary format | File header, chunk bits, item chunks, nested typed data | Round-trip tests pass, and bad or old files are rejected cleanly |
 | 4. Library pipeline | Generate data from assets | GUID-addressed `Library/`, importer and processor interfaces, rebuild keys, `cat.png` -> `.xdt` | Deleting `Library/` rebuilds identical references |
-| 5. Textures at runtime | Reach the GPU | Source layer under resource loading, texture API in DX12 and Vulkan, threading model | A `.xdt` loads by breadcrumb and displays on both renderers |
+| 5. Textures at runtime | Reach the GPU | Source layer under resource loading, texture API in DX12 and Vulkan, threading model | A `.xdt` loads by breadcrumb and displays on both renderers (done: job system, async loads, test cube) |
 | 6. Meshes | Bring in models | Importer module, `.xrv`/`.xrh` -> `.xdv`/`.xdh`, mesh GPU API | An imported mesh draws in the Scene view |
 | 7. Compositions | Let users author content | `.xds` shaders, `.xcm`, `.xco`, their editors, name-tree repair, dependency loading, drawer component | A saved `.xco` survives a `Library/` rebuild and renders |
 | 8. Later | Complete the system | `.xda`, `.xcf`, `.xca`, hot reload, eviction, player packaging | Planned separately |
 
 Gates:
 
-* Threading must be decided before Tier 5, and ideally before Tier 4 is finished.
 * The physics data type must be decided before Tier 7.
 * Inspector references need scene or component saving, which must land before Tier 7 is finished.
