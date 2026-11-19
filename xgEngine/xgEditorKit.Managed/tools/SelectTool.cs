@@ -9,9 +9,9 @@ using xg.imui;
 
 namespace xg.editor
 {
-    // The first editor tool and the default one. Like every tool it receives each selection change through
-    // OnSelectItems; it keeps the selected items in Items for any system to read and, while active, lists them in its
-    // ribbon group. Picking in the scene view comes once the scene view is wired to the tool system.
+    // The first editor tool and the default one. It's usable with any selection and, while active, lists the editor
+    // selection in its ribbon group. Picking in the scene view comes once the scene view is wired to the tool system.
+    // Like every tool it keeps no selection of its own: Items is the editor selection.
     [EditorTool("Select", Category = "Scene", Group = "Select", Icon = "Hand", Style = ToolItemStyle.Icon, ActiveByDefault = true,
         Tooltip = "Select actors and assets")]
     [ToolGUI(Group = "Select")]
@@ -19,20 +19,12 @@ namespace xg.editor
     {
         private const int ListedItems = 5;
 
-        private object[] _items = Array.Empty<object>();
-
-        // The selected items, as last delivered by the tool system.
-        public IReadOnlyList<object> Items => _items;
-
-        public override ToolUsability OnSelectItems(object[] selection)
-        {
-            _items = selection;
-            return ToolUsability.Usable;
-        }
+        public IReadOnlyList<object> Items => Selection.Objects;
 
         public void OnGUI()
         {
-            int count = _items.Length;
+            object[] items = Selection.Objects;
+            int count = items.Length;
             using (Gui.Font(FontStyle.Bold))
                 Gui.Label(count == 0 ? "Nothing selected" : count == 1 ? "1 selected" : $"{count} selected");
             if (count == 0)
@@ -41,7 +33,7 @@ namespace xg.editor
             if (active is not null)
                 Gui.PropertyLabel("Active", NameOf(active));
             for (int i = 0; i < Math.Min(count, ListedItems); i++)
-                Gui.PropertyLabel(KindOf(_items[i]), NameOf(_items[i]));
+                Gui.PropertyLabel(KindOf(items[i]), NameOf(items[i]));
             if (count > ListedItems)
                 Gui.Label($"... and {count - ListedItems} more");
         }

@@ -14,6 +14,7 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,10 +28,16 @@
     <Compile Include="assets\AssetMetaMigration.cs" />
     <Compile Include="assets\ChunkFile.cs" />
     <Compile Include="assets\AssetPipeline.cs" />
+    <Compile Include="assets\TextureFormats.cs" />
     <Compile Include="assets\TextureAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
+    <Compile Include="tools\EditorTool.cs" />
+    <Compile Include="tools\ToolDriver.cs" />
+    <Compile Include="tools\ToolSelection.cs" />
+    <Compile Include="tools\ToolView.cs" />
     <Compile Include="tools\PanelTools.cs" />
+    <Compile Include="tools\InspectorTools.cs" />
     <Compile Include="tools\ToolAttributes.cs" />
     <Compile Include="tools\ToolEvents.cs" />
     <Compile Include="tools\PointerEventData.cs" />

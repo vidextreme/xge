@@ -41,7 +41,7 @@ namespace xg.imui
         public Action? OnGUI { get; set; }
         // Shows a small dot in the corner: the item has options.
         public bool HasOptions { get; set; }
-        // Corner dot drawn by ToggleButton.Dot; State marks a toggle (filled while on, a ring while off). Wins over
+        // Corner marker drawn by ToggleButton.Dot: Check for a toggle, Radio for one choice in a group. Wins over
         // HasOptions.
         public ToggleDot Dot { get; set; }
         public Action? Clicked { get; set; }

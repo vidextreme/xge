@@ -23,7 +23,17 @@
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetMetaMigration.cs" Link="assets\AssetMetaMigration.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\ChunkFile.cs" Link="assets\ChunkFile.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetPipeline.cs" Link="assets\AssetPipeline.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\TextureFormats.cs" Link="assets\TextureFormats.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\TextureAssets.cs" Link="assets\TextureAssets.cs" />
+  </ItemGroup>
+
+  <!-- Tool selections, drivers and view state, which have no UI dependency. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\xgEditorKit.Managed\tools\ToolUsability.cs" Link="tools\ToolUsability.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\tools\ITool.cs" Link="tools\ITool.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\tools\ToolDriver.cs" Link="tools\ToolDriver.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\tools\ToolSelection.cs" Link="tools\ToolSelection.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\tools\ToolView.cs" Link="tools\ToolView.cs" />
   </ItemGroup>
 
 </Project>

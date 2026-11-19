@@ -5,10 +5,13 @@ namespace xg.editor
 {
     // The editor selection: actors (ActorID) and assets (AssetRef), set by the Hierarchy, the Navigator and tools. It
     // only keeps valid items (Validate drops destroyed actors and deleted assets). There are no selection events: every
-    // change is sent straight to the Tools subsystem, which updates which tools are usable.
+    // change is sent straight to the Tools subsystem, which updates which tools are usable. Current is the selection as
+    // a ToolSelection, which holds the tool drivers: each change builds the next one (drivers of items still selected
+    // carry over) and releases the previous one, so deselected items lose their drivers unless a view retains them.
     public static class Selection
     {
         private static object[] _objects = Array.Empty<object>();
+        private static ToolSelection _current = new(Array.Empty<object>());
         private static ActorID[] _actors = Array.Empty<ActorID>();
         private static AssetRef[] _assets = Array.Empty<AssetRef>();
         private static int _validateFrame;
@@ -17,6 +20,8 @@ namespace xg.editor
         public static object[] Objects => _objects;
         public static int Count => _objects.Length;
         public static int Version { get; private set; }
+        // The current selection with its tool drivers. Retain it to keep it (and its drivers) past the next change.
+        public static ToolSelection Current => _current;
         public static object? ActiveObject => _objects.Length == 0 ? null : _objects[^1];
         public static ActorID ActiveActor => _actors.Length == 0 ? ActorID.InvalidID : _actors[^1];
         public static IReadOnlyList<ActorID> Actors => _actors;
@@ -124,7 +129,10 @@ namespace xg.editor
             _actors = next.OfType<ActorID>().ToArray();
             _assets = next.OfType<AssetRef>().ToArray();
             Version++;
-            Subsystem.Get<Tools>()?.NotifySelection(_objects);
+            ToolSelection previous = _current;
+            _current = previous.Next(next);
+            Subsystem.Get<Tools>()?.NotifySelection(_current);
+            previous.Release();
         }
     }
 }

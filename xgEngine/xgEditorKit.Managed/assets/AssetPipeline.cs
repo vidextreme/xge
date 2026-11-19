@@ -11,16 +11,24 @@ namespace xg.editor
 {
     public sealed record AssetDataItem(string Kind, string Path, List<ChunkData> Chunks);
 
-    // A generated file before item GUIDs are applied. Store = false keeps a raw file in memory only.
-    public sealed record AssetDataFile(string Extension, uint Kind, List<AssetDataItem> Items, bool Store = true);
+    // A generated file before item GUIDs are applied. Store = false keeps a raw file in memory only. Tags of processed
+    // files ("@texture:bc1") are read-only import tags recorded in the asset's manifest.
+    public sealed record AssetDataFile(string Extension, uint Kind, List<AssetDataItem> Items, bool Store = true, IReadOnlyList<string>? Tags = null);
 
     // Reads a source file and returns its raw data. Item order must be stable for the same source.
     public interface IAssetImporter
     {
         string Id { get; }
         int Version { get; }
+        // Library/Data subfolder of this importer's files ("Textures").
+        string DataFolder { get; }
+        // Extension of the asset's main generated file (".xdt"); it also names the manifest ("<guid>.xdt.json").
+        string DataExtension { get; }
         bool Accepts(string extension);
         IReadOnlyList<AssetDataFile> Import(string sourcePath, JsonObject settings);
+
+        // Fills the settings of a newly created meta file.
+        void WriteDefaultSettings(JsonObject import, JsonObject process) { }
     }
 
     // Turns one raw file into one processed file. Output items use the same kinds, paths and order as the input.
@@ -90,24 +98,32 @@ namespace xg.editor
         [JsonPropertyOrder(8)]
         public List<string> Files { get; set; } = new();
 
-        [JsonPropertyName("error")]
+        // Read-only import tags of the processed data, lower case, in the order the processors gave them.
+        [JsonPropertyName("tags")]
         [JsonPropertyOrder(9)]
+        public List<string> Tags { get; set; } = new();
+
+        [JsonPropertyName("error")]
+        [JsonPropertyOrder(10)]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Error { get; set; }
 
         [JsonPropertyName("errorKey")]
-        [JsonPropertyOrder(10)]
+        [JsonPropertyOrder(11)]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? ErrorKey { get; set; }
     }
 
     // Builds Library data for source assets. Raw data is keyed by source hash, import settings and importer version;
-    // processed data by raw hash, process settings and processor versions. Output goes to <root>/<prefix>/<guid>/, is
-    // written to a temporary folder first, and manifest.json is written last, so an interrupted build simply runs again.
+    // processed data by raw hash, process settings and processor versions. Output goes to <root>/<type folder>/<guid><ext>,
+    // is written to temporary files first, and the manifest <guid><main ext>.json is written last, so an interrupted build
+    // simply runs again.
     public sealed class AssetPipeline
     {
-        private const string ManifestName = "manifest.json";
+        private const string ManifestSuffix = ".json";
         private const string TempSuffix = ".build~";
+        private const int GuidLength = 32;
+        private const int LegacyPrefixLength = 2;
 
         private readonly List<IAssetImporter> _importers = new();
         private readonly List<IAssetProcessor> _processors = new();
@@ -121,22 +137,41 @@ namespace xg.editor
 
         public bool CanImport(string path) => FindImporter(Path.GetExtension(path)) is not null;
 
-        public string DirectoryOf(string guid)
-        {
-            string lower = guid.ToLowerInvariant();
-            return Path.Combine(Root, lower[..2], lower);
-        }
+        public void WriteDefaultSettings(string path, AssetMeta meta) =>
+            FindImporter(Path.GetExtension(path))?.WriteDefaultSettings(meta.ImportSettings, meta.ProcessSettings);
 
         // The generated file with this extension, or null when it hasn't been built.
         public string? FindFile(string guid, string extension)
         {
-            string directory = DirectoryOf(guid);
-            AssetBuildManifest? manifest = LoadManifest(directory);
-            string? name = manifest?.Files.Concat(manifest.RawFiles).FirstOrDefault(f => f.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+            if (FindManifest(guid) is not { } found)
+                return null;
+            string? name = found.Manifest.Files.Concat(found.Manifest.RawFiles).FirstOrDefault(f => f.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
             if (name is null)
                 return null;
-            string path = Path.Combine(directory, name);
+            string path = Path.Combine(found.Folder, name);
             return File.Exists(path) ? path : null;
+        }
+
+        public AssetBuildManifest? ManifestOf(string guid) => FindManifest(guid)?.Manifest;
+
+        // The read-only import tags of every built asset, by GUID (assets without tags are left out).
+        public Dictionary<string, IReadOnlyList<string>> ReadAllTags()
+        {
+            Dictionary<string, IReadOnlyList<string>> result = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string folder in _importers.Select(i => Path.Combine(Root, i.DataFolder)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!Directory.Exists(folder))
+                    continue;
+                foreach (string path in Directory.EnumerateFiles(folder, "*" + ManifestSuffix))
+                {
+                    string name = Path.GetFileName(path);
+                    if (name.Length <= GuidLength || name[GuidLength] != '.' || !AssetMeta.IsValidGuid(name[..GuidLength]))
+                        continue;
+                    if (LoadManifest(path) is { Error: null, Tags.Count: > 0 } manifest)
+                        result[name[..GuidLength]] = manifest.Tags;
+                }
+            }
+            return result;
         }
 
         public static string? HashFile(string path)
@@ -159,8 +194,10 @@ namespace xg.editor
                 return new AssetBuildResult(AssetBuildStatus.NotImportable);
 
             string guid = request.Guid.ToLowerInvariant();
-            string directory = DirectoryOf(guid);
-            AssetBuildManifest? old = LoadManifest(directory);
+            string folder = Path.Combine(Root, importer.DataFolder);
+            string manifestPath = Path.Combine(folder, guid + importer.DataExtension + ManifestSuffix);
+            string sourceName = Path.GetFileName(request.SourcePath);
+            AssetBuildManifest? old = LoadManifest(manifestPath);
             string? inputKey = null;
             try
             {
@@ -173,12 +210,18 @@ namespace xg.editor
 
                 if (old?.ErrorKey == inputKey)
                     return new AssetBuildResult(AssetBuildStatus.PreviouslyFailed, old.Error);
-                if (old is { Error: null } && old.InputKey == inputKey && AllExist(directory, old.Files.Concat(old.RawFiles)))
+                if (old is { Error: null } && old.InputKey == inputKey && AllExist(folder, old.Files.Concat(old.RawFiles)))
+                {
+                    if (old.Source != sourceName)
+                    {
+                        old.Source = sourceName;
+                        SaveManifest(manifestPath, old);
+                    }
                     return new AssetBuildResult(AssetBuildStatus.UpToDate);
+                }
 
-                string sourceName = Path.GetFileName(request.SourcePath);
                 Dictionary<(string Kind, string Path, int Occurrence), string> guids;
-                List<AssetDataFile>? rawFiles = LoadStoredRaw(directory, old, importKey, request.StoredItems);
+                List<AssetDataFile>? rawFiles = LoadStoredRaw(folder, old, importKey, request.StoredItems);
                 bool imported = rawFiles is null;
                 if (rawFiles is null)
                 {
@@ -200,7 +243,7 @@ namespace xg.editor
                     rawHasher.AppendData(bytes);
                     if (!raw.Store)
                         continue;
-                    string name = sourceName + raw.Extension;
+                    string name = guid + raw.Extension;
                     rawNames.Add(name);
                     output[name] = bytes;
                 }
@@ -208,27 +251,33 @@ namespace xg.editor
                 string processKey = Key("process", rawHash, processSettings, processors);
 
                 List<string> processedNames;
-                bool reuseProcessed = old is not null && old.ProcessKey == processKey && AllExist(directory, old.Files);
+                List<string> tags;
+                bool reuseProcessed = old is not null && old.ProcessKey == processKey && AllExist(folder, old.Files);
                 if (reuseProcessed)
                 {
                     processedNames = old!.Files;
+                    tags = old.Tags ?? new List<string>();
                 }
                 else
                 {
                     processedNames = new List<string>();
+                    List<string> collected = new();
                     foreach (AssetDataFile raw in rawFiles)
                     {
                         IAssetProcessor processor = _processors.FirstOrDefault(p => p.Accepts(raw.Extension))
                             ?? throw new InvalidDataException($"No processor accepts {raw.Extension}");
                         AssetDataFile processed = processor.Process(raw, request.ProcessSettings);
-                        string name = sourceName + processed.Extension;
+                        string name = guid + processed.Extension;
                         processedNames.Add(name);
                         output[name] = ToChunkFile(processed, guid, guids).ToBytes();
+                        if (processed.Tags is not null)
+                            collected.AddRange(processed.Tags.Where(t => t.Length > 0).Select(t => t.ToLowerInvariant()));
                     }
+                    tags = collected.Distinct(StringComparer.Ordinal).ToList();
                 }
 
-                Commit(directory, output, rawNames.Concat(processedNames));
-                SaveManifest(directory, new AssetBuildManifest
+                Commit(folder, guid, manifestPath, output, rawNames.Concat(processedNames));
+                SaveManifest(manifestPath, new AssetBuildManifest
                 {
                     Source = sourceName,
                     InputKey = inputKey,
@@ -238,6 +287,7 @@ namespace xg.editor
                     RawFiles = rawNames,
                     RawInMemory = rawFiles.Any(f => !f.Store),
                     Files = processedNames,
+                    Tags = tags,
                 });
                 if (!reuseProcessed)
                     return new AssetBuildResult(imported ? AssetBuildStatus.Imported : AssetBuildStatus.Processed);
@@ -245,13 +295,13 @@ namespace xg.editor
             }
             catch (Exception e)
             {
-                AssetBuildManifest failed = old ?? new AssetBuildManifest { Source = Path.GetFileName(request.SourcePath) };
+                AssetBuildManifest failed = old ?? new AssetBuildManifest { Source = sourceName };
                 failed.Error = e.Message;
                 failed.ErrorKey = inputKey;
                 try
                 {
                     if (inputKey is not null)
-                        SaveManifest(directory, failed);
+                        SaveManifest(manifestPath, failed);
                 }
                 catch (Exception saveError) when (saveError is IOException or UnauthorizedAccessException)
                 {
@@ -261,34 +311,57 @@ namespace xg.editor
             }
         }
 
-        // Deletes generated folders whose GUID isn't in the set. Returns how many were removed.
+        // Deletes generated files whose GUID isn't in the set, leftover temporary files and folders of the old
+        // <prefix>/<guid>/ layout. Returns how many assets lost their data.
         public int RemoveOrphans(IReadOnlySet<string> liveGuids)
         {
             if (!Directory.Exists(Root))
                 return 0;
             int removed = 0;
-            foreach (string prefix in Directory.GetDirectories(Root))
+            foreach (string folder in Directory.GetDirectories(Root))
             {
-                if (Path.GetFileName(prefix).Length != 2)
-                    continue;
-                foreach (string directory in Directory.GetDirectories(prefix))
+                string folderName = Path.GetFileName(folder);
+                if (folderName.Length == LegacyPrefixLength && folderName.All(char.IsAsciiHexDigit))
                 {
-                    string name = Path.GetFileName(directory);
+                    Directory.Delete(folder, true);
+                    continue;
+                }
+                HashSet<string> orphans = new(StringComparer.OrdinalIgnoreCase);
+                foreach (string file in Directory.GetFiles(folder))
+                {
+                    string name = Path.GetFileName(file);
+                    if (name.Length <= GuidLength || name[GuidLength] != '.')
+                        continue;
+                    string guid = name[..GuidLength];
                     bool temporary = name.EndsWith(TempSuffix, StringComparison.Ordinal);
-                    string guid = temporary ? name[..^TempSuffix.Length] : name;
                     if (!AssetMeta.IsValidGuid(guid) || (!temporary && liveGuids.Contains(guid)))
                         continue;
-                    Directory.Delete(directory, true);
+                    File.Delete(file);
                     if (!temporary)
-                        removed++;
+                        orphans.Add(guid);
                 }
-                if (!Directory.EnumerateFileSystemEntries(prefix).Any())
-                    Directory.Delete(prefix);
+                removed += orphans.Count;
+                if (!Directory.EnumerateFileSystemEntries(folder).Any())
+                    Directory.Delete(folder);
             }
             return removed;
         }
 
         private IAssetImporter? FindImporter(string extension) => _importers.FirstOrDefault(i => i.Accepts(extension));
+
+        private (string Folder, AssetBuildManifest Manifest)? FindManifest(string guid)
+        {
+            string pattern = guid.ToLowerInvariant() + ".*" + ManifestSuffix;
+            foreach (string folder in _importers.Select(i => Path.Combine(Root, i.DataFolder)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!Directory.Exists(folder))
+                    continue;
+                foreach (string path in Directory.EnumerateFiles(folder, pattern))
+                    if (LoadManifest(path) is AssetBuildManifest manifest)
+                        return (folder, manifest);
+            }
+            return null;
+        }
 
         private static Dictionary<(string, string, int), string> AssignItems(List<AssetDataFile> rawFiles, AssetBuildRequest request)
         {
@@ -315,9 +388,9 @@ namespace xg.editor
             return file;
         }
 
-        private static List<AssetDataFile>? LoadStoredRaw(string directory, AssetBuildManifest? manifest, string importKey, IReadOnlyList<AssetItem> storedItems)
+        private static List<AssetDataFile>? LoadStoredRaw(string folder, AssetBuildManifest? manifest, string importKey, IReadOnlyList<AssetItem> storedItems)
         {
-            if (manifest is null || manifest.ImportKey != importKey || manifest.RawInMemory || manifest.RawFiles.Count == 0 || !AllExist(directory, manifest.RawFiles))
+            if (manifest is null || manifest.ImportKey != importKey || manifest.RawInMemory || manifest.RawFiles.Count == 0 || !AllExist(folder, manifest.RawFiles))
                 return null;
             Dictionary<string, AssetItem> byGuid = storedItems.Where(i => !i.Missing).ToDictionary(i => i.Guid, StringComparer.OrdinalIgnoreCase);
             List<AssetDataFile> files = new();
@@ -325,7 +398,7 @@ namespace xg.editor
             {
                 foreach (string name in manifest.RawFiles)
                 {
-                    ChunkFile chunkFile = ChunkFile.Parse(File.ReadAllBytes(Path.Combine(directory, name)));
+                    ChunkFile chunkFile = ChunkFile.Parse(File.ReadAllBytes(Path.Combine(folder, name)));
                     List<AssetDataItem> items = new();
                     foreach (ChunkItem item in chunkFile.Items)
                     {
@@ -333,7 +406,7 @@ namespace xg.editor
                             return null;
                         items.Add(new AssetDataItem(stored.Kind, stored.Path, item.Chunks));
                     }
-                    files.Add(new AssetDataFile(RawExtension(name, manifest.Source), chunkFile.Kind, items));
+                    files.Add(new AssetDataFile(Path.GetExtension(name), chunkFile.Kind, items));
                 }
             }
             catch (InvalidDataException)
@@ -343,35 +416,27 @@ namespace xg.editor
             return files;
         }
 
-        private static string RawExtension(string fileName, string sourceName) =>
-            fileName.StartsWith(sourceName, StringComparison.OrdinalIgnoreCase) ? fileName[sourceName.Length..] : Path.GetExtension(fileName);
-
-        private static void Commit(string directory, Dictionary<string, byte[]> output, IEnumerable<string> keep)
+        private static void Commit(string folder, string guid, string manifestPath, Dictionary<string, byte[]> output, IEnumerable<string> keep)
         {
-            string temp = directory + TempSuffix;
-            if (Directory.Exists(temp))
-                Directory.Delete(temp, true);
-            Directory.CreateDirectory(temp);
+            Directory.CreateDirectory(folder);
             foreach ((string name, byte[] bytes) in output)
-                File.WriteAllBytes(Path.Combine(temp, name), bytes);
+                File.WriteAllBytes(Path.Combine(folder, name + TempSuffix), bytes);
 
-            Directory.CreateDirectory(directory);
+            File.Delete(manifestPath);
             foreach (string name in output.Keys)
-                File.Move(Path.Combine(temp, name), Path.Combine(directory, name), true);
-            Directory.Delete(temp, true);
+                File.Move(Path.Combine(folder, name + TempSuffix), Path.Combine(folder, name), true);
 
-            HashSet<string> kept = new(keep, StringComparer.OrdinalIgnoreCase) { ManifestName };
-            foreach (string file in Directory.GetFiles(directory))
+            HashSet<string> kept = new(keep, StringComparer.OrdinalIgnoreCase);
+            foreach (string file in Directory.GetFiles(folder, guid + ".*"))
                 if (!kept.Contains(Path.GetFileName(file)))
                     File.Delete(file);
         }
 
-        private static bool AllExist(string directory, IEnumerable<string> names) =>
-            names.All(name => File.Exists(Path.Combine(directory, name)));
+        private static bool AllExist(string folder, IEnumerable<string> names) =>
+            names.All(name => File.Exists(Path.Combine(folder, name)));
 
-        private static AssetBuildManifest? LoadManifest(string directory)
+        private static AssetBuildManifest? LoadManifest(string path)
         {
-            string path = Path.Combine(directory, ManifestName);
             if (!File.Exists(path))
                 return null;
             try
@@ -385,8 +450,7 @@ namespace xg.editor
             }
         }
 
-        private static void SaveManifest(string directory, AssetBuildManifest manifest) =>
-            JSONFile.Write(Path.Combine(directory, ManifestName), manifest);
+        private static void SaveManifest(string path, AssetBuildManifest manifest) => JSONFile.Write(path, manifest);
 
         private static string Key(params string[] parts)
         {
