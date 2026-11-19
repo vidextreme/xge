@@ -173,6 +173,7 @@ namespace xg::imui
         bool KeyPressed(imui::Key key, bool repeat = true) const { return XG_ImUIIsKeyPressed(_ctx, key, repeat); }
         bool ItemActive() const { return XG_ImUIIsItemActive(_ctx); }
         void FocusNext() const { XG_ImUISetKeyboardFocusHere(_ctx); }
+        void SetClipboard(const char* text) const { XG_ImUISetClipboardText(_ctx, text); }
         xg::Rect ItemRect() const { xg::Rect rect; XG_ImUIGetItemRect(_ctx, &rect); return rect; }
 
         bool IconButton(const char* id, imui::Icon icon, float size, Color32 color) const

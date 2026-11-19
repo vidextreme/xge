@@ -301,6 +301,13 @@ namespace xg.imui
         // Gives keyboard focus to the next item (a text field starts editing).
         public static void FocusNext() => Native.SetKeyboardFocusHere(Context);
 
+        // Puts text on the system clipboard.
+        public static void SetClipboard(string text)
+        {
+            fixed (byte* p = Utf8.Encode(text.AsSpan()))
+                Native.SetClipboardText(Context, p);
+        }
+
         // Rect of the previous item in the current draw space (to place an overlay or popup under a field).
         public static Rect ItemRect
         {
