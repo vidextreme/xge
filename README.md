@@ -51,7 +51,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Immediate UI kit (`xgImUIKit`) | 🟢 Working | Panels, menus, widgets, virtualized lists, modals, layout groups (`Gui.Horizontal`/`Vertical`/`FlexibleSpace`), FreeType fonts (Noto), per-monitor DPI. Multi-viewport on DX12 and SDL GPU. |
 | Editor UI | 🟡 Partial | Editor shell (`EditorUI: true`: main menu, toolbar, status bar, dock layout) with real panels: Scene and Game (render views, showing a test cube and grid until actors render), Hierarchy, Inspector (drawn by Unity-style property drawers), Console, Navigator and Tools. |
 | Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Scripts under `Editor` folders build into a separate editor-only assembly (property drawers). Next: an Assets watcher with hot reload, then asset import and a NativeAOT player build. |
-| Project Hub | 🟢 Working | `xge.exe --config hub.config`: add, create, open and remove projects, with a preview image per project. |
+| Project Hub | 🟢 Working | Double-click `gameroot\bin\xgHub.lnk` (written by the build) or run `xge.exe --config hub.config`: add, create, open and remove projects, with a preview image per project. Projects open without a console window; each row has an "Open with console" button. |
 | Renderer (DX12) | 🟠 Very rough | Device, swap chains for every UI window, and a UI pass behind the generic `xg::UIRenderTarget` API (no ImGui in the renderer, no DX12 in the UI kit). Offscreen render views draw a test cube and grid for the scene views; no real 3D pipeline yet. |
 | Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
 | Vulkan | ⚪ Planned | |
@@ -86,7 +86,7 @@ Binaries go to `gameroot/bin`.
 ```powershell
 cd gameroot\bin
 .\xge.exe                                         # editor
-.\xge.exe --config hub.config                     # Project Hub
+.\xge.exe --config hub.config                     # Project Hub (or double-click xgHub.lnk: no console window)
 .\xge.exe --project ..\..\samples\SampleGame      # open a game project in the editor
 .\xge.exe --new-project D:\Games\SpaceShooter     # create a project from the template, then open it
 ```

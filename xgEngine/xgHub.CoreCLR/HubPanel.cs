@@ -51,6 +51,8 @@ namespace xgHub.CoreCLR
         private HubProject? _selected;
         private HubProject? _pendingRemove;
         private bool _openNewPopup;
+        private bool _newConsole;
+        private string? _versionText;
         private bool _openRemovePopup;
         private string _newError = string.Empty;
         private string _status = string.Empty;
@@ -101,6 +103,7 @@ namespace xgHub.CoreCLR
             {
                 _openNewPopup = false;
                 _newError = string.Empty;
+                _newConsole = false;
                 Gui.OpenPopup(NewPopupId);
             }
             if (_openRemovePopup)
@@ -130,7 +133,7 @@ namespace xgHub.CoreCLR
             if (project is null || project.Missing)
                 Debug.LogWarning($"[Hub] XG_UI_TEST_HUB_OPEN: no project named {name}");
             else
-                OpenProject(project);
+                OpenProject(project, Environment.GetEnvironmentVariable("XG_UI_TEST_HUB_CONSOLE") == "1");
         }
 
         protected override void OnDestroy()
@@ -242,6 +245,13 @@ namespace xgHub.CoreCLR
             if (Gui.IconButton($"##hub_preview_set{index}", Icon.Image, new Vector2(x, y), RowButtonSize, icon))
                 BrowsePreview(project);
             Gui.Tooltip("Set preview...");
+            x -= RowButtonSize + 4.0f;
+            if (Gui.IconButton($"##hub_console{index}", Icon.Console, new Vector2(x, y), RowButtonSize, icon))
+            {
+                _selected = project;
+                OpenProject(project, true);
+            }
+            Gui.Tooltip("Open with console");
         }
 
         private static void DrawThumbnail(Painter draw, HubProject project, Rect rect, bool hovered)
@@ -298,8 +308,16 @@ namespace xgHub.CoreCLR
         {
             using CanvasScope canvas = Gui.Canvas("##hub_status", new Vector2(0.0f, StatusHeight));
             string text = _status.Length > 0 ? _status : $"{_projects.Count} project(s)  |  {HubStore.FilePath}";
-            Color32 color = _statusError ? Style.Color(StyleColor.IconMaterial) : Style.Color(StyleColor.TextDim);
-            canvas.Draw.Text(new Vector2(4.0f, (StatusHeight - Gui.MeasureText("A").y) * 0.5f), color, text);
+            Color32 dim = Style.Color(StyleColor.TextDim);
+            Color32 color = _statusError ? Style.Color(StyleColor.IconMaterial) : dim;
+            float y = (StatusHeight - Gui.MeasureText("A").y) * 0.5f;
+            _versionText ??= "XGE " + ScriptRuntime.EngineVersion;
+            float versionWidth = Gui.MeasureText(_versionText).x;
+            float versionX = canvas.Size.x - versionWidth - 4.0f;
+            canvas.Draw.Text(new Vector2(versionX, y), dim, _versionText);
+            canvas.Draw.PushClip(Rect.FromXYWH(0.0f, 0.0f, Math.Max(versionX - 16.0f, 0.0f), StatusHeight));
+            canvas.Draw.Text(new Vector2(4.0f, y), color, text);
+            canvas.Draw.PopClip();
         }
 
         private void DrawNewProjectPopup()
@@ -317,6 +335,7 @@ namespace xgHub.CoreCLR
                 if (Gui.Button("Browse..."))
                     BrowseNewLocation();
             }
+            Gui.Checkbox("Open with console", ref _newConsole);
 
             string? target = NewProjectTarget(out _);
             using (CanvasScope info = Gui.Canvas("##hub_new_info", new Vector2(0.0f, 40.0f)))
@@ -540,11 +559,11 @@ namespace xgHub.CoreCLR
             SetStatus($"Added {_selected?.Name ?? path}", false);
         }
 
-        private void OpenProject(HubProject project)
+        private void OpenProject(HubProject project, bool console = false)
         {
             if (_launch is not null)
                 return;
-            Process? process = StartXge("--project", project.Path);
+            Process? process = StartXGE("--project", project.Path, console);
             if (process is null)
                 return;
             HubStore.Touch(project.Path);
@@ -578,7 +597,7 @@ namespace xgHub.CoreCLR
             }
             if (_launch is not null)
                 return false;
-            Process? process = StartXge("--new-project", target);
+            Process? process = StartXGE("--new-project", target, _newConsole);
             if (process is null)
             {
                 _newError = _status;
@@ -623,7 +642,8 @@ namespace xgHub.CoreCLR
             SetStatus($"Removed {project.Name} from the list (files are untouched)", false);
         }
 
-        private Process? StartXge(string flag, string path)
+        // console: true opens xge.exe in a new console window; otherwise it runs without one.
+        private Process? StartXGE(string flag, string path, bool console)
         {
             string? exe = Environment.ProcessPath;
             if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
@@ -635,11 +655,12 @@ namespace xgHub.CoreCLR
             {
                 ProcessStartInfo info = new(exe, $"{flag} \"{path.TrimEnd('\\')}\"")
                 {
-                    UseShellExecute = true,
+                    UseShellExecute = console,
+                    CreateNoWindow = !console,
                     WorkingDirectory = Path.GetDirectoryName(exe)!,
                 };
                 Process? process = Process.Start(info);
-                Debug.Log($"[Hub] Started xge.exe {flag} \"{path}\" (pid {process?.Id})");
+                Debug.Log($"[Hub] Started xge.exe {flag} \"{path}\"{(console ? " with a console" : "")} (pid {process?.Id})");
                 return process;
             }
             catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)

@@ -70,3 +70,5 @@ Testing/
 .cache/
 # Game-project SDK installed by the engine build (xgSharedKit.Managed XgeInstallSdk target)
 gameroot/sdk/
+# Project Hub shortcut written by the xgHub.CoreCLR build (absolute paths)
+gameroot/bin/*.lnk

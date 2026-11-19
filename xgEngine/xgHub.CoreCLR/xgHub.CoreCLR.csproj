@@ -17,4 +17,9 @@
     <ProjectReference Include="..\xgImUIKit.Managed\xgImUIKit.Managed.csproj" />
   </ItemGroup>
 
+  <!-- Writes gameroot/bin/xgHub.lnk: opens the Project Hub through headless conhost.exe, so no console window appears. -->
+  <Target Name="XGEHubShortcut" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)HubShortcut.ps1&quot; -BinDir &quot;$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\gameroot\bin'))&quot;" ContinueOnError="true" />
+  </Target>
+
 </Project>
