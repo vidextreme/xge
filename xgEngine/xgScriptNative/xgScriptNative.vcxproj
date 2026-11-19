@@ -106,10 +106,13 @@
     <ClCompile Include="interop\xgGeometryInterop.cpp" />
     <ClCompile Include="NativeSubsystem.cpp" />
     <ClCompile Include="ScriptModuleNative.cpp" />
+    <ClCompile Include="ScriptModuleFunctions.cpp" />
     <ClInclude Include="InteropSubsystem.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ScriptHostNative.h" />
     <ClInclude Include="ScriptModuleNative.h" />
+    <ClInclude Include="ScriptModuleFunctions.h" />
+    <ClInclude Include="public\xgModuleFunctions.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

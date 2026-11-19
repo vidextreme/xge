@@ -49,6 +49,9 @@ namespace xg
         virtual SceneGraph* GetSceneGraph() = 0;
 
     protected:
+        // For modules that own their id and group strings: points the names at that storage after construction.
+        void SetNames(const char* id, const char* group) { _id = id; _group = group; }
+
         ScriptHost* _host;
         ScriptEngine* _engine = nullptr;
         

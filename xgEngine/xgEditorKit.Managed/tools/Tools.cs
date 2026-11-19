@@ -253,6 +253,41 @@ namespace xg.editor
             }
         }
 
+        // Removes everything assembly registered (a project's editor scripts before a reload): its tools, controls,
+        // panel tools (closing their panels) and inspector tools.
+        public void UnregisterAssembly(Assembly assembly)
+        {
+            if (!_assemblies.Remove(assembly))
+                return;
+            bool Owned(Type? type) => type is not null && type.Assembly == assembly;
+
+            if (_active is not null && Owned(_active.Tool.GetType()))
+                SetActive(null);
+            foreach (ToolEntry entry in _tools.Where(e => Owned(e.Tool.GetType())).ToArray())
+            {
+                if (entry.Tool is IDisposable disposable)
+                    Safe(entry.Attribute.Name, disposable.Dispose);
+                _tools.Remove(entry);
+            }
+            _controls.RemoveAll(c => Owned(c.Method.DeclaringType));
+            _panelTypes.RemoveAll(e => Owned(e.Type));
+            foreach (var inspectorTool in _inspectorTools.Where(t => Owned(t.Tool.GetType())).ToArray())
+            {
+                if (inspectorTool.Tool is IDisposable disposable)
+                    Safe(inspectorTool.Attribute.Name, disposable.Dispose);
+                _inspectorTools.Remove(inspectorTool);
+            }
+            InspectorTools = _inspectorTools.OrderBy(t => t.Attribute.Priority).ThenBy(t => t.Order).Select(t => t.Tool).ToArray();
+            foreach (IPanelTool panel in _panels.Where(p => Owned(p.GetType())).ToArray())
+            {
+                _panels.Remove(panel);
+                _seenOpen.Remove(panel);
+            }
+            Version++;
+            ActivateDefault();
+            Refresh();
+        }
+
         // Delivers a selection made before these tools were registered.
         private void SyncSelection()
         {

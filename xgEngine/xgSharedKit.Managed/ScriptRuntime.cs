@@ -75,11 +75,40 @@ namespace xg
             }
         }
 
+        private static readonly Queue<Action> _betweenFrames = new();
+
+        // Runs action on the main thread after this frame's module and actor updates, outside every module update, so
+        // it may load or unload script modules. Main thread only.
+        public static unsafe void RunBetweenFrames(Action action)
+        {
+            ArgumentNullException.ThrowIfNull(action);
+            _betweenFrames.Enqueue(action);
+            XG_RunBetweenFrames(_enginePtr, &BetweenFrames, 0);
+        }
+
+        [UnmanagedCallersOnly]
+        private static void BetweenFrames(nint user)
+        {
+            if (!_betweenFrames.TryDequeue(out Action? action))
+                return;
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+        }
+
         // ------------------------------------------------------------
         // Native interop
         // ------------------------------------------------------------
 
         private const string NativeLib = "xgScriptNative";
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_RunBetweenFrames")]
+        private static unsafe partial void XG_RunBetweenFrames(nint enginePtr, delegate* unmanaged<nint, void> callback, nint user);
 
         // Mirrors xg::Route (xgBase/public/xgRoute.h).
         [StructLayout(LayoutKind.Sequential)]

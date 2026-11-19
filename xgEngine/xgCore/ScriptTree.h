@@ -13,16 +13,11 @@ namespace xg
     class ScriptNode
     {
     public:
-        ScriptNode(ScriptModule* module, ThreadDomain domain);
+        explicit ScriptNode(ScriptModule* module);
         ~ScriptNode();
 
         ScriptModule* GetModule() const;
-        ThreadDomain  GetDomain() const;
         ScriptNode* GetParent() const;
-
-        void SetDomain(ThreadDomain domain);
-        void SetLaneIndex(uint16_t index);
-        uint16_t GetLaneIndex() const;
 
         ScriptNode* AddChild(ScriptNode* child);
         void        Update(float dt);
@@ -61,8 +56,6 @@ namespace xg
         void ShutdownAllSubsystems();
     private:
         ScriptModule* _module;
-        ThreadDomain  _domain;
-        uint16_t      _laneIndex;
         ScriptNode* _parent;
         std::vector<std::unique_ptr<ScriptNode>> _children;
 
@@ -77,11 +70,14 @@ namespace xg
         ScriptTree();
         ~ScriptTree();
 
-        ScriptNode* AddModule(ScriptModule* module,
-            ScriptModule* parent,
-            ThreadDomain  domain);
+        ScriptNode* AddModule(ScriptModule* module, ScriptModule* parent);
 
+        // Detaches the module's node (and its whole subtree) from the tree and destroys the nodes. Shutting down the
+        // subtree's modules and subsystems is the caller's job (Engine::RemoveScriptModule), done before this.
         void RemoveModule(ScriptModule* module);
+
+        // Every module in the subtree under module (module itself excluded), deepest first.
+        void CollectDescendants(ScriptModule* module, std::vector<ScriptModule*>& out);
 
         ScriptNode* FindNode(ScriptModule* module) const;
         ScriptNode* FindNodeForCallback(Callback* cb) const;
@@ -97,20 +93,17 @@ namespace xg
 
         ScriptModule* FindModuleByIdRecursive(ScriptNode* node, const char* id);
 
+        // One recursive pass over the tree, parents before children.
         void Update(float dt);
-        void UpdateDedicated(size_t lane, float dt);
-        void UpdatePinned(size_t lane, float dt);
 
         void DebugPrint() const;
         void Shutdown();
     private:
         bool RemoveRecursive(ScriptNode* parent, ScriptModule* module);
+        void CollectRecursive(ScriptNode* node, std::vector<ScriptModule*>& out);
         void DebugPrintNode(const ScriptNode* node, int depth) const;
 
         ScriptNode* _root;
-        std::vector<ScriptNode*> _mainNodes;
-        std::vector<std::vector<ScriptNode*>> _dedicatedNodes;
-        std::vector<std::vector<ScriptNode*>> _pinnedNodes;
     };
 
 }

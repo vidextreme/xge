@@ -25,6 +25,7 @@ namespace xg.editor
         private static readonly Dictionary<string, Entry> _drawers = new();
         private static readonly Dictionary<(Type, string, Type), PropertyDrawer> _instances = new();
         private static readonly HashSet<Assembly> _assemblies = new();
+        private static readonly List<Assembly> _order = new();
 
         public static int Count => _drawers.Count;
 
@@ -38,6 +39,27 @@ namespace xg.editor
         {
             if (!_assemblies.Add(assembly))
                 return 0;
+            _order.Add(assembly);
+            return Scan(assembly);
+        }
+
+        // Drops the drawers of assembly (a project's editor scripts before a reload); drawers it had replaced come back.
+        public static void Unregister(Assembly assembly)
+        {
+            if (!_assemblies.Remove(assembly))
+                return;
+            _order.Remove(assembly);
+            _drawers.Clear();
+            foreach (Assembly remaining in _order)
+                Scan(remaining);
+            _instances.Clear();
+        }
+
+        // Forgets the drawer instances, which hold the objects and types they last drew.
+        public static void ClearInstances() => _instances.Clear();
+
+        private static int Scan(Assembly assembly)
+        {
             int added = 0;
             Type[] types;
             try

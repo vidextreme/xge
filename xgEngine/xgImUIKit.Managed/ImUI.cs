@@ -53,6 +53,17 @@ namespace xg.imui
         internal static void Track(IDisposable resource) => _resources.Add(resource);
         internal static void Untrack(IDisposable resource) => _resources.Remove(resource);
 
+        // Unregisters the panels and menu commands whose code lives in context (scripts that are about to unload).
+        public static void UnregisterFrom(AssemblyLoadContext context)
+        {
+            for (int i = Panels.Count - 1; i >= 0; --i)
+                if (AssemblyLoadContext.GetLoadContext(Panels[i].GetType().Assembly) == context)
+                    Panels[i].Unregister();
+            for (int i = _resources.Count - 1; i >= 0; --i)
+                if (_resources[i] is MenuCommand command && command.BelongsTo(context))
+                    command.Dispose();
+        }
+
         public static void ShutdownAll()
         {
             for (int i = Panels.Count - 1; i >= 0; --i)

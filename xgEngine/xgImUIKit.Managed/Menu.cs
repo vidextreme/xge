@@ -36,6 +36,12 @@ namespace xg.imui
 
         public bool IsRegistered => _handle != 0;
 
+        internal bool BelongsTo(System.Runtime.Loader.AssemblyLoadContext context)
+        {
+            Type? owner = _action.Target?.GetType() ?? _action.Method.DeclaringType;
+            return owner is not null && System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(owner.Assembly) == context;
+        }
+
         public void Dispose()
         {
             if (_handle == 0)

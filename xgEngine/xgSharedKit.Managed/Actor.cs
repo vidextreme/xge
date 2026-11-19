@@ -13,6 +13,9 @@ namespace xg
 
         private bool _adopted;
 
+        // True for a proxy of an actor another module created (see Adopt).
+        public bool IsAdopted => _adopted;
+
         internal Actor()
         {
         }
@@ -57,6 +60,14 @@ namespace xg
         internal static Actor Adopt(ActorID id)
         {
             Actor actor = new() { ID = id, _adopted = true };
+            ActorRegistry.Register(actor);
+            return actor;
+        }
+
+        // An actor this module owned before a script reload (adopted: it was a proxy of another module's actor then).
+        internal static Actor Reattach(ActorID id, bool adopted)
+        {
+            Actor actor = new() { ID = id, _adopted = adopted };
             ActorRegistry.Register(actor);
             return actor;
         }

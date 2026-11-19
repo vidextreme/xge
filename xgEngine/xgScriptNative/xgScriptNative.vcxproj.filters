@@ -33,6 +33,12 @@
     <ClInclude Include="ScriptModuleNative.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="ScriptModuleFunctions.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgModuleFunctions.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
     <ClInclude Include="InteropSubsystem.h">
       <Filter>private\headers</Filter>
     </ClInclude>
@@ -48,6 +54,9 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="ScriptModuleNative.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptModuleFunctions.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="interop\xgLogInterop.cpp">

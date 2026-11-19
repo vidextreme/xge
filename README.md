@@ -50,13 +50,13 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `tools/verify/`. |
 | Immediate UI kit (`xgImUIKit`) | 🟢 Working | Panels, menus, widgets, virtualized lists, modals, layout groups (`Gui.Horizontal`/`Vertical`/`FlexibleSpace`), FreeType fonts (Noto), per-monitor DPI. Multi-viewport on DX12 and SDL GPU. |
 | Editor UI | 🟡 Partial | Editor shell (`EditorUI: true`: main menu, toolbar, status bar, dock layout) with real panels: Scene and Game (render views, showing a test cube and grid until actors render), Hierarchy, Inspector (drawn by Unity-style property drawers), Console, Navigator and Tools. |
-| Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Scripts under `Editor` folders build into a separate editor-only assembly (property drawers). Next: an Assets watcher with hot reload, then asset import and a NativeAOT player build. |
+| Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Scripts under `Editor` folders build into a separate editor-only assembly (property drawers). Next: asset import and a NativeAOT player build. |
 | Project Hub | 🟢 Working | Double-click `gameroot\bin\xgHub.lnk` (written by the build) or run `xge.exe --config hub.config`: add, create, open and remove projects, with a preview image per project. Projects open without a console window; each row has an "Open with console" button. |
 | Renderer (DX12) | 🟠 Very rough | Device, swap chains for every UI window, and a UI pass behind the generic `xg::UIRenderTarget` API (no ImGui in the renderer, no DX12 in the UI kit). Offscreen render views draw a test cube and grid for the scene views; no real 3D pipeline yet. |
 | Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
 | Vulkan | ⚪ Planned | |
 | Network replication | ⚪ Planned | |
-| Hot reload | ⚪ Planned | |
+| Hot reload | 🟢 Working | Saving a script (or Assets > Build Scripts / the toolbar button) rebuilds the project in the background and swaps the new scripts in without restarting the editor. Actors and their component field values are kept; a failed build leaves the old scripts running. |
 
 ---
 
@@ -294,7 +294,7 @@ Each document describes the current code and lists unbuilt work under "Future de
 ## Roadmap
 
 **Near term**
-- Game projects: an Assets watcher with background build and script hot reload, then asset import, then a NativeAOT player build
+- Game projects: asset import, then a NativeAOT player build
 - Inspector: editing beyond fields (add/remove components, undo, multi-selection), and saving values with the scene
 - Wire up dispatch groups (thread affinity)
 

@@ -8,19 +8,14 @@
 #include "xgSubsystem.h"
 namespace xg
 {
-    ScriptNode::ScriptNode(ScriptModule* module, ThreadDomain domain)
-        : _module(module), _domain(domain), _laneIndex(0), _parent(nullptr)
+    ScriptNode::ScriptNode(ScriptModule* module)
+        : _module(module), _parent(nullptr)
     {}
 
     ScriptNode::~ScriptNode() = default;
 
     ScriptModule* ScriptNode::GetModule() const { return _module; }
-    ThreadDomain  ScriptNode::GetDomain() const { return _domain; }
     ScriptNode* ScriptNode::GetParent() const { return _parent; }
-
-    void ScriptNode::SetDomain(ThreadDomain domain) { _domain = domain; }
-    void ScriptNode::SetLaneIndex(uint16_t index) { _laneIndex = index; }
-    uint16_t ScriptNode::GetLaneIndex() const { return _laneIndex; }
 
     ScriptNode* ScriptNode::AddChild(ScriptNode* child)
     {
@@ -83,9 +78,7 @@ namespace xg
     ScriptTree::ScriptTree() : _root(nullptr) {}
     ScriptTree::~ScriptTree() { delete _root; }
 
-    ScriptNode* ScriptTree::AddModule(ScriptModule* module,
-        ScriptModule* parent,
-        ThreadDomain  domain)
+    ScriptNode* ScriptTree::AddModule(ScriptModule* module, ScriptModule* parent)
     {
         if (!module)
             return nullptr;
@@ -94,8 +87,7 @@ namespace xg
         {
             if (!_root)
             {
-                _root = new ScriptNode(module, domain);
-                _mainNodes.push_back(_root);
+                _root = new ScriptNode(module);
                 return _root;
             }
             parent = _root->GetModule();
@@ -109,28 +101,7 @@ namespace xg
             return nullptr;
         }
 
-        ScriptNode* node = parentNode->AddChild(new ScriptNode(module, domain));
-
-        switch (domain)
-        {
-        case ThreadDomain::MainThread:
-            _mainNodes.push_back(node);
-            break;
-
-        case ThreadDomain::DedicatedThread:
-            if (node->GetLaneIndex() >= _dedicatedNodes.size())
-                _dedicatedNodes.resize(node->GetLaneIndex() + 1);
-            _dedicatedNodes[node->GetLaneIndex()].push_back(node);
-            break;
-
-        case ThreadDomain::PinnedThread:
-            if (node->GetLaneIndex() >= _pinnedNodes.size())
-                _pinnedNodes.resize(node->GetLaneIndex() + 1);
-            _pinnedNodes[node->GetLaneIndex()].push_back(node);
-            break;
-        }
-
-        return node;
+        return parentNode->AddChild(new ScriptNode(module));
     }
 
     void ScriptTree::RemoveModule(ScriptModule* module)
@@ -151,27 +122,32 @@ namespace xg
     bool ScriptTree::RemoveRecursive(ScriptNode* parent, ScriptModule* module)
     {
         auto& children = parent->_children;
-        parent->ShutdownAllSubsystems();
         for (size_t i = 0; i < children.size(); ++i)
         {
-            ScriptNode* child = children[i].get();
-
-            if (child->GetModule() == module)
+            if (children[i]->GetModule() == module)
             {
-                child->ShutdownAllSubsystems();
-
-                for (auto& gc : child->_children)
-                    gc->ShutdownAllSubsystems();
-
                 children.erase(children.begin() + i);
                 return true;
             }
-
-            if (RemoveRecursive(child, module))
+            if (RemoveRecursive(children[i].get(), module))
                 return true;
         }
-
         return false;
+    }
+
+    void ScriptTree::CollectDescendants(ScriptModule* module, std::vector<ScriptModule*>& out)
+    {
+        if (ScriptNode* node = FindNode(module))
+            for (auto& child : node->_children)
+                CollectRecursive(child.get(), out);
+    }
+
+    void ScriptTree::CollectRecursive(ScriptNode* node, std::vector<ScriptModule*>& out)
+    {
+        for (auto& child : node->_children)
+            CollectRecursive(child.get(), out);
+        if (node->GetModule())
+            out.push_back(node->GetModule());
     }
 
     ScriptNode* ScriptTree::FindNode(ScriptModule* module) const
@@ -205,26 +181,8 @@ namespace xg
 
     void ScriptTree::Update(float dt)
     {
-        for (ScriptNode* n : _mainNodes)
-            n->Update(dt);
-    }
-
-    void ScriptTree::UpdateDedicated(size_t lane, float dt)
-    {
-        if (lane >= _dedicatedNodes.size())
-            return;
-
-        for (ScriptNode* n : _dedicatedNodes[lane])
-            n->Update(dt);
-    }
-
-    void ScriptTree::UpdatePinned(size_t lane, float dt)
-    {
-        if (lane >= _pinnedNodes.size())
-            return;
-
-        for (ScriptNode* n : _pinnedNodes[lane])
-            n->Update(dt);
+        if (_root)
+            _root->Update(dt);
     }
 
     void ScriptTree::DebugPrintNode(const ScriptNode* node, int depth) const
