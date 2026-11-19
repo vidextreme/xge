@@ -414,37 +414,60 @@ namespace xg
             "Loaded script module: %s - %s (group: %s)",
             id, path, resolvedGroup);
 
-        // 3. Register module BEFORE Init so parent lookup works
+        return AttachModule(module, parent) ? module : nullptr;
+    }
+
+    uint32_t Engine::AllocateModuleId()
+    {
+        return ++_nextModuleId;
+    }
+
+    bool Engine::AddExternalScriptModule(ScriptModule* module, ScriptModule* parent)
+    {
+        if (!module)
+            return false;
+        if (!module->IsValid() || !module->GetId() || GetScriptModule(module->GetId()))
+        {
+            xg::Log(xg::MessageType::Error, "Cannot add script module %s", module->GetId() ? module->GetId() : "<null>");
+            ScriptHost* host = module->GetHost();
+            delete module;
+            XG_RELEASE_ONE(host);
+            return false;
+        }
+        if (ScriptHost* host = module->GetHost())
+            host->AddRef();
+        xg::Log(xg::MessageType::Info, "Added script module: %s (id %u)", module->GetId(), module->GetModuleId());
+        return AttachModule(module, parent ? parent : _rootModule);
+    }
+
+    // Registers the module, inserts it into the tree and initializes it (in that order, so parent lookups work during
+    // Init). On failure the module is deleted and its host reference released.
+    bool Engine::AttachModule(ScriptModule* module, ScriptModule* parent)
+    {
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
+        const char* id = module->GetId();
+        ScriptHost* host = module->GetHost();
         storage->Modules[id] = module;
 
-        // 4. Insert into ScriptTree BEFORE Init
-        ScriptNode* parentNode = nullptr;
-        if (parent)
-            parentNode = _scriptTree->FindNode(parent);
-
-        ScriptNode* node = _scriptTree->AddModule(module, parent, ThreadDomain::MainThread);
-
+        ScriptNode* node = _scriptTree->AddModule(module, parent);
         if (!node)
         {
-            xg::Log(xg::MessageType::Error,
-                "ScriptTree failed to attach module: %s", id);
+            xg::Log(xg::MessageType::Error, "ScriptTree failed to attach module: %s", id);
             storage->Modules.erase(id);
             delete module;
             XG_RELEASE_ONE(host);
-            return nullptr;
+            return false;
         }
 
-        // 5. Init module AFTER it is in the tree
         if (!module->Initialize(this))
         {
-            _scriptTree->RemoveModule(module);
             storage->Modules.erase(id);
-
             module->Shutdown();
+            node->ShutdownAllSubsystems();
+            _scriptTree->RemoveModule(module);
             delete module;
             XG_RELEASE_ONE(host);
-            return nullptr;
+            return false;
         }
 
         _scriptTree->ForEachNodeRecursive(node, [](ScriptNode* n)
@@ -454,8 +477,39 @@ namespace xg
                         system->Initialize();
                     });
             });
-        //_scriptTree->DebugPrint();
-        return module;
+        return true;
+    }
+
+    // Shuts the module down while its node and subsystems still exist, then releases what it owns and deletes it.
+    // The node stays in the tree; the caller removes it.
+    void Engine::DestroyModule(ScriptModule* module)
+    {
+        ScriptHost* host = module->GetHost();
+        module->Shutdown();
+        if (JobSystem* jobs = GetSubsystem<JobSystem>())
+            jobs->WaitModule(module->GetModuleId());
+        if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
+            resources->ReleaseModule(module->GetModuleId());
+        if (ScriptNode* node = _scriptTree->FindNode(module))
+            node->ShutdownAllSubsystems();
+        delete module;
+        XG_RELEASE_ONE(host);
+    }
+
+    void Engine::RunBetweenFrames(void (*fn)(void* user), void* user)
+    {
+        if (fn)
+            _betweenFrames.emplace_back(fn, user);
+    }
+
+    void Engine::DrainBetweenFrames()
+    {
+        if (_betweenFrames.empty())
+            return;
+        std::vector<std::pair<void (*)(void*), void*>> pending;
+        pending.swap(_betweenFrames);
+        for (auto& [fn, user] : pending)
+            fn(user);
     }
 
     ScriptModule* Engine::GetScriptModule(const char* id)
@@ -476,28 +530,34 @@ namespace xg
 
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
         auto it = storage->Modules.find(id);
-
-        if (it != storage->Modules.end())
+        if (it == storage->Modules.end())
+            return;
+        ScriptModule* module = it->second;
+        if (!module || module == _rootModule)
         {
-            ScriptModule* module = it->second;
-            if (module)
-            {
+            if (!module)
                 storage->Modules.erase(it);
-                _scriptTree->RemoveModule(module);
-
-                ScriptHost* host = module->GetHost();
-                module->Shutdown();
-                if (JobSystem* jobs = GetSubsystem<JobSystem>())
-                    jobs->WaitModule(module->GetModuleId());
-                if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
-                    resources->ReleaseModule(module->GetModuleId());
-                delete module;
-                XG_RELEASE_ONE(host);
-                return;
-            }
-
-            storage->Modules.erase(it);
+            return;
         }
+
+        std::vector<ScriptModule*> removed;
+        _scriptTree->CollectDescendants(module, removed);
+        removed.push_back(module);
+        for (ScriptModule* m : removed)
+        {
+            xg::Log(xg::MessageType::Info, "Removing script module: %s", m->GetId());
+            for (auto entry = storage->Modules.begin(); entry != storage->Modules.end(); ++entry)
+            {
+                if (entry->second == m)
+                {
+                    storage->Modules.erase(entry);
+                    break;
+                }
+            }
+        }
+        for (ScriptModule* m : removed)
+            DestroyModule(m);
+        _scriptTree->RemoveModule(module);
     }
 
     ScriptModule* Engine::GetScriptModule(uint32_t moduleID)
@@ -553,6 +613,8 @@ namespace xg
 
             if (ActorRegistry* actors = GetSubsystem<ActorRegistry>())
                 actors->UpdateActors(dt);
+
+            DrainBetweenFrames();
 
             if (Renderer)
                 Renderer->Render();

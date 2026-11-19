@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Loader;
@@ -16,7 +17,9 @@ namespace xgEditor.CoreCLR
     // The open game project: created (xge.exe --new-project) or loaded (--project / gameconfig ProjectPath) when the
     // editor starts, with its generated files kept current and its scripts rebuilt when stale, plus the Assets menu
     // commands that act on it. Open runs before the kernel loads the project's script module, so a build done there is
-    // loaded in the same session.
+    // loaded in the same session. Later builds (Assets > Build Scripts, the toolbar, or a saved script) hot reload the
+    // scripts: game.project and the editor scripts live in collectible load contexts and are swapped between frames,
+    // keeping the actors and their component values.
     public static partial class ProjectService
     {
         private const int BuildTimeoutMilliseconds = 120_000;
@@ -25,6 +28,15 @@ namespace xgEditor.CoreCLR
         public const string ProjectModuleId = "game.project";
 
         private static int _building;
+        private static readonly TimeSpan WatchQuiet = TimeSpan.FromSeconds(1.0);
+        private static readonly ConcurrentQueue<Action> _mainThread = new();
+        private static LoadedScriptModule? _scripts;
+        private static ScriptLoadContext? _editorContext;
+        private static Assembly? _editorAssembly;
+        private static ScriptWatcher? _watcher;
+        private static int _testReloads;
+        private static int _testFrames;
+        private static int _frames;
 
         public static ProjectInfo? Current { get; private set; }
         // The open project's assets (meta files, tags, bookmarks); null without a project.
@@ -64,6 +76,77 @@ namespace xgEditor.CoreCLR
             }
             LoadScriptModule(Current);
             LoadEditorAssembly(Current);
+            _watcher = new ScriptWatcher(Current);
+            if (int.TryParse(Environment.GetEnvironmentVariable("XG_SCRIPT_TEST_RELOAD"), out int reloads))
+                _testReloads = reloads;
+        }
+
+        // Per frame (main thread): runs work queued by background builds, starts a build once saved scripts have been
+        // quiet for a moment, and drives the XG_SCRIPT_TEST_RELOAD hook.
+        public static void Update()
+        {
+            while (_mainThread.TryDequeue(out Action? action))
+                action();
+            if (Current is not null && _watcher is not null && !IsBuilding && _watcher.TakeSettled(WatchQuiet))
+            {
+                Debug.Log("[Scripts] Script files changed; rebuilding");
+                _ = BuildScripts();
+            }
+            if (++_frames % 60 == 0)
+                ScriptModuleLoader.CheckLingering();
+            if (_testReloads > 0 && ++_testFrames % 120 == 0)
+            {
+                _testReloads--;
+                ScriptReloadTest.BeforeReload();
+                RequestReload();
+            }
+        }
+
+        public static void Shutdown()
+        {
+            _watcher?.Dispose();
+            _watcher = null;
+        }
+
+        // Swaps in the current build of the project's scripts between frames.
+        public static void RequestReload()
+        {
+            ProjectInfo? project = Current;
+            if (project is not null)
+                ScriptRuntime.RunBetweenFrames(() => Reload(project));
+        }
+
+        // Runs between frames: captures the actors and component values, unloads the editor scripts and game.project,
+        // loads the new build and restores them. A build that fails to load is replaced by the previous one again.
+        private static void Reload(ProjectInfo project)
+        {
+            if (!File.Exists(project.ScriptAssemblyPath))
+                return;
+            Stopwatch clock = Stopwatch.StartNew();
+            byte[]? previousImage = _scripts?.Image;
+            byte[]? previousSymbols = _scripts?.Symbols;
+
+            DrawerRegistry.ClearInstances();
+            TypeBridge.Clear();
+            ComponentIcons.Clear();
+            ComponentCatalog.Invalidate();
+            WeakReference? editorContext = UnloadEditorAssembly();
+            Selection.Refresh();
+            string state = ScriptModuleLoader.Unload(ref _scripts, capture: true) ?? "{\"actors\":[]}";
+            if (editorContext is not null)
+                ScriptModuleLoader.WaitForUnload(editorContext, $"{project.Name} editor scripts");
+
+            _scripts = ScriptModuleLoader.Load(ProjectModuleId, project.ScriptAssemblyPath, state);
+            if (_scripts is null && previousImage is not null)
+            {
+                Debug.LogError($"[Scripts] {project.Name}: the new build failed to load; running the previous build again.");
+                _scripts = ScriptModuleLoader.Load(ProjectModuleId, Path.GetDirectoryName(project.ScriptAssemblyPath)!, previousImage, previousSymbols, state);
+            }
+            LoadEditorAssembly(project);
+            Selection.Refresh();
+            ScriptReloadTest.AfterReload();
+            if (_scripts is not null)
+                Debug.LogSuccess($"[Scripts] Reloaded {project.Name} scripts in {clock.Elapsed.TotalMilliseconds:F0} ms");
         }
 
         // The engine's resource system reads generated data (Library/Data/<Type>/<guid>.<ext>) by GUID from here.
@@ -75,9 +158,9 @@ namespace xgEditor.CoreCLR
                 Debug.LogWarning($"[Project] Could not add {data} as a resource source");
         }
 
-        // Loads the project's editor scripts (<Name>.Editor.dll) into this module's load context, so its drawers derive
-        // from the editor's own PropertyDrawer. Its reference to the runtime scripts resolves to a reflection copy from
-        // the build folder; the live game objects stay in game.project. Loaded from bytes, so rebuilds can replace it.
+        // Loads the project's editor scripts (<Name>.Editor.dll) into their own collectible context. The editor kits
+        // resolve to this module's copies, so drawers derive from the editor's own PropertyDrawer; the runtime scripts
+        // they reference load from the build folder as a reflection copy (the live game objects stay in game.project).
         private static void LoadEditorAssembly(ProjectInfo project)
         {
             if (!project.HasEditorScripts)
@@ -88,34 +171,41 @@ namespace xgEditor.CoreCLR
                 return;
             }
 
-            AssemblyLoadContext context = TypeBridge.EditorContext;
-            string folder = Path.GetDirectoryName(project.EditorAssemblyPath)!;
-            context.Resolving += (loader, name) =>
-            {
-                string candidate = Path.Combine(folder, name.Name + ".dll");
-                return File.Exists(candidate) ? LoadFromBytes(loader, candidate) : null;
-            };
+            AssemblyLoadContext editor = TypeBridge.EditorContext;
+            ScriptLoadContext context = new($"{ProjectModuleId}.editor", Path.GetDirectoryName(project.EditorAssemblyPath)!,
+                name => editor.Assemblies.FirstOrDefault(a => a.GetName().Name == name.Name));
             try
             {
-                Assembly editor = LoadFromBytes(context, project.EditorAssemblyPath);
-                int drawers = DrawerRegistry.Register(editor);
-                Subsystem.Get<Tools>()?.RegisterAssembly(editor);
+                Assembly assembly = context.LoadFile(project.EditorAssemblyPath);
+                _editorContext = context;
+                _editorAssembly = assembly;
+                TypeBridge.AddContext(context);
+                int drawers = DrawerRegistry.Register(assembly);
+                Subsystem.Get<Tools>()?.RegisterAssembly(assembly);
                 Debug.LogSuccess($"[Project] {project.Name}: loaded editor scripts ({drawers} property drawer(s)) from {project.EditorAssemblyPath}");
             }
             catch (Exception e)
             {
                 Debug.LogError($"[Project] {project.Name}: failed to load editor scripts: {e.Message}");
+                context.Unload();
             }
         }
 
-        private static Assembly LoadFromBytes(AssemblyLoadContext context, string path)
+        // Unregisters everything the editor scripts added and unloads their context; returns it to wait for, or null.
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static WeakReference? UnloadEditorAssembly()
         {
-            string pdb = Path.ChangeExtension(path, ".pdb");
-            using MemoryStream assembly = new(File.ReadAllBytes(path));
-            if (!File.Exists(pdb))
-                return context.LoadFromStream(assembly);
-            using MemoryStream symbols = new(File.ReadAllBytes(pdb));
-            return context.LoadFromStream(assembly, symbols);
+            if (_editorContext is null || _editorAssembly is null)
+                return null;
+            Subsystem.Get<Tools>()?.UnregisterAssembly(_editorAssembly);
+            DrawerRegistry.Unregister(_editorAssembly);
+            ImUI.UnregisterFrom(_editorContext);
+            TypeBridge.RemoveContext(_editorContext);
+            _editorContext.Unload();
+            WeakReference context = new(_editorContext);
+            _editorContext = null;
+            _editorAssembly = null;
+            return context;
         }
 
         // Loads the project's script assembly as "game.project", a sibling of this editor module.
@@ -130,7 +220,8 @@ namespace xgEditor.CoreCLR
             if (File.Exists(project.BuildFailedMarkerPath))
                 Debug.LogWarning($"[Project] {project.Name}: the latest script build failed; loading the last successful build.");
 
-            if (ScriptRuntime.AddScriptModule(ProjectModuleId, project.ScriptAssemblyPath))
+            _scripts = ScriptModuleLoader.Load(ProjectModuleId, project.ScriptAssemblyPath);
+            if (_scripts is not null)
                 Debug.LogSuccess($"[Project] {project.Name}: loaded scripts from {project.ScriptAssemblyPath}");
             else
                 Debug.LogError($"[Project] {project.Name}: failed to load {project.ScriptAssemblyPath}");
@@ -202,7 +293,10 @@ namespace xgEditor.CoreCLR
                 {
                     bool built = RunBuild(project);
                     if (built)
-                        Debug.LogSuccess($"[Project] {project.Name} scripts built. Restart the editor to load them.");
+                    {
+                        Debug.Log($"[Project] {project.Name} scripts built; reloading");
+                        _mainThread.Enqueue(RequestReload);
+                    }
                     return built;
                 }
                 finally

@@ -123,5 +123,17 @@ namespace xg
         virtual void ReportStartup(const char* step, const char* detail, float progress) = 0;
         // Keeps the splash responsive during long blocking work (call every few tens of milliseconds).
         virtual void PumpStartup() = 0;
+
+        // Runs fn(user) on the main thread after the current frame's module and actor updates, outside every module
+        // update, so it may add or remove script modules. Callbacks queued while they run wait for the next frame.
+        virtual void RunBetweenFrames(void (*fn)(void* user), void* user) = 0;
+
+        // A fresh module id for a module created outside a script host (see AddExternalScriptModule).
+        virtual uint32_t AllocateModuleId() = 0;
+
+        // Adds a module built by the caller (constructed with an id from AllocateModuleId) under parent (null = root)
+        // and initializes it. The engine owns it from then on, also when this fails (it is deleted). Its host may be
+        // null. Outside module updates only.
+        virtual bool AddExternalScriptModule(ScriptModule* module, ScriptModule* parent) = 0;
     };
 }

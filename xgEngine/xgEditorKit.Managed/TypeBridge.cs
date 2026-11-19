@@ -12,9 +12,30 @@ namespace xg.editor
     public static class TypeBridge
     {
         private static readonly Dictionary<Type, Type> _toEditor = new();
+        private static readonly List<AssemblyLoadContext> _contexts = new();
 
         public static AssemblyLoadContext EditorContext =>
             AssemblyLoadContext.GetLoadContext(typeof(TypeBridge).Assembly) ?? AssemblyLoadContext.Default;
+
+        // Extra contexts whose assemblies count as the editor's copies (the project's editor scripts, which are loaded
+        // into their own collectible context so a reload can replace them).
+        public static void AddContext(AssemblyLoadContext context)
+        {
+            if (!_contexts.Contains(context))
+                _contexts.Add(context);
+            _toEditor.Clear();
+        }
+
+        public static void RemoveContext(AssemblyLoadContext context)
+        {
+            _contexts.Remove(context);
+            _toEditor.Clear();
+        }
+
+        // Forgets every cached type mapping (they hold types of the scripts that are about to unload).
+        public static void Clear() => _toEditor.Clear();
+
+        private static bool IsEditorContext(AssemblyLoadContext? context) => context == EditorContext || (context is not null && _contexts.Contains(context));
 
         // A stable key for a type across load contexts.
         public static string KeyOf(Type type) => $"{type.FullName}, {type.Assembly.GetName().Name}";
@@ -24,14 +45,14 @@ namespace xg.editor
         // The editor's copy of type, or type itself when the editor has no copy of its assembly.
         public static Type ToEditor(Type type)
         {
-            if (type.Assembly.IsDynamic || AssemblyLoadContext.GetLoadContext(type.Assembly) == EditorContext)
+            if (type.Assembly.IsDynamic || IsEditorContext(AssemblyLoadContext.GetLoadContext(type.Assembly)))
                 return type;
             if (_toEditor.TryGetValue(type, out Type? cached))
                 return cached;
 
             Type result = type;
             string? name = type.Assembly.GetName().Name;
-            foreach (Assembly assembly in EditorContext.Assemblies.Concat(AssemblyLoadContext.Default.Assemblies))
+            foreach (Assembly assembly in EditorContext.Assemblies.Concat(_contexts.SelectMany(c => c.Assemblies)).Concat(AssemblyLoadContext.Default.Assemblies))
             {
                 if (assembly.GetName().Name != name || type.FullName is null)
                     continue;

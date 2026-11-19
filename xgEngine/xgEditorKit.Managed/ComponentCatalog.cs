@@ -66,7 +66,8 @@ namespace xg.editor
             if (TypeBridge.GetAttributeData(type, typeof(ComponentIconAttribute)) is not null)
                 return true;
             foreach (Type contract in type.GetInterfaces())
-                if (TypeBridge.SameType(contract, typeof(IComponentUpdate)))
+                if (TypeBridge.SameType(contract, typeof(IComponentUpdate))
+                    || TypeBridge.SameType(contract, typeof(IComponent)))
                     return true;
             return false;
         }

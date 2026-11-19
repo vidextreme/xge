@@ -17,9 +17,23 @@ namespace xg
     {
     }
 
-    // Marks a static, parameterless method to run when the scripts unload.
+    // Marks a static, parameterless method to run when the scripts unload for good (not for a hot reload).
     [AttributeUsage(AttributeTargets.Method)]
     public sealed class GameShutdownAttribute : Attribute
+    {
+    }
+
+    // Marks a static, parameterless method to run when the scripts load again after a hot reload, instead of the
+    // [GameInit] methods. Actors and component values are already restored; statics start fresh.
+    [AttributeUsage(AttributeTargets.Method)]
+    public sealed class GameReloadAttribute : Attribute
+    {
+    }
+
+    // Marks a static, parameterless method to run when the scripts unload for a hot reload, instead of the
+    // [GameShutdown] methods. Actors stay; their component values are captured right before.
+    [AttributeUsage(AttributeTargets.Method)]
+    public sealed class GameUnloadAttribute : Attribute
     {
     }
 
@@ -30,15 +44,22 @@ namespace xg
         private static readonly List<Action> _init = new();
         private static readonly List<Action<float>> _update = new();
         private static readonly List<Action> _shutdown = new();
+        private static readonly List<Action> _reload = new();
+        private static readonly List<Action> _unload = new();
 
         public static Assembly? ScriptAssembly { get; private set; }
+
+        // Set by the editor before Init when the scripts load for a hot reload, and before Shutdown when they unload
+        // for one.
+        public static bool IsReload { get; set; }
+        public static bool IsUnloading { get; set; }
 
         public static bool Init(nint engine, uint moduleID, Assembly scripts)
         {
             ScriptRuntime.Initialize(engine, moduleID);
             ScriptAssembly = scripts;
             Collect(scripts);
-            foreach (Action init in _init)
+            foreach (Action init in IsReload ? _reload : _init)
                 Invoke(init);
             return true;
         }
@@ -60,11 +81,13 @@ namespace xg
 
         public static void Shutdown()
         {
-            foreach (Action shutdown in _shutdown)
+            foreach (Action shutdown in IsUnloading ? _unload : _shutdown)
                 Invoke(shutdown);
             _init.Clear();
             _update.Clear();
             _shutdown.Clear();
+            _reload.Clear();
+            _unload.Clear();
             ScriptRuntime.Shutdown();
         }
 
@@ -90,6 +113,10 @@ namespace xg
                         _update.Add(method.CreateDelegate<Action<float>>());
                     if (method.IsDefined(typeof(GameShutdownAttribute)) && method.GetParameters().Length == 0)
                         _shutdown.Add(method.CreateDelegate<Action>());
+                    if (method.IsDefined(typeof(GameReloadAttribute)) && method.GetParameters().Length == 0)
+                        _reload.Add(method.CreateDelegate<Action>());
+                    if (method.IsDefined(typeof(GameUnloadAttribute)) && method.GetParameters().Length == 0)
+                        _unload.Add(method.CreateDelegate<Action>());
                 }
             }
         }

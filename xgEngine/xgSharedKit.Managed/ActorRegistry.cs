@@ -133,7 +133,7 @@ namespace xg
 
         // The type named by key ("Full.Name, AssemblyName") in this module's load context. With ownAssemblyOnly, types of
         // the shared kit (loaded by every module) don't count, so only the module that defines the type adopts actors.
-        private static Type? FindOwnType(string key, bool ownAssemblyOnly)
+        internal static Type? FindOwnType(string key, bool ownAssemblyOnly)
         {
             int comma = key.LastIndexOf(',');
             if (comma <= 0)

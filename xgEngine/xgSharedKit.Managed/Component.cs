@@ -5,7 +5,6 @@ namespace xg
 {
     public interface IComponent
     {
-        static abstract void Update<T>(T component) where T : IComponent;
     }
 
     public interface IComponentUpdate

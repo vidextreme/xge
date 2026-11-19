@@ -113,6 +113,16 @@ namespace xg.editor
                 Apply(kept);
         }
 
+        // Starts the current selection over with no drivers (after the scripts or tools behind them were reloaded).
+        public static void Refresh()
+        {
+            ToolSelection previous = _current;
+            _current = new ToolSelection(_objects);
+            Version++;
+            Subsystem.Get<Tools>()?.NotifySelection(_current);
+            previous.Release();
+        }
+
         private static bool IsValid(object? item) => item switch
         {
             null => false,

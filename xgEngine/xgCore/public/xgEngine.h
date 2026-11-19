@@ -12,6 +12,8 @@
 #include "xgLog.h"
 #include "xgEngineDef.h"
 #include "xgSplash.h"
+#include <utility>
+#include <vector>
 namespace xg
 {
     class ScriptModule;
@@ -87,7 +89,13 @@ namespace xg
         ScriptModule* GetParentScriptModule(ScriptModule* module) const override;
         void ReportStartup(const char* step, const char* detail, float progress) override;
         void PumpStartup() override;
+        void RunBetweenFrames(void (*fn)(void* user), void* user) override;
+        uint32_t AllocateModuleId() override;
+        bool AddExternalScriptModule(ScriptModule* module, ScriptModule* parent) override;
     private:
+        bool AttachModule(ScriptModule* module, ScriptModule* parent);
+        void DestroyModule(ScriptModule* module);
+        void DrainBetweenFrames();
         void CloseSplash();
         void RunJobTest();
 
@@ -103,6 +111,7 @@ namespace xg
         EngineConfig _config;
 
         uint32_t _nextModuleId = 0;
+        std::vector<std::pair<void (*)(void*), void*>> _betweenFrames;
         void* _rendererLib = nullptr;
 
         void* _moduleStorage = nullptr;

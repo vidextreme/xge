@@ -415,6 +415,7 @@ namespace xgEditor.CoreCLR
         public static void Update(float dt)
         {
             ProjectService.Assets?.Update();
+            ProjectService.Update();
             UpdateSelectionHooks();
             long frames = ActorRegistry.FrameCount;
             ResourceSmoke.Update(frames);
@@ -447,6 +448,7 @@ namespace xgEditor.CoreCLR
             ResourceSmoke.Shutdown();
             xg.imui.ImUI.ShutdownAll();
             ProjectService.Assets?.Flush();
+            ProjectService.Shutdown();
             EditorLog.Detach();
             ScriptRuntime.Shutdown();
         }
