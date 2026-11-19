@@ -436,6 +436,18 @@ namespace xg::imui::detail
             dl->AddPolyline(bottom, 3, col, ImDrawFlags_None, 1.2f);
             break;
         }
+        case Icon::PlayWindow:
+        {
+            const ImVec2 lo(ImFloor(c.x - h * 1.0f) + 0.5f, ImFloor(c.y - h * 0.82f) + 0.5f);
+            const ImVec2 hi(ImFloor(c.x + h * 1.0f) + 0.5f, ImFloor(c.y + h * 0.82f) + 0.5f);
+            dl->AddRect(lo, hi, col, h * 0.22f, 0, 1.3f);
+            const float bar = lo.y + (hi.y - lo.y) * 0.26f;
+            dl->AddLine(ImVec2(lo.x, bar), ImVec2(hi.x, bar), col, 1.2f);
+            const float mid = (bar + hi.y) * 0.5f;
+            const float s = (hi.y - bar) * 0.3f;
+            dl->AddTriangleFilled(ImVec2(c.x - s * 0.8f, mid - s), ImVec2(c.x + s * 1.1f, mid), ImVec2(c.x - s * 0.8f, mid + s), col);
+            break;
+        }
         }
     }
 }

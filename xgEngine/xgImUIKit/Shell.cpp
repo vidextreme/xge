@@ -253,6 +253,9 @@ namespace xg::imui::detail
         const ImGuiWindow* host = ImGui::GetCurrentWindow();
         const ImVec2 dockPos(host->Pos.x + 2.0f, dockTop + 2.0f);
         const ImVec2 dockSize(ImMax(host->Size.x - 4.0f, 1.0f), ImMax(host->Pos.y + host->Size.y - dockPos.y - 2.0f, 1.0f));
+        if ((detail::_dockOutline & IM_COL32_A_MASK) != 0)
+            ImGui::GetWindowDrawList()->AddRect(ImVec2(dockPos.x - 1.0f, dockPos.y - 1.0f),
+                ImVec2(dockPos.x + dockSize.x + 1.0f, dockPos.y + dockSize.y + 1.0f), detail::_dockOutline, 3.0f, 0, 2.0f);
         ImGui::SetCursorScreenPos(dockPos);
         ImGui::DockSpace(dockspaceID, dockSize, ImGuiDockNodeFlags_None);
 

@@ -82,6 +82,71 @@ namespace xg
             return $"{actorCount} actor(s), {componentCount} component(s)";
         }
 
+        // Puts this module's live actors back to a capture taken earlier in the same load context (play mode in the
+        // editor): matches each actor's components by type and order, writes the saved values, adds missing components
+        // and removes the ones added since. Actors that no longer exist are skipped. Returns a summary.
+        public static string Apply(string json)
+        {
+            int actorCount = 0;
+            int componentCount = 0;
+            int removed = 0;
+            List<string> skipped = new();
+            foreach (JsonNode? node in JsonNode.Parse(json)?["actors"]?.AsArray() ?? new JsonArray())
+            {
+                if (node?["id"] is not JsonNode idNode || !ActorRegistry.TryGet(new ActorID(idNode.GetValue<ulong>()), out Actor? actor))
+                    continue;
+                actorCount++;
+                List<object> live = actor.Components.ToList();
+                HashSet<object> matched = new(ReferenceEqualityComparer.Instance);
+                foreach (JsonNode? entry in node["components"]?.AsArray() ?? new JsonArray())
+                {
+                    string key = entry?["type"]?.GetValue<string>() ?? string.Empty;
+                    Type? type = ActorRegistry.FindOwnType(key, false);
+                    if (type is null)
+                    {
+                        skipped.Add($"{key} (type not found)");
+                        continue;
+                    }
+                    object? component = live.FirstOrDefault(c => !matched.Contains(c) && c.GetType() == type);
+                    try
+                    {
+                        component ??= actor.AddComponent(type);
+                        matched.Add(component);
+                        ReadFields(component, type, entry?["fields"] as JsonObject, skipped);
+                        componentCount++;
+                    }
+                    catch (Exception e)
+                    {
+                        skipped.Add($"{key} ({(e as TargetInvocationException)?.InnerException?.Message ?? e.Message})");
+                    }
+                }
+                foreach (object component in live)
+                    if (!matched.Contains(component) && actor.RemoveComponent(component))
+                        removed++;
+            }
+            foreach (string item in skipped)
+                Debug.LogWarning($"[Scripts] Not restored: {item}");
+            return $"{actorCount} actor(s), {componentCount} component(s), {removed} removed";
+        }
+
+        // Destroys this module's own actors that a capture doesn't list (spawned after it was taken). Returns how many.
+        public static int DestroyActorsExcept(string json)
+        {
+            HashSet<ulong> kept = new();
+            foreach (JsonNode? node in JsonNode.Parse(json)?["actors"]?.AsArray() ?? new JsonArray())
+                if (node?["id"] is JsonNode id)
+                    kept.Add(id.GetValue<ulong>());
+            int destroyed = 0;
+            foreach (Actor actor in ActorRegistry.Actors.ToArray())
+            {
+                if (actor.IsAdopted || kept.Contains((ulong)actor.ID))
+                    continue;
+                actor.Destroy();
+                destroyed++;
+            }
+            return destroyed;
+        }
+
         public static IEnumerable<FieldInfo> VisibleFields(Type type)
         {
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;

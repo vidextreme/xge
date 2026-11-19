@@ -98,6 +98,41 @@ XG_MODULE_EXPORT void XG_RunBetweenFrames(xg::ScriptEngine* engine, void (*fn)(v
         engine->RunBetweenFrames(fn, user);
 }
 
+// Pauses or resumes a module's subtree and its actors (see ScriptEngine::SetModulePaused).
+XG_MODULE_EXPORT bool XG_SetModulePaused(xg::ScriptEngine* engine, const char* id, bool paused)
+{
+    return engine && engine->SetModulePaused(id, paused);
+}
+
+XG_MODULE_EXPORT bool XG_IsModulePaused(xg::ScriptEngine* engine, const char* id)
+{
+    return engine && engine->IsModulePaused(id);
+}
+
+// Runs a paused module's subtree for one frame (see ScriptEngine::StepModule).
+XG_MODULE_EXPORT bool XG_StepModule(xg::ScriptEngine* engine, const char* id)
+{
+    return engine && engine->StepModule(id);
+}
+
+// Pauses every module's actor updates (see ScriptEngine::SetActorUpdatesPaused).
+XG_MODULE_EXPORT void XG_SetActorUpdatesPaused(xg::ScriptEngine* engine, bool paused)
+{
+    if (engine)
+        engine->SetActorUpdatesPaused(paused);
+}
+
+XG_MODULE_EXPORT bool XG_AreActorUpdatesPaused(xg::ScriptEngine* engine)
+{
+    return engine && engine->AreActorUpdatesPaused();
+}
+
+XG_MODULE_EXPORT void XG_StepActorUpdates(xg::ScriptEngine* engine)
+{
+    if (engine)
+        engine->StepActorUpdates();
+}
+
 XG_MODULE_EXPORT const char* XG_GetNewProjectPath(xg::ScriptEngine* engine)
 {
     const xg::EngineConfig* config = engine ? engine->GetEngineConfig() : nullptr;

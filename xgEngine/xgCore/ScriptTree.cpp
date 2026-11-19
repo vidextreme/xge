@@ -26,11 +26,31 @@ namespace xg
 
     void ScriptNode::Update(float dt)
     {
+        if (_paused)
+        {
+            if (!_stepPending)
+                return;
+            dt = StepDeltaTime;
+        }
         if (_module && _module->IsValid())
             _module->Update(dt);
 
         for (auto& c : _children)
             c->Update(dt);
+    }
+
+    float ScriptNode::FrameDelta(float dt) const
+    {
+        bool stepped = false;
+        for (const ScriptNode* node = this; node; node = node->_parent)
+        {
+            if (!node->_paused)
+                continue;
+            if (!node->_stepPending)
+                return -1.0f;
+            stepped = true;
+        }
+        return stepped ? StepDeltaTime : dt;
     }
 
     void ScriptNode::RegisterSubsystem(TypeID typeID, Subsystem* system)
@@ -183,6 +203,11 @@ namespace xg
     {
         if (_root)
             _root->Update(dt);
+    }
+
+    void ScriptTree::ClearSteps()
+    {
+        ForEachNodeRecursive(_root, [](ScriptNode* node) { node->_stepPending = false; });
     }
 
     void ScriptTree::DebugPrintNode(const ScriptNode* node, int depth) const

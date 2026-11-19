@@ -135,5 +135,19 @@ namespace xg
         // and initializes it. The engine owns it from then on, also when this fails (it is deleted). Its host may be
         // null. Outside module updates only.
         virtual bool AddExternalScriptModule(ScriptModule* module, ScriptModule* parent) = 0;
+
+        // Pauses or resumes a module and its subtree: their updates and their actors' component updates stop while the
+        // rest of the engine keeps running (the editor's play mode). Returns false for an unknown id.
+        virtual bool SetModulePaused(const char* id, bool paused) = 0;
+        virtual bool IsModulePaused(const char* id) = 0;
+        // Runs a paused module's subtree (and its actors) for one frame at a fixed delta time, on the next frame.
+        virtual bool StepModule(const char* id) = 0;
+
+        // Pauses every module's actor (component) updates, on top of the module pauses above; off by default. The editor
+        // keeps it on outside play mode.
+        virtual void SetActorUpdatesPaused(bool paused) = 0;
+        virtual bool AreActorUpdatesPaused() const = 0;
+        // Runs the actor updates for one frame at a fixed delta time while they are paused, on the next frame.
+        virtual void StepActorUpdates() = 0;
     };
 }

@@ -102,6 +102,13 @@ namespace xg
             return state;
         }
 
+        // The module's actors and component values (a ReloadState capture), without unloading it.
+        public static string? Capture(LoadedScriptModule module) => CallState(module, "Capture", null) as string;
+
+        // Destroys the module's own actors that state (a capture) doesn't list. Returns how many.
+        public static int DestroyActorsExcept(LoadedScriptModule module, string state) =>
+            CallState(module, "DestroyActorsExcept", state) is int count ? count : 0;
+
         private static readonly List<(WeakReference Context, string What, int Checks)> _lingering = new();
 
         // Collects until context (a weak reference to an unloaded AssemblyLoadContext) is gone and logs it. A context

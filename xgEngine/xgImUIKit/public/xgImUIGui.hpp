@@ -499,6 +499,7 @@ namespace xg::imui
 
     inline void SetShellBar(ShellBar bar, PanelGUIFn callback, void* user) { XG_ImUISetShellBar(bar, callback, user); }
     inline void ResetLayout() { XG_ImUIResetLayout(); }
+    inline void SetDockOutline(Color32 color) { XG_ImUISetDockOutline(color); }
 
     // Main menu command, unregistered on destruction. Path "Tools/Rebuild" creates a Tools menu if needed.
     class MenuCommand

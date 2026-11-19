@@ -33,6 +33,7 @@ namespace xg
         void AddUpdateCallback(uint32_t moduleId, ActorUpdateFn fn) override;
         void RemoveUpdateCallback(uint32_t moduleId) override;
         void UpdateActors(float dt) override;
+        void UpdateActorsPerModule(float dt, ActorDeltaFn delta, void* user) override;
 
     private:
         struct ActorRecord

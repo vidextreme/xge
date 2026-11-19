@@ -86,6 +86,23 @@ namespace xg
             XG_RunBetweenFrames(_enginePtr, &BetweenFrames, 0);
         }
 
+        // Pauses or resumes a script module and its subtree: their updates and their actors' component updates stop
+        // while the rest of the engine runs. False for an unknown id.
+        public static bool SetModulePaused(string id, bool paused) => XG_SetModulePaused(_enginePtr, id, paused);
+        public static bool IsModulePaused(string id) => XG_IsModulePaused(_enginePtr, id);
+        // Runs a paused module's subtree for one frame at a fixed delta time (1/60 s), on the next frame.
+        public static bool StepModule(string id) => XG_StepModule(_enginePtr, id);
+
+        // Pauses every module's actor (component) updates; the editor keeps them paused outside play mode.
+        public static bool ActorUpdatesPaused
+        {
+            get => XG_AreActorUpdatesPaused(_enginePtr);
+            set => XG_SetActorUpdatesPaused(_enginePtr, value);
+        }
+
+        // Runs the paused actor updates for one frame at 1/60 s, on the next frame.
+        public static void StepActorUpdates() => XG_StepActorUpdates(_enginePtr);
+
         [UnmanagedCallersOnly]
         private static void BetweenFrames(nint user)
         {
@@ -109,6 +126,28 @@ namespace xg
 
         [LibraryImport(NativeLib, EntryPoint = "XG_RunBetweenFrames")]
         private static unsafe partial void XG_RunBetweenFrames(nint enginePtr, delegate* unmanaged<nint, void> callback, nint user);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_SetModulePaused", StringMarshalling = StringMarshalling.Utf8)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_SetModulePaused(nint enginePtr, string id, [MarshalAs(UnmanagedType.U1)] bool paused);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_IsModulePaused", StringMarshalling = StringMarshalling.Utf8)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_IsModulePaused(nint enginePtr, string id);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_StepModule", StringMarshalling = StringMarshalling.Utf8)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_StepModule(nint enginePtr, string id);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_SetActorUpdatesPaused")]
+        private static partial void XG_SetActorUpdatesPaused(nint enginePtr, [MarshalAs(UnmanagedType.U1)] bool paused);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_AreActorUpdatesPaused")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_AreActorUpdatesPaused(nint enginePtr);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_StepActorUpdates")]
+        private static partial void XG_StepActorUpdates(nint enginePtr);
 
         // Mirrors xg::Route (xgBase/public/xgRoute.h).
         [StructLayout(LayoutKind.Sequential)]

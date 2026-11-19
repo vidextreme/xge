@@ -80,6 +80,16 @@ namespace xg
             return null;
         }
 
+        internal bool RemoveComponent(object component)
+        {
+            int index = _components.IndexOf(component);
+            if (index < 0)
+                return false;
+            DetachComponent(component);
+            _components.RemoveAt(index);
+            return true;
+        }
+
         public bool RemoveComponent<T>() where T : class
         {
             for (int i = 0; i < _components.Count; i++)

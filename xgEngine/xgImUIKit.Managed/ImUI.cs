@@ -4,6 +4,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using xg.math;
 
 namespace xg.imui
 {
@@ -49,6 +50,13 @@ namespace xg.imui
 
         // Rebuilds the dock layout from the panel slots on the next frame.
         public static void ResetLayout() => Native.ResetLayout();
+
+        // Draws a 2 px outline around the editor shell's dock area; a zero alpha removes it.
+        public static void SetDockOutline(Color32 color)
+        {
+            if (EnsureCompatible())
+                Native.SetDockOutline(color);
+        }
 
         internal static void Track(IDisposable resource) => _resources.Add(resource);
         internal static void Untrack(IDisposable resource) => _resources.Remove(resource);

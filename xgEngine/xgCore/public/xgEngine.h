@@ -92,7 +92,15 @@ namespace xg
         void RunBetweenFrames(void (*fn)(void* user), void* user) override;
         uint32_t AllocateModuleId() override;
         bool AddExternalScriptModule(ScriptModule* module, ScriptModule* parent) override;
+        bool SetModulePaused(const char* id, bool paused) override;
+        bool IsModulePaused(const char* id) override;
+        bool StepModule(const char* id) override;
+        void SetActorUpdatesPaused(bool paused) override;
+        bool AreActorUpdatesPaused() const override;
+        void StepActorUpdates() override;
     private:
+        ScriptNode* FindModuleNode(const char* id);
+        static float ActorFrameDelta(void* user, uint32_t moduleId, float dt);
         bool AttachModule(ScriptModule* module, ScriptModule* parent);
         void DestroyModule(ScriptModule* module);
         void DrainBetweenFrames();
@@ -112,6 +120,8 @@ namespace xg
 
         uint32_t _nextModuleId = 0;
         std::vector<std::pair<void (*)(void*), void*>> _betweenFrames;
+        bool _actorsPaused = false;
+        bool _actorStep = false;
         void* _rendererLib = nullptr;
 
         void* _moduleStorage = nullptr;

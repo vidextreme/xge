@@ -149,6 +149,7 @@ namespace xgEditor.CoreCLR
             ScriptRuntime.Initialize(enginePtr, moduleID);
             EditorLog.Attach();
             Subsystem.Register<xg.editor.Tools>();
+            PlayMode.Initialize();
             ProjectService.Open();
 
             // Example: register a managed log callback
@@ -393,6 +394,7 @@ namespace xgEditor.CoreCLR
         static readonly System.Diagnostics.Stopwatch _clock = new();
         static float _elapsedAtStart;
         static int _selectionFrames;
+        static long _updateFrames;
 
         // XG_UI_TEST_SELECT_ADD=<asset path> adds that asset to the selection after 60 frames, and
         // XG_UI_TEST_SELECT_SET=<asset path> replaces the selection with it after 120 frames.
@@ -416,8 +418,9 @@ namespace xgEditor.CoreCLR
         {
             ProjectService.Assets?.Update();
             ProjectService.Update();
+            PlayMode.Update(dt);
             UpdateSelectionHooks();
-            long frames = ActorRegistry.FrameCount;
+            long frames = ++_updateFrames;
             ResourceSmoke.Update(frames);
             TextureSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)
@@ -428,17 +431,18 @@ namespace xgEditor.CoreCLR
             if (_temporary.IsValid && frames >= 30)
             {
                 _temporary.Destroy();
-                Debug.Log($"[Actors] destroyed 'temporary' after {frames} actor frames (EnemyComponent updated {_temporaryEnemy.UpdateCount} times)");
+                Debug.Log($"[Actors] destroyed 'temporary' after {frames} frames (EnemyComponent updated {_temporaryEnemy.UpdateCount} times)");
             }
             if (!_reported && frames >= 61)
             {
                 _reported = true;
                 double wall = _clock.Elapsed.TotalSeconds;
                 double summed = _player.ElapsedTime - _elapsedAtStart;
-                Debug.Log($"[Actors] CoreCLR: {ActorRegistry.Count} actor(s) after {frames} actor frames: " +
+                Debug.Log($"[Actors] CoreCLR: {ActorRegistry.Count} actor(s) after {frames} frames: " +
                     $"PlayerComponent updated {_player.UpdateCount} times, destroyed actor's EnemyComponent {_temporaryEnemy.UpdateCount} times");
-                Debug.Log($"[Actors] delta time over 60 frames: summed dt {summed:F4} s, wall clock {wall:F4} s, " +
-                    $"difference {(summed - wall) * 1000.0:F2} ms, average frame {wall / 60.0 * 1000.0:F2} ms");
+                if (_player.UpdateCount > 0)
+                    Debug.Log($"[Actors] delta time over 60 frames: summed dt {summed:F4} s, wall clock {wall:F4} s, " +
+                        $"difference {(summed - wall) * 1000.0:F2} ms, average frame {wall / 60.0 * 1000.0:F2} ms");
             }
         }
 

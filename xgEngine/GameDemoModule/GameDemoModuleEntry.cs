@@ -27,15 +27,16 @@ namespace GameDemoModule
 
         static EnemyComponent _enemy = null!;
         static bool _reported;
+        static long _frames;
 
         [UnmanagedCallersOnly(EntryPoint = "XG_Update")]
         public static void Update(float dt)
         {
-            long frames = ActorRegistry.FrameCount;
+            long frames = ++_frames;
             if (!_reported && frames >= 60)
             {
                 _reported = true;
-                Debug.Log($"[Actors] NativeAOT: {ActorRegistry.Count} actor(s) after {frames} actor frames: EnemyComponent updated {_enemy.UpdateCount} times");
+                Debug.Log($"[Actors] NativeAOT: {ActorRegistry.Count} actor(s) after {frames} frames: EnemyComponent updated {_enemy.UpdateCount} times");
             }
         }
 

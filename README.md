@@ -57,6 +57,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Vulkan | ⚪ Planned | |
 | Network replication | ⚪ Planned | |
 | Hot reload | 🟢 Working | Saving a script (or Assets > Build Scripts / the toolbar button) rebuilds the project in the background and swaps the new scripts in without restarting the editor. Actors and their component field values are kept; a failed build leaves the old scripts running. |
+| Play mode | 🟢 Working | Toolbar transport capsule: Play in Editor (becomes Pause), +1 (step one frame while paused), Stop, and Play Standalone (runs the current build in a separate xge process without the editor). Component updates run only while playing (in every module), and the project's scripts are paused outside play. Everything changed during play is temporary: Stop restores the actors and component values from before Play and removes actors spawned during play. Works with or without a project. A green (playing) or amber (paused) outline frames the dock area. |
 
 ---
 
