@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 15;
+    inline constexpr uint32_t ApiVersion = 16;
 
     struct Context;
     struct PanelEntry;
@@ -101,6 +101,7 @@ namespace xg::imui
         Cards,
         Tag, File, Filter, Sort, View,
         Lock, Unlock,
+        Clock, Stack,
         Count
     };
 
@@ -247,6 +248,8 @@ namespace xg::imui
         None           = 0,
         ScrollToBottom = 1 << 0,
         AtBottom       = 1 << 1,
+        // Rows draw no alternating background (the caller tints rows itself). ApiVersion 16.
+        NoStripes      = 1 << 2,
     };
     XG_ENABLE_FLAGS(ListFlags)
 
@@ -383,6 +386,8 @@ namespace xg
     XG_MODULE_EXPORT bool XG_ImUIIsItemActive(imui::Context* ctx);
     // Gives keyboard focus to the next item (a text field starts editing).
     XG_MODULE_EXPORT void XG_ImUISetKeyboardFocusHere(imui::Context* ctx);
+    // Puts UTF-8 text on the system clipboard (ApiVersion 16).
+    XG_MODULE_EXPORT void XG_ImUISetClipboardText(imui::Context* ctx, const char* text);
     // Rect of the previous item in the current draw space (to place an overlay or popup under a field).
     XG_MODULE_EXPORT bool XG_ImUIGetItemRect(imui::Context* ctx, Rect* out);
 

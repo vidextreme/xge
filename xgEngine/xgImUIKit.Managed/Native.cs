@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 15;
+        public const uint ApiVersion = 16;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -173,6 +173,9 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUISetKeyboardFocusHere")]
         public static partial void SetKeyboardFocusHere(nint ctx);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUISetClipboardText")]
+        public static partial void SetClipboardText(nint ctx, byte* text);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetItemRect")]
         public static partial byte GetItemRect(nint ctx, Rect* rect);

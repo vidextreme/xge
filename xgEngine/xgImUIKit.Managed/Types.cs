@@ -74,6 +74,7 @@ namespace xg.imui
         Cards,
         Tag, File, Filter, Sort, View,
         Lock, Unlock,
+        Clock, Stack,
     }
 
     // Mirrors xg::imui::Key. Order is part of the ABI: append only.
@@ -209,6 +210,8 @@ namespace xg.imui
         None = 0,
         ScrollToBottom = 1 << 0,
         AtBottom = 1 << 1,
+        // Rows draw no alternating background (the caller tints rows itself).
+        NoStripes = 1 << 2,
     }
 
     // Mirrors xg::imui::ListState. Set Count and RowHeight (and ScrollToBottom) before Gui.List; read First, Last and AtBottom after.

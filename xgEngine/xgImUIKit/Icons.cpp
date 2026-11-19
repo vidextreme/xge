@@ -421,6 +421,21 @@ namespace xg::imui::detail
             dl->AddLine(ImVec2(cx + radius, cy), ImVec2(cx + radius, bodyMin.y), col, 1.4f);
             break;
         }
+        case Icon::Clock:
+            dl->AddCircle(c, h * 0.85f, col, 20, 1.3f);
+            dl->AddLine(c, ImVec2(c.x, c.y - h * 0.55f), col, 1.3f);
+            dl->AddLine(c, ImVec2(c.x + h * 0.4f, c.y + h * 0.2f), col, 1.3f);
+            break;
+        case Icon::Stack:
+        {
+            const ImVec2 top[] = { ImVec2(c.x, c.y - h * 0.85f), ImVec2(c.x + h * 0.9f, c.y - h * 0.4f), ImVec2(c.x, c.y + h * 0.05f), ImVec2(c.x - h * 0.9f, c.y - h * 0.4f) };
+            dl->AddPolyline(top, 4, col, ImDrawFlags_Closed, 1.2f);
+            const ImVec2 middle[] = { ImVec2(c.x - h * 0.9f, c.y + h * 0.05f), ImVec2(c.x, c.y + h * 0.5f), ImVec2(c.x + h * 0.9f, c.y + h * 0.05f) };
+            dl->AddPolyline(middle, 3, col, ImDrawFlags_None, 1.2f);
+            const ImVec2 bottom[] = { ImVec2(c.x - h * 0.9f, c.y + h * 0.45f), ImVec2(c.x, c.y + h * 0.9f), ImVec2(c.x + h * 0.9f, c.y + h * 0.45f) };
+            dl->AddPolyline(bottom, 3, col, ImDrawFlags_None, 1.2f);
+            break;
+        }
         }
     }
 }

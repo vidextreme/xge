@@ -239,6 +239,13 @@ namespace xgEditor.CoreCLR
                 console.Focus();
                 console.SelectLatestError();
             }
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_CONSOLE_COLLAPSE") == "1")
+                console.SetCollapse(true);
+            foreach (string level in (Environment.GetEnvironmentVariable("XG_UI_TEST_CONSOLE_HIDE") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries))
+                if (Enum.TryParse(level, true, out MessageType hidden))
+                    console.SetLevelVisible(hidden, false);
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_CONSOLE_SOURCE") == "open")
+                console.OpenSourceFilter();
 
             NavigatorPanel navigator = xg.imui.Panel.Open<NavigatorPanel>();
             string? navFolder = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_FOLDER");

@@ -94,6 +94,7 @@ namespace xg::imui::detail
         Cards,
         Tag, File, Filter, Sort, View,
         Lock, Unlock,
+        Clock, Stack,
     };
 
     ImTextureData* CreateIconTexture(const uint8_t* rgba, int width, int height, int size);

@@ -92,6 +92,7 @@ namespace xg::imui
             int Last = 0;
             float RowHeight = 0.0f;
             bool ScrollToBottom = false;
+            bool NoStripes = false;
         };
         ListFrame Lists[MaxListDepth];
         int ListDepth = 0;
@@ -1112,6 +1113,12 @@ namespace xg
             ImGui::SetKeyboardFocusHere(0);
     }
 
+    XG_MODULE_EXPORT void XG_ImUISetClipboardText(imui::Context* ctx, const char* text)
+    {
+        if (ctx && text)
+            ImGui::SetClipboardText(text);
+    }
+
     XG_MODULE_EXPORT bool XG_ImUIGetItemRect(imui::Context* ctx, Rect* out)
     {
         if (!ctx || !out)
@@ -1502,13 +1509,15 @@ namespace xg
         state->First = first;
         state->Last = last;
         const bool scrollToBottom = HasFlag(state->Flags, imui::ListFlags::ScrollToBottom);
-        state->Flags = atBottom ? imui::ListFlags::AtBottom : imui::ListFlags::None;
+        const bool noStripes = HasFlag(state->Flags, imui::ListFlags::NoStripes);
+        state->Flags = (atBottom ? imui::ListFlags::AtBottom : imui::ListFlags::None) | (noStripes ? imui::ListFlags::NoStripes : imui::ListFlags::None);
 
         imui::Context::ListFrame& frame = ctx->Lists[ctx->ListDepth++];
         frame.Count = count;
         frame.Last = last;
         frame.RowHeight = rowHeight;
         frame.ScrollToBottom = scrollToBottom;
+        frame.NoStripes = noStripes;
 
         if (first > 0)
             ImGui::Dummy(ImVec2(1.0f, first * rowHeight));
@@ -1536,7 +1545,7 @@ namespace xg
         const ImVec2 rowMin = ImGui::GetCursorScreenPos();
         const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
         const ImVec2 rowMax(rowMin.x + width, rowMin.y + rowHeight);
-        if (index % 2 && !selected)
+        if (index % 2 && !selected && !ctx->Lists[ctx->ListDepth - 1].NoStripes)
             ImGui::GetWindowDrawList()->AddRectFilled(rowMin, rowMax, imui::detail::RowAltBg);
         ImGui::PushID(index);
         const bool pressed = ImGui::Selectable("##row", selected, ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_AllowOverlap, ImVec2(width, rowHeight));
