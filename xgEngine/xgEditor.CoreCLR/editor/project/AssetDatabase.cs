@@ -111,6 +111,7 @@ namespace xgEditor.CoreCLR
         private const long OrphanGraceMilliseconds = 2000;
         private const long CacheSaveDelayMilliseconds = 2000;
         private const long BuildBudgetMilliseconds = 8;
+        private const long SettleMilliseconds = 1000;
 
         private sealed record MetaInfo(string Guid, IReadOnlyList<string> Tags);
 
@@ -128,6 +129,11 @@ namespace xgEditor.CoreCLR
         private readonly Queue<string> _buildQueue = new();
         private readonly HashSet<string> _queuedBuilds = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, (long Size, long Modified, long MetaModified)> _buildStamps = new(StringComparer.OrdinalIgnoreCase);
+        // New or changed source files seen after startup, waiting until they stop being written.
+        private readonly Dictionary<string, (long Size, long Modified, long Since)> _settling = new(StringComparer.OrdinalIgnoreCase);
+        private long _lastSettleCheck;
+        private bool _startupScanned;
+        private Dictionary<string, IReadOnlyList<string>>? _importTags;
         private int _buildsDone;
         private int _buildsFailed;
         private bool _collectLibrary;
@@ -141,6 +147,7 @@ namespace xgEditor.CoreCLR
             Pipeline = new AssetPipeline(Path.Combine(projectRoot, "Library", "Data"));
             TextureAssets.Register(Pipeline, DecodeImage);
             Sync();
+            _startupScanned = true;
             Tags = new AssetTags(this);
             Bookmarks = Bookmarks.Load(projectRoot, this);
             Tags.Migrate();
@@ -164,6 +171,8 @@ namespace xgEditor.CoreCLR
         public Bookmarks Bookmarks { get; }
         // Changes whenever metas, tags or the index change.
         public int Version { get; private set; }
+        // Changes after every asset build attempt.
+        public int BuildVersion { get; private set; }
 
         // A rename or move done by the editor, or a meta recovered after a move outside it.
         public event Action<AssetMove>? Moved;
@@ -181,6 +190,19 @@ namespace xgEditor.CoreCLR
 
         public IEnumerable<TagCount> TagCounts => _tagIndex.Select(p => new TagCount(p.Key, p.Value.Count));
 
+        // Changes whenever an asset's read-only import tags change.
+        public int ImportTagVersion { get; private set; }
+
+        // Read-only tags the last build of the asset produced ("@texture:bc1"), sorted.
+        public IReadOnlyList<string> ImportTagsOf(string path) =>
+            GuidOf(path) is string guid && ImportTagTable.TryGetValue(guid, out IReadOnlyList<string>? tags) ? tags : Array.Empty<string>();
+
+        public IEnumerable<TagCount> ImportTagCounts =>
+            ImportTagTable.Where(p => _paths.ContainsKey(p.Key)).SelectMany(p => p.Value)
+                .GroupBy(t => t, StringComparer.OrdinalIgnoreCase).Select(g => new TagCount(g.Key, g.Count()));
+
+        private Dictionary<string, IReadOnlyList<string>> ImportTagTable => _importTags ??= Pipeline.ReadAllTags();
+
         public string FullPath(string relPath) => Path.Combine(ProjectRoot, relPath.Replace('/', Path.DirectorySeparatorChar));
 
         public void Update()
@@ -188,6 +210,7 @@ namespace xgEditor.CoreCLR
             if (Index.Refresh() || Index.Version != _syncedIndexVersion)
                 Sync();
             ProcessOrphans();
+            ProcessSettling();
             ProcessBuilds(BuildBudgetMilliseconds);
             ApplyHashes();
             if (_cacheDirty && Environment.TickCount64 - _cacheDirtySince >= CacheSaveDelayMilliseconds)
@@ -195,7 +218,13 @@ namespace xgEditor.CoreCLR
         }
 
         // Runs every queued asset build now instead of spreading them over frames.
-        public void BuildAll() => ProcessBuilds(long.MaxValue);
+        public void BuildAll()
+        {
+            foreach (string path in _settling.Keys)
+                QueueBuild(path);
+            _settling.Clear();
+            ProcessBuilds(long.MaxValue);
+        }
 
         // Writes pending cache changes now (the editor calls it on shutdown).
         public void Flush()
@@ -247,6 +276,35 @@ namespace xgEditor.CoreCLR
                 MarkCacheDirty();
             }
             Version++;
+            return true;
+        }
+
+        // Replaces an asset's process settings in its meta file and queues a build. Returns false when that fails.
+        public bool SetProcessSettings(string path, System.Text.Json.Nodes.JsonObject settings)
+        {
+            path = AssetIndex.Normalize(path);
+            if (!_metas.ContainsKey(path))
+                return false;
+            string metaPath = FullPath(AssetMeta.PathFor(path));
+            try
+            {
+                AssetMeta meta = AssetMeta.Read(metaPath);
+                meta.Importer["process"] = settings.DeepClone();
+                meta.Write(metaPath);
+                if (_cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
+                {
+                    record.MetaModified = File.GetLastWriteTimeUtc(metaPath).Ticks;
+                    MarkCacheDirty();
+                }
+            }
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            {
+                Debug.LogError($"[Assets] Could not write {metaPath}: {e.Message}");
+                return false;
+            }
+            Version++;
+            if (Pipeline.CanImport(path))
+                QueueBuild(path);
             return true;
         }
 
@@ -495,6 +553,7 @@ namespace xgEditor.CoreCLR
                         case AssetReconcileKind.Create:
                         {
                             AssetMeta meta = AssetMeta.Create();
+                            Pipeline.WriteDefaultSettings(action.Path, meta);
                             meta.Write(metaFull);
                             infos[action.Path] = new MetaInfo(meta.Guid, Array.Empty<string>());
                             created++;
@@ -571,10 +630,63 @@ namespace xgEditor.CoreCLR
             {
                 if (!_metas.ContainsKey(record.Path) || !Pipeline.CanImport(record.Path))
                     continue;
-                if (_buildStamps.TryGetValue(record.Path, out var stamp) && stamp == (record.Size, record.Modified, record.MetaModified))
+                bool built = _buildStamps.TryGetValue(record.Path, out var stamp);
+                if ((built && stamp == (record.Size, record.Modified, record.MetaModified)) || _queuedBuilds.Contains(record.Path))
                     continue;
-                if (_queuedBuilds.Add(record.Path))
-                    _buildQueue.Enqueue(record.Path);
+                if (_startupScanned && (!built || stamp.Size != record.Size || stamp.Modified != record.Modified))
+                {
+                    if (!_settling.TryGetValue(record.Path, out var seen) || seen.Size != record.Size || seen.Modified != record.Modified)
+                        _settling[record.Path] = (record.Size, record.Modified, Environment.TickCount64);
+                    continue;
+                }
+                QueueBuild(record.Path);
+            }
+        }
+
+        private void QueueBuild(string path)
+        {
+            if (_queuedBuilds.Add(path))
+                _buildQueue.Enqueue(path);
+        }
+
+        private void ProcessSettling()
+        {
+            long now = Environment.TickCount64;
+            if (_settling.Count == 0 || now - _lastSettleCheck < SettleMilliseconds)
+                return;
+            _lastSettleCheck = now;
+            bool changed = false;
+            foreach ((string path, var seen) in _settling.ToList())
+            {
+                FileInfo file = new(FullPath(path));
+                if (!file.Exists)
+                {
+                    _settling.Remove(path);
+                }
+                else if (file.Length != seen.Size || file.LastWriteTimeUtc.Ticks != seen.Modified)
+                {
+                    changed = true;
+                }
+                else if (now - seen.Since >= SettleMilliseconds && CanRead(file.FullName))
+                {
+                    _settling.Remove(path);
+                    QueueBuild(path);
+                }
+            }
+            if (changed)
+                Refresh();
+        }
+
+        private static bool CanRead(string path)
+        {
+            try
+            {
+                using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                return true;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return false;
             }
         }
 
@@ -632,8 +744,29 @@ namespace xgEditor.CoreCLR
                     Debug.LogError($"[Assets] Could not build {path}: {result.Error}");
                     break;
             }
+            if (result.Status is AssetBuildStatus.Imported or AssetBuildStatus.Processed or AssetBuildStatus.ManifestUpdated)
+                RefreshImportTags(info.Guid);
             if (_cache.ByPath.TryGetValue(path, out record))
                 _buildStamps[path] = (record.Size, record.Modified, record.MetaModified);
+            BuildVersion++;
+        }
+
+        private void RefreshImportTags(string guid)
+        {
+            if (_importTags is null)
+            {
+                ImportTagVersion++;
+                return;
+            }
+            List<string> tags = Pipeline.ManifestOf(guid)?.Tags ?? new List<string>();
+            IReadOnlyList<string> old = _importTags.TryGetValue(guid, out IReadOnlyList<string>? stored) ? stored : Array.Empty<string>();
+            if (old.SequenceEqual(tags))
+                return;
+            if (tags.Count == 0)
+                _importTags.Remove(guid);
+            else
+                _importTags[guid] = tags;
+            ImportTagVersion++;
         }
 
         private void CollectLibrary()

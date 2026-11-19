@@ -179,7 +179,7 @@ namespace xgEditor.CoreCLR
 
         private static bool DrawToggle(Painter draw, string id, Rect rect, string label, string tooltip, ref bool on)
         {
-            if (!ToggleButton.Draw(draw, id, rect, Icon.None, null, label, null, tooltip, on, true, ToggleDot.State).Clicked())
+            if (!ToggleButton.Draw(draw, id, rect, Icon.None, null, label, null, tooltip, on, true, ToggleDot.Check).Clicked())
                 return false;
             on = !on;
             return true;

@@ -90,9 +90,9 @@ namespace xgEditor.CoreCLR
         };
 
         private readonly NavigatorHistory _history = new();
-        private readonly TagInput _tagInput = new("##nav_tags");
+        private readonly TagField _tagInput = new("##nav_tags");
         private readonly AutoCompleteField _pathField = new("##nav_path");
-        private readonly AutoCompleteField _editTagField = new("##nav_edit_tag", 128);
+        private readonly TagField _editTags = new("##nav_edit_tag", TagFieldMode.Asset);
         private readonly TextBuffer _searchText = new(256);
         private readonly TextBuffer _gridSearch = new(256);
         private readonly HashSet<string> _expanded = new(StringComparer.OrdinalIgnoreCase) { AssetIndex.RootFolder };
@@ -177,7 +177,6 @@ namespace xgEditor.CoreCLR
         public NavigatorPanel()
         {
             _pathField.Source = SuggestFolders;
-            _editTagField.Source = SuggestUserTags;
         }
 
         // ------------------------------------------------------------
@@ -846,7 +845,7 @@ namespace xgEditor.CoreCLR
         private static void DrawQuickFilter(Painter draw, int index, string label, Icon icon, Color32 color, ref bool on, float width)
         {
             Rect rect = Rect.FromXYWH(0.0f, index * (SegHeight + 3.0f), width, SegHeight);
-            if (ToggleButton.Draw(draw, "##quick" + index, rect, icon, color, label, null, null, on, true, ToggleDot.State).Clicked())
+            if (ToggleButton.Draw(draw, "##quick" + index, rect, icon, color, label, null, null, on, true, ToggleDot.Check).Clicked())
                 on = !on;
         }
 
@@ -886,7 +885,7 @@ namespace xgEditor.CoreCLR
                 bookmarks.AddItem(_selected);
             y += SegHeight + 4.0f;
             if (ToggleButton.Draw(draw, "##close_on_select", Rect.FromXYWH(4.0f, y, inner, SegHeight), Icon.None, null, "Close on selection", null, null,
-                bookmarks.CloseOnSelection, true, ToggleDot.State).Clicked())
+                bookmarks.CloseOnSelection, true, ToggleDot.Check).Clicked())
                 bookmarks.CloseOnSelection = !bookmarks.CloseOnSelection;
             y += SegHeight + 6.0f;
 
@@ -1133,7 +1132,7 @@ namespace xgEditor.CoreCLR
             for (int i = 0; i < 4; i++)
             {
                 Rect rect = Rect.FromXYWH(i * (width + 2.0f), 2.0f, width, SegHeight);
-                if (ToggleButton.Draw(draw, "##view" + i, rect, icons[i], null, labels[i], null, null, (int)_view == i, true, ToggleDot.State).Clicked())
+                if (ToggleButton.Draw(draw, "##view" + i, rect, icons[i], null, labels[i], null, null, (int)_view == i, true, ToggleDot.Radio).Clicked())
                     _view = (ViewSize)i;
             }
         }
@@ -1238,7 +1237,7 @@ namespace xgEditor.CoreCLR
                 color = AssetIndex.IconColorOf(kind);
             }
             string tip = $"{label} ({badge})";
-            Result hit = ToggleButton.Draw(draw, "##kind" + index, rect, icon, color, iconOnly ? null : label, iconOnly ? null : badge, tip, on, true, ToggleDot.State);
+            Result hit = ToggleButton.Draw(draw, "##kind" + index, rect, icon, color, iconOnly ? null : label, iconOnly ? null : badge, tip, on, true, ToggleDot.Check);
             if (hit.Clicked())
                 ToggleKind(index);
         }
@@ -1757,7 +1756,7 @@ namespace xgEditor.CoreCLR
             if (_openEditTags)
             {
                 _openEditTags = false;
-                _editTagField.SetText(string.Empty, true);
+                _editTags.Reset(true);
                 Gui.OpenPopup(EditTagsModalId);
             }
             using var modal = Gui.Modal(EditTagsModalId, "Edit tags", new Vector2(340.0f, 0.0f));
@@ -1765,42 +1764,7 @@ namespace xgEditor.CoreCLR
                 return;
             Gui.Label(_editTagsPath);
             Gui.Space(4.0f);
-            IReadOnlyList<string> tags = _tags!.Get(_editTagsPath);
-            string? remove = null;
-            if (tags.Count == 0)
-            {
-                using var empty = Gui.Canvas("##edit_tags_empty", new Vector2(0.0f, 20.0f));
-                empty.Draw.Text(new Vector2(0.0f, 2.0f), Style.Color(StyleColor.TextDim), "No tags yet.");
-            }
-            else
-            {
-                float width = Gui.AvailableSize.x;
-                using var canvas = Gui.Canvas("##edit_tags_list", new Vector2(width, tags.Count * RowHeight));
-                Painter draw = canvas.Draw;
-                for (int i = 0; i < tags.Count; i++)
-                {
-                    float y = i * RowHeight;
-                    draw.Icon(Icon.Tag, new Vector2(8.0f, y + RowHeight * 0.5f), 12.0f, Style.Color(StyleColor.IconComponent));
-                    draw.Text(new Vector2(20.0f, y + 2.0f), Style.Color(StyleColor.Text), tags[i]);
-                    Rect trash = Rect.FromXYWH(width - 20.0f, y + 2.0f, 16.0f, 16.0f);
-                    Result hit;
-                    using (Gui.Id(i))
-                        hit = Gui.HitArea("##edit_tag_remove", trash);
-                    Gui.Tooltip("Remove " + tags[i]);
-                    draw.Icon(Icon.Trash, trash.Center, 12.0f, Style.Color(hit.Hovered() ? StyleColor.Text : StyleColor.TextDim));
-                    if (hit.Clicked())
-                        remove = tags[i];
-                }
-            }
-            if (remove is not null)
-                _tags.Remove(_editTagsPath, remove);
-            Gui.Space(4.0f);
-            AutoCompleteEvent ev = _editTagField.OnGUI("Add a tag", 0.0f, out string value);
-            if (ev == AutoCompleteEvent.Commit)
-            {
-                _tags.Add(_editTagsPath, value);
-                _editTagField.SetText(string.Empty, true);
-            }
+            _editTags.OnAssetGUI(_tags!, _index, _editTagsPath);
             Gui.Space(6.0f);
             using (Gui.Horizontal())
             {
@@ -1887,19 +1851,6 @@ namespace xgEditor.CoreCLR
             }
             foreach (string dir in contains)
                 yield return new Suggestion(dir, null, Icon.Folder, color);
-        }
-
-        private IEnumerable<Suggestion> SuggestUserTags(string text)
-        {
-            if (_tags is null || _editTagsPath is null)
-                yield break;
-            string query = AssetTags.NormalizeTag(text);
-            if (query.Length == 0 || query.StartsWith('@'))
-                yield break;
-            IReadOnlyList<string> existing = _tags.Get(_editTagsPath);
-            foreach (TagCount tag in _tags.UserTags())
-                if (!existing.Contains(tag.Tag) && tag.Tag.Contains(query, StringComparison.OrdinalIgnoreCase))
-                    yield return new Suggestion(tag.Tag, tag.Count.ToString(), Icon.Tag, Style.Color(StyleColor.IconComponent));
         }
 
         private static void OpenFile(string path)

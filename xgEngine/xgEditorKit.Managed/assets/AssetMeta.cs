@@ -47,7 +47,7 @@ namespace xg.editor
         [JsonExtensionData]
         public Dictionary<string, JsonElement>? Extra { get; set; }
 
-        public static AssetMeta Create() => new() { Guid = NewGuid() };
+        public static AssetMeta Create() => new() { Version = CurrentVersion, Guid = NewGuid() };
 
         public static string NewGuid() => System.Guid.NewGuid().ToString("N");
 

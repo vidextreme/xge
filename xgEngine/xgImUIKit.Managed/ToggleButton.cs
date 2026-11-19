@@ -8,8 +8,10 @@ namespace xg.imui
     public enum ToggleDot
     {
         None,
-        // Filled while on, a hollow ring while off (filter toggles).
-        State,
+        // A small square, filled while on: an independent toggle.
+        Check,
+        // A small circle, filled while on: one choice in a group.
+        Radio,
         // A small accent dot (something is active behind this button, e.g. a filter while its options are hidden).
         Accent,
     }
@@ -70,13 +72,19 @@ namespace xg.imui
             }
             if (on)
             {
-                draw.CircleFilled(center, 2.0f, Style.Color(StyleColor.TextOnAccent));
+                if (dot == ToggleDot.Radio)
+                    draw.CircleFilled(center, 2.0f, Style.Color(StyleColor.TextOnAccent));
+                else
+                    draw.RectFilled(Rect.FromXYWH(center.x - 2.0f, center.y - 2.0f, 4.0f, 4.0f), Style.Color(StyleColor.TextOnAccent));
                 return;
             }
             Color32 ring = Style.Color(StyleColor.TextDim);
             if (!enabled)
                 ring.a = 120;
-            draw.Circle(center, 2.0f, ring, 1.0f);
+            if (dot == ToggleDot.Radio)
+                draw.Circle(center, 2.0f, ring, 1.0f);
+            else
+                draw.Rect(Rect.FromXYWH(center.x - 2.0f, center.y - 2.0f, 4.0f, 4.0f), ring);
         }
 
         // Width of a button showing icon, label and badge (label/badge may be null).

@@ -15,6 +15,9 @@ namespace xg.editor
     // When the active tool stops being usable, the default tool ([EditorTool(ActiveByDefault = true)]) takes over.
     // Tools that don't implement IActivatableTool are passive (selection only, no ribbon item). Panel tools ([PanelTool]
     // IPanelTool panels) are passive tools listed under View > Tool Windows, where the ribbon opens or toggles them.
+    // Every [EditorTool] and [InspectorTool] has exactly one instance, created here. Tools are presentation: their data
+    // lives in drivers (IToolDriver) that the selection (ToolSelection, Selection.Current or a locked Inspector's) creates
+    // and disposes, never here.
     public sealed class Tools : ISubsystem
     {
         private sealed class PanelTypeEntry
@@ -77,6 +80,7 @@ namespace xg.editor
         private readonly List<ToolEntry> _tools = new();
         private readonly List<ControlEntry> _controls = new();
         private readonly List<PanelTypeEntry> _panelTypes = new();
+        private readonly List<(IInspectorTool Tool, InspectorToolAttribute Attribute, int Order)> _inspectorTools = new();
         private readonly List<IPanelTool> _panels = new();
         private readonly HashSet<IPanelTool> _seenOpen = new();
         private ToolEntry? _active;
@@ -106,6 +110,10 @@ namespace xg.editor
 
         // Registered instances of panel tools (any type), e.g. every open or hidden Inspector.
         public IReadOnlyList<IPanelTool> PanelInstances => _panels;
+
+        // The Inspector tools (one instance each), the ones tried first come first. Every Inspector draws these same
+        // instances with its own selection, drivers and view state.
+        public IReadOnlyList<IInspectorTool> InspectorTools { get; private set; } = Array.Empty<IInspectorTool>();
 
         public Tools()
         {
@@ -144,9 +152,14 @@ namespace xg.editor
             foreach (ToolEntry entry in _tools)
                 if (entry.Tool is IDisposable disposable)
                     Safe(entry.Attribute.Name, disposable.Dispose);
+            foreach (var inspectorTool in _inspectorTools)
+                if (inspectorTool.Tool is IDisposable disposable)
+                    Safe(inspectorTool.Attribute.Name, disposable.Dispose);
             _tools.Clear();
             _controls.Clear();
             _panelTypes.Clear();
+            _inspectorTools.Clear();
+            InspectorTools = Array.Empty<IInspectorTool>();
             _panels.Clear();
             _seenOpen.Clear();
             _categories.Clear();
@@ -218,14 +231,16 @@ namespace xg.editor
                 types = e.Types.Where(t => t is not null).ToArray()!;
             }
             int panelTypes = _panelTypes.Count;
+            int inspectorTools = _inspectorTools.Count;
             foreach (Type type in types.OrderBy(t => t.MetadataToken))
             {
                 ToolEntry? tool = RegisterTool(type);
                 RegisterControls(type, tool);
                 RegisterPanelType(type);
+                RegisterInspectorTool(type);
             }
 
-            if (_tools.Count != tools || _controls.Count != controls || _panelTypes.Count != panelTypes)
+            if (_tools.Count != tools || _controls.Count != controls || _panelTypes.Count != panelTypes || _inspectorTools.Count != inspectorTools)
             {
                 Version++;
                 if (log)
@@ -242,7 +257,7 @@ namespace xg.editor
         private void SyncSelection()
         {
             if (Selection.Count > 0 && !ReferenceEquals(_selection, Selection.Objects))
-                NotifySelection(Selection.Objects);
+                NotifySelection(Selection.Current);
         }
 
         private static bool UsesToolApi(Assembly assembly)
@@ -289,6 +304,30 @@ namespace xg.editor
                 Debug.LogWarning($"[Tools] {type.FullName}: '{existing.Attribute.Name}' is already the default tool; only one ActiveByDefault tool is used");
             _tools.Add(entry);
             return entry;
+        }
+
+        private void RegisterInspectorTool(Type type)
+        {
+            InspectorToolAttribute? attribute = type.GetCustomAttribute<InspectorToolAttribute>();
+            if (attribute is null)
+                return;
+            if (type.IsAbstract || !typeof(IInspectorTool).IsAssignableFrom(type) || type.GetConstructor(Type.EmptyTypes) is null)
+            {
+                Debug.LogError($"[Tools] {type.FullName}: [InspectorTool] needs a non-abstract IInspectorTool with a parameterless constructor");
+                return;
+            }
+            IInspectorTool tool;
+            try
+            {
+                tool = (IInspectorTool)Activator.CreateInstance(type)!;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Tools] {type.FullName}: constructor threw: {(e as TargetInvocationException)?.InnerException ?? e}");
+                return;
+            }
+            _inspectorTools.Add((tool, attribute, _order++));
+            InspectorTools = _inspectorTools.OrderBy(t => t.Attribute.Priority).ThenBy(t => t.Order).Select(t => t.Tool).ToArray();
         }
 
         private void RegisterPanelType(Type type)
@@ -366,7 +405,7 @@ namespace xg.editor
                 Tooltip = a.Tooltip,
                 Style = RibbonItemStyle.Wide,
                 IsToggled = a.Unique ? () => Instances(type).Any(p => p.IsOpen) : null,
-                Dot = a.Unique ? ToggleDot.State : ToggleDot.None,
+                Dot = a.Unique ? ToggleDot.Check : ToggleDot.None,
                 Clicked = () => OpenPanel(type),
             };
             ApplyIcon(item, entry.Icon, a.IconColor);
@@ -523,13 +562,13 @@ namespace xg.editor
         // ------------------------------------------------------------
         // Called by Selection on every change: re-asks every tool, panel-tool instance and validator (the active tool hands
         // over to the default tool when it can no longer work), then delivers an asset selection to the active tool.
-        public void NotifySelection(object[] selection)
+        public void NotifySelection(ToolSelection selection)
         {
-            _selection = selection;
+            _selection = selection.Objects;
             Refresh();
-            Debug.Log($"[Tools] selection: {selection.Length} item(s)");
+            Debug.Log($"[Tools] selection: {selection.Count} item(s)");
 
-            AssetRef[] assets = selection.OfType<AssetRef>().ToArray();
+            AssetRef[] assets = selection.Items<AssetRef>().ToArray();
             ToolEntry? active = _active;
             if (assets.Length == 0 || active is null)
                 return;
@@ -732,7 +771,7 @@ namespace xg.editor
                 IsEnabled = () => control.Usability == ToolUsability.Usable,
                 IsVisible = () => control.Usability != ToolUsability.NotApplicable,
                 IsToggled = control.IsToggle ? () => control.State : null,
-                Dot = control.IsToggle ? ToggleDot.State : ToggleDot.None,
+                Dot = control.IsToggle ? ToggleDot.Check : ToggleDot.None,
                 Clicked = () => Invoke(control),
             };
             ApplyIcon(item, control.Icon, a.IconColor);

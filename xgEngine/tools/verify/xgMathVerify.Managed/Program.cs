@@ -61,6 +61,7 @@ internal static class Program
     private static int Main()
     {
         NativeLibrary.SetDllImportResolver(typeof(Geometry).Assembly, ResolveNative);
+        NativeLibrary.SetDllImportResolver(typeof(Program).Assembly, ResolveNative);
 
         Run(nameof(TestLayout), TestLayout);
         Run(nameof(TestGolden), TestGolden);
@@ -73,7 +74,9 @@ internal static class Program
         Run(nameof(TestAssetMetaMigration), TestAssetMetaMigration);
         Run(nameof(TestChunkFile), TestChunkFile);
         Run(nameof(TestAssetPipeline), TestAssetPipeline);
+        Run(nameof(TestTextureImport), TestTextureImport);
         Run(nameof(TestResourceID), TestResourceID);
+        Run(nameof(TestToolSelection), TestToolSelection);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -119,7 +122,7 @@ internal static class Program
     // ------------------------------------------------------------
     private static IntPtr ResolveNative(string name, Assembly assembly, DllImportSearchPath? searchPath)
     {
-        if (name != "xgScriptNative")
+        if (name != "xgScriptNative" && name != "xgEditorKernel")
             return IntPtr.Zero;
 
         string? dir = Environment.GetEnvironmentVariable("XG_BIN_DIR");
@@ -137,7 +140,7 @@ internal static class Program
         }
         if (string.IsNullOrEmpty(dir))
             throw new DllNotFoundException("xgScriptNative.dll not found; build the engine or set XG_BIN_DIR");
-        return NativeLibrary.Load(Path.Combine(dir, "xgScriptNative.dll"));
+        return NativeLibrary.Load(Path.Combine(dir, name + ".dll"));
     }
 
     // ------------------------------------------------------------
@@ -653,6 +656,8 @@ internal static class Program
         public int Calls;
         public string Id => "test.import";
         public int Version { get; set; } = 1;
+        public string DataFolder => "Models";
+        public string DataExtension => ".xdv";
         public bool Accepts(string extension) => extension == ".src";
         public IReadOnlyList<AssetDataFile> Import(string sourcePath, System.Text.Json.Nodes.JsonObject settings)
         {
@@ -674,7 +679,8 @@ internal static class Program
         public AssetDataFile Process(AssetDataFile raw, System.Text.Json.Nodes.JsonObject settings)
         {
             Calls++;
-            return new AssetDataFile(".xdv", ChunkTag.Make("XDV "), raw.Items.Select(i => new AssetDataItem(i.Kind, i.Path, [new ChunkData(ChunkTag.Make("VTXS"), i.Chunks[0].Data)])).ToList());
+            return new AssetDataFile(".xdv", ChunkTag.Make("XDV "), raw.Items.Select(i => new AssetDataItem(i.Kind, i.Path, [new ChunkData(ChunkTag.Make("VTXS"), i.Chunks[0].Data)])).ToList(),
+                Tags: ["@test:" + (settings["quality"]?.ToString() ?? "base"), "@Test:Mesh"]);
         }
     }
 
@@ -764,18 +770,24 @@ internal static class Program
             string chunkGuid = meta.Items.Single().Guid;
             string raw = pipeline.FindFile(guid, ".xrv")!;
             string processed = pipeline.FindFile(guid, ".xdv")!;
-            Check(Path.GetFileName(raw) == "dog.src.xrv" && Path.GetFileName(processed) == "dog.src.xdv" && Path.GetDirectoryName(processed) == Path.Combine(library, "ab", guid), "Library is addressed by GUID");
+            string models = Path.Combine(library, "Models");
+            Check(Path.GetFileName(raw) == guid + ".xrv" && Path.GetFileName(processed) == guid + ".xdv" && Path.GetDirectoryName(processed) == models, "Library is addressed by GUID inside a type folder");
+            Check(File.Exists(processed + ".json") && Directory.GetDirectories(library).Length == 1 && Directory.GetDirectories(models).Length == 0 && pipeline.ManifestOf(guid)?.Source == "dog.src", "the manifest sits beside the data, with no per-asset folders");
             Check(Resources.ValidateChunkFile(File.ReadAllBytes(processed)) == ChunkFileStatus.Valid, "processed file is valid for the native reader");
             Check(ChunkFile.Parse(File.ReadAllBytes(processed)).Items.Single().Guid == chunkGuid, "processed item uses the kept chunk GUID");
             byte[] first = File.ReadAllBytes(processed);
 
+            Check(pipeline.ManifestOf(guid)!.Tags.SequenceEqual(["@test:base", "@test:mesh"]), "processed tags are recorded in the manifest, lower case and in order");
+            Check(pipeline.ReadAllTags().TryGetValue(guid, out IReadOnlyList<string>? allTags) && allTags.Count == 2, "every manifest's tags can be read at once");
             Check(Build() == AssetBuildStatus.UpToDate && importer.Calls == 1 && processor.Calls == 1, "unchanged inputs do nothing");
 
             meta.ProcessSettings["quality"] = 2;
             Check(Build() == AssetBuildStatus.Processed && importer.Calls == 1 && processor.Calls == 2, "process settings reuse stored raw data");
+            Check(pipeline.ManifestOf(guid)!.Tags.Contains("@test:2"), "tags follow the process settings");
 
             meta.ImportSettings["scale"] = 2;
             Check(Build() == AssetBuildStatus.ManifestUpdated && importer.Calls == 2 && processor.Calls == 2, "import settings with identical raw output skip processing");
+            Check(pipeline.ManifestOf(guid)!.Tags.Contains("@test:2"), "reused processed output keeps its tags");
 
             File.WriteAllText(source, "two");
             Check(Build() == AssetBuildStatus.Imported && importer.Calls == 3 && processor.Calls == 3, "source change rebuilds both stages");
@@ -799,18 +811,36 @@ internal static class Program
             importer.Version = 2;
             Check(Build() == AssetBuildStatus.ManifestUpdated, "importer version is part of the key");
 
-            Directory.CreateDirectory(pipeline.DirectoryOf(guid) + ".build~");
-            Check(pipeline.RemoveOrphans(new HashSet<string> { guid }) == 0 && !Directory.Exists(pipeline.DirectoryOf(guid) + ".build~") && File.Exists(pipeline.FindFile(guid, ".xdv")), "live data is kept, temporary folders go");
-            Check(pipeline.RemoveOrphans(new HashSet<string>()) == 1 && !Directory.Exists(Path.Combine(library, "ab")), "orphaned data is removed");
+            string temporary = processed + ".build~";
+            string legacy = Path.Combine(library, "ab", guid);
+            File.WriteAllText(temporary, "partial");
+            Directory.CreateDirectory(legacy);
+            File.WriteAllText(Path.Combine(legacy, "manifest.json"), "{}");
+            Check(pipeline.RemoveOrphans(new HashSet<string> { guid }) == 0 && !File.Exists(temporary) && !Directory.Exists(Path.Combine(library, "ab")) && File.Exists(pipeline.FindFile(guid, ".xdv")), "live data is kept, temporary files and old folders go");
+            Check(pipeline.RemoveOrphans(new HashSet<string>()) == 1 && !Directory.Exists(models), "orphaned data is removed");
+
+            const string failingGuid = "abcdef00000000000000000000000002";
+            File.WriteAllText(source, "bad");
+            AssetMeta failingMeta = new() { Guid = failingGuid };
+            AssetBuildResult failedFirst = pipeline.Build(new AssetBuildRequest(failingGuid, source, null, failingMeta.ImportSettings, failingMeta.ProcessSettings, failingMeta.Items, _ => null));
+            Check(failedFirst.Status == AssetBuildStatus.Failed && File.Exists(Path.Combine(models, failingGuid + ".xdv.json")) && pipeline.ManifestOf(failingGuid)?.Error is not null && pipeline.FindFile(failingGuid, ".xdv") is null, "a failed first build records its error");
 
             AssetPipeline textures = new(Path.Combine(root, "Textures"));
             TextureAssets.Register(textures, _ => new DecodedImage(2, 2, [255, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 255, 0, 255]));
             string image = Path.Combine(root, "cat.png");
             File.WriteAllText(image, "image");
             const string textureGuid = "cdef0000000000000000000000000001";
+            AssetMeta defaults = AssetMeta.Create();
+            textures.WriteDefaultSettings("Assets/new.png", defaults);
+            AssetMeta savedDefaults = AssetMeta.Parse(defaults.ToJSON());
+            Check(savedDefaults.ProcessSettings["texture"]?["format"]?.GetValue<string>() == "standard" && savedDefaults.ImportSettings.Count == 0 && TextureSettings.From(savedDefaults.ProcessSettings) == new TextureSettings(), "new texture metas store the default settings");
+            AssetMeta unknown = AssetMeta.Create();
+            textures.WriteDefaultSettings("Assets/readme.txt", unknown);
+            Check(unknown.ProcessSettings.Count == 0, "other files get no texture settings");
             AssetMeta textureMeta = new() { Guid = textureGuid };
             textureMeta.ImportSettings["flipY"] = true;
             textureMeta.ProcessSettings["mipmaps"] = true;
+            textureMeta.ProcessSettings["texture"] = new System.Text.Json.Nodes.JsonObject { ["format"] = "uncompressed" };
             AssetBuildResult built = textures.Build(new AssetBuildRequest(textureGuid, image, null, textureMeta.ImportSettings, textureMeta.ProcessSettings, textureMeta.Items, items =>
             {
                 AssetItemUpdate update = AssetItemTable.Update(textureMeta.Items, items);
@@ -822,13 +852,235 @@ internal static class Program
             ChunkItem texture = ChunkFile.Parse(File.ReadAllBytes(textures.FindFile(textureGuid, TextureAssets.ProcessedExtension)!)).Items.Single();
             byte[] header = texture.Chunks.Single(c => c.Type == TextureAssets.HeaderChunk).Data;
             byte[] pixels = texture.Chunks.Single(c => c.Type == TextureAssets.PixelsChunk).Data;
-            Check(BitConverter.ToInt32(header, 0) == 2 && BitConverter.ToInt32(header, 4) == 2 && BitConverter.ToInt32(header, 8) == TextureAssets.FormatRGBA8 && BitConverter.ToInt32(header, 12) == 2, "texture header");
-            Check(pixels.Length == 20 && pixels[5] == 255 && pixels[8] == 255 && pixels[16] == 64 && pixels[17] == 64 && pixels[18] == 0 && pixels[19] == 255, "flipY and box-filtered mips");
+            Check(BitConverter.ToInt32(header, 0) == 2 && BitConverter.ToInt32(header, 4) == 2 && BitConverter.ToInt32(header, 8) == 2 && BitConverter.ToInt32(header, 12) == 0 && BitConverter.ToInt32(header, 20) == TextureAssets.LayoutVersion, "texture header");
+            Check(pixels.Length == 20 && pixels[5] == 255 && pixels[8] == 255 && pixels[16] == 137 && pixels[17] == 137 && pixels[18] == 0 && pixels[19] == 255, "flipY and sRGB-correct mips");
         }
         finally
         {
             Directory.Delete(root, true);
         }
+    }
+
+    private static byte[] TextureBytes(TextureSettings settings, DecodedImage image, out ChunkData header, out ChunkData pixels)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "xge-texture-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string source = Path.Combine(root, "image.png");
+            File.WriteAllText(source, "source");
+            const string guid = "abcd0000000000000000000000000002";
+            AssetMeta meta = new() { Guid = guid };
+            settings.WriteTo(meta.ProcessSettings);
+            AssetPipeline pipeline = new(Path.Combine(root, "Library"));
+            TextureAssets.Register(pipeline, _ => image);
+            AssetBuildResult result = pipeline.Build(new AssetBuildRequest(guid, source, null, meta.ImportSettings, meta.ProcessSettings, meta.Items, items =>
+            {
+                AssetItemUpdate update = AssetItemTable.Update(meta.Items, items);
+                meta.Items = update.Items;
+                return update;
+            }));
+            Check(result.Status == AssetBuildStatus.Imported, "texture build: " + result.Error);
+            byte[] file = File.ReadAllBytes(pipeline.FindFile(guid, TextureAssets.ProcessedExtension)!);
+            Check(Resources.ValidateChunkFile(file) == ChunkFileStatus.Valid, "native reader accepts the texture");
+            ChunkItem item = ChunkFile.Parse(file).Items.Single();
+            header = item.Chunks.Single(c => c.Type == TextureAssets.HeaderChunk);
+            pixels = item.Chunks.Single(c => c.Type == TextureAssets.PixelsChunk);
+            return file;
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static void DecodeAlphaBlock(ReadOnlySpan<byte> block, Span<byte> output)
+    {
+        Span<int> values = stackalloc int[8];
+        int a = block[0], b = block[1];
+        values[0] = a;
+        values[1] = b;
+        for (int i = 1; i < (a > b ? 7 : 5); i++)
+            values[i + 1] = a > b ? ((7 - i) * a + i * b) / 7 : ((5 - i) * a + i * b) / 5;
+        if (a <= b)
+        {
+            values[6] = 0;
+            values[7] = 255;
+        }
+        ulong bits = 0;
+        for (int i = 5; i >= 0; i--)
+            bits = bits << 8 | block[2 + i];
+        for (int i = 0; i < 16; i++)
+            output[i] = (byte)values[(int)(bits >> (i * 3)) & 7];
+    }
+
+    private static void DecodeColorBlock(ReadOnlySpan<byte> block, Span<byte> rgb)
+    {
+        int c0 = block[0] | block[1] << 8, c1 = block[2] | block[3] << 8;
+        Span<int> colors = stackalloc int[12];
+        for (int e = 0; e < 2; e++)
+        {
+            int c = e == 0 ? c0 : c1;
+            colors[e * 3] = (c >> 11 & 31) * 255 / 31;
+            colors[e * 3 + 1] = (c >> 5 & 63) * 255 / 63;
+            colors[e * 3 + 2] = (c & 31) * 255 / 31;
+        }
+        for (int ch = 0; ch < 3; ch++)
+        {
+            colors[6 + ch] = c0 > c1 ? (2 * colors[ch] + colors[3 + ch]) / 3 : (colors[ch] + colors[3 + ch]) / 2;
+            colors[9 + ch] = c0 > c1 ? (colors[ch] + 2 * colors[3 + ch]) / 3 : 0;
+        }
+        uint bits = BitConverter.ToUInt32(block[4..8]);
+        for (int i = 0; i < 16; i++)
+        {
+            int index = (int)(bits >> (i * 2)) & 3;
+            for (int ch = 0; ch < 3; ch++)
+                rgb[i * 3 + ch] = (byte)colors[index * 3 + ch];
+        }
+    }
+
+    // Average absolute error per channel between the first encoded mip and the expected RGBA values.
+    private static double BlockError(TextureHardwareFormat format, byte[] data, byte[] expected, int width, int height, int channels)
+    {
+        int blockBytes = TextureFormats.BytesPerBlock(format);
+        long total = 0, count = 0;
+        Span<byte> rgb = stackalloc byte[48];
+        Span<byte> first = stackalloc byte[16];
+        Span<byte> second = stackalloc byte[16];
+        for (int by = 0; by < height / 4; by++)
+        {
+            for (int bx = 0; bx < width / 4; bx++)
+            {
+                ReadOnlySpan<byte> block = data.AsSpan((by * (width / 4) + bx) * blockBytes, blockBytes);
+                if (format == TextureHardwareFormat.BC1)
+                    DecodeColorBlock(block, rgb);
+                else if (format == TextureHardwareFormat.BC3)
+                {
+                    DecodeAlphaBlock(block, first);
+                    DecodeColorBlock(block[8..], rgb);
+                }
+                else if (format == TextureHardwareFormat.BC4)
+                    DecodeAlphaBlock(block, first);
+                else
+                {
+                    DecodeAlphaBlock(block, first);
+                    DecodeAlphaBlock(block[8..], second);
+                }
+                for (int i = 0; i < 16; i++)
+                {
+                    int source = ((by * 4 + i / 4) * width + bx * 4 + i % 4) * 4;
+                    for (int c = 0; c < channels; c++)
+                    {
+                        int actual = format switch
+                        {
+                            TextureHardwareFormat.BC4 => first[i],
+                            TextureHardwareFormat.BC5 => c == 0 ? first[i] : second[i],
+                            TextureHardwareFormat.BC3 when c == 3 => first[i],
+                            _ => rgb[i * 3 + c],
+                        };
+                        total += Math.Abs(actual - expected[source + c]);
+                        count++;
+                    }
+                }
+            }
+        }
+        return (double)total / count;
+    }
+
+    private static void TestTextureImport()
+    {
+        TextureSettings color = new();
+        Check(TextureFormats.Resolve(color, false) == TextureHardwareFormat.BC1 && TextureFormats.Resolve(color, true) == TextureHardwareFormat.BC3, "color resolves by alpha");
+        Check(TextureFormats.Resolve(color with { Alpha = TextureAlpha.None }, true) == TextureHardwareFormat.BC1, "no alpha forces BC1");
+        Check(TextureFormats.Resolve(color with { Alpha = TextureAlpha.Keep }, false) == TextureHardwareFormat.BC3, "keep alpha forces BC3");
+        Check(TextureFormats.Resolve(color with { Type = TextureUsage.Normal }, true) == TextureHardwareFormat.BC5, "normal resolves to BC5");
+        Check(TextureFormats.Resolve(color with { Type = TextureUsage.Luminance }, true) == TextureHardwareFormat.BC4, "luminance resolves to BC4");
+        Check(TextureFormats.Resolve(color with { Format = TextureCompression.Uncompressed, Type = TextureUsage.Normal }, true) == TextureHardwareFormat.RGBA8, "uncompressed resolves to RGBA8");
+
+        TextureBuildPlan plan = TextureFormats.Plan(color, 330, 130, true);
+        Check(plan is { Format: TextureHardwareFormat.BC3, Width: 332, Height: 132, MipCount: 9 }, $"block sizes round to multiples of 4: {plan}");
+        plan = TextureFormats.Plan(color with { Scale = TextureScale.Half, MipFilter = TextureMipFilter.None }, 512, 512, false);
+        Check(plan is { Format: TextureHardwareFormat.BC1, Width: 256, Height: 256, MipCount: 1, ByteSize: 32768 }, $"scale and size: {plan}");
+        Check(TextureFormats.ImportTags(color, plan).SequenceEqual(["@texture:color", "@texture:bc1", "@texture:256x256"]), "import tags: usage, format, size");
+        TextureSettings alphaColor = color with { Alpha = TextureAlpha.Keep };
+        Check(TextureFormats.ImportTags(alphaColor, TextureFormats.Plan(alphaColor, 64, 32, true)).SequenceEqual(["@texture:color", "@texture:bc3", "@texture:64x32", "@texture:alpha"]), "import tags include alpha when kept");
+        TextureSettings normal = color with { Type = TextureUsage.Normal, Format = TextureCompression.Uncompressed };
+        Check(TextureFormats.ImportTags(normal, TextureFormats.Plan(normal, 30, 30, true)).SequenceEqual(["@texture:normal", "@texture:rgba8", "@texture:30x30"]), "import tags of an uncompressed normal map");
+
+        System.Text.Json.Nodes.JsonObject process = new() { ["mipmaps"] = false, ["custom"] = 1 };
+        TextureSettings legacy = TextureSettings.From(process);
+        Check(legacy.MipFilter == TextureMipFilter.None, "old mipmaps flag is read");
+        legacy.WriteTo(process);
+        Check(process["mipmaps"] is null && process["custom"] is not null && TextureSettings.From(process) == legacy, "settings round trip and drop the old flag");
+        Check(new TextureSettings().WithText("format=uncompressed,type=normal,flipGreen=true,mipFilter=none") is { Format: TextureCompression.Uncompressed, Type: TextureUsage.Normal, FlipGreen: true, MipFilter: TextureMipFilter.None }, "text settings parse");
+
+        TextureImportDraft draft = new(color);
+        draft.Draft = color with { Type = TextureUsage.Normal };
+        Check(draft.IsDirty, "editing makes the draft dirty");
+        draft.Revert();
+        Check(!draft.IsDirty && draft.Draft == color, "revert restores the saved settings");
+        draft.Draft = color with { Quality = TextureQuality.High };
+        draft.MarkApplied();
+        Check(!draft.IsDirty && draft.Saved.Quality == TextureQuality.High, "apply makes the draft the saved state");
+
+        const int size = 32;
+        byte[] rgba = new byte[size * size * 4];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                int i = (y * size + x) * 4;
+                rgba[i] = (byte)(x * 255 / (size - 1));
+                rgba[i + 1] = (byte)(y * 255 / (size - 1));
+                rgba[i + 2] = (byte)((x + y) * 255 / (2 * size - 2));
+                rgba[i + 3] = (byte)(255 - x * 255 / (size - 1));
+            }
+        DecodedImage image = new(size, size, rgba);
+        byte[] opaque = (byte[])rgba.Clone();
+        for (int i = 3; i < opaque.Length; i += 4)
+            opaque[i] = 255;
+
+        foreach ((TextureSettings settings, DecodedImage source, TextureHardwareFormat format, int channels) in new[]
+        {
+            (color, new DecodedImage(size, size, opaque), TextureHardwareFormat.BC1, 3),
+            (color, image, TextureHardwareFormat.BC3, 4),
+            (color with { Type = TextureUsage.Normal, MipFilter = TextureMipFilter.None }, new DecodedImage(size, size, opaque), TextureHardwareFormat.BC5, 0),
+        })
+        {
+            TextureBytes(settings, source, out ChunkData header, out ChunkData pixels);
+            Check(pixels.Extra == (ulong)format, $"{format} is recorded in TXPX");
+            TextureBuildPlan expected = TextureFormats.Plan(settings, size, size, TextureFormats.HasAlpha(source.Pixels));
+            Check(pixels.Data.Length == expected.ByteSize && BitConverter.ToInt32(header.Data, 8) == expected.MipCount, $"{format} size and mip count");
+            if (channels > 0)
+            {
+                double error = BlockError(format, pixels.Data, source.Pixels, size, size, channels);
+                Check(error < 8.0, $"{format} average error {error:F2}");
+            }
+        }
+
+        byte[] gray = new byte[size * size * 4];
+        for (int i = 0; i < gray.Length; i += 4)
+        {
+            gray[i] = gray[i + 1] = gray[i + 2] = (byte)((i / 4 % size) * 255 / (size - 1));
+            gray[i + 3] = 255;
+        }
+        TextureBytes(color with { Type = TextureUsage.Luminance, MipFilter = TextureMipFilter.None }, new DecodedImage(size, size, gray), out _, out ChunkData luminance);
+        TextureBytes(color with { Type = TextureUsage.Luminance, Format = TextureCompression.Uncompressed, MipFilter = TextureMipFilter.None }, new DecodedImage(size, size, gray), out _, out ChunkData luminanceReference);
+        double luminanceError = BlockError(TextureHardwareFormat.BC4, luminance.Data, luminanceReference.Data, size, size, 1);
+        Check(luminance.Extra == (ulong)TextureHardwareFormat.BC4 && luminanceError < 6.0, $"BC4 average error {luminanceError:F2}");
+
+        byte[] normals = new byte[8 * 8 * 4];
+        for (int i = 0; i < normals.Length; i += 4)
+        {
+            bool left = (i / 4 % 8) < 4;
+            normals[i] = left ? (byte)217 : (byte)38;
+            normals[i + 1] = 128;
+            normals[i + 2] = 217;
+            normals[i + 3] = 255;
+        }
+        TextureBytes(color with { Type = TextureUsage.Normal, Format = TextureCompression.Uncompressed }, new DecodedImage(8, 8, normals), out _, out ChunkData normalPixels);
+        int offset = normalPixels.Data.Length - 4;
+        Vector3 last = V(normalPixels.Data[offset] / 255.0f * 2.0f - 1.0f, normalPixels.Data[offset + 1] / 255.0f * 2.0f - 1.0f, normalPixels.Data[offset + 2] / 255.0f * 2.0f - 1.0f);
+        Near(last.Length(), 1.0, 0.02);
     }
 
     private static void TestAssetMetaMigration()
@@ -863,6 +1115,139 @@ internal static class Program
         {
             if (Directory.Exists(root))
                 Directory.Delete(root, true);
+        }
+    }
+
+    // ------------------------------------------------------------
+    // Tool selections and drivers
+    // ------------------------------------------------------------
+    private sealed class CountingDriver : IToolDriver
+    {
+        public CountingDriver(object key) => Key = key;
+        public object Key { get; }
+        public bool Dirty;
+        public int Applied;
+        public bool Disposed;
+        public bool HasPendingChanges => Dirty;
+        public void Apply() { Applied++; Dirty = false; }
+        public void Revert() => Dirty = false;
+        public void Dispose() => Disposed = true;
+    }
+
+    private sealed class ItemTool : ITool
+    {
+        public readonly List<CountingDriver> Created = new();
+        public int Asked;
+        public ToolUsability OnSelectItems(object[] selection)
+        {
+            Asked++;
+            return selection.OfType<string>().Any() ? ToolUsability.Usable : ToolUsability.NotApplicable;
+        }
+        public object? DriverKey(ToolSelection selection) => selection.Last<string>();
+        public IToolDriver? CreateDriver(ToolSelection selection)
+        {
+            CountingDriver driver = new(selection.Last<string>()!);
+            Created.Add(driver);
+            return driver;
+        }
+    }
+
+    private sealed class WholeTool : ITool
+    {
+        public readonly List<CountingDriver> Created = new();
+        public ToolUsability OnSelectItems(object[] selection) => ToolUsability.Usable;
+        public IToolDriver? CreateDriver(ToolSelection selection)
+        {
+            CountingDriver driver = new(selection);
+            Created.Add(driver);
+            return driver;
+        }
+    }
+
+    private sealed class ThrowingTool : ITool
+    {
+        public ToolUsability OnSelectItems(object[] selection) => throw new InvalidOperationException("usability");
+        public IToolDriver? CreateDriver(ToolSelection selection) => throw new InvalidOperationException("driver");
+    }
+
+    private sealed class CountingState : IDisposable
+    {
+        public int Value;
+        public bool Disposed;
+        public void Dispose() => Disposed = true;
+    }
+
+    private static void TestToolSelection()
+    {
+        List<Exception> errors = new();
+        ToolSelection.ErrorHandler = errors.Add;
+        try
+        {
+            ItemTool item = new();
+            WholeTool whole = new();
+
+            ToolSelection a = new(["A"]);
+            Check(item.Created.Count == 0, "drivers are created lazily");
+            CountingDriver driverA = (CountingDriver)a.DriverFor(item)!;
+            Check(ReferenceEquals(a.DriverFor(item), driverA) && item.Created.Count == 1, "one driver per tool and key");
+            Check(a.Usability(item) == ToolUsability.Usable && a.Usability(item) == ToolUsability.Usable && item.Asked == 1, "usability is asked once");
+            CountingDriver wholeA = (CountingDriver)a.DriverFor(whole)!;
+
+            ToolSelection ab = a.Next(["A", 7]);
+            a.Release();
+            Check(!driverA.Disposed && wholeA.Disposed, "A -> A+7 keeps the item driver and drops the whole-selection one");
+            Check(ReferenceEquals(ab.DriverFor(item), driverA) && item.Created.Count == 1, "carried driver is reused, not created again");
+            CountingDriver wholeAB = (CountingDriver)ab.DriverFor(whole)!;
+            Check(!ReferenceEquals(wholeAB, wholeA) && whole.Created.Count == 2, "whole-selection driver is rebuilt on every change");
+
+            ToolSelection abb = ab.Next(["A", 7, "B"]);
+            ab.Release();
+            CountingDriver driverB = (CountingDriver)abb.DriverFor(item)!;
+            Check(driverB.Key.Equals("B") && !driverA.Disposed, "a new active item gets its own driver, the old one stays while selected");
+            Check(abb.Drivers.Count() == 2, "both item drivers are listed");
+
+            driverA.Dirty = true;
+            Check(abb.HasPendingChanges, "pending changes are seen");
+            Check(abb.PendingOnDeselect(["A", "C"]).Count == 0, "keeping A loses nothing");
+            Check(abb.PendingOnDeselect(["B"]).SequenceEqual([driverA]), "deselecting A would lose its draft");
+
+            abb.Retain();
+            ToolSelection b = abb.Next(["B"]);
+            abb.Release();
+            Check(!driverA.Disposed && !abb.IsReleased, "a retained (locked) selection keeps deselected drivers");
+            Check(abb.HasPendingChanges && ReferenceEquals(abb.DriverFor(item), driverB), "the locked selection still works");
+            foreach (IToolDriver driver in abb.PendingOnDeselect(b.Objects))
+                driver.Apply();
+            Check(driverA.Applied == 1 && !abb.HasPendingChanges, "pending drivers apply through the selection");
+            abb.Release();
+            Check(driverA.Disposed && !driverB.Disposed && abb.IsReleased, "the last release disposes only the drivers nobody else holds");
+            Check(abb.DriverFor(item) is null, "a released selection makes no drivers");
+
+            b.Release();
+            Check(driverB.Disposed, "releasing the last selection disposes the rest");
+
+            ToolSelection empty = new(Array.Empty<object>());
+            Check(empty.DriverFor(item) is null && item.Created.Count == 2, "no key, no driver");
+            Check(empty.Usability(item) == ToolUsability.NotApplicable, "usability comes from the tool");
+            empty.Release();
+
+            ThrowingTool throwing = new();
+            ToolSelection t = new(["X"]);
+            Check(t.Usability(throwing) == ToolUsability.NotApplicable && t.DriverFor(throwing) is null && errors.Count == 2, "tool exceptions are reported, not thrown");
+            t.Release();
+
+            ToolView view = new();
+            CountingState first = view.State<CountingState>();
+            first.Value = 3;
+            CountingState scoped = view.Scope("tool").State<CountingState>();
+            Check(ReferenceEquals(view.State<CountingState>(), first) && !ReferenceEquals(scoped, first) && scoped.Value == 0, "view scopes keep separate state");
+            Check(ReferenceEquals(view.Scope("tool").State<CountingState>(), scoped), "a scope is kept per key");
+            view.Dispose();
+            Check(first.Disposed && scoped.Disposed, "disposing a view disposes its states and scopes");
+        }
+        finally
+        {
+            ToolSelection.ErrorHandler = null;
         }
     }
 }

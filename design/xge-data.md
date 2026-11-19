@@ -48,7 +48,7 @@ Status labels:
 | Source | `dog.fbx`, `cat.png` | `Assets/` | External tools | Yes | Original input |
 | Metadata | `dog.fbx.xmd`, `dog.xco.xmd` | Next to each asset | Editor | Yes | GUID, tags, import settings, name tables |
 | Composition | `.xco`, `.xcm`, `.xcf`, `.xca` | `Assets/` | Editors inside xgEditor | Yes | Parameters and references to `.xd*` data |
-| Raw | `dog.fbx.xrv`, `dog.fbx.xrh` | `Library/` | Importers | No | Import result, with vertex data in separate chunks |
+| Raw | `<guid>.xrv`, `<guid>.xrh` | `Library/` | Importers | No | Import result, with vertex data in separate chunks |
 | Processed | `.xdv`, `.xdh`, `.xdt`, `.xda`, `.xds` | `Library/` | Processing step | No | Runtime-ready data, with vertex data interleaved by stride |
 
 ## Flow
@@ -59,10 +59,10 @@ Status labels:
 dog.fbx + dog.fbx.xmd (import settings)
         |
         v
-Library: dog.fbx.xrv, dog.fbx.xrh      raw
+Library: <guid>.xrv, <guid>.xrh        raw
         |
         v
-Library: dog.fbx.xdv, dog.fbx.xdh      processed
+Library: <guid>.xdv, <guid>.xdh        processed
         ^
         | <file-guid>/<chunk-guid> references
         |
@@ -161,8 +161,10 @@ reference: <file-guid>/7f3a...
 
 **Decided.**
 
-* `Library/` is addressed by GUID: `Library/Data/<guid prefix>/<guid>/dog.fbx.xdv`. The file name is for people only, and nothing links through it. Renames don't move data, and same-named sources don't collide.
-* `manifest.json` in each folder records the build keys and generated files. It is written last, so an interrupted build runs again.
+* `Library/` is addressed by GUID, with one folder per data type and no per-asset folders: `Library/Data/Textures/<guid>.xdt`, `Library/Data/Models/<guid>.xdv`. Renames don't move data, and same-named sources don't collide.
+* One manifest per asset sits next to its data, named after the main generated file: `<guid>.xdt.json`. It records the source name, build keys, generated files and read-only import tags. It is written last, so an interrupted build runs again.
+* Processors return read-only import tags with their output, such as `@texture:color`. They live only in the manifest, never in `.xmd`, so they are rebuilt with `Library/`. The editor shows them before an asset's user tags on request, and tag filters can use them like `@type:` and `@ext:`.
+* A new source file gets a `.xmd` with its importer's default settings and is built once it stops being written.
 * Raw output is keyed by source hash + import settings + importer version.
 * Processed output is keyed by raw hash + process settings + processor versions.
 * A failed build keeps the last good output and isn't retried until its inputs change.
@@ -170,7 +172,24 @@ reference: <file-guid>/7f3a...
 * `.xrt` isn't stored. Textures keep decoded pixels in memory between importing and processing, and go from source to `.xdt`.
 * Builds run on the main thread within a per-frame time budget until the threading decision is made.
 
-**Texture data.** `.xdt` has one `texture` item with `TXHD` (width, height, format 1 = RGBA8, mip count) and `TXPX` (tightly packed pixels, largest mip first). PNG and BMP are supported. Settings: `import.flipY` and `process.mipmaps`.
+**Texture data.** `.xdt` has one `texture` item with:
+
+* `TXHD`: width, height, mip count, usage, flags (sRGB, alpha) and layout version as 32-bit values.
+* `TXPX`: one chunk per hardware format, with the format ID in `Extra`. Mips are stored largest first.
+
+Import tags: `@texture:<usage>` (color, normal, luminance), `@texture:<format>` (bc1, bc3, bc4, bc5, rgba8), `@texture:<width>x<height>` of the output, and `@texture:alpha` when alpha is kept.
+
+Settings live in `importer.process.texture`: `format`, `type`, `alpha`, `quality`, `mipFilter`, `scale` and `flipGreen`. `importer.process.platforms.<name>` is reserved for platform overrides. `import.flipY` applies while decoding.
+
+| Settings | Hardware format |
+|---|---|
+| Uncompressed | RGBA8 |
+| Standard, color, no alpha | BC1 |
+| Standard, color, alpha | BC3 |
+| Standard, luminance | BC4 |
+| Standard, normal | BC5 |
+
+Color mips are averaged in linear space, and normal mips are renormalized. BC textures are resized to multiples of 4. Tier 5 must use sRGB views for color BC1/BC3 and rebuild normal Z in shaders.
 
 ## Open questions
 

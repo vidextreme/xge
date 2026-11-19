@@ -293,6 +293,34 @@ namespace xgEditor.CoreCLR
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "managed")
                 _testWindow.Focus();
             Debug.Log($"[Debug] Managed Test registered: {_testWindow.IsRegistered}, xgImUIKit API {xg.imui.ImUI.NativeApiVersion}");
+            string? inspectAsset = Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_ASSET");
+            if (!string.IsNullOrEmpty(inspectAsset))
+            {
+                xg.editor.Selection.Set(new xg.editor.AssetRef(inspectAsset));
+                inspector.Focus();
+            }
+            string? textureTests = Environment.GetEnvironmentVariable("XG_ASSET_TEST_TEXTURE");
+            if (!string.IsNullOrEmpty(textureTests) && ProjectService.Assets is { } textureAssets)
+            {
+                foreach (string test in textureTests.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    int colon = test.IndexOf(':');
+                    string path = test[..colon];
+                    string guid = textureAssets.GuidOf(path) ?? string.Empty;
+                    xg.editor.AssetMeta meta = xg.editor.AssetMeta.Read(textureAssets.FullPath(xg.editor.AssetMeta.PathFor(path)));
+                    var process = meta.ProcessSettings;
+                    xg.editor.TextureSettings.From(process).WithText(test[(colon + 1)..]).WriteTo(process);
+                    textureAssets.SetProcessSettings(path, process);
+                    textureAssets.BuildAll();
+                    string file = textureAssets.Pipeline.FindFile(guid, xg.editor.TextureAssets.ProcessedExtension) ?? string.Empty;
+                    byte[] bytes = file.Length > 0 ? File.ReadAllBytes(file) : Array.Empty<byte>();
+                    meta = xg.editor.AssetMeta.Read(textureAssets.FullPath(xg.editor.AssetMeta.PathFor(path)));
+                    ResourceGUID item = ResourceID.Parse($"{guid}/{meta.Items[0].Guid}").Chunk;
+                    Resources.FindChunk(bytes, item, xg.editor.TextureAssets.PixelsChunk, out _, out ulong size);
+                    var chunk = xg.editor.ChunkFile.Parse(bytes).Items[0].Chunks.First(c => c.Type == xg.editor.TextureAssets.PixelsChunk);
+                    Debug.Log($"[Assets] texture test {test}: {(xg.editor.TextureHardwareFormat)chunk.Extra}, {size} byte(s), native {Resources.ValidateChunkFile(bytes)}");
+                }
+            }
             ResourceSmoke.Init();
             return 1;
         }
@@ -306,11 +334,30 @@ namespace xgEditor.CoreCLR
 
         static readonly System.Diagnostics.Stopwatch _clock = new();
         static float _elapsedAtStart;
+        static int _selectionFrames;
+
+        // XG_UI_TEST_SELECT_ADD=<asset path> adds that asset to the selection after 60 frames, and
+        // XG_UI_TEST_SELECT_SET=<asset path> replaces the selection with it after 120 frames.
+        private static void UpdateSelectionHooks()
+        {
+            int frame = ++_selectionFrames;
+            if (frame == 60 && Environment.GetEnvironmentVariable("XG_UI_TEST_SELECT_ADD") is { Length: > 0 } add)
+            {
+                xg.editor.Selection.Add(new xg.editor.AssetRef(add));
+                Debug.Log($"[Debug] Selection add {add}: {xg.editor.Selection.Count} item(s)");
+            }
+            if (frame == 120 && Environment.GetEnvironmentVariable("XG_UI_TEST_SELECT_SET") is { Length: > 0 } set)
+            {
+                xg.editor.Selection.Set(new xg.editor.AssetRef(set));
+                Debug.Log($"[Debug] Selection set {set}");
+            }
+        }
 
         [UnmanagedCallersOnly]
         public static void Update(float dt)
         {
             ProjectService.Assets?.Update();
+            UpdateSelectionHooks();
             long frames = ActorRegistry.FrameCount;
             ResourceSmoke.Update(frames);
             if (frames == 1 && !_clock.IsRunning)

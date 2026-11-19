@@ -12,7 +12,7 @@ namespace xgEditor.CoreCLR
 {
     public readonly record struct TagCount(string Tag, int Count);
 
-    public readonly record struct TagChip(string Tag, bool Or)
+    public readonly record struct TagChip(string Tag, bool Or, bool ReadOnly = false)
     {
         public bool IsAttribute => Tag.StartsWith('@');
         public override string ToString() => Or ? "+" + Tag : Tag;
@@ -138,7 +138,7 @@ namespace xgEditor.CoreCLR
         private List<TagCount>? _userTags;
         private int _userVersion = -1;
         private List<TagCount>? _attributeTags;
-        private int _attributeVersion = -1;
+        private long _attributeVersion = -1;
 
         internal AssetTags(AssetDatabase db)
         {
@@ -164,6 +164,9 @@ namespace xgEditor.CoreCLR
         public static string NormalizeTag(string tag) => tag.Trim().ToLowerInvariant().Replace(' ', '_');
 
         public IReadOnlyList<string> Get(string relPath) => _db.TagsOf(relPath);
+
+        // Read-only tags from the asset's last build ("@texture:bc1").
+        public IReadOnlyList<string> ImportTags(string relPath) => _db.ImportTagsOf(relPath);
 
         public bool IsUntagged(string relPath) => Get(relPath).Count == 0;
 
@@ -198,7 +201,7 @@ namespace xgEditor.CoreCLR
                 {
                     "type" => !entry.IsFolder && string.Equals(TypeName(entry.Kind), value, StringComparison.OrdinalIgnoreCase),
                     "ext" => string.Equals(entry.Extension, value, StringComparison.OrdinalIgnoreCase),
-                    _ => false,
+                    _ => !entry.IsFolder && ImportTags(entry.RelPath).Contains(tag, StringComparer.OrdinalIgnoreCase),
                 };
             }
             IReadOnlyList<string> tags = Get(entry.RelPath);
@@ -242,10 +245,11 @@ namespace xgEditor.CoreCLR
             return _userTags;
         }
 
-        // @type and @ext tags of the files in the index, by group then value.
+        // @type and @ext tags of the files in the index, then the import tags (@texture:...), by group then value.
         public IReadOnlyList<TagCount> AttributeTags(AssetIndex index)
         {
-            if (_attributeTags is not null && _attributeVersion == index.Version)
+            long version = ((long)index.Version << 32) | (uint)_db.ImportTagVersion;
+            if (_attributeTags is not null && _attributeVersion == version)
                 return _attributeTags;
             Dictionary<string, int> counts = new(StringComparer.OrdinalIgnoreCase);
             foreach (AssetEntry entry in index.Entries)
@@ -260,9 +264,11 @@ namespace xgEditor.CoreCLR
                     counts[ext] = counts.TryGetValue(ext, out int m) ? m + 1 : 1;
                 }
             }
+            foreach (TagCount tag in _db.ImportTagCounts)
+                counts[tag.Tag] = tag.Count;
             _attributeTags = counts.Select(p => new TagCount(p.Key, p.Value))
-                .OrderBy(t => t.Tag.StartsWith("@type:") ? 0 : 1).ThenBy(t => t.Tag, StringComparer.OrdinalIgnoreCase).ToList();
-            _attributeVersion = index.Version;
+                .OrderBy(t => t.Tag.StartsWith("@type:") ? 0 : t.Tag.StartsWith("@ext:") ? 1 : 2).ThenBy(t => t.Tag, StringComparer.OrdinalIgnoreCase).ToList();
+            _attributeVersion = version;
             return _attributeTags;
         }
 
