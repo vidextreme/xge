@@ -42,6 +42,8 @@ namespace xgEditor.CoreCLR
         // The open project's assets (meta files, tags, bookmarks); null without a project.
         public static AssetDatabase? Assets { get; private set; }
         public static bool IsBuilding => Volatile.Read(ref _building) != 0;
+        // Whether game.project is loaded.
+        public static bool HasScripts => _scripts is not null;
 
         public static void Open()
         {
@@ -108,17 +110,37 @@ namespace xgEditor.CoreCLR
             _watcher = null;
         }
 
-        // Swaps in the current build of the project's scripts between frames.
+        // Swaps in the current build of the project's scripts between frames. During play the build waits until play
+        // stops (Stop reloads the scripts anyway).
         public static void RequestReload()
         {
             ProjectInfo? project = Current;
-            if (project is not null)
-                ScriptRuntime.RunBetweenFrames(() => Reload(project));
+            if (project is null)
+                return;
+            if (PlayMode.IsActive)
+            {
+                Debug.Log("[Scripts] New scripts are ready; they load when play stops");
+                return;
+            }
+            ScriptRuntime.RunBetweenFrames(() => Reload(project, null));
         }
 
-        // Runs between frames: captures the actors and component values, unloads the editor scripts and game.project,
-        // loads the new build and restores them. A build that fails to load is replaced by the previous one again.
-        private static void Reload(ProjectInfo project)
+        // The actors and component values of game.project (a ReloadState capture), or null without scripts.
+        internal static string? CaptureScripts() => _scripts is null ? null : ScriptModuleLoader.Capture(_scripts);
+
+        // Between frames, when play stops: destroys the actors spawned during play, reloads the scripts (the latest
+        // build) and restores snapshot, the capture taken when play started.
+        internal static void RestoreAfterPlay(string? snapshot)
+        {
+            ProjectInfo? project = Current;
+            if (project is not null)
+                Reload(project, snapshot ?? "{\"actors\":[]}");
+        }
+
+        // Runs between frames: captures the actors and component values (or takes restore, a capture to go back to),
+        // unloads the editor scripts and game.project, loads the new build and restores them. A build that fails to load
+        // is replaced by the previous one again.
+        private static void Reload(ProjectInfo project, string? restore)
         {
             if (!File.Exists(project.ScriptAssemblyPath))
                 return;
@@ -132,7 +154,14 @@ namespace xgEditor.CoreCLR
             ComponentCatalog.Invalidate();
             WeakReference? editorContext = UnloadEditorAssembly();
             Selection.Refresh();
-            string state = ScriptModuleLoader.Unload(ref _scripts, capture: true) ?? "{\"actors\":[]}";
+            if (restore is not null && _scripts is not null)
+            {
+                int destroyed = ScriptModuleLoader.DestroyActorsExcept(_scripts, restore);
+                if (destroyed > 0)
+                    Debug.Log($"[Play] Destroyed {destroyed} actor(s) spawned during play");
+            }
+            string captured = ScriptModuleLoader.Unload(ref _scripts, capture: true) ?? "{\"actors\":[]}";
+            string state = restore ?? captured;
             if (editorContext is not null)
                 ScriptModuleLoader.WaitForUnload(editorContext, $"{project.Name} editor scripts");
 
@@ -142,6 +171,8 @@ namespace xgEditor.CoreCLR
                 Debug.LogError($"[Scripts] {project.Name}: the new build failed to load; running the previous build again.");
                 _scripts = ScriptModuleLoader.Load(ProjectModuleId, Path.GetDirectoryName(project.ScriptAssemblyPath)!, previousImage, previousSymbols, state);
             }
+            if (_scripts is not null)
+                PlayMode.ApplyToScripts();
             LoadEditorAssembly(project);
             Selection.Refresh();
             ScriptReloadTest.AfterReload();
@@ -222,7 +253,10 @@ namespace xgEditor.CoreCLR
 
             _scripts = ScriptModuleLoader.Load(ProjectModuleId, project.ScriptAssemblyPath);
             if (_scripts is not null)
+            {
+                PlayMode.ApplyToScripts();
                 Debug.LogSuccess($"[Project] {project.Name}: loaded scripts from {project.ScriptAssemblyPath}");
+            }
             else
                 Debug.LogError($"[Project] {project.Name}: failed to load {project.ScriptAssemblyPath}");
         }

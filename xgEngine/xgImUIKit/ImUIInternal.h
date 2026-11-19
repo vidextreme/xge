@@ -68,6 +68,7 @@ namespace xg::imui::detail
     inline constexpr int   AppIconSize        = 18;
 
     inline bool _resetLayout = true;
+    inline ImU32 _dockOutline = 0;
     // True for the frame the dock layout was rebuilt in; panel focus requests wait until it has settled.
     inline bool _layoutJustReset = false;
     inline ImTextureData* _appIcon = nullptr;
@@ -95,6 +96,7 @@ namespace xg::imui::detail
         Tag, File, Filter, Sort, View,
         Lock, Unlock,
         Clock, Stack,
+        PlayWindow,
     };
 
     ImTextureData* CreateIconTexture(const uint8_t* rgba, int width, int height, int size);

@@ -780,6 +780,11 @@ namespace xg
         _shellBars[static_cast<int>(bar)] = { callback, callback ? user : nullptr };
     }
 
+    XG_MODULE_EXPORT void XG_ImUISetDockOutline(Color32 color)
+    {
+        imui::detail::_dockOutline = ToImU32(color);
+    }
+
     XG_MODULE_EXPORT void XG_ImUIResetLayout()
     {
         imui::detail::_resetLayout = true;

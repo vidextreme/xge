@@ -7,6 +7,7 @@
 #include "xgCodecRegistry.h"
 #include "xgModules.h"
 #include "HostString.h"
+#include "xgPathUtils.h"
 
 #include <string>
 #include <filesystem>
@@ -73,8 +74,11 @@ namespace xg
         const char* path,
         const char* group)
     {
-        const std::filesystem::path dll = coreclr::PathFromUtf8(coreclr::GetFullPath(path));
-        std::string rootDir = coreclr::PathToUtf8(dll.parent_path().parent_path());
+        char exe[4096] = {};
+        const std::filesystem::path binDir = xg::GetExecutablePath(exe, sizeof(exe)) > 0
+            ? coreclr::PathFromUtf8(exe).parent_path()
+            : coreclr::PathFromUtf8(coreclr::GetFullPath(path)).parent_path();
+        std::string rootDir = coreclr::PathToUtf8(binDir.parent_path());
 
         if (!_initialized)
         {

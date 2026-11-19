@@ -75,6 +75,7 @@ namespace xg.imui
         Tag, File, Filter, Sort, View,
         Lock, Unlock,
         Clock, Stack,
+        PlayWindow,
     }
 
     // Mirrors xg::imui::Key. Order is part of the ABI: append only.

@@ -502,6 +502,65 @@ namespace xg
             _betweenFrames.emplace_back(fn, user);
     }
 
+    ScriptNode* Engine::FindModuleNode(const char* id)
+    {
+        ScriptModule* module = id ? GetScriptModule(id) : nullptr;
+        return module ? _scriptTree->FindNode(module) : nullptr;
+    }
+
+    bool Engine::SetModulePaused(const char* id, bool paused)
+    {
+        ScriptNode* node = FindModuleNode(id);
+        if (!node)
+            return false;
+        node->SetPaused(paused);
+        return true;
+    }
+
+    bool Engine::IsModulePaused(const char* id)
+    {
+        ScriptNode* node = FindModuleNode(id);
+        return node && node->IsPaused();
+    }
+
+    bool Engine::StepModule(const char* id)
+    {
+        ScriptNode* node = FindModuleNode(id);
+        if (!node)
+            return false;
+        node->RequestStep();
+        return true;
+    }
+
+    void Engine::SetActorUpdatesPaused(bool paused)
+    {
+        _actorsPaused = paused;
+    }
+
+    bool Engine::AreActorUpdatesPaused() const
+    {
+        return _actorsPaused;
+    }
+
+    void Engine::StepActorUpdates()
+    {
+        _actorStep = true;
+    }
+
+    float Engine::ActorFrameDelta(void* user, uint32_t moduleId, float dt)
+    {
+        Engine* engine = static_cast<Engine*>(user);
+        if (engine->_actorsPaused)
+        {
+            if (!engine->_actorStep)
+                return -1.0f;
+            dt = ScriptNode::StepDeltaTime;
+        }
+        ScriptModule* module = engine->GetScriptModule(moduleId);
+        ScriptNode* node = module ? engine->_scriptTree->FindNode(module) : nullptr;
+        return node ? node->FrameDelta(dt) : dt;
+    }
+
     void Engine::DrainBetweenFrames()
     {
         if (_betweenFrames.empty())
@@ -612,7 +671,9 @@ namespace xg
             _scriptTree->Update(dt);
 
             if (ActorRegistry* actors = GetSubsystem<ActorRegistry>())
-                actors->UpdateActors(dt);
+                actors->UpdateActorsPerModule(dt, &Engine::ActorFrameDelta, this);
+            _scriptTree->ClearSteps();
+            _actorStep = false;
 
             DrainBetweenFrames();
 

@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 16;
+    inline constexpr uint32_t ApiVersion = 17;
 
     struct Context;
     struct PanelEntry;
@@ -102,6 +102,7 @@ namespace xg::imui
         Tag, File, Filter, Sort, View,
         Lock, Unlock,
         Clock, Stack,
+        PlayWindow,
         Count
     };
 
@@ -336,6 +337,8 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUISetShellBar(imui::ShellBar bar, imui::PanelGUIFn callback, void* user);
     // Rebuilds the dock layout from the panel slots on the next frame.
     XG_MODULE_EXPORT void XG_ImUIResetLayout();
+    // Draws a 2 px outline in color around the editor shell's dock area (ApiVersion 17); a zero alpha removes it.
+    XG_MODULE_EXPORT void XG_ImUISetDockOutline(Color32 color);
 
     // Identity
     XG_MODULE_EXPORT void XG_ImUIPushID(imui::Context* ctx, const char* id);

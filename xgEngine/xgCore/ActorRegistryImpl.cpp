@@ -128,4 +128,15 @@ namespace xg
         for (const auto& entry : callbacks)
             entry.second(dt);
     }
+
+    void ActorRegistryImpl::UpdateActorsPerModule(float dt, ActorDeltaFn delta, void* user)
+    {
+        const auto callbacks = _updateCallbacks;
+        for (const auto& entry : callbacks)
+        {
+            const float moduleDt = delta ? delta(user, entry.first, dt) : dt;
+            if (moduleDt >= 0.0f)
+                entry.second(moduleDt);
+        }
+    }
 }

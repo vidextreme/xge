@@ -15,6 +15,8 @@ namespace xg
     };
 
     using ActorUpdateFn = void (*)(float dt);
+    // The delta time a module's actors update with this frame; negative skips them.
+    using ActorDeltaFn = float (*)(void* user, uint32_t moduleId, float dt);
 
     class ActorRegistry : public Subsystem
     {
@@ -54,5 +56,7 @@ namespace xg
         virtual void AddUpdateCallback(uint32_t moduleId, ActorUpdateFn fn) = 0;
         virtual void RemoveUpdateCallback(uint32_t moduleId) = 0;
         virtual void UpdateActors(float dt) = 0;
+        // Like UpdateActors, with each module's delta time from delta (null = dt for every module).
+        virtual void UpdateActorsPerModule(float dt, ActorDeltaFn delta, void* user) = 0;
     };
 }
