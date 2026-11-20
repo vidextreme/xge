@@ -64,10 +64,13 @@ namespace xg
         }
 
         // parent null makes the actor a root. Returns false for unknown ids or a parent inside the actor's own subtree.
-        public static bool SetParent(ActorID child, ActorID? parent)
+        public static bool SetParent(ActorID child, ActorID? parent) => SetParent(child, parent, true);
+
+        // keepWorld keeps the child's world pose when it has a transform.
+        public static bool SetParent(ActorID child, ActorID? parent, bool keepWorld)
         {
             nint engine = ScriptRuntime._enginePtr;
-            return engine != 0 && XG_ActorSetParent(engine, child, parent?.Value ?? 0) != 0;
+            return engine != 0 && XG_ActorSetParentEx(engine, child, parent?.Value ?? 0, keepWorld ? (byte)1 : (byte)0) != 0;
         }
 
         public static string GetName(ActorID id)
@@ -83,7 +86,11 @@ namespace xg
         {
             result.Clear();
             nint engine = ScriptRuntime._enginePtr;
-            if (engine == 0 || !RuntimeFeature.IsDynamicCodeSupported)
+            if (engine == 0)
+                return;
+            if (Transform.Exists(id))
+                result.Add(Transform.Of(id));
+            if (!RuntimeFeature.IsDynamicCodeSupported)
                 return;
             nint* handles = stackalloc nint[64];
             int count = XG_ActorGetComponentHandles(engine, id, 1, handles, 64);
@@ -105,7 +112,11 @@ namespace xg
         public static bool AddComponent(ActorID id, Type type)
         {
             nint engine = ScriptRuntime._enginePtr;
-            if (engine == 0 || !RuntimeFeature.IsDynamicCodeSupported)
+            if (engine == 0)
+                return false;
+            if (type == typeof(Transform) || type.FullName == typeof(Transform).FullName)
+                return Transform.Exists(id) || Transform.Add(id);
+            if (!RuntimeFeature.IsDynamicCodeSupported)
                 return false;
             string key = $"{type.FullName}, {type.Assembly.GetName().Name}";
             return XG_ActorAddComponent(engine, id, key, 1) == 1;
@@ -149,7 +160,7 @@ namespace xg
         [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorGetComponentHandles")]
         private static partial int XG_ActorGetComponentHandles(nint engine, ulong id, int runtimeKind, nint* output, int capacity);
 
-        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorSetParent")]
-        private static partial byte XG_ActorSetParent(nint engine, ulong child, ulong parent);
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorSetParentEx")]
+        private static partial byte XG_ActorSetParentEx(nint engine, ulong child, ulong parent, byte keepWorld);
     }
 }

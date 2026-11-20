@@ -128,6 +128,9 @@
     <ClInclude Include="MemoryStreamImpl.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="public\xgActorRegistry.h" />
+    <ClInclude Include="public\xgHierarchyNode.h" />
+    <ClInclude Include="public\xgComponentData.h" />
+    <ClInclude Include="public\xgTransforms.h" />
     <ClInclude Include="public\xgResources.h" />
     <ClInclude Include="public\xgJobs.h" />
     <ClInclude Include="public\xgChunkFile.h" />

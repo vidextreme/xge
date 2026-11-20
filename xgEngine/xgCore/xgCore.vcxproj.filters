@@ -102,6 +102,15 @@
     <ClInclude Include="ActorRegistryImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
+    <ClInclude Include="ComponentPool.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentDataRegistryImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="TransformSystemImpl.h">
+      <Filter>private\headers</Filter>
+    </ClInclude>
     <ClInclude Include="ResourceSystemImpl.h">
       <Filter>private\headers</Filter>
     </ClInclude>
@@ -168,6 +177,15 @@
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="ActorRegistryImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentPool.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentDataRegistryImpl.cpp">
+      <Filter>private\source</Filter>
+    </ClCompile>
+    <ClCompile Include="TransformSystemImpl.cpp">
       <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="ResourceSystemImpl.cpp">

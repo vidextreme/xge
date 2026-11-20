@@ -107,6 +107,15 @@
     <ClInclude Include="public\xgActorRegistry.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="public\xgHierarchyNode.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgComponentData.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\xgTransforms.h">
+      <Filter>public</Filter>
+    </ClInclude>
     <ClInclude Include="public\xgResources.h">
       <Filter>public</Filter>
     </ClInclude>

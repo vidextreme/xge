@@ -105,6 +105,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="ActorRegistryImpl.h" />
+    <ClInclude Include="ComponentPool.h" />
+    <ClInclude Include="ComponentDataRegistryImpl.h" />
+    <ClInclude Include="TransformSystemImpl.h" />
     <ClInclude Include="ResourceSystemImpl.h" />
     <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="CodecRegistryImpl.h" />
@@ -141,6 +144,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ActorRegistryImpl.cpp" />
+    <ClCompile Include="ComponentPool.cpp" />
+    <ClCompile Include="ComponentDataRegistryImpl.cpp" />
+    <ClCompile Include="TransformSystemImpl.cpp" />
     <ClCompile Include="ResourceSystemImpl.cpp" />
     <ClCompile Include="CompositeSceneGraph.cpp" />
     <ClCompile Include="JobSystemImpl.cpp" />

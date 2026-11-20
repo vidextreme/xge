@@ -244,7 +244,9 @@ namespace xgEditor.CoreCLR
                 return right;
             }
             int running = tasks.Count(t => t.State != BackgroundTaskState.Queued);
-            string text = $"Importing {Math.Min(BackgroundTasks.BatchDone + running, BackgroundTasks.BatchTotal)} of {BackgroundTasks.BatchTotal}";
+            string text = BackgroundTasks.BatchTotal == 1
+                ? BackgroundTasks.Verb()
+                : $"{BackgroundTasks.Verb()} {Math.Min(BackgroundTasks.BatchDone + running, BackgroundTasks.BatchTotal)} of {BackgroundTasks.BatchTotal}";
             float textWidth = Gui.MeasureText(text).x;
             float width = 8.0f + 12.0f + 6.0f + textWidth + 8.0f + TaskBarWidth + 8.0f;
             Rect chip = Rect.FromXYWH(right - width, -1.0f, width, height + 2.0f);
@@ -255,7 +257,8 @@ namespace xgEditor.CoreCLR
             DrawSpinner(draw, new Vector2(chip.min.x + 14.0f, cy), 5.0f);
             draw.Text(new Vector2(chip.min.x + 26.0f, 0.0f), Style.Color(StyleColor.Text), text);
             Rect bar = Rect.FromXYWH(chip.max.x - 8.0f - TaskBarWidth, cy - 2.0f, TaskBarWidth, 4.0f);
-            DrawBar(draw, bar, BackgroundTasks.OverallProgress());
+            bool unknown = tasks.All(t => t.State != BackgroundTaskState.Queued && t.Progress < 0.0f);
+            DrawBar(draw, bar, unknown ? -1.0f : BackgroundTasks.OverallProgress());
 
             long now = Environment.TickCount64;
             if (hit.Hovered())
@@ -336,7 +339,10 @@ namespace xgEditor.CoreCLR
                     task.Cancel();
                 right = cancel.min.x - 6.0f;
             }
-            string amount = state == BackgroundTaskState.Queued ? "Queued" : progress < 0.0f ? string.Empty : $"{Math.Clamp(progress, 0.0f, 1.0f) * 100.0f:0}%";
+            TimeSpan elapsed = task.Elapsed;
+            string amount = state == BackgroundTaskState.Queued ? "Queued"
+                : progress < 0.0f ? $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}"
+                : $"{Math.Clamp(progress, 0.0f, 1.0f) * 100.0f:0}%";
             float amountWidth = Gui.MeasureText(amount).x;
             draw.Text(new Vector2(right - amountWidth, card.min.y + 6.0f), dim, amount);
             draw.PushClip(Rect.FromXYWH(card.min.x + 30.0f, card.min.y, Math.Max(right - amountWidth - 36.0f - card.min.x, 1.0f), card.Height));

@@ -27,6 +27,7 @@ namespace xgEditor.CoreCLR
 
         private static string? _snapshot;
         private static string? _editorSnapshot;
+        private static Transform.Snapshot? _transforms;
         private static double _time;
         private static long _frames;
         private static PlayState _outline = PlayState.Edit;
@@ -87,6 +88,7 @@ namespace xgEditor.CoreCLR
                 if (State != PlayState.Edit)
                     return;
                 _editorSnapshot = ReloadState.Capture();
+                _transforms = Transform.Snapshot.Capture();
                 _snapshot = ProjectService.HasScripts ? ProjectService.CaptureScripts() : null;
                 _time = 0.0;
                 _frames = 0;
@@ -136,8 +138,10 @@ namespace xgEditor.CoreCLR
                     return;
                 string? snapshot = _snapshot;
                 string? editorSnapshot = _editorSnapshot;
+                Transform.Snapshot? transforms = _transforms;
                 _snapshot = null;
                 _editorSnapshot = null;
+                _transforms = null;
                 SetState(PlayState.Edit);
                 if (editorSnapshot is not null)
                 {
@@ -146,6 +150,11 @@ namespace xgEditor.CoreCLR
                 }
                 if (ProjectService.HasScripts)
                     ProjectService.RestoreAfterPlay(snapshot);
+                if (transforms is not null)
+                {
+                    (int restored, int readded, int removed) = transforms.Restore();
+                    Debug.Log($"[Play] Restored transforms: {restored} restored, {readded} re-added, {removed} removed");
+                }
                 Debug.Log($"[Play] Stopped after {_frames} frame(s), {_time:F2} s");
             });
         }

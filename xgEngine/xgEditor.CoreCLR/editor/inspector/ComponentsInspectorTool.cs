@@ -200,18 +200,76 @@ namespace xgEditor.CoreCLR
                         using (var card = Gui.Card("##card", title, icon.Icon, icon.Texture, icon.Color, ref open))
                         {
                             if (card.IsOpen)
-                                DrawFields(driver.Serialized(component));
+                                DrawBody(view, driver, component);
                         }
                         view.Open[key] = open;
                     }
                     else
                     {
                         using var card = Gui.Card("##card", title, icon.Icon, icon.Texture, icon.Color);
-                        DrawFields(driver.Serialized(component));
+                        DrawBody(view, driver, component);
                     }
                 }
                 Gui.Space(2.0f);
             }
+        }
+
+        private static void DrawBody(ComponentsViewState view, ComponentsDriver driver, object component)
+        {
+            if (component is Transform transform)
+                DrawTransform(view, transform);
+            else
+                DrawFields(driver.Serialized(component));
+        }
+
+        private static void DrawTransform(ComponentsViewState view, Transform transform)
+        {
+            if (!transform.IsValid)
+            {
+                Gui.Label("The transform was removed.");
+                return;
+            }
+            TransformData local = transform.Local;
+            Quaternion rotation = local.Rotation;
+            if (view.EulerActor != transform.ActorID.Value || !SameRotation(view.EulerSource, rotation))
+            {
+                view.Euler = Transform.ToEuler(rotation);
+                view.EulerSource = rotation;
+                view.EulerActor = transform.ActorID.Value;
+            }
+
+            Vector3 position = local.Position;
+            Vector3 euler = view.Euler;
+            Vector3 scale = local.Scale;
+            bool changed = false;
+            if (Gui.Field("Position", ref position))
+            {
+                local.Position = position;
+                changed = true;
+            }
+            if (Gui.Field("Rotation", ref euler, 0.5f))
+            {
+                view.Euler = euler;
+                view.EulerSource = Transform.FromEuler(euler);
+                local.Rotation = view.EulerSource;
+                changed = true;
+            }
+            if (Gui.Field("Scale", ref scale, 0.01f))
+            {
+                local.Scale = scale;
+                changed = true;
+            }
+            if (changed)
+                transform.Local = local;
+
+            Vector3 world = transform.Position;
+            Gui.PropertyLabel("World position", $"{world.x:0.###}, {world.y:0.###}, {world.z:0.###}");
+        }
+
+        private static bool SameRotation(Quaternion a, Quaternion b)
+        {
+            const float epsilon = 1e-5f;
+            return MathF.Abs(a.x - b.x) < epsilon && MathF.Abs(a.y - b.y) < epsilon && MathF.Abs(a.z - b.z) < epsilon && MathF.Abs(a.w - b.w) < epsilon;
         }
 
         private static void DrawFields(SerializedObject serialized)
@@ -252,9 +310,14 @@ namespace xgEditor.CoreCLR
             string filter = view.Search.Text.Trim();
             List<ComponentType> filtered = view.Filtered;
             filtered.Clear();
+            bool hasTransform = driver is not null && Transform.Exists(driver.Actor);
             foreach (ComponentType type in ComponentCatalog.Types)
+            {
+                if (hasTransform && type.Type == typeof(Transform))
+                    continue;
                 if (filter.Length == 0 || type.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
                     filtered.Add(type);
+            }
 
             if (filtered.Count == 0)
             {
@@ -292,7 +355,10 @@ namespace xgEditor.CoreCLR
             {
                 if (driver.AddComponent(picked.Type))
                 {
-                    view.SelectLast = true;
+                    if (picked.Type == typeof(Transform))
+                        view.SelectTab(1);
+                    else
+                        view.SelectLast = true;
                     Gui.ClosePopup();
                 }
                 else

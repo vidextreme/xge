@@ -38,18 +38,31 @@ namespace xg
 
     void TreeSceneGraph::DestroyNode(SceneNode* node)
     {
-        auto it = _nodes.find(node->Id);
-        if (it == _nodes.end())
+        if (!node || _nodes.find(node->Id) == _nodes.end())
             return;
 
-        auto* h = it->second;
+        std::vector<SceneNodeHierarchy*> order;
+        std::vector<SceneNodeHierarchy*> stack{ node->Get<SceneNodeHierarchy>() };
+        while (!stack.empty())
+        {
+            SceneNodeHierarchy* h = stack.back();
+            stack.pop_back();
+            order.push_back(h);
+            for (SceneNodeHierarchy* child = h->FirstChild; child; child = child->NextSibling)
+                stack.push_back(child);
+        }
 
-        RemoveChild(h);
-
-        _registry->UnregisterGraphNode(node->Id, this);
-
-        _nodes.erase(it);
-        delete node;
+        for (auto it = order.rbegin(); it != order.rend(); ++it)
+        {
+            SceneNodeHierarchy* h = *it;
+            SceneNode* owner = h->Owner;
+            const ActorID id = owner->Id;
+            _registry->NotifyDestroyed(id);
+            RemoveChild(h);
+            _registry->UnregisterGraphNode(id, this);
+            _nodes.erase(id);
+            delete owner;
+        }
     }
 
     void TreeSceneGraph::SetParent(SceneNode* childNode, SceneNode* parentNode)
@@ -71,14 +84,12 @@ namespace xg
         if (!root)
             return;
 
-        SceneNodeHierarchy* stack[256];
-        int sp = 0;
+        std::vector<SceneNodeHierarchy*> stack{ root };
 
-        stack[sp++] = root;
-
-        while (sp > 0)
+        while (!stack.empty())
         {
-            SceneNodeHierarchy* node = stack[--sp];
+            SceneNodeHierarchy* node = stack.back();
+            stack.pop_back();
             SceneNode* snode = node->Owner;
             visitor(snode);
 
@@ -86,7 +97,7 @@ namespace xg
                 child != nullptr;
                 child = child->NextSibling)
             {
-                stack[sp++] = child;
+                stack.push_back(child);
             }
         }
     }

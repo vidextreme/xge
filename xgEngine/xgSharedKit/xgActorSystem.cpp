@@ -11,34 +11,22 @@ constexpr const char* DEFAULT_ACTOR_NAME = "actor";
 
 void _SetActorName(HierarchyNode* hNode, const char* newName)
 {
-    if (hNode->Name != DEFAULT_ACTOR_NAME)
-    {
-        free((void*)hNode->Name);
-    }
+    if (hNode->OwnsName)
+        free(const_cast<char*>(hNode->Name));
+    hNode->Name = nullptr;
+    hNode->OwnsName = false;
 
-    // Empty string → treat as valid empty name
-    if (newName[0] == '\0')
-    {
-        // Allocate a 1-byte empty string
-        char* buffer = (char*)malloc(1);
-        buffer[0] = '\0';
-        hNode->Name = buffer;
-        return;
-    }
-
-    // If new name is the literal "actor"
-    if (strcmp(newName, DEFAULT_ACTOR_NAME) == 0)
+    if (!newName || strcmp(newName, DEFAULT_ACTOR_NAME) == 0)
     {
         hNode->Name = DEFAULT_ACTOR_NAME;
         return;
     }
 
-    // Otherwise allocate new heap memory
-    size_t len = strlen(newName);
-    char* buffer = (char*)malloc(len + 1);
+    const size_t len = strlen(newName);
+    char* buffer = static_cast<char*>(malloc(len + 1));
     memcpy(buffer, newName, len + 1);
-
     hNode->Name = buffer;
+    hNode->OwnsName = true;
 }
 
 ActorID XG_CreateActor(ScriptEngine* engine)
@@ -50,7 +38,6 @@ ActorID XG_CreateActorWithName(ScriptEngine* engine, const char* actorName)
 {
     SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
     HierarchyNode* node = CreateNode<HierarchyNode>(*sceneGraph);
-    node->TypeMask = HierarchyNode::Mask;
     _SetActorName(node, actorName);
     return node->Id;
 }
@@ -101,6 +88,14 @@ ActorID XG_ActorGetParent(ScriptEngine* engine, ActorID id)
 
 bool XG_ActorSetParent(ScriptEngine* engine, ActorID child, ActorID parent)
 {
+    return XG_ActorSetParentEx(engine, child, parent, true);
+}
+
+bool XG_ActorSetParentEx(ScriptEngine* engine, ActorID child, ActorID parent, bool keepWorld)
+{
+    TransformSystem* transforms = engine ? engine->GetSubsystem<TransformSystem>() : nullptr;
+    if (transforms)
+        return transforms->SetParent(child, parent, keepWorld);
     SceneGraph* sceneGraph = engine ? engine->GetSubsystem<SceneGraph>() : nullptr;
     SceneNodeHierarchy* childNode = HierarchyOf(sceneGraph, child);
     if (!childNode)
@@ -124,28 +119,128 @@ bool XG_ActorSetParent(ScriptEngine* engine, ActorID child, ActorID parent)
 
 void XG_SetActorName(xg::ScriptEngine* engine, xg::ActorID id, const char* newName)
 {
-    SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
-    SceneNode* node = sceneGraph->GetNode(id);
-    HierarchyNode* hNode = node->Get<HierarchyNode>();
-
-    _SetActorName(hNode, newName);
+    SceneGraph* sceneGraph = engine ? engine->GetSubsystem<SceneGraph>() : nullptr;
+    SceneNode* node = sceneGraph ? sceneGraph->GetNode(id) : nullptr;
+    if (HierarchyNode* hNode = node ? node->Get<HierarchyNode>() : nullptr)
+        _SetActorName(hNode, newName);
 }
 
 void XG_DestroyActor(xg::ScriptEngine* engine, xg::ActorID id)
 {
-    SceneGraph* sceneGraph = engine->GetSubsystem<SceneGraph>();
+    SceneGraph* sceneGraph = engine ? engine->GetSubsystem<SceneGraph>() : nullptr;
     SceneNode* node = sceneGraph ? sceneGraph->GetNode(id) : nullptr;
-    if (!node)
-        return;
+    if (node)
+        sceneGraph->DestroyNode(node);
+}
 
-    if (HierarchyNode* hNode = node->Get<HierarchyNode>())
+void XG_ActorRegisterDestroyListener(xg::ScriptEngine* engine, uint32_t moduleId, XG_ActorDestroyedFn fn, void* user)
+{
+    if (ActorRegistry* actors = engine ? engine->GetSubsystem<ActorRegistry>() : nullptr)
+        actors->AddDestroyListener(moduleId, fn, user);
+}
+
+void XG_ActorUnregisterDestroyListener(xg::ScriptEngine* engine, uint32_t moduleId, XG_ActorDestroyedFn fn, void* user)
+{
+    if (ActorRegistry* actors = engine ? engine->GetSubsystem<ActorRegistry>() : nullptr)
+        actors->RemoveDestroyListener(moduleId, fn, user);
+}
+
+namespace
+{
+    TransformSystem* TransformsOf(ScriptEngine* engine)
     {
-        if (hNode->Name && hNode->Name != DEFAULT_ACTOR_NAME)
-            free((void*)hNode->Name);
-        hNode->Name = nullptr;
+        return engine ? engine->GetSubsystem<TransformSystem>() : nullptr;
     }
+}
 
-    sceneGraph->DestroyNode(node);
+bool XG_TransformAdd(xg::ScriptEngine* engine, xg::ActorID id)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->Add(id);
+}
+
+bool XG_TransformRemove(xg::ScriptEngine* engine, xg::ActorID id)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->Remove(id);
+}
+
+bool XG_TransformHas(xg::ScriptEngine* engine, xg::ActorID id)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->Has(id);
+}
+
+bool XG_TransformGetLocal(xg::ScriptEngine* engine, xg::ActorID id, xg::TransformData* out)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->GetLocal(id, out);
+}
+
+bool XG_TransformSetLocal(xg::ScriptEngine* engine, xg::ActorID id, const xg::TransformData* value)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->SetLocal(id, value);
+}
+
+bool XG_TransformGetWorld(xg::ScriptEngine* engine, xg::ActorID id, xg::TransformData* out)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->GetWorld(id, out);
+}
+
+bool XG_TransformSetWorld(xg::ScriptEngine* engine, xg::ActorID id, const xg::TransformData* value)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->SetWorld(id, value);
+}
+
+bool XG_TransformGetWorldMatrix(xg::ScriptEngine* engine, xg::ActorID id, float* out16)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t && t->GetWorldMatrix(id, out16);
+}
+
+int XG_TransformGetLocals(xg::ScriptEngine* engine, const xg::ActorID* ids, int count, xg::TransformData* out)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t ? t->GetLocals(ids, count, out) : 0;
+}
+
+int XG_TransformSetLocals(xg::ScriptEngine* engine, const xg::ActorID* ids, int count, const xg::TransformData* values)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t ? t->SetLocals(ids, count, values) : 0;
+}
+
+int XG_TransformGetWorlds(xg::ScriptEngine* engine, const xg::ActorID* ids, int count, xg::TransformData* out)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t ? t->GetWorlds(ids, count, out) : 0;
+}
+
+int XG_TransformSetWorlds(xg::ScriptEngine* engine, const xg::ActorID* ids, int count, const xg::TransformData* values)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t ? t->SetWorlds(ids, count, values) : 0;
+}
+
+uint64_t XG_TransformGetVersion(xg::ScriptEngine* engine)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t ? t->GetCurrentVersion() : 0;
+}
+
+int XG_TransformCollectChanged(xg::ScriptEngine* engine, uint64_t since, xg::ActorID* out, int capacity)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t ? t->CollectChanged(since, out, capacity) : 0;
+}
+
+int XG_TransformGetActors(xg::ScriptEngine* engine, xg::ActorID* out, int capacity)
+{
+    TransformSystem* t = TransformsOf(engine);
+    return t ? t->CopyActors(out, capacity) : 0;
 }
 
 void XG_RegisterActorUpdate(xg::ScriptEngine* engine, uint32_t moduleId, void (*update)(float dt))
