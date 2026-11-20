@@ -50,7 +50,9 @@ A SceneGraph is not a single "scene tree." It is a **domain‑specific graph** w
 Each SceneGraph defines its own storage, traversal, and rules.
 
 ### ScriptNodes Can Have Multiple SceneGraphs
-A ScriptNode may register **multiple SceneGraphs** (via `RegisterSubsystemWithAlias`), each serving a different domain, for example a Transform, Physics, Render and Metadata graph. All are scoped to that ScriptNode and inherited by its children unless overridden.
+A ScriptNode may register **multiple SceneGraphs** (via `RegisterSubsystemWithAlias`), each serving a different domain, for example a Physics, Render and Metadata graph. All are scoped to that ScriptNode and inherited by its children unless overridden.
+
+As built so far, hierarchy is one tree graph, and per-actor data that systems iterate (transforms, script data structs) is not a graph of its own but a packed pool per data type in the root `ComponentDataRegistry`, keyed by the same ActorID. Transforms are the engine-owned `"xg.Transform"` pool, with world matrices derived from the tree. See [Native component data](xge-components2.md).
 
 ---
 

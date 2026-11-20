@@ -44,8 +44,8 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Codec registry | 🟡 Partial | JSON and binary codecs work for numbers and bools; string fields need work. |
 | Reflection (`xgReflectGen`) | 🟡 Partial | bool / int / uint / float / `const char*` fields and enums. No arrays or nested types yet. |
 | Config + command line | 🟢 Working | An `EngineConfig` table (read through reflection) and a `ScriptModules` tree. `--config`, `--project`, `--new-project`, `--no-script-build`. See [command line](docs/xge-command-line.md). |
-| Actors & components (C#) | 🟡 Partial | `Actor.Create`, `AddComponent<T>` / `GetComponent<T>` / `RemoveComponent<T>`, `Destroy`. Update logic uses **CRTP**: a component implements `IComponentUpdate<T>` with a `static abstract OnUpdate(T, float)`, and one `ComponentUpdateGroup<T>` per type calls it through a cached function pointer (no virtual call, boxing or reflection per frame). Removals are deferred until after the pass. Driven every frame by `ActorRegistry::UpdateActors(dt)` in both CoreCLR and NativeAOT modules. Data components (`ComponentData<TData>`, `IComponentDataUpdate<TData>`) and native component storage are prototypes. |
-| SceneGraph (native) | 🟡 Partial | ActorIDs are global 64-bit IDs; an actor can belong to several graphs. The tree graph works; transforms are not propagated yet. |
+| Actors & components (C#) | 🟢 Working | `Actor.Create`, `AddComponent` (any object, including existing instances), `GetComponent` / `RemoveComponent`, `Destroy` (takes the subtree). Optional `IComponent` callbacks and `Component` base class. Behaviour updates use **CRTP** (`IComponentUpdate<T>`, one function-pointer loop per type). **Data components** (`ComponentDataSet<T1..T4>`) keep blittable structs in native pools reached by `ref`; **data updates** (`IComponentDataUpdate<TSelf, TWrite, TRead...>`) run over a whole pool inline or as parallel job ranges, with command buffers for deferred changes. Data survives hot reload (with layout migration) and play mode restores it. Scheduling groups by declared access is planned. |
+| SceneGraph & transforms (native) | 🟢 Working | ActorIDs are global 64-bit IDs; the root tree graph holds hierarchy and names, and destroying an actor destroys its subtree with destroy notifications. `ComponentDataRegistry` keeps one packed pool per data type with change versions; `TransformSystem` adds optional transforms (local pose in the `"xg.Transform"` pool, world matrices from the tree, keep-world reparenting). |
 | Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
 | Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `tools/verify/`. |
 | Immediate UI kit (`xgImUIKit`) | 🟢 Working | Panels, menus, widgets, virtualized lists, modals, layout groups (`Gui.Horizontal`/`Vertical`/`FlexibleSpace`), FreeType fonts (Noto), per-monitor DPI. Multi-viewport on DX12 and SDL GPU. |
@@ -233,6 +233,14 @@ public class EnemyComponent : IComponentUpdate<EnemyComponent>
 
 var enemy = Actor.Create("enemy").AddComponent<EnemyComponent>();
 Debug.Log("enemy spawned");
+
+public struct Spin : IComponentData { public float Angle, Speed; }
+
+public class Spinner : ComponentDataSet<Spin>, IComponentDataUpdate<Spinner, Spin>
+{
+    // Every Spin element in a dense loop, split across job workers when the pool is large.
+    public static void OnDataUpdate(ref Spin s, in DataUpdateContext ctx) => s.Angle += s.Speed * ctx.DeltaTime;
+}
 ```
 
 `OnUpdate` is static and resolved through CRTP, so each component type is updated by a direct call through one function pointer per type. That keeps it devirtualized and NativeAOT-friendly.
@@ -282,9 +290,9 @@ XGE/
 
 - [Command line and config files](docs/xge-command-line.md) — xge options, startup order, `EngineConfig` and `ScriptModules`, shipped configs, examples
 - [Runtime architecture](docs/xge-architecture.md) — HSM, scoped subsystems, script hosts, UI host, Messenger, reflection, logging
-- [SceneGraph and actors](docs/xge-scenegraph.md) — ActorRegistry, scene graphs, node mixins
-- [Actors and components (C#)](docs/xge-components.md) — Actor API, CRTP behaviour components, data components
-- [Component graphs](docs/xge-components2.md) — per-type component storage as scoped subsystems
+- [SceneGraph and actors](docs/xge-scenegraph.md) — ActorRegistry, the actor tree, destroy listeners, node mixins
+- [Actors and components (C#)](docs/xge-components.md) — Actor API, components, Transform, data components and parallel data updates
+- [Native component data](docs/xge-components2.md) — ComponentDataRegistry pools, TransformSystem, cross-module use
 - [Hybrid component sample](docs/xge-component-sample.md)
 - [Design notes](docs/xge-design-notes.md) — codecs, dispatch groups, rendering and networking plans
 
@@ -300,7 +308,7 @@ Each document describes the current code and lists unbuilt work under "Future de
 - Wire up dispatch groups (thread affinity)
 
 **Mid term**
-- Transform propagation and one settled component model
+- Data updates scheduled by declared access, double-buffered pools, a parallel transform pass
 - FrameGraph and GPU resource abstractions
 - Arrays and nested types in reflection
 
