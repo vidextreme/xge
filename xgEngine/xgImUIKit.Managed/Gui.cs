@@ -94,6 +94,16 @@ namespace xg.imui
                 return (Native.FieldVector(Context, p, (float*)v, 3, speed) & Result.Changed) != 0;
         }
 
+        // 2 to 4 floats in one row (values.Length).
+        public static bool Field(string label, Span<float> values, float speed = 0.1f)
+        {
+            if (values.Length < 2 || values.Length > 4)
+                throw new ArgumentException("Field takes 2 to 4 values", nameof(values));
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (float* v = values)
+                return (Native.FieldVector(Context, p, v, values.Length, speed) & Result.Changed) != 0;
+        }
+
         public static bool Field(string label, TextBuffer text)
         {
             Result result;

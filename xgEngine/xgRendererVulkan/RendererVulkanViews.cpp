@@ -288,7 +288,14 @@ namespace xg {
             if (pixelShader) vkDestroyShaderModule(_device, pixelShader, nullptr);
             return false;
         }
+        const bool ok = BuildMeshPipeline(_litPipelineLayout, vertexShader, pixelShader, _litPipeline, "vkCreateGraphicsPipelines (scene lit)");
+        vkDestroyShaderModule(_device, vertexShader, nullptr);
+        vkDestroyShaderModule(_device, pixelShader, nullptr);
+        return ok && CreateSurfaceLayout();
+    }
 
+    bool RendererVulkan::BuildMeshPipeline(VkPipelineLayout layout, VkShaderModule vertexShader, VkShaderModule pixelShader, VkPipeline& pipeline, const char* what)
+    {
         VkPipelineShaderStageCreateInfo stages[2] = {};
         stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
         stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -356,11 +363,299 @@ namespace xg {
         info.pDepthStencilState = &depth;
         info.pColorBlendState = &colorBlend;
         info.pDynamicState = &dynamic;
-        info.layout = _litPipelineLayout;
-        const bool ok = Check(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &info, nullptr, &_litPipeline), "vkCreateGraphicsPipelines (scene lit)");
-        vkDestroyShaderModule(_device, vertexShader, nullptr);
-        vkDestroyShaderModule(_device, pixelShader, nullptr);
-        return ok;
+        info.layout = layout;
+        return Check(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline), what);
+    }
+
+    bool RendererVulkan::CreateSurfaceLayout()
+    {
+        VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+        if (!Check(vkCreateSampler(_device, &samplerInfo, nullptr, &_surfaceSampler), "vkCreateSampler (surface)"))
+            return false;
+
+        VkDescriptorSetLayoutBinding bindings[2 + MaterialTextureSlots] = {};
+        bindings[0].binding = 0;
+        bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        bindings[0].descriptorCount = 1;
+        bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        for (uint32_t i = 0; i < static_cast<uint32_t>(MaterialTextureSlots); ++i)
+        {
+            bindings[1 + i].binding = 1 + i;
+            bindings[1 + i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            bindings[1 + i].descriptorCount = 1;
+            bindings[1 + i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        }
+        VkDescriptorSetLayoutBinding& sampler = bindings[1 + MaterialTextureSlots];
+        sampler.binding = 1 + MaterialTextureSlots;
+        sampler.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+        sampler.descriptorCount = 1;
+        sampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        sampler.pImmutableSamplers = &_surfaceSampler;
+        VkDescriptorSetLayoutCreateInfo setInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        setInfo.bindingCount = 2 + MaterialTextureSlots;
+        setInfo.pBindings = bindings;
+        if (!Check(vkCreateDescriptorSetLayout(_device, &setInfo, nullptr, &_surfaceSetLayout), "vkCreateDescriptorSetLayout (surface)"))
+            return false;
+
+        VkPushConstantRange push = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SceneLitConstants) };
+        VkPipelineLayoutCreateInfo layoutInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+        layoutInfo.setLayoutCount = 1;
+        layoutInfo.pSetLayouts = &_surfaceSetLayout;
+        layoutInfo.pushConstantRangeCount = 1;
+        layoutInfo.pPushConstantRanges = &push;
+        if (!Check(vkCreatePipelineLayout(_device, &layoutInfo, nullptr, &_surfacePipelineLayout), "vkCreatePipelineLayout (surface)"))
+            return false;
+
+        VkDescriptorPoolSize sizes[3] = {
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MaterialSets },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MaterialSets * MaterialTextureSlots },
+            { VK_DESCRIPTOR_TYPE_SAMPLER, MaterialSets },
+        };
+        VkDescriptorPoolCreateInfo poolInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+        poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        poolInfo.maxSets = MaterialSets;
+        poolInfo.poolSizeCount = 3;
+        poolInfo.pPoolSizes = sizes;
+        return Check(vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_materialPool), "vkCreateDescriptorPool (materials)");
+    }
+
+    RendererVulkan::GpuShader* RendererVulkan::FindShader(uint64_t id)
+    {
+        if (id == 0 || id > _shaders.size())
+            return nullptr;
+        GpuShader& shader = _shaders[static_cast<size_t>(id - 1)];
+        return shader.Pipeline ? &shader : nullptr;
+    }
+
+    RendererVulkan::GpuMaterial* RendererVulkan::FindMaterial(uint64_t id)
+    {
+        if (id == 0 || id > _materials.size())
+            return nullptr;
+        GpuMaterial& material = _materials[static_cast<size_t>(id - 1)];
+        return material.Set ? &material : nullptr;
+    }
+
+    uint64_t RendererVulkan::CreateShader(const ShaderDesc* desc)
+    {
+        if (_failed || !_surfacePipelineLayout || !desc || !desc->VS || !desc->PS || desc->VSSize == 0 || desc->PSSize == 0
+            || desc->VSSize % 4 != 0 || desc->PSSize % 4 != 0)
+            return 0;
+        const VkShaderModule vertexShader = CreateShaderModule(static_cast<const uint32_t*>(desc->VS), static_cast<size_t>(desc->VSSize));
+        const VkShaderModule pixelShader = CreateShaderModule(static_cast<const uint32_t*>(desc->PS), static_cast<size_t>(desc->PSSize));
+        GpuShader shader;
+        const bool ok = vertexShader && pixelShader
+            && BuildMeshPipeline(_surfacePipelineLayout, vertexShader, pixelShader, shader.Pipeline, "vkCreateGraphicsPipelines (surface shader)");
+        if (vertexShader) vkDestroyShaderModule(_device, vertexShader, nullptr);
+        if (pixelShader) vkDestroyShaderModule(_device, pixelShader, nullptr);
+        if (!ok)
+        {
+            xg::Log(xg::MessageType::Error, "RendererVulkan: a surface shader failed to create its pipeline; check that it follows surface.common.hlsli");
+            return 0;
+        }
+        uint32_t slot;
+        if (!_freeShaders.empty())
+        {
+            slot = _freeShaders.back();
+            _freeShaders.pop_back();
+            _shaders[slot] = shader;
+        }
+        else
+        {
+            slot = static_cast<uint32_t>(_shaders.size());
+            _shaders.push_back(shader);
+        }
+        return static_cast<uint64_t>(slot) + 1;
+    }
+
+    void RendererVulkan::DestroyShader(uint64_t id)
+    {
+        GpuShader* shader = FindShader(id);
+        if (!shader)
+            return;
+        vkDeviceWaitIdle(_device);
+        vkDestroyPipeline(_device, shader->Pipeline, nullptr);
+        *shader = GpuShader();
+        _freeShaders.push_back(static_cast<uint32_t>(id - 1));
+    }
+
+    void RendererVulkan::WriteMaterial(GpuMaterial& material, const MaterialDesc& desc)
+    {
+        material.Shader = desc.Shader;
+        for (int i = 0; i < MaterialTextureSlots; ++i)
+        {
+            material.Textures[i] = desc.Textures[i];
+            material.Views[i] = VK_NULL_HANDLE;
+        }
+        std::memcpy(material.Constants.Mapped, desc.Params, sizeof(desc.Params));
+    }
+
+    void RendererVulkan::RefreshMaterialSets()
+    {
+        UITexture* white = FindTexture(_whiteTexture);
+        for (GpuMaterial& material : _materials)
+        {
+            if (!material.Set)
+                continue;
+            VkDescriptorImageInfo images[MaterialTextureSlots] = {};
+            bool changed = false;
+            for (int i = 0; i < MaterialTextureSlots; ++i)
+            {
+                UITexture* texture = material.Textures[i] != 0 ? FindTexture(material.Textures[i]) : nullptr;
+                const VkImageView view = texture && texture->Target.View ? texture->Target.View : (white ? white->Target.View : VK_NULL_HANDLE);
+                images[i].imageView = view;
+                images[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                changed |= view != material.Views[i];
+            }
+            if (!changed)
+                continue;
+            VkDescriptorBufferInfo buffer = { material.Constants.Handle, 0, VK_WHOLE_SIZE };
+            VkWriteDescriptorSet writes[1 + MaterialTextureSlots] = {};
+            writes[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+            writes[0].dstSet = material.Set;
+            writes[0].dstBinding = 0;
+            writes[0].descriptorCount = 1;
+            writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            writes[0].pBufferInfo = &buffer;
+            for (int i = 0; i < MaterialTextureSlots; ++i)
+            {
+                writes[1 + i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+                writes[1 + i].dstSet = material.Set;
+                writes[1 + i].dstBinding = static_cast<uint32_t>(1 + i);
+                writes[1 + i].descriptorCount = 1;
+                writes[1 + i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                writes[1 + i].pImageInfo = &images[i];
+                material.Views[i] = images[i].imageView;
+            }
+            vkUpdateDescriptorSets(_device, 1 + MaterialTextureSlots, writes, 0, nullptr);
+        }
+    }
+
+    uint64_t RendererVulkan::CreateMaterial(const MaterialDesc* desc)
+    {
+        if (_failed || !desc || !_materialPool)
+            return 0;
+        GpuMaterial material;
+        if (!CreateBuffer(256, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, material.Constants))
+            return 0;
+        std::memset(material.Constants.Mapped, 0, 256);
+        VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        allocInfo.descriptorPool = _materialPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &_surfaceSetLayout;
+        if (!Check(vkAllocateDescriptorSets(_device, &allocInfo, &material.Set), "vkAllocateDescriptorSets (material)"))
+        {
+            DestroyBuffer(material.Constants);
+            return 0;
+        }
+        WriteMaterial(material, *desc);
+        uint32_t slot;
+        if (!_freeMaterials.empty())
+        {
+            slot = _freeMaterials.back();
+            _freeMaterials.pop_back();
+            _materials[slot] = material;
+        }
+        else
+        {
+            slot = static_cast<uint32_t>(_materials.size());
+            _materials.push_back(material);
+        }
+        return static_cast<uint64_t>(slot) + 1;
+    }
+
+    bool RendererVulkan::UpdateMaterial(uint64_t id, const MaterialDesc* desc)
+    {
+        GpuMaterial* material = FindMaterial(id);
+        if (!material || !desc)
+            return false;
+        vkDeviceWaitIdle(_device);
+        WriteMaterial(*material, *desc);
+        return true;
+    }
+
+    void RendererVulkan::DestroyMaterial(uint64_t id)
+    {
+        GpuMaterial* material = FindMaterial(id);
+        if (!material)
+            return;
+        vkDeviceWaitIdle(_device);
+        vkFreeDescriptorSets(_device, _materialPool, 1, &material->Set);
+        DestroyBuffer(material->Constants);
+        *material = GpuMaterial();
+        _freeMaterials.push_back(static_cast<uint32_t>(id - 1));
+    }
+
+    void RendererVulkan::SetSceneDraws(const SceneDraw* draws, uint32_t count)
+    {
+        _sceneDraws.assign(draws, draws ? draws + count : draws);
+    }
+
+    void RendererVulkan::SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count)
+    {
+        if (RenderView* view = FindRenderView(viewId))
+            view->MaterialDraws.assign(draws, draws ? draws + count : draws);
+    }
+
+    void RendererVulkan::SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags)
+    {
+        if (RenderView* view = FindRenderView(viewId))
+            view->Flags = flags;
+    }
+
+    void RendererVulkan::RecordLitMesh(const GpuMesh& mesh, VkPipelineLayout layout, const float* world, const float* viewProjection)
+    {
+        SceneLitConstants lit = {};
+        Multiply4x4(world, viewProjection, lit.WorldViewProjection);
+        for (int row = 0; row < 3; ++row)
+            for (int k = 0; k < 4; ++k)
+                lit.WorldRows[row * 4 + k] = k < 3 ? world[row * 4 + k] : 0.0f;
+        const VkDeviceSize offset = 0;
+        vkCmdPushConstants(_frameCommands, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SceneLitConstants), &lit);
+        vkCmdBindVertexBuffers(_frameCommands, 0, 1, &mesh.Vertices.Handle, &offset);
+        vkCmdBindIndexBuffer(_frameCommands, mesh.Indices.Handle, 0, mesh.IndexType);
+        vkCmdDrawIndexed(_frameCommands, mesh.IndexCount, 1, 0, 0, 0);
+    }
+
+    void RendererVulkan::RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection)
+    {
+        if (draws.empty() || !_litPipeline)
+            return;
+        VkPipeline bound = VK_NULL_HANDLE;
+        for (const SceneDraw& draw : draws)
+        {
+            GpuMesh* mesh = FindMesh(draw.Mesh);
+            if (!mesh)
+                continue;
+            GpuMaterial* material = FindMaterial(draw.Material);
+            GpuShader* shader = material ? FindShader(material->Shader) : nullptr;
+            if (shader)
+            {
+                if (bound != shader->Pipeline)
+                {
+                    vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->Pipeline);
+                    bound = shader->Pipeline;
+                }
+                vkCmdBindDescriptorSets(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _surfacePipelineLayout, 0, 1, &material->Set, 0, nullptr);
+                RecordLitMesh(*mesh, _surfacePipelineLayout, draw.World, viewProjection);
+                continue;
+            }
+            if (bound != _litPipeline)
+            {
+                vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _litPipeline);
+                bound = _litPipeline;
+            }
+            const uint64_t texture = material && material->Textures[0] != 0 && FindTexture(material->Textures[0]) ? material->Textures[0] : _whiteTexture;
+            vkCmdBindDescriptorSets(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _litPipelineLayout, 0, 1,
+                &_textureSets[static_cast<size_t>(texture - 1)], 0, nullptr);
+            RecordLitMesh(*mesh, _litPipelineLayout, draw.World, viewProjection);
+        }
     }
 
     RendererVulkan::GpuMesh* RendererVulkan::FindMesh(uint64_t id)
@@ -695,13 +990,17 @@ namespace xg {
             const uint64_t texture = view.Texture != 0 && FindTexture(view.Texture) ? view.Texture : _whiteTexture;
             const VkDeviceSize offset = 0;
 
-            vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _texturedPipeline);
-            vkCmdBindDescriptorSets(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _texturedPipelineLayout, 0, 1,
-                &_textureSets[static_cast<size_t>(texture - 1)], 0, nullptr);
-            vkCmdPushConstants(_frameCommands, _texturedPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                sizeof(SceneTexturedConstants), &constants);
-            vkCmdBindVertexBuffers(_frameCommands, 0, 1, &_cubeVertexBuffer.Handle, &offset);
-            vkCmdDraw(_frameCommands, _cubeVertexCount, 1, 0, 0);
+            const bool testScene = !HasFlag(view.Flags, RenderViewFlags::HideTestScene);
+            if (testScene)
+            {
+                vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _texturedPipeline);
+                vkCmdBindDescriptorSets(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _texturedPipelineLayout, 0, 1,
+                    &_textureSets[static_cast<size_t>(texture - 1)], 0, nullptr);
+                vkCmdPushConstants(_frameCommands, _texturedPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                    sizeof(SceneTexturedConstants), &constants);
+                vkCmdBindVertexBuffers(_frameCommands, 0, 1, &_cubeVertexBuffer.Handle, &offset);
+                vkCmdDraw(_frameCommands, _cubeVertexCount, 1, 0, 0);
+            }
 
             if (!view.Draws.empty() && _litPipeline)
             {
@@ -711,26 +1010,23 @@ namespace xg {
                     GpuMesh* mesh = FindMesh(draw.Mesh);
                     if (!mesh)
                         continue;
-                    SceneLitConstants lit = {};
-                    Multiply4x4(draw.World, constants.ViewProjection, lit.WorldViewProjection);
-                    for (int row = 0; row < 3; ++row)
-                        for (int k = 0; k < 4; ++k)
-                            lit.WorldRows[row * 4 + k] = k < 3 ? draw.World[row * 4 + k] : 0.0f;
                     const uint64_t drawTexture = draw.Texture != 0 && FindTexture(draw.Texture) ? draw.Texture : _whiteTexture;
                     vkCmdBindDescriptorSets(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _litPipelineLayout, 0, 1,
                         &_textureSets[static_cast<size_t>(drawTexture - 1)], 0, nullptr);
-                    vkCmdPushConstants(_frameCommands, _litPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                        sizeof(SceneLitConstants), &lit);
-                    vkCmdBindVertexBuffers(_frameCommands, 0, 1, &mesh->Vertices.Handle, &offset);
-                    vkCmdBindIndexBuffer(_frameCommands, mesh->Indices.Handle, 0, mesh->IndexType);
-                    vkCmdDrawIndexed(_frameCommands, mesh->IndexCount, 1, 0, 0, 0);
+                    RecordLitMesh(*mesh, _litPipelineLayout, draw.World, constants.ViewProjection);
                 }
             }
+            RecordSceneDraws(view.MaterialDraws, constants.ViewProjection);
+            if (!HasFlag(view.Flags, RenderViewFlags::HideSceneDraws))
+                RecordSceneDraws(_sceneDraws, constants.ViewProjection);
 
-            vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _sceneLinePipeline);
-            vkCmdPushConstants(_frameCommands, _scenePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, shaders::ConstantsSize, constants.ViewProjection);
-            vkCmdBindVertexBuffers(_frameCommands, 0, 1, &_sceneVertexBuffer.Handle, &offset);
-            vkCmdDraw(_frameCommands, _sceneLineVertexCount, 1, 0, 0);
+            if (testScene)
+            {
+                vkCmdBindPipeline(_frameCommands, VK_PIPELINE_BIND_POINT_GRAPHICS, _sceneLinePipeline);
+                vkCmdPushConstants(_frameCommands, _scenePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, shaders::ConstantsSize, constants.ViewProjection);
+                vkCmdBindVertexBuffers(_frameCommands, 0, 1, &_sceneVertexBuffer.Handle, &offset);
+                vkCmdDraw(_frameCommands, _sceneLineVertexCount, 1, 0, 0);
+            }
 
             vkCmdEndRendering(_frameCommands);
 

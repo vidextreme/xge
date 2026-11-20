@@ -26,6 +26,8 @@
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\TextureFormats.cs" Link="assets\TextureFormats.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\TextureAssets.cs" Link="assets\TextureAssets.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\MeshAssets.cs" Link="assets\MeshAssets.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\ShaderAssets.cs" Link="assets\ShaderAssets.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\assets\MaterialAssets.cs" Link="assets\MaterialAssets.cs" />
   </ItemGroup>
 
   <!-- Tool selections, drivers and view state, which have no UI dependency. -->

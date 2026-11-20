@@ -411,6 +411,87 @@ namespace xgEditor.CoreCLR
         }
     }
 
+    // Test hook (XG_RESOURCE_TEST_MATERIAL=<model path>:<material path>[:edit=<param>=<x,y,z,w>]): builds both assets,
+    // creates "MeshRenderer Test" (Transform + MeshRenderer) at x = +2, two units tall, and logs [Draw] lines; edit=
+    // rewrites the material after 120 frames to show the rebuilt material in the views.
+    internal static unsafe class MaterialSmoke
+    {
+        static Actor? _actor;
+        static ResourceHandle _model;
+        static bool _placed;
+        static int _frames;
+        static string? _materialPath;
+        static string? _edit;
+
+        public static void Init()
+        {
+            string? spec = Environment.GetEnvironmentVariable("XG_RESOURCE_TEST_MATERIAL");
+            if (string.IsNullOrEmpty(spec) || xgEditor.CoreCLR.ProjectService.Assets is not { } assets)
+                return;
+            string[] parts = spec.Split(':');
+            if (parts.Length < 2)
+                return;
+            _materialPath = parts[1];
+            _edit = parts.Length > 2 && parts[2].StartsWith("edit=", StringComparison.Ordinal) ? parts[2][5..] : null;
+            assets.BuildAll();
+            foreach (string path in new[] { parts[0], parts[1] })
+            {
+                string? guid = assets.GuidOf(path);
+                xg.editor.AssetBuildManifest? manifest = guid is null ? null : assets.Pipeline.ManifestOf(guid);
+                Debug.Log($"[Draw] test: {path}: {(guid is null ? "no asset" : manifest?.Error ?? string.Join(" ", manifest?.Tags ?? new List<string>()))}");
+            }
+            if (xg.editor.MaterialAsset.IsMaterial(parts[1]) && assets.GuidOf(parts[1]) is string materialGuid)
+            {
+                xg.editor.MaterialAsset material = xg.editor.MaterialAsset.Read(assets.FullPath(parts[1]));
+                string? shaderPath = assets.PathOf(material.Shader);
+                if (shaderPath is not null && assets.Pipeline.ManifestOf(material.Shader) is { } shaderManifest)
+                    Debug.Log($"[Draw] test: shader {shaderPath}: {shaderManifest.Error ?? string.Join(" ", shaderManifest.Tags)}");
+            }
+            _actor = Actor.Create("MeshRenderer Test");
+            _actor.AddTransform();
+            MeshRenderer renderer = _actor.AddComponent<MeshRenderer>();
+            renderer.Model = AssetReference.FromText(assets.GuidOf(parts[0]));
+            renderer.Material = AssetReference.FromText(assets.GuidOf(parts[1]));
+            uint modelType = Resources.FindType(Resources.ModelType);
+            if (modelType != 0 && !renderer.Model.IsNone)
+                _model = Resources.Acquire(modelType, new ResourceID(renderer.Model.Guid));
+            Debug.Log($"[Draw] test: created {_actor.Name} with model {renderer.Model} and material {renderer.Material}");
+        }
+
+        public static void Update()
+        {
+            if (_actor is null)
+                return;
+            ++_frames;
+            if (!_placed && _model.State == ResourceState.Ready && Resources.GetModel(_model, out ModelInfo info))
+            {
+                _placed = true;
+                float extent = Math.Max(info.BoundsMax[1] - info.BoundsMin[1], Math.Max(info.BoundsMax[0] - info.BoundsMin[0], info.BoundsMax[2] - info.BoundsMin[2]));
+                float scale = extent > 0.0f ? 2.0f / extent : 1.0f;
+                Transform transform = _actor.Transform!;
+                transform.LocalScale = new Vector3(scale, scale, scale);
+                transform.LocalPosition = new Vector3(2.0f - (info.BoundsMin[0] + info.BoundsMax[0]) * 0.5f * scale, -info.BoundsMin[1] * scale,
+                    -(info.BoundsMin[2] + info.BoundsMax[2]) * 0.5f * scale);
+                _model.Dispose();
+            }
+            if (_frames == 60 || _frames == 300)
+            {
+                int draws = MeshRenderer.DrawCount(out int materialDraws);
+                Debug.Log($"[Draw] test: frame {_frames}: {draws} draw(s), {materialDraws} with a resolved material");
+            }
+            if (_frames == 120 && _edit is not null && _materialPath is not null && xgEditor.CoreCLR.ProjectService.Assets is { } assets)
+            {
+                string[] pair = _edit.Split('=');
+                xg.editor.MaterialAsset material = xg.editor.MaterialAsset.Read(assets.FullPath(_materialPath));
+                float[] value = pair[1].Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).Concat(new float[4]).Take(4).ToArray();
+                material.Params[pair[0]] = value;
+                material.Write(assets.FullPath(_materialPath));
+                assets.RequestBuild(_materialPath);
+                Debug.Log($"[Draw] test: edited {_materialPath}: {pair[0]} = {pair[1]}");
+            }
+        }
+    }
+
     // Test hook (XG_RESOURCE_TEST=1): exercises the shared resource cache, then quits so shutdown cleanup is visible.
     internal static class ResourceSmoke
     {
@@ -726,6 +807,7 @@ namespace xgEditor.CoreCLR
                 ManagedJobTest();
             TextureSmoke.Init();
             ModelSmoke.Init();
+            MaterialSmoke.Init();
             TransformSmoke.Init();
             DataSmoke.Init();
             return 1;
@@ -774,6 +856,19 @@ namespace xgEditor.CoreCLR
             int frame = ++_selectionFrames;
             if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_SCRIPT_BUILD") == "1")
                 _ = ProjectService.BuildScripts();
+            if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_MATERIAL_EDIT") is { Length: > 0 } materialEdit)
+            {
+                string[] parts = materialEdit.Split(':', 2);
+                MaterialEditorPanel panel = MaterialEditorPanel.Open(parts[0]);
+                if (parts.Length > 1 && panel.Driver is { } driver && parts[1].Split('=') is { Length: 2 } pair)
+                {
+                    float[] value = pair[1].Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).Concat(new float[4]).Take(4).ToArray();
+                    driver.SetParam(pair[0], value);
+                    Debug.Log($"[Debug] Material draft {parts[0]}: {pair[0]} = {pair[1]} (pending: {driver.HasPendingChanges})");
+                }
+                if (Environment.GetEnvironmentVariable("XG_UI_TEST_MATERIAL_PREVIEW_MENU") == "1")
+                    panel.View.Preview.OpenMenu(30);
+            }
             if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
             {
                 BackgroundTask? task = BackgroundTasks.Find(cancelName);
@@ -803,6 +898,7 @@ namespace xgEditor.CoreCLR
             ResourceSmoke.Update(frames);
             TextureSmoke.Update();
             ModelSmoke.Update();
+            MaterialSmoke.Update();
             TransformSmoke.Update();
             DataSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)

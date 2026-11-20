@@ -97,6 +97,7 @@ namespace xg::imui::detail
         Lock, Unlock,
         Clock, Stack,
         PlayWindow,
+        Settings, Code, Save,
     };
 
     ImTextureData* CreateIconTexture(const uint8_t* rgba, int width, int height, int size);

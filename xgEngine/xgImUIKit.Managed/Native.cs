@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 17;
+        public const uint ApiVersion = 19;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -53,6 +53,9 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIFocusPanel")]
         public static partial void FocusPanel(nint panel);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDockPanel")]
+        public static partial void DockPanel(nint panel);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIRequestRepaint")]
         public static partial void RequestRepaint(nint panel);

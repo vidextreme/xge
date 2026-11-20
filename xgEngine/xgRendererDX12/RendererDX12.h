@@ -38,6 +38,15 @@ namespace xg {
         uint64_t CreateMesh(const MeshDesc* desc) override;
         void DestroyMesh(uint64_t id) override;
         void SetRenderViewDraws(uint64_t viewId, const RenderViewDraw* draws, uint32_t count) override;
+        ShaderFormat GetShaderFormat() const override { return ShaderFormat::DXIL; }
+        uint64_t CreateShader(const ShaderDesc* desc) override;
+        void DestroyShader(uint64_t id) override;
+        uint64_t CreateMaterial(const MaterialDesc* desc) override;
+        bool UpdateMaterial(uint64_t id, const MaterialDesc* desc) override;
+        void DestroyMaterial(uint64_t id) override;
+        void SetSceneDraws(const SceneDraw* draws, uint32_t count) override;
+        void SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count) override;
+        void SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags) override;
 
         bool SupportsSurfaces() const override { return !_failed; }
         uint64_t CreateUISurface(Window& window) override;
@@ -114,6 +123,22 @@ namespace xg {
             uint64_t Texture = 0;
             RenderViewTextureMode Mode = RenderViewTextureMode::Color;
             std::vector<RenderViewDraw> Draws;
+            std::vector<SceneDraw> MaterialDraws;
+            RenderViewFlags Flags = RenderViewFlags::None;
+        };
+
+        struct GpuShader
+        {
+            ComPtr<ID3D12PipelineState> Pipeline;
+        };
+
+        // Constants: a 256-byte upload buffer holding XGMaterial (float4 Params[4]), mapped while the material lives.
+        struct GpuMaterial
+        {
+            uint64_t Shader = 0;
+            uint64_t Textures[MaterialTextureSlots] = {};
+            ComPtr<ID3D12Resource> Constants;
+            void* Mapped = nullptr;
         };
 
         struct GpuMesh
@@ -129,7 +154,13 @@ namespace xg {
         bool CreateScenePipeline();
         bool CreateTexturedPipeline();
         bool CreateLitPipeline();
+        bool CreateSurfaceRootSignature();
         GpuMesh* FindMesh(uint64_t id);
+        GpuShader* FindShader(uint64_t id);
+        GpuMaterial* FindMaterial(uint64_t id);
+        bool WriteMaterial(GpuMaterial& material, const MaterialDesc& desc);
+        void RecordLitMesh(const GpuMesh& mesh, const float* world, const float* viewProjection);
+        void RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, D3D12_GPU_DESCRIPTOR_HANDLE heapStart);
         bool CreateRenderViewTargets(RenderView& view, UINT width, UINT height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);
@@ -190,6 +221,13 @@ namespace xg {
         ComPtr<ID3D12PipelineState> _litPipeline;
         std::vector<GpuMesh> _meshes;
         std::vector<UINT> _freeMeshes;
+        // Surface shaders: root constants b0, root CBV b1, one table per texture t0..t3, static sampler s0.
+        ComPtr<ID3D12RootSignature> _surfaceRootSignature;
+        std::vector<GpuShader> _shaders;
+        std::vector<UINT> _freeShaders;
+        std::vector<GpuMaterial> _materials;
+        std::vector<UINT> _freeMaterials;
+        std::vector<SceneDraw> _sceneDraws;
     };
 
 }

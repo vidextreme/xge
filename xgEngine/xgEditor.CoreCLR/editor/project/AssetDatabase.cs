@@ -163,6 +163,8 @@ namespace xgEditor.CoreCLR
             Pipeline = new AssetPipeline(Path.Combine(projectRoot, "Library", "Data"));
             TextureAssets.Register(Pipeline, DecodeImage);
             MeshAssets.Register(Pipeline);
+            ShaderAssets.Register(Pipeline, new DxcShaderCompiler(ProjectFiles.SdkDirectory));
+            MaterialAssets.Register(Pipeline);
             Sync();
             _startupScanned = true;
             Tags = new AssetTags(this);
@@ -285,6 +287,43 @@ namespace xgEditor.CoreCLR
         {
             Index.Refresh(true);
             Sync();
+        }
+
+        // Queues a build of an asset whose file the editor just wrote (writing a file doesn't change its folder's time).
+        public void RequestBuild(string path)
+        {
+            path = AssetIndex.Normalize(path);
+            Refresh();
+            if (_cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
+                record.Hash = null;
+            _settling.Remove(path);
+            if (_metas.ContainsKey(path) && Pipeline.CanImport(path))
+                QueueBuild(path);
+        }
+
+        // Creates a new asset file with this text in a folder ("Assets/..."), adding " 1", " 2"... to the name when it's
+        // taken. Returns the new asset's path, or null with a logged error.
+        public string? CreateAsset(string folder, string name, string text)
+        {
+            folder = AssetIndex.Normalize(folder);
+            string stem = Path.GetFileNameWithoutExtension(name);
+            string extension = Path.GetExtension(name);
+            string candidate = name;
+            for (int i = 1; File.Exists(FullPath(folder + "/" + candidate)); i++)
+                candidate = $"{stem} {i}{extension}";
+            string path = folder + "/" + candidate;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(FullPath(path))!);
+                File.WriteAllText(FullPath(path), text);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Debug.LogError($"[Assets] Could not create {path}: {e.Message}");
+                return null;
+            }
+            Refresh();
+            return path;
         }
 
         // Replaces an asset's tags (normalized, sorted) in its meta file. Returns false when the asset has no meta.
@@ -706,6 +745,8 @@ namespace xgEditor.CoreCLR
                 {
                     AssetKind.Image => Icon.Image,
                     AssetKind.Mesh => Icon.Mesh,
+                    AssetKind.Material => Icon.Material,
+                    AssetKind.Shader => Icon.Code,
                     _ => Icon.File,
                 };
                 _buildTasks[path] = BackgroundTasks.Add("Import " + Path.GetFileName(path), icon, () => CancelBuild(path));
@@ -848,6 +889,8 @@ namespace xgEditor.CoreCLR
             }
             if (result.Status is AssetBuildStatus.Imported or AssetBuildStatus.Processed or AssetBuildStatus.ManifestUpdated)
                 RefreshImportTags(running.Guid);
+            if (result.Status is AssetBuildStatus.Imported or AssetBuildStatus.Processed)
+                Resources.Invalidate(running.Guid);
             if (result.Status != AssetBuildStatus.Canceled && _cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
                 _buildStamps[path] = (record.Size, record.Modified, record.MetaModified);
             BuildVersion++;

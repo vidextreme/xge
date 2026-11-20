@@ -76,6 +76,7 @@ namespace xg.imui
         Lock, Unlock,
         Clock, Stack,
         PlayWindow,
+        Settings, Code, Save,
     }
 
     // Mirrors xg::imui::Key. Order is part of the ABI: append only.

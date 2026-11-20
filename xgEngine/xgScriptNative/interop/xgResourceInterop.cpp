@@ -5,6 +5,8 @@
 #include "xgLog.h"
 #include "xgRenderer.h"
 #include "xgResources.h"
+#include "xgMeshRenderer.h"
+#include <cstring>
 #include "xgScriptEngine.h"
 
 namespace
@@ -94,6 +96,40 @@ XG_MODULE_EXPORT int32_t XG_ResourceWait(xg::ScriptEngine* engine, uint64_t hand
 {
     xg::ResourceSystem* resources = ResourcesOf(engine);
     return static_cast<int32_t>(resources ? resources->Wait(handle) : xg::ResourceState::Invalid);
+}
+
+XG_MODULE_EXPORT uint32_t XG_ResourceInvalidate(xg::ScriptEngine* engine, const char* fileGuid)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    xg::ResourceGUID file = {};
+    if (!resources || !fileGuid || !xg::ParseResourceGUID(fileGuid, std::strlen(fileGuid), &file))
+        return 0;
+    return resources->Invalidate(&file);
+}
+
+// Draws the mesh render system handed to the renderer last frame, and how many had their material resolved.
+XG_MODULE_EXPORT int32_t XG_MeshRenderStats(xg::ScriptEngine* engine, int32_t* outMaterialDraws)
+{
+    xg::MeshRenderSystem* system = engine ? engine->GetSubsystem<xg::MeshRenderSystem>() : nullptr;
+    if (outMaterialDraws)
+        *outMaterialDraws = system ? system->GetMaterialDrawCount() : 0;
+    return system ? system->GetDrawCount() : 0;
+}
+
+// The renderer shader of a Ready "shader" resource (0 otherwise).
+XG_MODULE_EXPORT uint64_t XG_ResourceGetShader(xg::ScriptEngine* engine, uint64_t handle)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    if (!resources || resources->FindType(xg::ShaderResourceType) == 0)
+        return 0;
+    const auto* info = static_cast<const xg::ShaderResourceInfo*>(resources->GetData(handle));
+    return info ? info->ShaderId : 0;
+}
+
+XG_MODULE_EXPORT bool XG_ResourceIsStale(xg::ScriptEngine* engine, uint64_t handle)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    return !resources || resources->IsStale(handle);
 }
 
 XG_MODULE_EXPORT uint32_t XG_ResourceAddDirectorySource(xg::ScriptEngine* engine, uint32_t moduleId, const char* root)

@@ -116,6 +116,8 @@ namespace xg.imui
         public void Open() { if (_handle != 0) Native.OpenPanel(_handle); }
         public void Close() { if (_handle != 0) Native.ClosePanel(_handle); }
         public void Focus() { if (_handle != 0) Native.FocusPanel(_handle); }
+        // Docks the panel into its slot on the next frame, even when the layout file remembers it floating.
+        public void Dock() { if (_handle != 0) Native.DockPanel(_handle); }
         public void Repaint() { if (_handle != 0) Native.RequestRepaint(_handle); }
 
         private static Panel? FromUser(nint user) =>

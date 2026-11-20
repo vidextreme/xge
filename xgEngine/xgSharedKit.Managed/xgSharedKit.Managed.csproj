@@ -46,6 +46,7 @@
     <Compile Include="ComponentUpdateGroup.cs" />
     <Compile Include="ComponentData.cs" />
     <Compile Include="ComponentDataSet.cs" />
+    <Compile Include="MeshRenderer.cs" />
     <Compile Include="DataUpdate.cs" />
     <Compile Include="Debug.cs" />
     <Compile Include="Matrix4x4Interop.cs" />
@@ -99,9 +100,13 @@
       <XgeSdkLib Include="$(TargetPath)" />
       <XgeSdkLib Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
       <XgeSdkTemplates Include="$(MSBuildThisFileDirectory)..\templates\**\*" Exclude="$(MSBuildThisFileDirectory)..\templates\sdk\**" />
+      <XgeSdkShaders Include="$(MSBuildThisFileDirectory)..\xgShaders\include\*.hlsli" />
+      <XgeSdkDxc Include="$(MSBuildThisFileDirectory)..\3rdparty\dxc\bin\x64\*.exe;$(MSBuildThisFileDirectory)..\3rdparty\dxc\bin\x64\*.dll" Condition="'$(OS)' == 'Windows_NT'" />
     </ItemGroup>
     <Copy SourceFiles="@(XgeSdkFiles)" DestinationFolder="$(XgeSdkInstallDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(XgeSdkLib)" DestinationFolder="$(XgeSdkInstallDir)lib\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(XgeSdkShaders)" DestinationFolder="$(XgeSdkInstallDir)shaders\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(XgeSdkDxc)" DestinationFolder="$(XgeSdkInstallDir)dxc\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(XgeSdkTemplates)" DestinationFiles="@(XgeSdkTemplates->'$(XgeSdkInstallDir)templates\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 

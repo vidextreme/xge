@@ -114,6 +114,9 @@
     <ClInclude Include="JobSystemImpl.h" />
     <ClInclude Include="TextureResources.h" />
     <ClInclude Include="ModelResources.h" />
+    <ClInclude Include="ShaderResources.h" />
+    <ClInclude Include="MaterialResources.h" />
+    <ClInclude Include="MeshRenderSystemImpl.h" />
     <ClInclude Include="DynamicObjectImpl.h" />
     <ClInclude Include="EventDispatcherImpl.h" />
     <ClInclude Include="EventQueueImpl.h" />
@@ -149,6 +152,9 @@
     <ClCompile Include="JobSystemImpl.cpp" />
     <ClCompile Include="TextureResources.cpp" />
     <ClCompile Include="ModelResources.cpp" />
+    <ClCompile Include="ShaderResources.cpp" />
+    <ClCompile Include="MaterialResources.cpp" />
+    <ClCompile Include="MeshRenderSystemImpl.cpp" />
     <ClCompile Include="LoggerImpl.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="SceneGraphFactoryImpl.cpp" />

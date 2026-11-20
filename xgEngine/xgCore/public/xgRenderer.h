@@ -132,6 +132,102 @@ namespace xg {
         Luminance = 2,
     };
 
+    // Bytecode a renderer consumes: DX12 takes DXIL, Vulkan SPIR-V.
+    enum class ShaderFormat : uint32_t
+    {
+        None = 0,
+        DXIL = 1,
+        SPIRV = 2,
+    };
+
+    // A surface shader (surface.common.hlsli contract): vertex and pixel bytecode in the renderer's ShaderFormat.
+    struct ShaderDesc
+    {
+        const void* VS;
+        uint64_t VSSize;
+        const void* PS;
+        uint64_t PSSize;
+    };
+
+    inline constexpr int32_t MaterialTextureSlots = 4;
+    inline constexpr int32_t MaterialParamFloats = 16;
+    inline constexpr int32_t MaterialParamSlots = MaterialParamFloats / 4;
+
+    // A shader with its XGMaterial values (Params = float4 Params[4]) and textures t0..t3 (0 = white).
+    struct MaterialDesc
+    {
+        uint64_t Shader;
+        uint64_t Textures[MaterialTextureSlots];
+        float Params[MaterialParamFloats];
+    };
+
+    // One mesh drawn with a material (0 or a destroyed material = the built-in lit look, white). World as RenderViewDraw.
+    struct SceneDraw
+    {
+        uint64_t Mesh;
+        uint64_t Material;
+        float World[16];
+    };
+
+    enum class RenderViewFlags : uint32_t
+    {
+        None = 0,
+        // No test cube and grid (material previews).
+        HideTestScene = 1u << 0,
+        // The global scene draws (SetSceneDraws) aren't drawn in this view.
+        HideSceneDraws = 1u << 1,
+    };
+
+    inline constexpr bool HasFlag(RenderViewFlags flags, RenderViewFlags flag)
+    {
+        return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(flag)) != 0;
+    }
+
+    // A //@param of a surface shader: Type is the editor's ShaderParamType (1 float .. 4 float4, 5 color); Slot indexes
+    // XGMaterial.Params.
+    struct ShaderParamInfo
+    {
+        char Name[32];
+        uint32_t Type;
+        int32_t Slot;
+        float Default[4];
+    };
+    static_assert(sizeof(ShaderParamInfo) == 56, "ShaderParamInfo matches the .xds SHPR record");
+
+    // A //@texture of a surface shader: Usage 0 color, 1 normal, 2 luminance; Slot is the t register.
+    struct ShaderTextureInfo
+    {
+        char Name[32];
+        uint32_t Usage;
+        int32_t Slot;
+    };
+    static_assert(sizeof(ShaderTextureInfo) == 40, "ShaderTextureInfo matches the .xds SHTX record");
+
+    // The data of a Ready "shader" resource, loaded from <guid>.xds by the asset GUID alone.
+    struct ShaderResourceInfo
+    {
+        uint64_t ShaderId;
+        int32_t ParamCount;
+        int32_t TextureCount;
+        ShaderParamInfo Params[MaterialParamSlots];
+        ShaderTextureInfo Textures[MaterialTextureSlots];
+    };
+
+    inline constexpr const char* ShaderResourceType = "shader";
+
+    // The data of a Ready "material" resource, loaded from <guid>.xdm by the asset GUID alone. Its renderer material
+    // is created once the shader and textures it names are loaded (MaterialId stays 0 until then).
+    struct MaterialResourceInfo
+    {
+        uint64_t MaterialId;
+        uint64_t ShaderHi;
+        uint64_t ShaderLo;
+        int32_t ParamCount;
+        int32_t TextureCount;
+    };
+
+    inline constexpr const char* MaterialResourceType = "material";
+
     class Renderer : public UIRenderTarget {
     public:
         virtual void Render() = 0;
@@ -158,6 +254,21 @@ namespace xg {
 
         // Meshes the view draws after its test cube, lit (copied; count 0 clears). Destroyed meshes are skipped.
         virtual void SetRenderViewDraws(uint64_t viewId, const RenderViewDraw* draws, uint32_t count) = 0;
+
+        // Surface shaders and materials (main thread). Create returns 0 on failure. UpdateMaterial changes values and
+        // textures in place (the shader too); a material whose shader was destroyed draws with the built-in look.
+        virtual ShaderFormat GetShaderFormat() const = 0;
+        virtual uint64_t CreateShader(const ShaderDesc* desc) = 0;
+        virtual void DestroyShader(uint64_t id) = 0;
+        virtual uint64_t CreateMaterial(const MaterialDesc* desc) = 0;
+        virtual bool UpdateMaterial(uint64_t id, const MaterialDesc* desc) = 0;
+        virtual void DestroyMaterial(uint64_t id) = 0;
+
+        // The scene's draws, drawn in every render view after its own draws (copied; count 0 clears).
+        virtual void SetSceneDraws(const SceneDraw* draws, uint32_t count) = 0;
+        // Material draws of one view, drawn after its RenderViewDraws (copied; count 0 clears).
+        virtual void SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count) = 0;
+        virtual void SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags) = 0;
     };
 
     XG_DECLARE_MODULE_FUNCTION(XG_CreateRenderer, Renderer*, Window&);

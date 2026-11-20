@@ -51,6 +51,15 @@ namespace xg
     {
     }
 
+    // The kind of asset an AssetReference field accepts in the Inspector's picker: "mesh", "material", "image",
+    // "shader" (the Navigator's asset kinds, lower case).
+    [AttributeUsage(AttributeTargets.Field)]
+    public sealed class AssetTypeAttribute : Attribute
+    {
+        public AssetTypeAttribute(string kind) => Kind = kind;
+        public string Kind { get; }
+    }
+
     // Editor icon of a component class (Inspector tabs and cards, Add Component list); also lists the class under Add
     // Component. Icon is a built-in icon name ("Physics", "Camera") or a PNG/BMP path: absolute, relative to the game
     // project folder, or relative to gameroot/editor. Color tints a built-in icon ("#RRGGBB").

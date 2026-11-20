@@ -29,6 +29,7 @@ namespace xg::imui
         void* User = nullptr;
         bool Open = true;
         bool FocusRequest = false;
+        bool DockRequest = false;
         // Frames left to keep this panel the selected tab of its dock node: windows appearing in a rebuilt layout
         // take the selection for the first frames.
         int SelectTabFrames = 0;
@@ -436,7 +437,8 @@ namespace
 
         const int slot = static_cast<int>(entry->Slot);
         if (entry->Slot != DockSlot::Floating && _dockIds[slot] != 0)
-            ImGui::SetNextWindowDockID(_dockIds[slot], ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowDockID(_dockIds[slot], entry->DockRequest ? ImGuiCond_Always : ImGuiCond_FirstUseEver);
+        entry->DockRequest = false;
         if (entry->FocusRequest && !imui::detail::_layoutJustReset)
         {
             ImGui::SetNextWindowFocus();
@@ -744,6 +746,14 @@ namespace xg
             return;
         SetOpen(panel, true);
         panel->FocusRequest = true;
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIDockPanel(imui::PanelHandle panel)
+    {
+        if (!IsRegistered(panel))
+            return;
+        SetOpen(panel, true);
+        panel->DockRequest = true;
     }
 
     XG_MODULE_EXPORT void XG_ImUIRequestRepaint(imui::PanelHandle)

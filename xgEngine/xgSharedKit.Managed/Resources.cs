@@ -180,6 +180,22 @@ namespace xg
         // The engine's texture resource type (registered when a renderer exists): breadcrumb <asset guid>/<texture item guid>.
         public const string TextureType = "texture";
 
+        // A file was rebuilt: its cached resources go stale, so holders (the mesh render system, materials) load the new
+        // data. fileGuid is the asset's 32-digit GUID. Returns how many resources went stale.
+        public static uint Invalidate(string fileGuid) =>
+            ScriptRuntime._enginePtr == 0 ? 0 : XG_ResourceInvalidate(ScriptRuntime._enginePtr, fileGuid);
+
+        // The renderer shader of a Ready "shader" resource (ShaderType), or 0.
+        public static ulong GetShader(ResourceHandle handle) =>
+            ScriptRuntime._enginePtr == 0 ? 0 : XG_ResourceGetShader(ScriptRuntime._enginePtr, handle.Value);
+
+        public static bool IsStale(ResourceHandle handle) =>
+            ScriptRuntime._enginePtr == 0 || XG_ResourceIsStale(ScriptRuntime._enginePtr, handle.Value);
+
+        // The engine's shader and material resource types (registered when a renderer exists), by asset GUID alone.
+        public const string ShaderType = "shader";
+        public const string MaterialType = "material";
+
         // The engine's model resource type (registered when a renderer exists): an imported mesh asset by its GUID alone.
         public const string ModelType = "model";
 
@@ -254,6 +270,16 @@ namespace xg
 
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetState")]
         private static partial int XG_ResourceGetState(nint engine, ulong handle);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceInvalidate", StringMarshalling = StringMarshalling.Utf8)]
+        private static partial uint XG_ResourceInvalidate(nint engine, string fileGuid);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetShader")]
+        private static partial ulong XG_ResourceGetShader(nint engine, ulong handle);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceIsStale")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_ResourceIsStale(nint engine, ulong handle);
 
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceWait")]
         private static partial int XG_ResourceWait(nint engine, ulong handle);

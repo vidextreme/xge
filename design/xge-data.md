@@ -145,17 +145,27 @@ reference: <file-guid>/7f3a...
 
 ## Shaders
 
-**Decided.**
+**Decided** (Tier 7).
 
 * Compiled shader binaries are the processed data, stored as `.xds`.
 * `.xcm` materials reference `.xds` shaders and `.xdt` textures.
-
-**Proposed.**
-
-* `water.hlsl` and its `.xmd` compile directly to `water.hlsl.xds`, with no raw stage.
-* Each shader entry point is an item chunk with a kept GUID. Its compiled forms are typed data chunks inside it, such as `DXIL` and `SPRV`, so one file serves both DX12 and Vulkan.
-* Project shaders compile with the DXC vendored in `3rdparty/dxc`.
+* A project `.hlsl` compiles straight to `Library/Data/Shaders/<guid>.xds`, with no stored raw stage. `.hlsli` files are include-only and aren't tracked as dependencies yet.
+* Shaders follow the surface contract in `surface.common.hlsli` (installed to the SDK's `shaders/` folder): the engine's 128-byte constants at `b0` (push constants on Vulkan), the 52-byte lit vertex, `XGMaterial` (`float4 Params[4]`) at `b1`, textures `t0`-`t3` and a wrapping sampler `s0`, with `VSMain`/`PSMain` entry points. File names follow `<category>.<feature>.hlsl` (`surface.tinted.hlsl`).
+* Annotations name the slots: `//@param <name> <float|float2|float3|float4|color> [default]`, `//@texture <name> <color|normal|luminance>` (in declaration order, at most four of each), and `//@group <name>` for the editor's cards.
+* One `shader` item holds `SHHD` (counts), one `SHBC` per stage and backend (`Extra` = stage, 0 VS or 1 PS, `| backend << 8`, 1 DXIL or 2 SPIR-V), `SHPR` (56-byte param records: name, type, slot, default) and `SHTX` (40-byte texture records). Import tags: `@shader:<n>params`, `@shader:<n>textures`.
+* Project shaders compile with the DXC copied from `3rdparty/dxc` into the SDK (or `XG_DXC`, or `dxc` on PATH), with the built-in shaders' flags. A compile error fails the build with DXC's message and keeps the last good `.xds`. The build key includes a hash of the SDK's shader headers.
 * The engine's built-in shaders in `xgShaders` stay compiled into the renderer DLLs.
+* **Runtime:** the `shader` resource type loads `<guid>.xds` by the asset GUID alone, keeps the renderer's bytecode (`Renderer::GetShaderFormat`) and creates the pipeline (`Renderer::CreateShader`).
+
+## Materials
+
+**Decided** (Tier 7).
+
+* An `.xcm` is pretty-printed JSON: `version`, `shader` (asset GUID), `params` (name -> up to four floats) and `textures` (name -> `<file-guid>` or `<file-guid>/<chunk-guid>`). Its `.xmd` keeps a name tree, `names` (GUID -> asset path), used to repair a reference whose GUID no longer resolves.
+* It builds to `Library/Data/Materials/<guid>.xdm`: one `material` item with `MTHD` (counts and the shader GUID), `MTPR` (48-byte records: name, float4) and `MTTX` (64-byte records: name, resource ID).
+* Params and textures stay keyed by name, so a material never depends on its shader at build time. At runtime the `material` resource type maps the names to the shader's slots (defaults for the rest) once the shader and textures it names are loaded, and creates the renderer material.
+* **Drawing:** `MeshRenderer` components write `{ model GUID, material GUID, flags }` to the engine's `xg.MeshRenderer` data pool. The native mesh render system acquires the resources, places the model's parts with the actor's transform and hands the list to the renderer's scene draws, which every render view draws.
+* **Rebuilds:** after a successful build the editor invalidates the asset's cached resources (`ResourceSystem::Invalidate`), so holders such as the mesh render system and materials load the new data without a restart.
 
 ## Library and rebuilds
 
@@ -232,7 +242,7 @@ Color mips are averaged in linear space, and normal mips are renormalized. BC te
 | 4. Library pipeline | Generate data from assets | GUID-addressed `Library/`, importer and processor interfaces, rebuild keys, `cat.png` -> `.xdt` | Deleting `Library/` rebuilds identical references |
 | 5. Textures at runtime | Reach the GPU | Source layer under resource loading, texture API in DX12 and Vulkan, threading model | A `.xdt` loads by breadcrumb and displays on both renderers (done: job system, async loads, test cube) |
 | 6. Meshes | Bring in models | Importer module, `.xrv`/`.xrh` -> `.xdv`/`.xdh`, mesh GPU API | An imported mesh draws in the Scene view (done: FBX via ufbx, static meshes and hierarchy) |
-| 7. Compositions | Let users author content | `.xds` shaders, `.xcm`, `.xco`, their editors, name-tree repair, dependency loading, drawer component | A saved `.xco` survives a `Library/` rebuild and renders |
+| 7. Compositions | Let users author content | `.xds` shaders, `.xcm`, `.xco`, their editors, name-tree repair, dependency loading, drawer component | A saved `.xco` survives a `Library/` rebuild and renders (in progress: shaders, materials, Material Editor, MeshRenderer; `.xco` next) |
 | 8. Later | Complete the system | `.xda`, `.xcf`, `.xca`, hot reload, eviction, player packaging | Planned separately |
 
 Gates:
