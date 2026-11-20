@@ -31,6 +31,7 @@
     <Compile Include="assets\AssetPipeline.cs" />
     <Compile Include="assets\TextureFormats.cs" />
     <Compile Include="assets\TextureAssets.cs" />
+    <Compile Include="assets\MeshAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
     <Compile Include="tools\EditorTool.cs" />

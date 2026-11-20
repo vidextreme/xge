@@ -34,6 +34,9 @@ namespace xg {
         uint64_t CreateTexture(const TextureDesc* desc, const TextureMip* mips) override;
         void DestroyTexture(uint64_t id) override;
         void SetRenderViewTexture(uint64_t viewId, uint64_t textureId, RenderViewTextureMode mode) override;
+        uint64_t CreateMesh(const MeshDesc* desc) override;
+        void DestroyMesh(uint64_t id) override;
+        void SetRenderViewDraws(uint64_t viewId, const RenderViewDraw* draws, uint32_t count) override;
 
         bool SupportsSurfaces() const override { return !_failed; }
         uint64_t CreateUISurface(Window& window) override;
@@ -106,6 +109,15 @@ namespace xg {
             RenderViewCamera Camera = {};
             uint64_t Texture = 0;
             RenderViewTextureMode Mode = RenderViewTextureMode::Color;
+            std::vector<RenderViewDraw> Draws;
+        };
+
+        struct GpuMesh
+        {
+            Buffer Vertices;
+            Buffer Indices;
+            uint32_t IndexCount = 0;
+            VkIndexType IndexType = VK_INDEX_TYPE_UINT16;
         };
 
         bool CreateInstance();
@@ -143,6 +155,8 @@ namespace xg {
 
         bool CreateScenePipeline();
         bool CreateTexturedPipeline();
+        bool CreateLitPipeline();
+        GpuMesh* FindMesh(uint64_t id);
         bool CreateRenderViewTargets(RenderView& view, uint32_t width, uint32_t height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);
@@ -195,6 +209,10 @@ namespace xg {
         Buffer _cubeVertexBuffer;
         uint32_t _cubeVertexCount = 0;
         uint64_t _whiteTexture = 0;
+        VkPipelineLayout _litPipelineLayout = VK_NULL_HANDLE;
+        VkPipeline _litPipeline = VK_NULL_HANDLE;
+        std::vector<GpuMesh> _meshes;
+        std::vector<uint32_t> _freeMeshes;
     };
 
 }

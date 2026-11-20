@@ -16,6 +16,8 @@ namespace xgEditor.CoreCLR
         private ulong _texture;
         private int _textureMode;
         private ulong _textureView;
+        private SceneViews.Draw[] _draws = Array.Empty<SceneViews.Draw>();
+        private ulong _drawsView;
 
         public override DockSlot Slot => DockSlot.Center;
         public override PanelFlags Flags => PanelFlags.NoPadding | PanelFlags.NoScrollbar;
@@ -31,6 +33,13 @@ namespace xgEditor.CoreCLR
 
         // Reads View's input and sets the camera properties.
         protected abstract void UpdateView();
+
+        // Meshes drawn in the view after the test cube (empty clears).
+        internal void SetDraws(SceneViews.Draw[] draws)
+        {
+            _draws = draws;
+            _drawsView = 0;
+        }
 
         // Shows a renderer texture on the view's test cube (0 = none). mode: 0 color, 1 normal, 2 luminance.
         public void SetTexture(ulong textureId, int mode)
@@ -77,6 +86,12 @@ namespace xgEditor.CoreCLR
             {
                 SceneViews.SetTexture(_view, _texture, _textureMode);
                 _textureView = _view;
+            }
+            if (_drawsView != _view)
+            {
+                fixed (SceneViews.Draw* draws = _draws)
+                    SceneViews.SetDraws(_view, draws, (uint)_draws.Length);
+                _drawsView = _view;
             }
         }
 

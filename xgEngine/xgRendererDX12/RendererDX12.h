@@ -35,6 +35,9 @@ namespace xg {
         uint64_t CreateTexture(const TextureDesc* desc, const TextureMip* mips) override;
         void DestroyTexture(uint64_t id) override;
         void SetRenderViewTexture(uint64_t viewId, uint64_t textureId, RenderViewTextureMode mode) override;
+        uint64_t CreateMesh(const MeshDesc* desc) override;
+        void DestroyMesh(uint64_t id) override;
+        void SetRenderViewDraws(uint64_t viewId, const RenderViewDraw* draws, uint32_t count) override;
 
         bool SupportsSurfaces() const override { return !_failed; }
         uint64_t CreateUISurface(Window& window) override;
@@ -110,10 +113,23 @@ namespace xg {
             RenderViewCamera Camera = {};
             uint64_t Texture = 0;
             RenderViewTextureMode Mode = RenderViewTextureMode::Color;
+            std::vector<RenderViewDraw> Draws;
+        };
+
+        struct GpuMesh
+        {
+            ComPtr<ID3D12Resource> Vertices;
+            ComPtr<ID3D12Resource> Indices;
+            UINT VertexBytes = 0;
+            UINT Stride = 0;
+            UINT IndexCount = 0;
+            DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
         };
 
         bool CreateScenePipeline();
         bool CreateTexturedPipeline();
+        bool CreateLitPipeline();
+        GpuMesh* FindMesh(uint64_t id);
         bool CreateRenderViewTargets(RenderView& view, UINT width, UINT height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);
@@ -170,6 +186,10 @@ namespace xg {
         ComPtr<ID3D12Resource> _cubeVertexBuffer;
         UINT _cubeVertexCount = 0;
         uint64_t _whiteTexture = 0;
+        ComPtr<ID3D12RootSignature> _litRootSignature;
+        ComPtr<ID3D12PipelineState> _litPipeline;
+        std::vector<GpuMesh> _meshes;
+        std::vector<UINT> _freeMeshes;
     };
 
 }

@@ -47,6 +47,12 @@ XG_MODULE_EXPORT void XG_EditorSetSceneViewCamera(uint64_t id, const xg::RenderV
     _sceneRenderer->SetRenderViewCamera(id, &local);
 }
 
+XG_MODULE_EXPORT void XG_EditorSetSceneViewDraws(uint64_t id, const void* draws, uint32_t count)
+{
+    if (_sceneRenderer)
+        _sceneRenderer->SetRenderViewDraws(id, static_cast<const xg::RenderViewDraw*>(draws), draws ? count : 0);
+}
+
 XG_MODULE_EXPORT void XG_EditorSetSceneViewTexture(uint64_t id, uint64_t textureId, int32_t mode)
 {
     if (!_sceneRenderer || mode < 0 || mode > 2)

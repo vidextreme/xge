@@ -77,6 +77,7 @@ internal static class Program
         Run(nameof(TestTextureImport), TestTextureImport);
         Run(nameof(TestResourceID), TestResourceID);
         Run(nameof(TestToolSelection), TestToolSelection);
+        Run(nameof(TestMeshAssets), TestMeshAssets);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -649,6 +650,120 @@ internal static class Program
         AssetMeta meta = new() { Guid = 1.ToString("x32"), Items = restored.Items };
         AssetMeta parsed = AssetMeta.Parse(meta.ToJSON());
         Check(parsed.ToJSON() == meta.ToJSON() && parsed.Items.Count == restored.Items.Count, "items round trip through the meta");
+    }
+
+    private sealed class TestMeshImporter : IAssetImporter
+    {
+        public int Calls;
+        public string Id => "test.mesh";
+        public int Version => 1;
+        public string DataFolder => "Models";
+        public string DataExtension => MeshAssets.ProcessedExtension;
+        public bool Accepts(string extension) => extension == ".testmesh";
+        public IReadOnlyList<AssetDataFile> Import(string sourcePath, System.Text.Json.Nodes.JsonObject settings)
+        {
+            Calls++;
+            const int big = 66000;
+            MeshAssets.RawPart quad = new()
+            {
+                MeshName = "Body",
+                MaterialName = "Skin",
+                MeshIndex = 0,
+                Channels = MeshAssets.ChannelNormals | MeshAssets.ChannelUV0,
+                Positions = [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0],
+                Normals = [0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1],
+                UV0 = [0, 1, 1, 1, 1, 0, 0, 0],
+                Indices = [0, 1, 2, 0, 2, 3],
+            };
+            MeshAssets.RawPart large = new()
+            {
+                MeshName = "Rock",
+                MaterialName = string.Empty,
+                MeshIndex = 1,
+                MaterialIndex = 2,
+                Positions = new float[big * 3],
+                Indices = [0, 1, (uint)(big - 1)],
+            };
+            List<MeshAssets.RawNode> nodes =
+            [
+                new MeshAssets.RawNode { Name = "Root" },
+                new MeshAssets.RawNode { Name = "Body", Parent = 0, Mesh = 0, Local = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1] },
+                new MeshAssets.RawNode { Name = "Rock", Parent = 1, Mesh = 1, Local = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1] },
+            ];
+            return MeshAssets.ToRawFiles([quad, large], nodes);
+        }
+    }
+
+    private static void TestMeshAssets()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "xge-mesh-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string library = Path.Combine(root, "Library", "Data");
+            string source = Path.Combine(root, "rock.testmesh");
+            const string guid = "abcdef00000000000000000000000002";
+            File.WriteAllText(source, "mesh");
+            AssetMeta meta = new() { Guid = guid };
+            TestMeshImporter importer = new();
+            AssetPipeline pipeline = new(library);
+            pipeline.Register(importer);
+            MeshAssets.Register(pipeline);
+            AssetBuildStatus Build()
+            {
+                AssetBuildRequest request = new(guid, source, null, meta.ImportSettings, meta.ProcessSettings, meta.Items, items =>
+                {
+                    AssetItemUpdate update = AssetItemTable.Update(meta.Items, items);
+                    meta.Items = update.Items;
+                    return update;
+                });
+                return pipeline.Build(request).Status;
+            }
+
+            Check(Build() == AssetBuildStatus.Imported, "mesh build imports");
+            Check(pipeline.CanImport("a/b.FBX"), "FBX sources are importable");
+            Check(meta.Items.Count == 3 && meta.Items.Count(i => i.Kind == MeshAssets.SubmeshKind) == 2 && meta.Items.Any(i => i.Path == "Body/Skin") && meta.Items.Any(i => i.Path == "Rock/material2"),
+                "items are one per submesh (mesh/material path, unnamed materials numbered) plus the hierarchy");
+            string[] names = [".xrv", ".xrh", ".xdv", ".xdh"];
+            Check(names.All(e => pipeline.FindFile(guid, e) is not null), "raw and processed mesh and hierarchy files are stored");
+            byte[] xdv = File.ReadAllBytes(pipeline.FindFile(guid, ".xdv")!);
+            byte[] xdh = File.ReadAllBytes(pipeline.FindFile(guid, ".xdh")!);
+            Check(Resources.ValidateChunkFile(xdv) == ChunkFileStatus.Valid && Resources.ValidateChunkFile(xdh) == ChunkFileStatus.Valid, "processed files are valid for the native reader");
+
+            ChunkFile meshes = ChunkFile.Parse(xdv);
+            ChunkItem body = meshes.Items[0];
+            ChunkItem rock = meshes.Items[1];
+            byte[] header = body.Chunks.First(c => c.Type == MeshAssets.VertexHeaderChunk).Data;
+            Check(BitConverter.ToInt32(header, 0) == 4 && BitConverter.ToInt32(header, 4) == 6 && BitConverter.ToInt32(header, 8) == MeshAssets.Stride,
+                "the header has counts and the 52-byte stride");
+            byte[] vertices = body.Chunks.First(c => c.Type == MeshAssets.VerticesChunk).Data;
+            Check(vertices.Length == 4 * MeshAssets.Stride && BitConverter.ToSingle(vertices, MeshAssets.Stride + 0) == 1.0f && BitConverter.ToSingle(vertices, 20) == -1.0f
+                && BitConverter.ToSingle(vertices, 44) == 1.0f && vertices[48] == 255, "vertices interleave position, normal, tangent, uv and color");
+            Check(body.Chunks.Any(c => c.Type == MeshAssets.Indices16Chunk) && rock.Chunks.Any(c => c.Type == MeshAssets.Indices32Chunk), "indices are 16-bit when they fit, otherwise 32-bit");
+            byte[] rockVertices = rock.Chunks.First(c => c.Type == MeshAssets.VerticesChunk).Data;
+            Check(BitConverter.ToSingle(rockVertices, 16) == 1.0f && BitConverter.ToSingle(rockVertices, 24) == 1.0f && BitConverter.ToSingle(rockVertices, 36) == 1.0f,
+                "missing normals and tangents get defaults");
+
+            ChunkFile hierarchy = ChunkFile.Parse(xdh);
+            byte[] nodes = hierarchy.Items.Single().Chunks.First(c => c.Type == MeshAssets.NodesChunk).Data;
+            int count = BitConverter.ToInt32(nodes, 0);
+            int rockWorld = 8 + 2 * MeshAssets.ProcessedNodeSize + 144;
+            Check(count == 3 && BitConverter.ToSingle(nodes, rockWorld) == 2.0f && BitConverter.ToSingle(nodes, rockWorld + 48) == 1.0f && BitConverter.ToSingle(nodes, rockWorld + 56) == 3.0f,
+                "world matrices combine the local transforms down the hierarchy");
+
+            Check(pipeline.ManifestOf(guid)!.Tags.SequenceEqual(["@mesh:3tris", "@mesh:2parts", "@mesh:normals", "@mesh:uv"]), "mesh import tags");
+
+            meta.ProcessSettings["test"] = 1;
+            Check(Build() == AssetBuildStatus.Processed && importer.Calls == 1, "reprocessing reuses the stored raw files");
+            string bodyGuid = meta.Items.First(i => i.Path == "Body/Skin").Guid;
+            Directory.Delete(Path.Combine(root, "Library"), true);
+            Check(Build() == AssetBuildStatus.Imported && meta.Items.First(i => i.Path == "Body/Skin").Guid == bodyGuid, "deleting Library keeps submesh GUIDs");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
     }
 
     private sealed class CountingImporter : IAssetImporter

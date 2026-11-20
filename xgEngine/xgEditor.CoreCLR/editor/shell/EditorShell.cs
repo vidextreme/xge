@@ -8,7 +8,8 @@ using xg.math;
 namespace xgEditor.CoreCLR
 {
     // The content of the editor shell's bars: the toolbar (project, play controls, script build, layout) and the status
-    // bar (latest log line, which focuses the Console when clicked, and the engine version).
+    // bar (latest log line, which focuses the Console when clicked, the background task chip and the engine version).
+    // Hovering the task chip opens a panel above it with one card per task (progress bar, stage, cancel).
     internal static class EditorShell
     {
         private const string LayoutPopupId = "##shell_layout";
@@ -21,6 +22,15 @@ namespace xgEditor.CoreCLR
         private const float PillGap = 4.0f;
         private const float StepWidth = 26.0f;
         private const float IconPillWidth = 22.0f;
+        private const float TaskBarWidth = 90.0f;
+        private const float TaskPanelWidth = 330.0f;
+        private const float TaskHeaderHeight = 28.0f;
+        private const float TaskCardHeight = 50.0f;
+        private const float TaskBodyMaxHeight = 200.0f;
+        private const long TaskPanelGraceMilliseconds = 250;
+
+        private static long _taskPanelUntil;
+        private static readonly bool _taskPanelPinned = Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_OPEN") == "1";
 
         private static string? _versionText;
         private static int _openLayoutFrames = Environment.GetEnvironmentVariable("XG_UI_TEST_SHELL_LAYOUT") == "1" ? 30 : 0;
@@ -202,12 +212,14 @@ namespace xgEditor.CoreCLR
             IReadOnlyList<LogEntry> entries = EditorLog.Entries;
             if (entries.Count == 0)
             {
+                DrawTaskChip(draw, canvas.Size.x - versionWidth - 12.0f, height);
                 draw.Text(new Vector2(0.0f, 0.0f), dim, "Ready");
                 return;
             }
 
+            float chipLeft = DrawTaskChip(draw, canvas.Size.x - versionWidth - 12.0f, height);
             LogEntry latest = entries[^1];
-            float messageWidth = Math.Max(canvas.Size.x - versionWidth - 16.0f, 0.0f);
+            float messageWidth = Math.Max(chipLeft - 16.0f, 0.0f);
             Rect message = Rect.FromXYWH(0.0f, 0.0f, messageWidth, height);
             ConsolePanel.LevelVisual(latest.Type, out Icon icon, out StyleColor color);
             draw.Icon(icon, new Vector2(7.0f, height * 0.5f), 12.0f, Style.Color(color));
@@ -217,6 +229,158 @@ namespace xgEditor.CoreCLR
             if (Gui.HitArea("##shell_status_log", message).Clicked())
                 Panel.Open<ConsolePanel>().Focus();
             Gui.Tooltip("Open the Console");
+        }
+
+        // ------------------------------------------------------------
+        // Background tasks
+        // ------------------------------------------------------------
+        // Draws the chip ending at right (when there are tasks) and the hover panel; returns the chip's left edge.
+        private static float DrawTaskChip(Painter draw, float right, float height)
+        {
+            IReadOnlyList<BackgroundTask> tasks = BackgroundTasks.Tasks;
+            if (tasks.Count == 0)
+            {
+                _taskPanelUntil = 0;
+                return right;
+            }
+            int running = tasks.Count(t => t.State != BackgroundTaskState.Queued);
+            string text = $"Importing {Math.Min(BackgroundTasks.BatchDone + running, BackgroundTasks.BatchTotal)} of {BackgroundTasks.BatchTotal}";
+            float textWidth = Gui.MeasureText(text).x;
+            float width = 8.0f + 12.0f + 6.0f + textWidth + 8.0f + TaskBarWidth + 8.0f;
+            Rect chip = Rect.FromXYWH(right - width, -1.0f, width, height + 2.0f);
+            Result hit = Gui.HitArea("##shell_tasks", chip);
+            draw.RectFilled(chip, Style.Color(hit.Hovered() ? StyleColor.ButtonHover : StyleColor.HeaderBg), 4.0f);
+            draw.Rect(chip, Style.Color(StyleColor.Border), 4.0f);
+            float cy = chip.min.y + chip.Height * 0.5f;
+            DrawSpinner(draw, new Vector2(chip.min.x + 14.0f, cy), 5.0f);
+            draw.Text(new Vector2(chip.min.x + 26.0f, 0.0f), Style.Color(StyleColor.Text), text);
+            Rect bar = Rect.FromXYWH(chip.max.x - 8.0f - TaskBarWidth, cy - 2.0f, TaskBarWidth, 4.0f);
+            DrawBar(draw, bar, BackgroundTasks.OverallProgress());
+
+            long now = Environment.TickCount64;
+            if (hit.Hovered())
+                _taskPanelUntil = now + TaskPanelGraceMilliseconds;
+            if (_taskPanelPinned || now < _taskPanelUntil)
+                DrawTaskPanel(chip, tasks, running);
+            return chip.min.x;
+        }
+
+        private static void DrawTaskPanel(Rect chip, IReadOnlyList<BackgroundTask> tasks, int running)
+        {
+            float bodyHeight = Math.Min(tasks.Count * TaskCardHeight, TaskBodyMaxHeight);
+            float panelHeight = TaskHeaderHeight + bodyHeight + 2.0f;
+            Vector2 position = new(chip.max.x - TaskPanelWidth, chip.min.y - panelHeight - 6.0f);
+            using var overlay = Gui.Overlay("shell_tasks_panel", position, new Vector2(TaskPanelWidth, panelHeight));
+            if (!overlay.IsOpen)
+                return;
+            bool hovered = false;
+            using (var header = Gui.Canvas("##tasks_header", new Vector2(TaskPanelWidth, TaskHeaderHeight)))
+            {
+                Painter draw = header.Draw;
+                Rect area = Rect.FromXYWH(0.0f, 0.0f, TaskPanelWidth, TaskHeaderHeight);
+                hovered |= Gui.HitArea("##tasks_header_hit", area).Hovered();
+                draw.RectFilled(area, Style.Color(StyleColor.PanelHeaderBg));
+                DrawSpinner(draw, new Vector2(16.0f, TaskHeaderHeight * 0.5f), 5.0f);
+                float textY = (TaskHeaderHeight - Gui.MeasureText("A").y) * 0.5f;
+                const string title = "Background tasks";
+                float x = 30.0f;
+                using (Gui.Font(FontStyle.Bold))
+                {
+                    draw.Text(new Vector2(x, textY), Style.Color(StyleColor.Text), title);
+                    x += Gui.MeasureText(title).x + 6.0f;
+                }
+                draw.Text(new Vector2(x, textY), Style.Color(StyleColor.TextDim), $"· {running} running, {tasks.Count - running} queued");
+            }
+
+            using (var body = Gui.ScrollArea("##tasks_body", new Vector2(TaskPanelWidth, bodyHeight)))
+            {
+                if (body.IsOpen)
+                {
+                    float width = Math.Max(Gui.AvailableSize.x, 1.0f);
+                    using var canvas = Gui.Canvas("##tasks_cards", new Vector2(width, tasks.Count * TaskCardHeight));
+                    Painter draw = canvas.Draw;
+                    float y = 0.0f;
+                    foreach (BackgroundTask task in tasks.OrderBy(t => t.State == BackgroundTaskState.Queued).ThenBy(t => t.Id))
+                    {
+                        hovered |= DrawTaskCard(draw, task, Rect.FromXYWH(0.0f, y, width, TaskCardHeight));
+                        y += TaskCardHeight;
+                    }
+                }
+            }
+            if (hovered)
+                _taskPanelUntil = Environment.TickCount64 + TaskPanelGraceMilliseconds;
+        }
+
+        private static bool DrawTaskCard(Painter draw, BackgroundTask task, Rect card)
+        {
+            bool hovered = Gui.HitArea($"##task{task.Id}", card).Hovered();
+            draw.Line(new Vector2(card.min.x, card.max.y - 0.5f), new Vector2(card.max.x, card.max.y - 0.5f), Style.Color(StyleColor.Border));
+            BackgroundTaskState state = task.State;
+            float progress = task.Progress;
+            Color32 text = Style.Color(state == BackgroundTaskState.Queued ? StyleColor.TextDim : StyleColor.Text);
+            Color32 dim = Style.Color(StyleColor.TextDim);
+            float lineHeight = Gui.MeasureText("A").y;
+            draw.Icon(task.Icon, new Vector2(card.min.x + 16.0f, card.min.y + 6.0f + lineHeight * 0.5f), 13.0f, Style.Color(StyleColor.Icon));
+
+            float right = card.max.x - 8.0f;
+            if (task.CanCancel && state != BackgroundTaskState.Canceling)
+            {
+                Rect cancel = Rect.FromXYWH(right - 16.0f, card.min.y + 5.0f, 16.0f, 16.0f);
+                Result hit = Gui.HitArea($"##task_cancel{task.Id}", cancel);
+                hovered |= hit.Hovered();
+                Gui.Tooltip("Cancel");
+                if (hit.Hovered())
+                    draw.RectFilled(cancel, Style.Color(StyleColor.ButtonHover), 3.0f);
+                draw.Icon(Icon.WinClose, new Vector2(cancel.min.x + 8.0f, cancel.min.y + 8.0f), 10.0f, dim);
+                if (hit.Clicked())
+                    task.Cancel();
+                right = cancel.min.x - 6.0f;
+            }
+            string amount = state == BackgroundTaskState.Queued ? "Queued" : progress < 0.0f ? string.Empty : $"{Math.Clamp(progress, 0.0f, 1.0f) * 100.0f:0}%";
+            float amountWidth = Gui.MeasureText(amount).x;
+            draw.Text(new Vector2(right - amountWidth, card.min.y + 6.0f), dim, amount);
+            draw.PushClip(Rect.FromXYWH(card.min.x + 30.0f, card.min.y, Math.Max(right - amountWidth - 36.0f - card.min.x, 1.0f), card.Height));
+            draw.Text(new Vector2(card.min.x + 30.0f, card.min.y + 6.0f), text, task.Title);
+            draw.Text(new Vector2(card.min.x + 30.0f, card.min.y + 8.0f + lineHeight), dim, task.Stage);
+            draw.PopClip();
+            Rect bar = Rect.FromXYWH(card.min.x + 30.0f, card.max.y - 9.0f, card.Width - 38.0f, 4.0f);
+            DrawBar(draw, bar, state == BackgroundTaskState.Queued ? 0.0f : progress);
+            return hovered;
+        }
+
+        // A 4 px bar: filled to progress (0..1), or a moving segment when progress is below 0.
+        private static void DrawBar(Painter draw, Rect bar, float progress)
+        {
+            draw.RectFilled(bar, Style.Color(StyleColor.SegmentBg), 2.0f);
+            Color32 accent = Style.Color(StyleColor.Accent);
+            if (progress < 0.0f)
+            {
+                float t = Environment.TickCount64 % 1200 / 1200.0f;
+                float segment = bar.Width * 0.3f;
+                float x = bar.min.x - segment + (bar.Width + segment) * t;
+                float left = Math.Max(x, bar.min.x);
+                float rightEdge = Math.Min(x + segment, bar.max.x);
+                if (rightEdge > left)
+                    draw.RectFilled(new Rect(new Vector2(left, bar.min.y), new Vector2(rightEdge, bar.max.y)), accent, 2.0f);
+                return;
+            }
+            float fill = bar.Width * Math.Clamp(progress, 0.0f, 1.0f);
+            if (fill >= 1.0f)
+                draw.RectFilled(Rect.FromXYWH(bar.min.x, bar.min.y, fill, bar.Height), accent, 2.0f);
+        }
+
+        // A rotating three-quarter arc.
+        private static void DrawSpinner(Painter draw, Vector2 center, float radius)
+        {
+            const int Segments = 12;
+            float start = Environment.TickCount64 % 1000 / 1000.0f * MathF.Tau;
+            Span<Vector2> points = stackalloc Vector2[Segments + 1];
+            for (int i = 0; i <= Segments; i++)
+            {
+                float angle = start + i * (MathF.Tau * 0.75f / Segments);
+                points[i] = new Vector2(center.x + MathF.Cos(angle) * radius, center.y + MathF.Sin(angle) * radius);
+            }
+            draw.Polyline(points, Style.Color(StyleColor.Accent), false, 1.6f);
         }
     }
 }

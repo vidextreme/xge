@@ -58,6 +58,7 @@
     <Compile Include="ScriptMessageInterop.cs" />
     <Compile Include="ScriptMessageParser.cs" />
     <Compile Include="Resources.cs" />
+    <Compile Include="Jobs.cs" />
     <Compile Include="ScriptRuntime.cs" />
     <Compile Include="UIHost.cs" />
     <Compile Include="PlatformDialogs.cs" />

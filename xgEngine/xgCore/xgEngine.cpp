@@ -22,6 +22,7 @@
 #include "ResourceSystemImpl.h"
 #include "JobSystemImpl.h"
 #include "TextureResources.h"
+#include "ModelResources.h"
 #include "LoggerImpl.h"
 #include "SceneGraphFactoryImpl.h"
 
@@ -172,9 +173,12 @@ namespace xg
     bool Engine::SetRendererModule(const char* path)
     {
         ResourceSystem* resources = GetSubsystem<ResourceSystem>();
+        if (resources && _modelType != 0)
+            resources->UnregisterType(_rootModule->GetModuleId(), _modelType);
         if (resources && _textureType != 0)
             resources->UnregisterType(_rootModule->GetModuleId(), _textureType);
         _textureType = 0;
+        _modelType = 0;
         Renderer.reset();
 
         xg::RendererDLL = path;
@@ -184,7 +188,10 @@ namespace xg
         if (!Renderer.valid())
             return false;
         if (resources)
+        {
             _textureType = RegisterTextureResources(*resources, _rootModule->GetModuleId(), Renderer.get());
+            _modelType = RegisterModelResources(*resources, _rootModule->GetModuleId(), Renderer.get());
+        }
         return true;
     }
 

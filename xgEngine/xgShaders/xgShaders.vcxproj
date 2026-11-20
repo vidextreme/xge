@@ -34,6 +34,7 @@
     <None Include="src\ui.textured.hlsl" />
     <None Include="src\scene.unlit.hlsl" />
     <None Include="src\scene.textured.hlsl" />
+    <None Include="src\scene.lit.hlsl" />
     <None Include="CompileShaders.ps1" />
     <None Include="xgShaders.targets" />
     <ClInclude Include="xgShaderTypes.h" />
@@ -43,6 +44,8 @@
     <ClInclude Include="compiled\spv.scene.unlit.h" />
     <ClInclude Include="compiled\dxil.scene.textured.h" />
     <ClInclude Include="compiled\spv.scene.textured.h" />
+    <ClInclude Include="compiled\dxil.scene.lit.h" />
+    <ClInclude Include="compiled\spv.scene.lit.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="xgShaders.targets" />

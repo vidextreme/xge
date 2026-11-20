@@ -69,6 +69,85 @@ namespace xgEditor.CoreCLR
         }
     }
 
+    // Test hook (XG_RESOURCE_TEST_MODEL=<asset path>): builds the mesh asset, acquires its "model" resource by the asset
+    // GUID (loaded on a job worker, GPU meshes created on the main thread) and draws it next to the Scene panel's test
+    // cube, scaled to about 2 units tall and standing on the grid at x = -2.
+    internal static unsafe class ModelSmoke
+    {
+        static ResourceHandle _handle;
+        static bool _waiting;
+        static int _frames;
+
+        public static void Init()
+        {
+            string? path = Environment.GetEnvironmentVariable("XG_RESOURCE_TEST_MODEL");
+            if (string.IsNullOrEmpty(path) || xgEditor.CoreCLR.ProjectService.Assets is not { } assets)
+                return;
+            System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+            assets.BuildAll();
+            string? guid = assets.GuidOf(path);
+            uint type = Resources.FindType(Resources.ModelType);
+            xg.editor.AssetBuildManifest? manifest = guid is null ? null : assets.Pipeline.ManifestOf(guid);
+            Debug.Log($"[Models] test: built {path} in {clock.ElapsedMilliseconds} ms: {(manifest?.Error ?? string.Join(" ", manifest?.Tags ?? new List<string>()))}");
+            if (guid is null || type == 0 || manifest is null || manifest.Error is not null)
+            {
+                Debug.LogWarning($"[Models] test: no model for {path} (guid {guid ?? "none"}, type {type})");
+                return;
+            }
+            ResourceID id = ResourceID.Parse(guid);
+            _handle = Resources.Acquire(type, id);
+            _waiting = true;
+            Debug.Log($"[Models] test: acquired {id}, state {_handle.State}");
+        }
+
+        public static void Update()
+        {
+            if (!_waiting)
+                return;
+            ++_frames;
+            ResourceState state = _handle.State;
+            if (state == ResourceState.Pending)
+                return;
+            _waiting = false;
+            if (state != ResourceState.Ready || !Resources.GetModel(_handle, out ModelInfo info))
+            {
+                Debug.LogWarning($"[Models] test: {state} after {_frames} frame(s)");
+                return;
+            }
+            float height = info.BoundsMax[1] - info.BoundsMin[1];
+            float extent = Math.Max(height, Math.Max(info.BoundsMax[0] - info.BoundsMin[0], info.BoundsMax[2] - info.BoundsMin[2]));
+            float scale = extent > 0.0f ? 2.0f / extent : 1.0f;
+            float[] place =
+            {
+                scale, 0, 0, 0,
+                0, scale, 0, 0,
+                0, 0, scale, 0,
+                -2.0f - (info.BoundsMin[0] + info.BoundsMax[0]) * 0.5f * scale, -info.BoundsMin[1] * scale, -(info.BoundsMin[2] + info.BoundsMax[2]) * 0.5f * scale, 1,
+            };
+            SceneViews.Draw[] draws = new SceneViews.Draw[info.PartCount];
+            long triangles = 0;
+            for (int i = 0; i < info.PartCount; i++)
+            {
+                if (!Resources.GetModelPart(_handle, i, out ModelPartInfo part))
+                    continue;
+                triangles += part.TriangleCount;
+                draws[i].Mesh = part.Mesh;
+                for (int row = 0; row < 4; row++)
+                    for (int column = 0; column < 4; column++)
+                    {
+                        float sum = 0.0f;
+                        for (int k = 0; k < 4; k++)
+                            sum += part.World[row * 4 + k] * place[k * 4 + column];
+                        draws[i].World[row * 4 + column] = sum;
+                    }
+            }
+            Debug.Log($"[Models] test: Ready after {_frames} frame(s): {info.PartCount} part(s), {triangles} triangle(s), {info.NodeCount} node(s), " +
+                $"bounds {info.BoundsMin[0]:0.##},{info.BoundsMin[1]:0.##},{info.BoundsMin[2]:0.##} .. {info.BoundsMax[0]:0.##},{info.BoundsMax[1]:0.##},{info.BoundsMax[2]:0.##}");
+            foreach (ScenePanel panel in xg.imui.ImUI.RegisteredPanels.OfType<ScenePanel>())
+                panel.SetDraws(draws);
+        }
+    }
+
     // Test hook (XG_RESOURCE_TEST=1): exercises the shared resource cache, then quits so shutdown cleanup is visible.
     internal static class ResourceSmoke
     {
@@ -380,7 +459,10 @@ namespace xgEditor.CoreCLR
                 }
             }
             ResourceSmoke.Init();
+            if (Environment.GetEnvironmentVariable("XG_JOB_TEST") == "1")
+                ManagedJobTest();
             TextureSmoke.Init();
+            ModelSmoke.Init();
             return 1;
         }
 
@@ -398,9 +480,39 @@ namespace xgEditor.CoreCLR
 
         // XG_UI_TEST_SELECT_ADD=<asset path> adds that asset to the selection after 60 frames, and
         // XG_UI_TEST_SELECT_SET=<asset path> replaces the selection with it after 120 frames.
+        // XG_JOB_TEST=1: 16 managed worker jobs (one throws on purpose), joined by a main-thread continuation.
+        private static void ManagedJobTest()
+        {
+            int mainThread = Environment.CurrentManagedThreadId;
+            int ran = 0;
+            HashSet<int> threads = new();
+            List<JobHandle> work = new();
+            for (int i = 0; i < 16; i++)
+            {
+                int index = i;
+                work.Add(Jobs.Schedule(() =>
+                {
+                    Thread.Sleep(4);
+                    lock (threads)
+                        threads.Add(Environment.CurrentManagedThreadId);
+                    Interlocked.Increment(ref ran);
+                    if (index == 7)
+                        throw new InvalidOperationException("expected test exception from a managed job");
+                }));
+            }
+            Jobs.Schedule(() => Debug.Log($"[Jobs] managed: {Volatile.Read(ref ran)}/16 ran on {threads.Count} worker thread(s) (main thread among them: {threads.Contains(mainThread)}), " +
+                $"continuation on the main thread: {(Environment.CurrentManagedThreadId == mainThread ? "yes" : "no")}, {Jobs.WorkerCount} worker(s)"), JobQueue.Main, work.ToArray());
+        }
+
         private static void UpdateSelectionHooks()
         {
             int frame = ++_selectionFrames;
+            if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
+            {
+                BackgroundTask? task = BackgroundTasks.Find(cancelName);
+                Debug.Log($"[Debug] Cancel task {cancelName}: {(task is null ? "not found" : task.Title + ", " + task.State)}");
+                task?.Cancel();
+            }
             if (frame == 60 && Environment.GetEnvironmentVariable("XG_UI_TEST_SELECT_ADD") is { Length: > 0 } add)
             {
                 xg.editor.Selection.Add(new xg.editor.AssetRef(add));
@@ -423,6 +535,7 @@ namespace xgEditor.CoreCLR
             long frames = ++_updateFrames;
             ResourceSmoke.Update(frames);
             TextureSmoke.Update();
+            ModelSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)
             {
                 _elapsedAtStart = _player.ElapsedTime;

@@ -75,6 +75,53 @@ namespace xg {
 
     inline constexpr const char* TextureResourceType = "texture";
 
+    enum class IndexFormat : uint32_t
+    {
+        UInt16 = 0,
+        UInt32 = 1,
+    };
+
+    // Static triangle-list geometry. Vertices use the scene.lit layout (shaders::SceneLitVertex, Stride 52).
+    struct MeshDesc
+    {
+        int32_t VertexCount;
+        int32_t Stride;
+        const void* Vertices;
+        int32_t IndexCount;
+        IndexFormat Format;
+        const void* Indices;
+    };
+
+    // One mesh drawn in a render view: world is row-major for row vectors (v * M); texture 0 = white.
+    struct RenderViewDraw
+    {
+        uint64_t Mesh;
+        uint64_t Texture;
+        float World[16];
+    };
+
+    // One drawn part of a Ready "model" resource: a GPU mesh and where it sits (node world times geometry offset).
+    struct ModelPartInfo
+    {
+        uint64_t Mesh;
+        int32_t MaterialIndex;
+        int32_t TriangleCount;
+        float World[16];
+    };
+
+    // The data of a Ready "model" resource (ResourceSystem::GetData), loaded from <guid>.xdv and <guid>.xdh by the
+    // asset GUID alone. Bounds are in model space, over every drawn part. Parts stays valid while the resource lives.
+    struct ModelResourceInfo
+    {
+        int32_t PartCount;
+        int32_t NodeCount;
+        float BoundsMin[3];
+        float BoundsMax[3];
+        const ModelPartInfo* Parts;
+    };
+
+    inline constexpr const char* ModelResourceType = "model";
+
     // How a render view's test cube reads its texture.
     enum class RenderViewTextureMode : int32_t
     {
@@ -104,6 +151,13 @@ namespace xg {
 
         // Texture shown on the view's test cube (0 = untextured).
         virtual void SetRenderViewTexture(uint64_t viewId, uint64_t textureId, RenderViewTextureMode mode) = 0;
+
+        // GPU meshes (main thread). Returns 0 for an invalid description or when creation fails.
+        virtual uint64_t CreateMesh(const MeshDesc* desc) = 0;
+        virtual void DestroyMesh(uint64_t id) = 0;
+
+        // Meshes the view draws after its test cube, lit (copied; count 0 clears). Destroyed meshes are skipped.
+        virtual void SetRenderViewDraws(uint64_t viewId, const RenderViewDraw* draws, uint32_t count) = 0;
     };
 
     XG_DECLARE_MODULE_FUNCTION(XG_CreateRenderer, Renderer*, Window&);

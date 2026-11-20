@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using xg.editor;
 using xg;
+using xg.imui;
 using Debug = xg.Debug;
 
 namespace xgEditor.CoreCLR
@@ -110,7 +111,10 @@ namespace xgEditor.CoreCLR
     {
         private const long OrphanGraceMilliseconds = 2000;
         private const long CacheSaveDelayMilliseconds = 2000;
-        private const long BuildBudgetMilliseconds = 8;
+        private static readonly bool _logBuildThreads = Environment.GetEnvironmentVariable("XG_ASSET_TEST_THREADS") == "1";
+        private readonly int _mainThreadId = Environment.CurrentManagedThreadId;
+        private static readonly int _slowStageMilliseconds =
+            int.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_SLOW"), out int slow) ? Math.Max(slow, 0) : 0;
         private const long SettleMilliseconds = 1000;
 
         private sealed record MetaInfo(string Guid, IReadOnlyList<string> Tags);
@@ -126,8 +130,20 @@ namespace xgEditor.CoreCLR
         private bool _cacheDirty;
         private long _cacheDirtySince;
         private int _syncedIndexVersion = -1;
+        private sealed class RunningBuild
+        {
+            public required string Guid;
+            public required BackgroundTask Task;
+            public required CancellationTokenSource Cancel;
+            public AssetBuildResult Result = new(AssetBuildStatus.Failed, "The build didn't run");
+            public JobHandle Done;
+        }
+
         private readonly Queue<string> _buildQueue = new();
         private readonly HashSet<string> _queuedBuilds = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RunningBuild> _runningBuilds = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, BackgroundTask> _buildTasks = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _rebuildAfter = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, (long Size, long Modified, long MetaModified)> _buildStamps = new(StringComparer.OrdinalIgnoreCase);
         // New or changed source files seen after startup, waiting until they stop being written.
         private readonly Dictionary<string, (long Size, long Modified, long Since)> _settling = new(StringComparer.OrdinalIgnoreCase);
@@ -146,6 +162,7 @@ namespace xgEditor.CoreCLR
             _cache = AssetCache.Load(Path.Combine(projectRoot, "Library", "AssetCache.json"));
             Pipeline = new AssetPipeline(Path.Combine(projectRoot, "Library", "Data"));
             TextureAssets.Register(Pipeline, DecodeImage);
+            MeshAssets.Register(Pipeline);
             Sync();
             _startupScanned = true;
             Tags = new AssetTags(this);
@@ -211,24 +228,54 @@ namespace xgEditor.CoreCLR
                 Sync();
             ProcessOrphans();
             ProcessSettling();
-            ProcessBuilds(BuildBudgetMilliseconds);
+            ProcessBuilds();
             ApplyHashes();
             if (_cacheDirty && Environment.TickCount64 - _cacheDirtySince >= CacheSaveDelayMilliseconds)
                 SaveCache();
         }
 
-        // Runs every queued asset build now instead of spreading them over frames.
+        // Builds everything queued now and waits for it (builds still run on job workers).
         public void BuildAll()
         {
             foreach (string path in _settling.Keys)
                 QueueBuild(path);
             _settling.Clear();
-            ProcessBuilds(long.MaxValue);
+            ProcessBuilds();
+            while (_runningBuilds.Count > 0)
+            {
+                Jobs.Wait(_runningBuilds.Values.First().Done);
+                ProcessBuilds();
+            }
         }
 
-        // Writes pending cache changes now (the editor calls it on shutdown).
+        // Asset builds in progress or queued.
+        public int PendingBuilds => _runningBuilds.Count + _buildQueue.Count;
+
+        // Stops a queued or running build. A running build stops at its next stage and keeps its last good output.
+        public void CancelBuild(string path)
+        {
+            if (_runningBuilds.TryGetValue(path, out RunningBuild? running))
+            {
+                running.Cancel.Cancel();
+                _rebuildAfter.Remove(path);
+                return;
+            }
+            if (!_queuedBuilds.Remove(path))
+                return;
+            List<string> rest = _buildQueue.Where(p => !string.Equals(p, path, StringComparison.OrdinalIgnoreCase)).ToList();
+            _buildQueue.Clear();
+            foreach (string queued in rest)
+                _buildQueue.Enqueue(queued);
+            if (_buildTasks.Remove(path, out BackgroundTask? task))
+                BackgroundTasks.Complete(task);
+            Debug.Log($"[Assets] Canceled the queued build of {path}");
+        }
+
+        // Writes pending cache changes now (the editor calls it on shutdown), after waiting for running builds.
         public void Flush()
         {
+            foreach (RunningBuild running in _runningBuilds.Values.ToList())
+                Jobs.Wait(running.Done);
             ApplyHashes();
             if (_cacheDirty)
                 SaveCache();
@@ -645,8 +692,24 @@ namespace xgEditor.CoreCLR
 
         private void QueueBuild(string path)
         {
-            if (_queuedBuilds.Add(path))
-                _buildQueue.Enqueue(path);
+            if (_runningBuilds.ContainsKey(path))
+            {
+                _rebuildAfter.Add(path);
+                return;
+            }
+            if (!_queuedBuilds.Add(path))
+                return;
+            _buildQueue.Enqueue(path);
+            if (!_buildTasks.ContainsKey(path))
+            {
+                Icon icon = AssetIndex.KindOf(Path.GetExtension(path).TrimStart('.').ToLowerInvariant()) switch
+                {
+                    AssetKind.Image => Icon.Image,
+                    AssetKind.Mesh => Icon.Mesh,
+                    _ => Icon.File,
+                };
+                _buildTasks[path] = BackgroundTasks.Add("Import " + Path.GetFileName(path), icon, () => CancelBuild(path));
+            }
         }
 
         private void ProcessSettling()
@@ -690,18 +753,17 @@ namespace xgEditor.CoreCLR
             }
         }
 
-        private void ProcessBuilds(long budgetMilliseconds)
+        private static int MaxParallelBuilds => Math.Clamp(Jobs.WorkerCount - 1, 1, 4);
+
+        private void ProcessBuilds()
         {
-            long start = Stopwatch.GetTimestamp();
-            while (_buildQueue.Count > 0)
+            while (_buildQueue.Count > 0 && _runningBuilds.Count < MaxParallelBuilds)
             {
                 string path = _buildQueue.Dequeue();
                 _queuedBuilds.Remove(path);
-                BuildAsset(path);
-                if (Stopwatch.GetElapsedTime(start).TotalMilliseconds >= budgetMilliseconds)
-                    break;
+                StartBuild(path);
             }
-            if (_buildQueue.Count > 0)
+            if (_buildQueue.Count > 0 || _runningBuilds.Count > 0)
                 return;
             if (_buildsDone + _buildsFailed > 0)
             {
@@ -716,23 +778,60 @@ namespace xgEditor.CoreCLR
             }
         }
 
-        private void BuildAsset(string path)
+        // Reads the meta on the main thread, runs Pipeline.Build on a job worker and applies the result in a main-thread
+        // continuation. Item GUID updates write the meta, so the worker hands them to the main thread and waits.
+        private void StartBuild(string path)
         {
+            if (!_buildTasks.Remove(path, out BackgroundTask? task))
+                task = BackgroundTasks.Add("Import " + Path.GetFileName(path), Icon.File, () => CancelBuild(path));
             if (!_metas.TryGetValue(path, out MetaInfo? info) || !_cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
+            {
+                BackgroundTasks.Complete(task);
                 return;
-            string metaPath = FullPath(AssetMeta.PathFor(path));
-            AssetBuildResult result;
+            }
+            AssetMeta meta;
             try
             {
-                AssetMeta meta = AssetMeta.Read(metaPath);
-                result = Pipeline.Build(new AssetBuildRequest(info.Guid, FullPath(path), record.Hash, meta.ImportSettings, meta.ProcessSettings, meta.Items,
-                    items => UpdateItems(path, items)));
+                meta = AssetMeta.Read(FullPath(AssetMeta.PathFor(path)));
             }
             catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
             {
-                result = new AssetBuildResult(AssetBuildStatus.Failed, e.Message);
+                BackgroundTasks.Complete(task);
+                _buildsFailed++;
+                Debug.LogError($"[Assets] Could not build {path}: {e.Message}");
+                return;
             }
 
+            RunningBuild running = new() { Guid = info.Guid, Task = task, Cancel = new CancellationTokenSource() };
+            _runningBuilds[path] = running;
+            task.Start();
+            AssetBuildRequest request = new(info.Guid, FullPath(path), record.Hash, meta.ImportSettings, meta.ProcessSettings, meta.Items,
+                items =>
+                {
+                    List<ImportedAssetItem> imported = items.ToList();
+                    AssetItemUpdate? update = null;
+                    Jobs.Schedule(() => update = UpdateItems(path, imported), JobQueue.Main).Wait();
+                    return update;
+                },
+                (fraction, stage) =>
+                {
+                    if (_logBuildThreads && stage == "Hashing")
+                        Debug.Log($"[Assets] Building {path} on thread {Environment.CurrentManagedThreadId} (main thread {_mainThreadId})");
+                    task.Report(fraction, stage);
+                    if (_slowStageMilliseconds > 0)
+                        Thread.Sleep(_slowStageMilliseconds);
+                },
+                running.Cancel.Token);
+            JobHandle work = Jobs.Schedule(() => running.Result = Pipeline.Build(request));
+            running.Done = Jobs.Schedule(() => FinishBuild(path, running), JobQueue.Main, work);
+        }
+
+        private void FinishBuild(string path, RunningBuild running)
+        {
+            _runningBuilds.Remove(path);
+            BackgroundTasks.Complete(running.Task);
+            running.Cancel.Dispose();
+            AssetBuildResult result = running.Result;
             switch (result.Status)
             {
                 case AssetBuildStatus.Imported:
@@ -743,12 +842,17 @@ namespace xgEditor.CoreCLR
                     _buildsFailed++;
                     Debug.LogError($"[Assets] Could not build {path}: {result.Error}");
                     break;
+                case AssetBuildStatus.Canceled:
+                    Debug.Log($"[Assets] Canceled the build of {path}; its last good output is kept");
+                    break;
             }
             if (result.Status is AssetBuildStatus.Imported or AssetBuildStatus.Processed or AssetBuildStatus.ManifestUpdated)
-                RefreshImportTags(info.Guid);
-            if (_cache.ByPath.TryGetValue(path, out record))
+                RefreshImportTags(running.Guid);
+            if (result.Status != AssetBuildStatus.Canceled && _cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
                 _buildStamps[path] = (record.Size, record.Modified, record.MetaModified);
             BuildVersion++;
+            if (_rebuildAfter.Remove(path) && _metas.ContainsKey(path))
+                QueueBuild(path);
         }
 
         private void RefreshImportTags(string guid)
