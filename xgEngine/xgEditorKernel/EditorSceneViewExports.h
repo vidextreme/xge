@@ -22,6 +22,17 @@ XG_MODULE_EXPORT void XG_EditorSetSceneViewCamera(uint64_t id, const xg::RenderV
 XG_MODULE_EXPORT void XG_EditorSetSceneViewTexture(uint64_t id, uint64_t textureId, int32_t mode);
 // Meshes drawn in the view after its test cube (xg::RenderViewDraw: mesh id, texture id, world 4x4); count 0 clears.
 XG_MODULE_EXPORT void XG_EditorSetSceneViewDraws(uint64_t id, const void* draws, uint32_t count);
+// Material draws of the view (xg::SceneDraw: mesh id, material id, world 4x4); count 0 clears.
+XG_MODULE_EXPORT void XG_EditorSetSceneViewMaterialDraws(uint64_t id, const void* draws, uint32_t count);
+// xg::RenderViewFlags (1 hides the test cube and grid, 2 hides the scene's draws).
+XG_MODULE_EXPORT void XG_EditorSetSceneViewFlags(uint64_t id, uint32_t flags);
+// Editor-owned renderer meshes (xg::MeshDesc) and materials (xg::MaterialDesc), e.g. a material preview's shape and
+// the unsaved draft it shows. 0 = failed.
+XG_MODULE_EXPORT uint64_t XG_EditorCreateMesh(const void* desc);
+XG_MODULE_EXPORT void XG_EditorDestroyMesh(uint64_t id);
+XG_MODULE_EXPORT uint64_t XG_EditorCreateMaterial(const void* desc);
+XG_MODULE_EXPORT int XG_EditorUpdateMaterial(uint64_t id, const void* desc);
+XG_MODULE_EXPORT void XG_EditorDestroyMaterial(uint64_t id);
 
 namespace xg
 {

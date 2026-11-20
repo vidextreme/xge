@@ -477,6 +477,34 @@ namespace xg
         blob->Size = 0;
     }
 
+    uint32_t ResourceSystemImpl::Invalidate(const ResourceGUID* file)
+    {
+        CheckThread();
+        if (!file || IsZero(*file))
+            return 0;
+        uint32_t count = 0;
+        for (auto it = _lookup.begin(); it != _lookup.end();)
+        {
+            if (it->first.Id.File.Hi == file->Hi && it->first.Id.File.Lo == file->Lo)
+            {
+                _slots[it->second].Stale = true;
+                it = _lookup.erase(it);
+                ++count;
+            }
+            else
+            {
+                ++it;
+            }
+        }
+        return count;
+    }
+
+    bool ResourceSystemImpl::IsStale(ResourceHandle handle) const
+    {
+        const Slot* slot = Resolve(handle);
+        return !slot || slot->Stale;
+    }
+
     void ResourceSystemImpl::Collect()
     {
         CheckThread();
@@ -500,7 +528,9 @@ namespace xg
         const bool unload = slot.State == ResourceState::Ready && desc.Unload;
         void* data = slot.Data;
 
-        _lookup.erase(Key{ slot.Type, slot.Id });
+        if (!slot.Stale)
+            _lookup.erase(Key{ slot.Type, slot.Id });
+        slot.Stale = false;
         slot.Used = false;
         slot.Type = 0;
         slot.Id = {};

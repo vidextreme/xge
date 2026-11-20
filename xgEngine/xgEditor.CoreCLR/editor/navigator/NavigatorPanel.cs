@@ -86,7 +86,7 @@ namespace xgEditor.CoreCLR
 
         private static readonly AssetKind[] _filterKinds =
         {
-            AssetKind.Script, AssetKind.Image, AssetKind.Material, AssetKind.Mesh, AssetKind.Audio, AssetKind.Scene, AssetKind.Text, AssetKind.Other,
+            AssetKind.Script, AssetKind.Image, AssetKind.Material, AssetKind.Shader, AssetKind.Mesh, AssetKind.Audio, AssetKind.Scene, AssetKind.Text, AssetKind.Other,
         };
 
         private readonly NavigatorHistory _history = new();
@@ -115,6 +115,9 @@ namespace xgEditor.CoreCLR
         private ListState _treeList;
         private NavigatorMode _mode = NavigatorMode.Directory;
         private string _folder = AssetIndex.RootFolder;
+
+        // The folder the grid shows ("Assets/...").
+        public string Folder => _folder;
         private string? _pathError;
         private string? _selected;
         private int _kinds;
@@ -560,7 +563,8 @@ namespace xgEditor.CoreCLR
                 case "images": case "texture": case "textures": case "img": kind = AssetKind.Image; return true;
                 case "scripts": case "cs": kind = AssetKind.Script; return true;
                 case "meshes": case "model": case "models": kind = AssetKind.Mesh; return true;
-                case "mat": case "materials": kind = AssetKind.Material; return true;
+                case "mat": case "materials": case "xcm": kind = AssetKind.Material; return true;
+                case "shaders": case "hlsl": kind = AssetKind.Shader; return true;
                 case "sound": case "sounds": kind = AssetKind.Audio; return true;
                 case "scenes": kind = AssetKind.Scene; return true;
                 case "txt": kind = AssetKind.Text; return true;
@@ -1349,6 +1353,13 @@ namespace xgEditor.CoreCLR
             draw.RectFilled(Rect.FromXYWH(0.0f, barHeight * 0.5f, width, barHeight * 0.5f), _sectionBg);
             DrawSectionBar(draw, Rect.FromXYWH(0.0f, 0.0f, width, barHeight), SectionLabel(section));
             draw.Rect(frame, Style.Color(StyleColor.Border), 4.0f);
+            if ((Gui.HitArea("##tiles_background", frame) & Result.RightClicked) != 0)
+            {
+                _contextPath = null;
+                _contextSection = sectionIndex;
+                _contextRect = Offset(Rect.FromXYWH(pad, barHeight, 0.0f, pad), canvas.Bounds.min);
+                _openContext = true;
+            }
             for (int i = 0; i < section.Items.Count; i++)
             {
                 GridItem item = section.Items[i];
@@ -1544,6 +1555,8 @@ namespace xgEditor.CoreCLR
             {
                 if (entry.IsFolder)
                     Navigate(entry.RelPath);
+                else if (xg.editor.MaterialAsset.IsMaterial(entry.RelPath))
+                    MaterialEditorPanel.Open(entry.RelPath);
                 else
                     OpenFile(entry.FullPath);
             }
@@ -1568,8 +1581,13 @@ namespace xgEditor.CoreCLR
             }
             const float width = 180.0f;
             using var popup = Gui.Popup(ContextPopupId, new Vector2(_contextRect.min.x + 8.0f, _contextRect.max.y - 6.0f), new Vector2(width, 0.0f));
-            if (!popup.IsOpen || _contextPath is null)
+            if (!popup.IsOpen)
                 return;
+            if (_contextPath is null)
+            {
+                DrawCreateRows(width);
+                return;
+            }
             bool bookmarked = _bookmarks!.IsBookmarked(_contextPath);
             using var canvas = Gui.Canvas("##nav_context_rows", new Vector2(width, 4.0f * (SegHeight + 2.0f) + 6.0f));
             Painter draw = canvas.Draw;
@@ -1604,6 +1622,26 @@ namespace xgEditor.CoreCLR
                 OpenRename(entry.RelPath);
                 Gui.ClosePopup();
             }
+        }
+
+        // Create menu of the grid's background: new assets in the current folder, then the Rename modal.
+        private void DrawCreateRows(float width)
+        {
+            using var canvas = Gui.Canvas("##nav_create_rows", new Vector2(width, 2.0f * (SegHeight + 2.0f) + 6.0f));
+            Painter draw = canvas.Draw;
+            float inner = width - 8.0f;
+            string? created = null;
+            if (ToggleButton.Draw(draw, "##create_material", Rect.FromXYWH(4.0f, 4.0f, inner, SegHeight), Icon.Material, null,
+                "Create material", null, $"A new .xcm in {_folder}", false, true, ToggleDot.None).Clicked())
+                created = AssetTemplates.CreateMaterial(_folder);
+            if (ToggleButton.Draw(draw, "##create_shader", Rect.FromXYWH(4.0f, 6.0f + SegHeight, inner, SegHeight), Icon.Code, null,
+                "Create shader", null, $"A new surface shader in {_folder}", false, true, ToggleDot.None).Clicked())
+                created = AssetTemplates.CreateShader(_folder);
+            if (created is null)
+                return;
+            Gui.ClosePopup();
+            _selected = created;
+            OpenRename(created, 2);
         }
 
         // ------------------------------------------------------------

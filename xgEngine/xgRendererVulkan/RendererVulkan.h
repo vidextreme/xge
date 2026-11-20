@@ -37,6 +37,15 @@ namespace xg {
         uint64_t CreateMesh(const MeshDesc* desc) override;
         void DestroyMesh(uint64_t id) override;
         void SetRenderViewDraws(uint64_t viewId, const RenderViewDraw* draws, uint32_t count) override;
+        ShaderFormat GetShaderFormat() const override { return ShaderFormat::SPIRV; }
+        uint64_t CreateShader(const ShaderDesc* desc) override;
+        void DestroyShader(uint64_t id) override;
+        uint64_t CreateMaterial(const MaterialDesc* desc) override;
+        bool UpdateMaterial(uint64_t id, const MaterialDesc* desc) override;
+        void DestroyMaterial(uint64_t id) override;
+        void SetSceneDraws(const SceneDraw* draws, uint32_t count) override;
+        void SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count) override;
+        void SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags) override;
 
         bool SupportsSurfaces() const override { return !_failed; }
         uint64_t CreateUISurface(Window& window) override;
@@ -110,6 +119,24 @@ namespace xg {
             uint64_t Texture = 0;
             RenderViewTextureMode Mode = RenderViewTextureMode::Color;
             std::vector<RenderViewDraw> Draws;
+            std::vector<SceneDraw> MaterialDraws;
+            RenderViewFlags Flags = RenderViewFlags::None;
+        };
+
+        struct GpuShader
+        {
+            VkPipeline Pipeline = VK_NULL_HANDLE;
+        };
+
+        // Set: XGMaterial UBO (Constants, mapped) + textures t0..t3; Views caches the image views written into it, so
+        // RefreshMaterialSets rewrites the set only when a texture changed or was destroyed.
+        struct GpuMaterial
+        {
+            uint64_t Shader = 0;
+            uint64_t Textures[MaterialTextureSlots] = {};
+            VkImageView Views[MaterialTextureSlots] = {};
+            Buffer Constants;
+            VkDescriptorSet Set = VK_NULL_HANDLE;
         };
 
         struct GpuMesh
@@ -156,7 +183,15 @@ namespace xg {
         bool CreateScenePipeline();
         bool CreateTexturedPipeline();
         bool CreateLitPipeline();
+        bool BuildMeshPipeline(VkPipelineLayout layout, VkShaderModule vertexShader, VkShaderModule pixelShader, VkPipeline& pipeline, const char* what);
+        bool CreateSurfaceLayout();
         GpuMesh* FindMesh(uint64_t id);
+        GpuShader* FindShader(uint64_t id);
+        GpuMaterial* FindMaterial(uint64_t id);
+        void WriteMaterial(GpuMaterial& material, const MaterialDesc& desc);
+        void RefreshMaterialSets();
+        void RecordLitMesh(const GpuMesh& mesh, VkPipelineLayout layout, const float* world, const float* viewProjection);
+        void RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection);
         bool CreateRenderViewTargets(RenderView& view, uint32_t width, uint32_t height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);
@@ -213,6 +248,18 @@ namespace xg {
         VkPipeline _litPipeline = VK_NULL_HANDLE;
         std::vector<GpuMesh> _meshes;
         std::vector<uint32_t> _freeMeshes;
+
+        static constexpr uint32_t MaterialSets = 256;
+        // Surface shaders: push constants (128 bytes), set 0 = XGMaterial UBO, t0..t3 and a wrapping sampler.
+        VkSampler _surfaceSampler = VK_NULL_HANDLE;
+        VkDescriptorSetLayout _surfaceSetLayout = VK_NULL_HANDLE;
+        VkPipelineLayout _surfacePipelineLayout = VK_NULL_HANDLE;
+        VkDescriptorPool _materialPool = VK_NULL_HANDLE;
+        std::vector<GpuShader> _shaders;
+        std::vector<uint32_t> _freeShaders;
+        std::vector<GpuMaterial> _materials;
+        std::vector<uint32_t> _freeMaterials;
+        std::vector<SceneDraw> _sceneDraws;
     };
 
 }

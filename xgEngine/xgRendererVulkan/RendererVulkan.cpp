@@ -111,6 +111,16 @@ namespace xg {
                 DestroyBuffer(mesh.Indices);
             }
             _meshes.clear();
+            for (GpuShader& shader : _shaders)
+                if (shader.Pipeline) vkDestroyPipeline(_device, shader.Pipeline, nullptr);
+            _shaders.clear();
+            for (GpuMaterial& material : _materials)
+                DestroyBuffer(material.Constants);
+            _materials.clear();
+            if (_materialPool) vkDestroyDescriptorPool(_device, _materialPool, nullptr);
+            if (_surfacePipelineLayout) vkDestroyPipelineLayout(_device, _surfacePipelineLayout, nullptr);
+            if (_surfaceSetLayout) vkDestroyDescriptorSetLayout(_device, _surfaceSetLayout, nullptr);
+            if (_surfaceSampler) vkDestroySampler(_device, _surfaceSampler, nullptr);
             if (_litPipeline) vkDestroyPipeline(_device, _litPipeline, nullptr);
             if (_litPipelineLayout) vkDestroyPipelineLayout(_device, _litPipelineLayout, nullptr);
             if (_sceneLinePipeline) vkDestroyPipeline(_device, _sceneLinePipeline, nullptr);
@@ -1001,6 +1011,7 @@ namespace xg {
             return false;
 
         if (withRenderViews)
+            RefreshMaterialSets();
             RecordRenderViews();
         RecordSurface(surface);
 

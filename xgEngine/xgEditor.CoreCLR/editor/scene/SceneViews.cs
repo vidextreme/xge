@@ -51,6 +51,60 @@ namespace xgEditor.CoreCLR
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewDraws")]
         public static partial void SetDraws(ulong id, Draw* draws, uint count);
 
+        // Mirrors xg::SceneDraw: a GPU mesh drawn with a renderer material (0 = the built-in look).
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MaterialDraw
+        {
+            public ulong Mesh;
+            public ulong Material;
+            public fixed float World[16];
+        }
+
+        // Mirrors xg::MeshDesc: Stride 52 (xg::shaders::SceneLitVertex), Format 0 = 16-bit indices, 1 = 32-bit.
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MeshDesc
+        {
+            public int VertexCount;
+            public int Stride;
+            public void* Vertices;
+            public int IndexCount;
+            public uint Format;
+            public void* Indices;
+        }
+
+        // Mirrors xg::MaterialDesc.
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MaterialDesc
+        {
+            public ulong Shader;
+            public fixed ulong Textures[4];
+            public fixed float Params[16];
+        }
+
+        public const uint FlagHideTestScene = 1;
+        public const uint FlagHideSceneDraws = 2;
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewMaterialDraws")]
+        public static partial void SetMaterialDraws(ulong id, MaterialDraw* draws, uint count);
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewFlags")]
+        public static partial void SetFlags(ulong id, uint flags);
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorCreateMesh")]
+        public static partial ulong CreateMesh(MeshDesc* desc);
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorDestroyMesh")]
+        public static partial void DestroyMesh(ulong id);
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorCreateMaterial")]
+        public static partial ulong CreateMaterial(MaterialDesc* desc);
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorUpdateMaterial")]
+        public static partial int UpdateMaterial(ulong id, MaterialDesc* desc);
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorDestroyMaterial")]
+        public static partial void DestroyMaterial(ulong id);
+
         // mode: 0 color, 1 tangent-space normal (BC5), 2 luminance (BC4). textureId 0 = untextured.
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewTexture")]
         public static partial void SetTexture(ulong id, ulong textureId, int mode);

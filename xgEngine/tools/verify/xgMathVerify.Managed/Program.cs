@@ -9,6 +9,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using xg;
 using xg.editor;
 using xg.math;
@@ -78,6 +79,8 @@ internal static class Program
         Run(nameof(TestResourceID), TestResourceID);
         Run(nameof(TestToolSelection), TestToolSelection);
         Run(nameof(TestMeshAssets), TestMeshAssets);
+        Run(nameof(TestShaderAnnotations), TestShaderAnnotations);
+        Run(nameof(TestMaterialAsset), TestMaterialAsset);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -796,6 +799,134 @@ internal static class Program
             Calls++;
             return new AssetDataFile(".xdv", ChunkTag.Make("XDV "), raw.Items.Select(i => new AssetDataItem(i.Kind, i.Path, [new ChunkData(ChunkTag.Make("VTXS"), i.Chunks[0].Data)])).ToList(),
                 Tags: ["@test:" + (settings["quality"]?.ToString() ?? "base"), "@Test:Mesh"]);
+        }
+    }
+
+    private const string SampleShader = """
+        #include "surface.common.hlsli"
+        //@group Surface
+        //@texture Albedo color
+        //@param Roughness float 0.5
+        //@group Tint
+        //@param Tint_color color 1,0.5,0.25,1
+        //@texture Tint_mask luminance
+        //@param Mask_strength float 1
+        float4 PSMain() : SV_Target { return 1; }
+        """;
+
+    private static void TestShaderAnnotations()
+    {
+        ShaderAnnotations parsed = ShaderAnnotations.Parse(SampleShader);
+        Check(parsed.Errors.Count == 0, "the sample parses without errors");
+        Check(parsed.Groups.SequenceEqual(["Surface", "Tint"]), "groups keep first-use order");
+        Check(parsed.Params.Select(p => (p.Name, p.Slot)).SequenceEqual([("Roughness", 0), ("Tint_color", 1), ("Mask_strength", 2)]), "params take slots in declaration order");
+        Check(parsed.Textures.Select(t => (t.Name, t.Slot, t.Usage)).SequenceEqual([("Albedo", 0, ShaderTextureUsage.Color), ("Tint_mask", 1, ShaderTextureUsage.Luminance)]), "textures take slots in declaration order");
+        ShaderParam tint = parsed.FindParam("Tint_color")!;
+        Check(tint.Type == ShaderParamType.Color && tint.Default.SequenceEqual([1.0f, 0.5f, 0.25f, 1.0f]) && tint.Components == 4, "a color default fills xyzw");
+        Check(parsed.FindParam("Roughness")!.Default.SequenceEqual([0.5f, 0.0f, 0.0f, 0.0f]), "a float default fills x");
+        Check(parsed.Entries("Tint").Select(e => e is ShaderParam p ? p.Name : ((ShaderTexture)e).Name).SequenceEqual(["Tint_color", "Tint_mask", "Mask_strength"]), "a group mixes params and textures in declaration order");
+        Check(ShaderAnnotations.DisplayName("Tint_color") == "Tint color", "underscores show as spaces");
+
+        ShaderAnnotations ungrouped = ShaderAnnotations.Parse("//@param Tint color\n//@texture Albedo color");
+        Check(ungrouped.Groups.SequenceEqual([ShaderAnnotations.DefaultGroup]) && ungrouped.FindParam("Tint")!.Default.SequenceEqual([1.0f, 1.0f, 1.0f, 1.0f]), "entries before any group go in General; colors default to white");
+        Check(ShaderAnnotations.Parse("//@param A vec9").Errors.Count == 1, "an unknown type is an error");
+        Check(ShaderAnnotations.Parse("//@param A float\n//@texture A color").Errors.Count == 1, "a name declared twice is an error");
+        Check(ShaderAnnotations.Parse("//@param bad-name float").Errors.Count == 1, "names are letters, digits and _");
+        Check(ShaderAnnotations.Parse(string.Join("\n", Enumerable.Range(0, 5).Select(i => $"//@param P{i} float"))).Errors.Count == 1, "at most four params");
+        Check(ShaderAnnotations.Parse("//@unknown x").Errors.Count == 1, "an unknown annotation is an error");
+
+        byte[] packed = ShaderAssets.PackParams(parsed.Params);
+        Check(packed.Length == 3 * ShaderAssets.ParamRecordSize && Encoding.UTF8.GetString(packed, ShaderAssets.ParamRecordSize, 10) == "Tint_color"
+            && BitConverter.ToInt32(packed, ShaderAssets.ParamRecordSize + 36) == 1 && BitConverter.ToSingle(packed, ShaderAssets.ParamRecordSize + 44) == 0.5f,
+            "SHPR records hold name, type, slot and default (native ShaderParamInfo layout)");
+        Check(ShaderAssets.PackTextures(parsed.Textures).Length == 2 * ShaderAssets.TextureRecordSize, "SHTX records are 40 bytes");
+    }
+
+    private sealed class FakeShaderCompiler : IShaderCompiler
+    {
+        public string Key => "fake";
+        public int Calls;
+
+        public byte[] Compile(byte[] source, string sourceDirectory, string fileName, int stage, int backend)
+        {
+            Calls++;
+            if (Encoding.UTF8.GetString(source).Contains("SYNTAX ERROR"))
+                throw new InvalidDataException($"{fileName}(1): error: syntax error");
+            return [(byte)stage, (byte)backend, 0, 0];
+        }
+    }
+
+    private static void TestMaterialAsset()
+    {
+        const string shader = "5ade00000000000000000000000000a1";
+        const string texture = "2fea62e89b894139bd1b04ec9d1ee318";
+        const string chunk = "c39ed6f215e94d1f82e431b61957f9f0";
+        MaterialAsset material = new() { Shader = shader };
+        material.Params["Tint_color"] = [1.0f, 0.85f, 0.2f, 1.0f];
+        material.Textures["Albedo"] = texture;
+        material.Textures["Tint_mask"] = texture + "/" + chunk;
+        string json = material.ToJSON();
+        MaterialAsset parsed = MaterialAsset.Parse(json);
+        Check(parsed.SameAs(material) && parsed.Shader == shader && parsed.Params["Tint_color"][1] == 0.85f, "JSON round trip");
+        Check(json.EndsWith("\r\n") && json.Contains("\r\n  \"shader\""), "materials are pretty-printed with CRLF");
+        Check(MaterialAsset.Parse("{ \"shader\": \"\", \"params\": { \"Roughness\": 0.25 } }").Params["Roughness"][0] == 0.25f, "a scalar param reads as x");
+        Check(material.ReferencedGuids().Distinct().Count() == 2, "references: the shader and the texture file");
+
+        MaterialAsset unpacked = MaterialAssets.Unpack(MaterialAssets.Pack(material));
+        Check(unpacked.SameAs(material), "pack and unpack keep the shader, params and texture breadcrumbs");
+        byte[] header = MaterialAssets.Pack(material)[0].Data;
+        ResourceGUID shaderGuid = ResourceID.Parse(shader).File;
+        Check(BitConverter.ToUInt64(header, 12) == shaderGuid.Hi && BitConverter.ToUInt64(header, 20) == shaderGuid.Lo, "MTHD stores the shader as a native ResourceGUID");
+
+        MaterialAsset moved = material.Clone();
+        Check(moved.ReplaceGuid(texture, "00000000000000000000000000000abc") && moved.Textures["Tint_mask"] == "00000000000000000000000000000abc/" + chunk
+            && !material.SameAs(moved), "ReplaceGuid repairs texture breadcrumbs and keeps the chunk");
+        Check(moved.ReplaceGuid(shader, "00000000000000000000000000000def") && moved.Shader == "00000000000000000000000000000def", "ReplaceGuid repairs the shader");
+
+        string root = Path.Combine(Path.GetTempPath(), "xge-material-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string library = Path.Combine(root, "Library", "Data");
+            FakeShaderCompiler compiler = new();
+            AssetPipeline pipeline = new(library);
+            ShaderAssets.Register(pipeline, compiler);
+            MaterialAssets.Register(pipeline);
+            AssetBuildResult BuildAsset(string guid, string path)
+            {
+                AssetMeta meta = new() { Guid = guid };
+                return pipeline.Build(new AssetBuildRequest(guid, path, null, meta.ImportSettings, meta.ProcessSettings, meta.Items, items =>
+                {
+                    AssetItemUpdate update = AssetItemTable.Update(meta.Items, items);
+                    meta.Items = update.Items;
+                    return update;
+                }));
+            }
+
+            string shaderPath = Path.Combine(root, "surface.sample.hlsl");
+            File.WriteAllText(shaderPath, SampleShader);
+            Check(BuildAsset(shader, shaderPath).Status == AssetBuildStatus.Imported && compiler.Calls == 4, "a shader compiles four times (VS, PS x DXIL, SPIR-V)");
+            string xds = pipeline.FindFile(shader, ShaderAssets.ProcessedExtension)!;
+            Check(Path.GetFileName(Path.GetDirectoryName(xds)) == "Shaders" && Resources.ValidateChunkFile(File.ReadAllBytes(xds)) == ChunkFileStatus.Valid, "the .xds lands in Shaders and the native reader accepts it");
+            List<ChunkData> chunks = ChunkFile.Parse(File.ReadAllBytes(xds)).Items.Single().Chunks;
+            Check(chunks.Where(c => c.Type == ShaderAssets.BytecodeChunk).Select(c => c.Extra).Order().SequenceEqual([0x100UL, 0x101UL, 0x200UL, 0x201UL]), "SHBC Extra = stage | backend << 8");
+            Check(pipeline.ManifestOf(shader)!.Tags.SequenceEqual(["@shader:3params", "@shader:2textures"]), "shader import tags count params and textures");
+
+            File.WriteAllText(shaderPath, SampleShader + "\nSYNTAX ERROR");
+            AssetBuildResult failed = BuildAsset(shader, shaderPath);
+            Check(failed.Status == AssetBuildStatus.Failed && failed.Error!.Contains("syntax error") && File.Exists(xds), "a compile error fails the build with dxc's message and keeps the last .xds");
+
+            const string materialGuid = "0000000000000000000000000000e001";
+            string materialPath = Path.Combine(root, "Bear.xcm");
+            material.Write(materialPath);
+            Check(BuildAsset(materialGuid, materialPath).Status == AssetBuildStatus.Imported, "a material builds");
+            string xdm = pipeline.FindFile(materialGuid, MaterialAssets.ProcessedExtension)!;
+            Check(Path.GetFileName(Path.GetDirectoryName(xdm)) == "Materials" && Resources.ValidateChunkFile(File.ReadAllBytes(xdm)) == ChunkFileStatus.Valid, "the .xdm lands in Materials and the native reader accepts it");
+            Check(MaterialAssets.Unpack(ChunkFile.Parse(File.ReadAllBytes(xdm)).Items.Single().Chunks).SameAs(material), "the .xdm holds the material");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
         }
     }
 

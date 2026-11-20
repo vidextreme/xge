@@ -32,6 +32,8 @@
     <Compile Include="assets\TextureFormats.cs" />
     <Compile Include="assets\TextureAssets.cs" />
     <Compile Include="assets\MeshAssets.cs" />
+    <Compile Include="assets\ShaderAssets.cs" />
+    <Compile Include="assets\MaterialAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
     <Compile Include="tools\EditorTool.cs" />
@@ -57,6 +59,7 @@
     <Compile Include="DrawerRegistry.cs" />
     <Compile Include="EditorGUI.cs" />
     <Compile Include="BuiltinDrawers.cs" />
+    <Compile Include="AssetPicker.cs" />
   </ItemGroup>
 
   <ItemGroup>

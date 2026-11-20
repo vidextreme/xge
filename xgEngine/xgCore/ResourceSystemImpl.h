@@ -38,6 +38,8 @@ namespace xg
         bool RemoveSource(uint32_t moduleId, uint32_t source) override;
         bool ReadFile(const ResourceGUID* file, const char* extension, ResourceBlob* out) override;
         void FreeBlob(ResourceBlob* blob) override;
+        uint32_t Invalidate(const ResourceGUID* file) override;
+        bool IsStale(ResourceHandle handle) const override;
 
     private:
         struct TypeEntry
@@ -65,6 +67,8 @@ namespace xg
             uint32_t TotalReferences = 0;
             std::vector<ModuleReference> References;
             JobHandle Job = 0;
+            // Invalidated: no longer in the lookup; a later Acquire of the same key gets a new slot.
+            bool Stale = false;
         };
 
         struct Source

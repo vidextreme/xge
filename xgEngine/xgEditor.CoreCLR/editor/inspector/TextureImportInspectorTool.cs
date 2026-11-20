@@ -20,6 +20,7 @@ namespace xgEditor.CoreCLR
 
         public ToolUsability OnSelectItems(object[] selection) =>
             selection.LastOrDefault() is AssetRef asset && ProjectService.Assets is { } assets && assets.Pipeline.CanImport(asset.Path)
+                && AssetIndex.KindOf(Path.GetExtension(asset.Path).TrimStart('.')) == AssetKind.Image
                 ? ToolUsability.Usable
                 : ToolUsability.NotApplicable;
 

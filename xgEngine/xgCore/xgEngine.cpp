@@ -22,9 +22,12 @@
 #include "ResourceSystemImpl.h"
 #include "ComponentDataRegistryImpl.h"
 #include "TransformSystemImpl.h"
+#include "MeshRenderSystemImpl.h"
 #include "JobSystemImpl.h"
 #include "TextureResources.h"
 #include "ModelResources.h"
+#include "ShaderResources.h"
+#include "MaterialResources.h"
 #include "LoggerImpl.h"
 #include "SceneGraphFactoryImpl.h"
 
@@ -91,7 +94,10 @@ namespace xg
         RegisterSubsystem(_rootModule, new TransformSystemImpl(this, componentData, _rootModule->GetModuleId()));
         auto* jobs = new JobSystemImpl();
         RegisterSubsystem(_rootModule, jobs);
-        RegisterSubsystem(_rootModule, new ResourceSystemImpl(jobs));
+        auto* resources = new ResourceSystemImpl(jobs);
+        RegisterSubsystem(_rootModule, resources);
+        _meshRenderSystem = new MeshRenderSystemImpl(componentData, resources, GetSubsystem<TransformSystem>(), _rootModule->GetModuleId());
+        RegisterSubsystem(_rootModule, _meshRenderSystem);
         
         auto eventDispatcher = new EventDispatcherImpl();
         RegisterSubsystem(_rootModule, eventDispatcher);
@@ -177,6 +183,12 @@ namespace xg
     bool Engine::SetRendererModule(const char* path)
     {
         ResourceSystem* resources = GetSubsystem<ResourceSystem>();
+        if (resources && _materialType != 0)
+            resources->UnregisterType(_rootModule->GetModuleId(), _materialType);
+        if (resources && _shaderType != 0)
+            resources->UnregisterType(_rootModule->GetModuleId(), _shaderType);
+        _materialType = 0;
+        _shaderType = 0;
         if (resources && _modelType != 0)
             resources->UnregisterType(_rootModule->GetModuleId(), _modelType);
         if (resources && _textureType != 0)
@@ -195,6 +207,8 @@ namespace xg
         {
             _textureType = RegisterTextureResources(*resources, _rootModule->GetModuleId(), Renderer.get());
             _modelType = RegisterModelResources(*resources, _rootModule->GetModuleId(), Renderer.get());
+            _shaderType = RegisterShaderResources(*resources, _rootModule->GetModuleId(), Renderer.get());
+            _materialType = RegisterMaterialResources(*resources, _rootModule->GetModuleId(), Renderer.get(), _shaderType, _textureType);
         }
         return true;
     }
@@ -694,6 +708,8 @@ namespace xg
 
             if (TransformSystem* transforms = GetSubsystem<TransformSystem>())
                 transforms->Update();
+            if (_meshRenderSystem)
+                _meshRenderSystem->Update(Renderer.get());
 
             if (Renderer)
                 Renderer->Render();
@@ -746,6 +762,11 @@ namespace xg
     void Engine::Shutdown()
     {
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
+        if (_meshRenderSystem)
+        {
+            _meshRenderSystem->Detach();
+            _meshRenderSystem = nullptr;
+        }
 
         std::vector<ScriptModule*> modules;
         modules.reserve(storage->Modules.size());

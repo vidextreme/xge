@@ -476,6 +476,7 @@ namespace xg::imui
         void Open() const { XG_ImUIOpenPanel(_handle); }
         void Close() const { XG_ImUIClosePanel(_handle); }
         void Focus() const { XG_ImUIFocusPanel(_handle); }
+        void Dock() const { XG_ImUIDockPanel(_handle); }
         void Repaint() const { XG_ImUIRequestRepaint(_handle); }
         bool IsOpen() const { return XG_ImUIIsPanelOpen(_handle); }
         bool IsRegistered() const { return _handle != nullptr; }

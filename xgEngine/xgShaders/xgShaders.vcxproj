@@ -35,6 +35,7 @@
     <None Include="src\scene.unlit.hlsl" />
     <None Include="src\scene.textured.hlsl" />
     <None Include="src\scene.lit.hlsl" />
+    <None Include="include\surface.common.hlsli" />
     <None Include="CompileShaders.ps1" />
     <None Include="xgShaders.targets" />
     <ClInclude Include="xgShaderTypes.h" />

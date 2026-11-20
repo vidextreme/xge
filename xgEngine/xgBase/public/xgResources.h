@@ -185,5 +185,11 @@ namespace xg
         // Reads the file "<file-guid>.<extension>" from the first source that has it. Thread-safe.
         virtual bool ReadFile(const ResourceGUID* file, const char* extension, ResourceBlob* out) = 0;
         virtual void FreeBlob(ResourceBlob* blob) = 0;
+
+        // The file was rebuilt: its cached resources (every type and chunk) become stale, so the next Acquire loads a
+        // fresh copy while holders keep the old data until they release it. Returns how many resources went stale.
+        virtual uint32_t Invalidate(const ResourceGUID* file) = 0;
+        // True when the handle's resource was invalidated (re-acquire to get the new one) or the handle is stale.
+        virtual bool IsStale(ResourceHandle handle) const = 0;
     };
 }

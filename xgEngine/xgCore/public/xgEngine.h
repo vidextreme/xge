@@ -25,6 +25,7 @@ namespace xg
     class ScriptNode;
     struct Subsystem;
     class LoggerImpl;
+    class MeshRenderSystemImpl;
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -109,6 +110,9 @@ namespace xg
 
         uint32_t _textureType = 0;
         uint32_t _modelType = 0;
+        uint32_t _shaderType = 0;
+        uint32_t _materialType = 0;
+        MeshRenderSystemImpl* _meshRenderSystem = nullptr;
 
         int _startupSteps = 0;
         int _startupStepLimit = -1;

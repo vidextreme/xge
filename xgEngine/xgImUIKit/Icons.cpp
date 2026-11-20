@@ -448,6 +448,39 @@ namespace xg::imui::detail
             dl->AddTriangleFilled(ImVec2(c.x - s * 0.8f, mid - s), ImVec2(c.x + s * 1.1f, mid), ImVec2(c.x - s * 0.8f, mid + s), col);
             break;
         }
+        case Icon::Settings:
+        {
+            constexpr int Teeth = 8;
+            for (int i = 0; i < Teeth; ++i)
+            {
+                const float a = IM_PI * 2.0f * static_cast<float>(i) / Teeth;
+                const ImVec2 d(ImCos(a), ImSin(a));
+                dl->AddLine(ImVec2(c.x + d.x * h * 0.55f, c.y + d.y * h * 0.55f), ImVec2(c.x + d.x * h * 0.92f, c.y + d.y * h * 0.92f), col, 2.2f);
+            }
+            dl->AddCircle(c, h * 0.6f, col, 16, 1.4f);
+            dl->AddCircle(c, h * 0.22f, col, 10, 1.3f);
+            break;
+        }
+        case Icon::Code:
+        {
+            const ImVec2 left[] = { ImVec2(c.x - h * 0.35f, c.y - h * 0.6f), ImVec2(c.x - h * 0.95f, c.y), ImVec2(c.x - h * 0.35f, c.y + h * 0.6f) };
+            dl->AddPolyline(left, 3, col, ImDrawFlags_None, 1.4f);
+            const ImVec2 right[] = { ImVec2(c.x + h * 0.35f, c.y - h * 0.6f), ImVec2(c.x + h * 0.95f, c.y), ImVec2(c.x + h * 0.35f, c.y + h * 0.6f) };
+            dl->AddPolyline(right, 3, col, ImDrawFlags_None, 1.4f);
+            dl->AddLine(ImVec2(c.x + h * 0.18f, c.y - h * 0.8f), ImVec2(c.x - h * 0.18f, c.y + h * 0.8f), col, 1.3f);
+            break;
+        }
+        case Icon::Save:
+        {
+            const ImVec2 lo(ImFloor(c.x - h * 0.85f) + 0.5f, ImFloor(c.y - h * 0.85f) + 0.5f);
+            const ImVec2 hi(ImFloor(c.x + h * 0.85f) + 0.5f, ImFloor(c.y + h * 0.85f) + 0.5f);
+            const float cut = h * 0.4f;
+            const ImVec2 outline[] = { lo, ImVec2(hi.x - cut, lo.y), ImVec2(hi.x, lo.y + cut), hi, ImVec2(lo.x, hi.y) };
+            dl->AddPolyline(outline, 5, col, ImDrawFlags_Closed, 1.3f);
+            dl->AddRectFilled(ImVec2(lo.x + h * 0.35f, lo.y), ImVec2(hi.x - h * 0.6f, lo.y + h * 0.55f), col);
+            dl->AddRect(ImVec2(lo.x + h * 0.3f, c.y + h * 0.15f), ImVec2(hi.x - h * 0.3f, hi.y), col, 0.0f, 0, 1.2f);
+            break;
+        }
         }
     }
 }

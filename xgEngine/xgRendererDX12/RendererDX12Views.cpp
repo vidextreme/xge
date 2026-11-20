@@ -317,7 +317,7 @@ namespace xg {
         const TextureMip mip{ white, sizeof(white), 4 };
         const TextureDesc desc{ 1, 1, 1, TextureFormat::RGBA8, TextureFlags::None };
         _whiteTexture = CreateTexture(&desc, &mip);
-        return _whiteTexture != 0 && CreateLitPipeline();
+        return _whiteTexture != 0 && CreateLitPipeline() && CreateSurfaceRootSignature();
     }
 
     bool RendererDX12::CreateLitPipeline()
@@ -449,6 +449,278 @@ namespace xg {
         if (!view)
             return;
         view->Draws.assign(draws, draws ? draws + count : draws);
+    }
+
+    bool RendererDX12::CreateSurfaceRootSignature()
+    {
+        D3D12_DESCRIPTOR_RANGE ranges[MaterialTextureSlots] = {};
+        D3D12_ROOT_PARAMETER params[2 + MaterialTextureSlots] = {};
+        params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        params[0].Constants.Num32BitValues = sizeof(SceneLitConstants) / 4;
+        params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        params[1].Descriptor.ShaderRegister = 1;
+        params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        for (UINT i = 0; i < static_cast<UINT>(MaterialTextureSlots); ++i)
+        {
+            ranges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            ranges[i].NumDescriptors = 1;
+            ranges[i].BaseShaderRegister = i;
+            ranges[i].OffsetInDescriptorsFromTableStart = 0;
+            params[2 + i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[2 + i].DescriptorTable.NumDescriptorRanges = 1;
+            params[2 + i].DescriptorTable.pDescriptorRanges = &ranges[i];
+            params[2 + i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        }
+
+        D3D12_STATIC_SAMPLER_DESC sampler = {};
+        sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.MaxLOD = D3D12_FLOAT32_MAX;
+        sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+        D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
+        rootDesc.NumParameters = 2 + MaterialTextureSlots;
+        rootDesc.pParameters = params;
+        rootDesc.NumStaticSamplers = 1;
+        rootDesc.pStaticSamplers = &sampler;
+        rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+        ComPtr<ID3DBlob> signature;
+        ComPtr<ID3DBlob> error;
+        if (FAILED(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error)))
+        {
+            xg::Log(xg::MessageType::Error, "RendererDX12: surface root signature: %s",
+                error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
+            return false;
+        }
+        return Check(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_surfaceRootSignature)),
+            "CreateRootSignature (surface)");
+    }
+
+    RendererDX12::GpuShader* RendererDX12::FindShader(uint64_t id)
+    {
+        if (id == 0 || id > _shaders.size())
+            return nullptr;
+        GpuShader& shader = _shaders[static_cast<size_t>(id - 1)];
+        return shader.Pipeline ? &shader : nullptr;
+    }
+
+    RendererDX12::GpuMaterial* RendererDX12::FindMaterial(uint64_t id)
+    {
+        if (id == 0 || id > _materials.size())
+            return nullptr;
+        GpuMaterial& material = _materials[static_cast<size_t>(id - 1)];
+        return material.Constants ? &material : nullptr;
+    }
+
+    uint64_t RendererDX12::CreateShader(const ShaderDesc* desc)
+    {
+        if (_failed || !_surfaceRootSignature || !desc || !desc->VS || !desc->PS || desc->VSSize == 0 || desc->PSSize == 0)
+            return 0;
+        D3D12_INPUT_ELEMENT_DESC layout[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, offsetof(SceneLitVertex, X),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, offsetof(SceneLitVertex, NX),    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SceneLitVertex, TX),    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, offsetof(SceneLitVertex, U),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM,     0, offsetof(SceneLitVertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC pso = {};
+        pso.pRootSignature = _surfaceRootSignature.Get();
+        pso.VS = { desc->VS, static_cast<SIZE_T>(desc->VSSize) };
+        pso.PS = { desc->PS, static_cast<SIZE_T>(desc->PSSize) };
+        pso.InputLayout = { layout, 5 };
+        pso.NumRenderTargets = 1;
+        pso.RTVFormats[0] = ViewColorTarget;
+        pso.DSVFormat = DepthFormat;
+        pso.SampleMask = UINT_MAX;
+        pso.SampleDesc.Count = 1;
+        pso.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+        pso.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+        pso.RasterizerState.DepthClipEnable = TRUE;
+        pso.DepthStencilState.DepthEnable = TRUE;
+        pso.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        pso.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        pso.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+        pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        GpuShader shader;
+        if (FAILED(_device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&shader.Pipeline))))
+        {
+            xg::Log(xg::MessageType::Error, "RendererDX12: a surface shader failed to create its pipeline; check that it follows surface.common.hlsli");
+            return 0;
+        }
+        UINT slot;
+        if (!_freeShaders.empty())
+        {
+            slot = _freeShaders.back();
+            _freeShaders.pop_back();
+            _shaders[slot] = std::move(shader);
+        }
+        else
+        {
+            slot = static_cast<UINT>(_shaders.size());
+            _shaders.push_back(std::move(shader));
+        }
+        return static_cast<uint64_t>(slot) + 1;
+    }
+
+    void RendererDX12::DestroyShader(uint64_t id)
+    {
+        GpuShader* shader = FindShader(id);
+        if (!shader)
+            return;
+        WaitForGPU();
+        *shader = GpuShader();
+        _freeShaders.push_back(static_cast<UINT>(id - 1));
+    }
+
+    bool RendererDX12::WriteMaterial(GpuMaterial& material, const MaterialDesc& desc)
+    {
+        material.Shader = desc.Shader;
+        for (int i = 0; i < MaterialTextureSlots; ++i)
+            material.Textures[i] = desc.Textures[i];
+        std::memcpy(material.Mapped, desc.Params, sizeof(desc.Params));
+        return true;
+    }
+
+    uint64_t RendererDX12::CreateMaterial(const MaterialDesc* desc)
+    {
+        if (_failed || !desc)
+            return 0;
+        GpuMaterial material;
+        D3D12_HEAP_PROPERTIES heap = {};
+        heap.Type = D3D12_HEAP_TYPE_UPLOAD;
+        D3D12_RESOURCE_DESC buffer = {};
+        buffer.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        buffer.Width = 256;
+        buffer.Height = 1;
+        buffer.DepthOrArraySize = 1;
+        buffer.MipLevels = 1;
+        buffer.SampleDesc.Count = 1;
+        buffer.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        if (!Check(_device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &buffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+            IID_PPV_ARGS(&material.Constants)), "CreateCommittedResource (material)"))
+            return 0;
+        D3D12_RANGE noRead = { 0, 0 };
+        if (!Check(material.Constants->Map(0, &noRead, &material.Mapped), "Map (material)"))
+            return 0;
+        std::memset(material.Mapped, 0, 256);
+        WriteMaterial(material, *desc);
+        UINT slot;
+        if (!_freeMaterials.empty())
+        {
+            slot = _freeMaterials.back();
+            _freeMaterials.pop_back();
+            _materials[slot] = std::move(material);
+        }
+        else
+        {
+            slot = static_cast<UINT>(_materials.size());
+            _materials.push_back(std::move(material));
+        }
+        return static_cast<uint64_t>(slot) + 1;
+    }
+
+    bool RendererDX12::UpdateMaterial(uint64_t id, const MaterialDesc* desc)
+    {
+        GpuMaterial* material = FindMaterial(id);
+        if (!material || !desc)
+            return false;
+        WaitForGPU();
+        return WriteMaterial(*material, *desc);
+    }
+
+    void RendererDX12::DestroyMaterial(uint64_t id)
+    {
+        GpuMaterial* material = FindMaterial(id);
+        if (!material)
+            return;
+        WaitForGPU();
+        material->Constants->Unmap(0, nullptr);
+        *material = GpuMaterial();
+        _freeMaterials.push_back(static_cast<UINT>(id - 1));
+    }
+
+    void RendererDX12::SetSceneDraws(const SceneDraw* draws, uint32_t count)
+    {
+        _sceneDraws.assign(draws, draws ? draws + count : draws);
+    }
+
+    void RendererDX12::SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count)
+    {
+        if (RenderView* view = FindRenderView(viewId))
+            view->MaterialDraws.assign(draws, draws ? draws + count : draws);
+    }
+
+    void RendererDX12::SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags)
+    {
+        if (RenderView* view = FindRenderView(viewId))
+            view->Flags = flags;
+    }
+
+    void RendererDX12::RecordLitMesh(const GpuMesh& mesh, const float* world, const float* viewProjection)
+    {
+        SceneLitConstants lit = {};
+        Multiply4x4(world, viewProjection, lit.WorldViewProjection);
+        for (int row = 0; row < 3; ++row)
+            for (int k = 0; k < 4; ++k)
+                lit.WorldRows[row * 4 + k] = k < 3 ? world[row * 4 + k] : 0.0f;
+        _commandList->SetGraphicsRoot32BitConstants(0, sizeof(SceneLitConstants) / 4, &lit, 0);
+        D3D12_VERTEX_BUFFER_VIEW meshVertices = { mesh.Vertices->GetGPUVirtualAddress(), mesh.VertexBytes, mesh.Stride };
+        D3D12_INDEX_BUFFER_VIEW meshIndices = { mesh.Indices->GetGPUVirtualAddress(),
+            mesh.IndexCount * (mesh.IndexFormat == DXGI_FORMAT_R32_UINT ? 4u : 2u), mesh.IndexFormat };
+        _commandList->IASetVertexBuffers(0, 1, &meshVertices);
+        _commandList->IASetIndexBuffer(&meshIndices);
+        _commandList->DrawIndexedInstanced(mesh.IndexCount, 1, 0, 0, 0);
+    }
+
+    void RendererDX12::RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, D3D12_GPU_DESCRIPTOR_HANDLE heapStart)
+    {
+        if (draws.empty() || !_litPipeline)
+            return;
+        ID3D12PipelineState* bound = nullptr;
+        _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        for (const SceneDraw& draw : draws)
+        {
+            GpuMesh* mesh = FindMesh(draw.Mesh);
+            if (!mesh)
+                continue;
+            GpuMaterial* material = FindMaterial(draw.Material);
+            GpuShader* shader = material ? FindShader(material->Shader) : nullptr;
+            if (shader && _surfaceRootSignature)
+            {
+                if (bound != shader->Pipeline.Get())
+                {
+                    _commandList->SetGraphicsRootSignature(_surfaceRootSignature.Get());
+                    _commandList->SetPipelineState(shader->Pipeline.Get());
+                    bound = shader->Pipeline.Get();
+                }
+                _commandList->SetGraphicsRootConstantBufferView(1, material->Constants->GetGPUVirtualAddress());
+                for (int i = 0; i < MaterialTextureSlots; ++i)
+                {
+                    const uint64_t texture = material->Textures[i] != 0 && FindTexture(material->Textures[i]) ? material->Textures[i] : _whiteTexture;
+                    D3D12_GPU_DESCRIPTOR_HANDLE srv = heapStart;
+                    srv.ptr += static_cast<UINT64>(texture - 1) * _srvDescriptorSize;
+                    _commandList->SetGraphicsRootDescriptorTable(2 + i, srv);
+                }
+            }
+            else
+            {
+                if (bound != _litPipeline.Get())
+                {
+                    _commandList->SetGraphicsRootSignature(_litRootSignature.Get());
+                    _commandList->SetPipelineState(_litPipeline.Get());
+                    bound = _litPipeline.Get();
+                }
+                const uint64_t texture = material && material->Textures[0] != 0 && FindTexture(material->Textures[0]) ? material->Textures[0] : _whiteTexture;
+                D3D12_GPU_DESCRIPTOR_HANDLE srv = heapStart;
+                srv.ptr += static_cast<UINT64>(texture - 1) * _srvDescriptorSize;
+                _commandList->SetGraphicsRootDescriptorTable(1, srv);
+            }
+            RecordLitMesh(*mesh, draw.World, viewProjection);
+        }
     }
 
     bool RendererDX12::CreateRenderViewTargets(RenderView& view, UINT width, UINT height)
@@ -640,13 +912,17 @@ namespace xg {
             const uint64_t texture = view.Texture != 0 && FindTexture(view.Texture) ? view.Texture : _whiteTexture;
             D3D12_GPU_DESCRIPTOR_HANDLE srv = heapStart;
             srv.ptr += static_cast<UINT64>(texture - 1) * _srvDescriptorSize;
-            _commandList->SetGraphicsRootSignature(_texturedRootSignature.Get());
-            _commandList->SetGraphicsRoot32BitConstants(0, sizeof(SceneTexturedConstants) / 4, &constants, 0);
-            _commandList->SetGraphicsRootDescriptorTable(1, srv);
-            _commandList->SetPipelineState(_texturedPipeline.Get());
-            _commandList->IASetVertexBuffers(0, 1, &cubeView);
-            _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            _commandList->DrawInstanced(_cubeVertexCount, 1, 0, 0);
+            const bool testScene = !HasFlag(view.Flags, RenderViewFlags::HideTestScene);
+            if (testScene)
+            {
+                _commandList->SetGraphicsRootSignature(_texturedRootSignature.Get());
+                _commandList->SetGraphicsRoot32BitConstants(0, sizeof(SceneTexturedConstants) / 4, &constants, 0);
+                _commandList->SetGraphicsRootDescriptorTable(1, srv);
+                _commandList->SetPipelineState(_texturedPipeline.Get());
+                _commandList->IASetVertexBuffers(0, 1, &cubeView);
+                _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                _commandList->DrawInstanced(_cubeVertexCount, 1, 0, 0);
+            }
 
             if (!view.Draws.empty() && _litPipeline)
             {
@@ -658,31 +934,26 @@ namespace xg {
                     GpuMesh* mesh = FindMesh(draw.Mesh);
                     if (!mesh)
                         continue;
-                    SceneLitConstants lit = {};
-                    Multiply4x4(draw.World, constants.ViewProjection, lit.WorldViewProjection);
-                    for (int row = 0; row < 3; ++row)
-                        for (int k = 0; k < 4; ++k)
-                            lit.WorldRows[row * 4 + k] = k < 3 ? draw.World[row * 4 + k] : 0.0f;
                     const uint64_t drawTexture = draw.Texture != 0 && FindTexture(draw.Texture) ? draw.Texture : _whiteTexture;
                     D3D12_GPU_DESCRIPTOR_HANDLE drawSrv = heapStart;
                     drawSrv.ptr += static_cast<UINT64>(drawTexture - 1) * _srvDescriptorSize;
-                    _commandList->SetGraphicsRoot32BitConstants(0, sizeof(SceneLitConstants) / 4, &lit, 0);
                     _commandList->SetGraphicsRootDescriptorTable(1, drawSrv);
-                    D3D12_VERTEX_BUFFER_VIEW meshVertices = { mesh->Vertices->GetGPUVirtualAddress(), mesh->VertexBytes, mesh->Stride };
-                    D3D12_INDEX_BUFFER_VIEW meshIndices = { mesh->Indices->GetGPUVirtualAddress(),
-                        mesh->IndexCount * (mesh->IndexFormat == DXGI_FORMAT_R32_UINT ? 4u : 2u), mesh->IndexFormat };
-                    _commandList->IASetVertexBuffers(0, 1, &meshVertices);
-                    _commandList->IASetIndexBuffer(&meshIndices);
-                    _commandList->DrawIndexedInstanced(mesh->IndexCount, 1, 0, 0, 0);
+                    RecordLitMesh(*mesh, draw.World, constants.ViewProjection);
                 }
             }
+            RecordSceneDraws(view.MaterialDraws, constants.ViewProjection, heapStart);
+            if (!HasFlag(view.Flags, RenderViewFlags::HideSceneDraws))
+                RecordSceneDraws(_sceneDraws, constants.ViewProjection, heapStart);
 
-            _commandList->SetGraphicsRootSignature(_sceneRootSignature.Get());
-            _commandList->SetGraphicsRoot32BitConstants(0, 16, constants.ViewProjection, 0);
-            _commandList->SetPipelineState(_sceneLinePipeline.Get());
-            _commandList->IASetVertexBuffers(0, 1, &vbv);
-            _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-            _commandList->DrawInstanced(_sceneLineVertexCount, 1, 0, 0);
+            if (testScene)
+            {
+                _commandList->SetGraphicsRootSignature(_sceneRootSignature.Get());
+                _commandList->SetGraphicsRoot32BitConstants(0, 16, constants.ViewProjection, 0);
+                _commandList->SetPipelineState(_sceneLinePipeline.Get());
+                _commandList->IASetVertexBuffers(0, 1, &vbv);
+                _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+                _commandList->DrawInstanced(_sceneLineVertexCount, 1, 0, 0);
+            }
 
             D3D12_RESOURCE_BARRIER toShader = ViewTransition(color, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             _commandList->ResourceBarrier(1, &toShader);

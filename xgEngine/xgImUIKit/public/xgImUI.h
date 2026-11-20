@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 17;
+    inline constexpr uint32_t ApiVersion = 19;
 
     struct Context;
     struct PanelEntry;
@@ -103,6 +103,7 @@ namespace xg::imui
         Lock, Unlock,
         Clock, Stack,
         PlayWindow,
+        Settings, Code, Save,
         Count
     };
 
@@ -327,6 +328,8 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUIClosePanel(imui::PanelHandle panel);
     XG_MODULE_EXPORT bool XG_ImUIIsPanelOpen(imui::PanelHandle panel);
     XG_MODULE_EXPORT void XG_ImUIFocusPanel(imui::PanelHandle panel);
+    // Opens the panel docked into its slot on the next frame, even when the layout file remembers it floating (ApiVersion 19).
+    XG_MODULE_EXPORT void XG_ImUIDockPanel(imui::PanelHandle panel);
     XG_MODULE_EXPORT void XG_ImUIRequestRepaint(imui::PanelHandle panel);
 
     XG_MODULE_EXPORT imui::MenuItemHandle XG_ImUIRegisterMenuItem(const char* path, const char* shortcut, imui::MenuFn callback, void* user);

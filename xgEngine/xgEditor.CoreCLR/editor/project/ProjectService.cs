@@ -67,6 +67,7 @@ namespace xgEditor.CoreCLR
             Debug.Log($"[Project] Opened {Current.Name} ({Current.Root})");
             Startup.Report("Indexing assets", Current.Root, Startup.Indeterminate);
             Assets = new AssetDatabase(Current.Root);
+            AssetBrowser.Current = new ProjectAssetBrowser(Assets);
             AddResourceSource(Current);
 
             if (ScriptRuntime.ProjectAutoBuild)
