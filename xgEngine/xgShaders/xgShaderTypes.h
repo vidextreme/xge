@@ -37,4 +37,27 @@ namespace xg::shaders {
     };
     static_assert(sizeof(SceneTexturedConstants) == 80, "SceneTexturedConstants must match scene.textured.hlsl");
 
+    // src/scene.lit.hlsl VSInput, the .xdv vertex layout: POSITION, NORMAL (float3), TANGENT (float4, w = handedness),
+    // TEXCOORD0 (float2), COLOR0 (RGBA8 unorm).
+    struct SceneLitVertex
+    {
+        float X, Y, Z;
+        float NX, NY, NZ;
+        float TX, TY, TZ, TW;
+        float U, V;
+        Color32 Color;
+    };
+    static_assert(sizeof(SceneLitVertex) == 52, "SceneLitVertex must match scene.lit.hlsl and the .xdv stride");
+
+    // src/scene.lit.hlsl LitConstants (128 bytes, Vulkan's guaranteed push constant size): world-view-projection, the
+    // world matrix's first three rows (for normals), then the mode.
+    struct SceneLitConstants
+    {
+        float WorldViewProjection[16];
+        float WorldRows[12];
+        uint32_t Mode;
+        uint32_t Padding[3];
+    };
+    static_assert(sizeof(SceneLitConstants) == 128, "SceneLitConstants must match scene.lit.hlsl");
+
 }

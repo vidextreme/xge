@@ -40,8 +40,11 @@ namespace xg.editor
         AssetDataFile Process(AssetDataFile raw, JsonObject settings);
     }
 
+    // Progress (optional) receives the build's fraction (0..1) and stage name; it may be called from a worker thread.
+    // Cancel stops the build between stages: it returns Canceled and keeps the last good output.
     public sealed record AssetBuildRequest(string Guid, string SourcePath, string? SourceHash, JsonObject ImportSettings, JsonObject ProcessSettings,
-        IReadOnlyList<AssetItem> StoredItems, Func<IEnumerable<ImportedAssetItem>, AssetItemUpdate?> UpdateItems);
+        IReadOnlyList<AssetItem> StoredItems, Func<IEnumerable<ImportedAssetItem>, AssetItemUpdate?> UpdateItems,
+        Action<float, string>? Progress = null, CancellationToken Cancel = default);
 
     public enum AssetBuildStatus
     {
@@ -52,6 +55,7 @@ namespace xg.editor
         ManifestUpdated,
         Failed,
         PreviouslyFailed,
+        Canceled,
     }
 
     public sealed record AssetBuildResult(AssetBuildStatus Status, string? Error = null);
@@ -199,8 +203,14 @@ namespace xg.editor
             string sourceName = Path.GetFileName(request.SourcePath);
             AssetBuildManifest? old = LoadManifest(manifestPath);
             string? inputKey = null;
+            void Stage(float fraction, string stage)
+            {
+                request.Cancel.ThrowIfCancellationRequested();
+                request.Progress?.Invoke(fraction, stage);
+            }
             try
             {
+                Stage(0.02f, "Hashing");
                 string sourceHash = request.SourceHash ?? HashFile(request.SourcePath) ?? throw new IOException($"Could not read {request.SourcePath}");
                 string importSettings = Canonical(request.ImportSettings);
                 string processSettings = Canonical(request.ProcessSettings);
@@ -225,7 +235,9 @@ namespace xg.editor
                 bool imported = rawFiles is null;
                 if (rawFiles is null)
                 {
+                    Stage(0.1f, "Importing");
                     rawFiles = importer.Import(request.SourcePath, request.ImportSettings).ToList();
+                    Stage(0.55f, "Assigning items");
                     guids = AssignItems(rawFiles, request);
                 }
                 else
@@ -262,8 +274,10 @@ namespace xg.editor
                 {
                     processedNames = new List<string>();
                     List<string> collected = new();
-                    foreach (AssetDataFile raw in rawFiles)
+                    for (int r = 0; r < rawFiles.Count; r++)
                     {
+                        AssetDataFile raw = rawFiles[r];
+                        Stage(0.6f + 0.3f * r / rawFiles.Count, $"Processing {raw.Extension}");
                         IAssetProcessor processor = _processors.FirstOrDefault(p => p.Accepts(raw.Extension))
                             ?? throw new InvalidDataException($"No processor accepts {raw.Extension}");
                         AssetDataFile processed = processor.Process(raw, request.ProcessSettings);
@@ -276,6 +290,7 @@ namespace xg.editor
                     tags = collected.Distinct(StringComparer.Ordinal).ToList();
                 }
 
+                Stage(0.9f, "Writing");
                 Commit(folder, guid, manifestPath, output, rawNames.Concat(processedNames));
                 SaveManifest(manifestPath, new AssetBuildManifest
                 {
@@ -292,6 +307,10 @@ namespace xg.editor
                 if (!reuseProcessed)
                     return new AssetBuildResult(imported ? AssetBuildStatus.Imported : AssetBuildStatus.Processed);
                 return new AssetBuildResult(AssetBuildStatus.ManifestUpdated);
+            }
+            catch (OperationCanceledException) when (request.Cancel.IsCancellationRequested)
+            {
+                return new AssetBuildResult(AssetBuildStatus.Canceled);
             }
             catch (Exception e)
             {

@@ -122,6 +122,32 @@ XG_MODULE_EXPORT bool XG_ResourceGetTexture(xg::ScriptEngine* engine, uint64_t h
     return true;
 }
 
+// Copies the summary of a Ready "model" resource. False for other types or states.
+XG_MODULE_EXPORT bool XG_ResourceGetModel(xg::ScriptEngine* engine, uint64_t handle, xg::ModelResourceInfo* outInfo)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    if (!resources || !outInfo || resources->FindType(xg::ModelResourceType) == 0)
+        return false;
+    const auto* info = static_cast<const xg::ModelResourceInfo*>(resources->GetData(handle));
+    if (!info)
+        return false;
+    *outInfo = *info;
+    outInfo->Parts = nullptr;
+    return true;
+}
+
+XG_MODULE_EXPORT bool XG_ResourceGetModelPart(xg::ScriptEngine* engine, uint64_t handle, int32_t index, xg::ModelPartInfo* outPart)
+{
+    xg::ResourceSystem* resources = ResourcesOf(engine);
+    if (!resources || !outPart || resources->FindType(xg::ModelResourceType) == 0)
+        return false;
+    const auto* info = static_cast<const xg::ModelResourceInfo*>(resources->GetData(handle));
+    if (!info || index < 0 || index >= info->PartCount || !info->Parts)
+        return false;
+    *outPart = info->Parts[index];
+    return true;
+}
+
 // Test hook: an in-memory type that logs its loads and unloads. IDs whose file GUID starts with 16 'f' digits fail to load.
 XG_MODULE_EXPORT uint32_t XG_ResourceRegisterTestType(xg::ScriptEngine* engine, uint32_t moduleId, const char* name)
 {

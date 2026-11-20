@@ -170,7 +170,7 @@ reference: <file-guid>/7f3a...
 * A failed build keeps the last good output and isn't retried until its inputs change.
 * Generated data of deleted assets is removed.
 * `.xrt` isn't stored. Textures keep decoded pixels in memory between importing and processing, and go from source to `.xdt`.
-* Builds run on the main thread within a per-frame time budget.
+* Builds run as job system jobs: the worker does the import and processing, the main thread reads and writes the `.xmd` and applies the result. Builds report their stage and progress and can be cancelled between stages, which keeps the last good output.
 
 **Texture data.** `.xdt` has one `texture` item with:
 
@@ -201,6 +201,20 @@ Color mips are averaged in linear space, and normal mips are renormalized. BC te
 * **Textures:** the engine registers the `texture` type when a renderer exists. `<asset-guid>/<texture-item-guid>` loads the item's `TXHD` and the first `TXPX` the renderer supports; the data is a renderer texture id (also a UI texture id) with size, format and usage. DX12 always supports BC; Vulkan needs `textureCompressionBC`.
 * **Render views** render in linear color through an sRGB target, so sampled sRGB textures and blending are correct; their test cube shows a texture (`SetRenderViewTexture`).
 
+## Meshes
+
+**Decided** (Tier 6).
+
+* **Importer:** FBX through ufbx (`3rdparty/ufbx`, compiled only into the editor kernel). Files are converted to the engine's space: left-handed, Y up, meters, mirrored on Z. Embedded content and animation are skipped, and missing normals are generated. Import setting: `import.scale`.
+* **Items:** one `submesh` item per material part of a mesh, path `<mesh>/<material>` (an unnamed mesh takes its first node's name, an unnamed material is `material<index>`), plus one `hierarchy` item.
+* `.xrv` (raw, stored): `MSHD` (mesh index, material index, counts, channel flags, bounds) and one chunk per channel: `PVEC`, `NVEC`, `TVEC`, `UVC0`, `CVEC`, `IVEC`.
+* `.xrh` (raw, stored): `NODE` (parent, mesh index, name, local and geometry matrices) and `NAME`.
+* `.xdv`: `VHDR` plus `VTXS`, a 52-byte interleaved vertex (position, normal, tangent with handedness in w, uv0, RGBA8 colour; missing channels defaulted) and `IX16` or `IX32`.
+* `.xdh`: the node table with world matrices.
+* Matrices are row-major for row vectors. Parts and nodes link by mesh index, and a part is drawn once per node that uses its mesh.
+* Import tags: `@mesh:<N>tris`, `@mesh:<N>parts`, `@mesh:normals`, `@mesh:uv`, `@mesh:colors`.
+* **Runtime:** the `model` resource type loads `<guid>.xdv` and `<guid>.xdh` by the asset GUID alone, creates one GPU mesh per part and exposes the placed parts.
+
 ## Open questions
 
 * **Physics:** `.xco` includes physics, but no data type holds it.
@@ -217,7 +231,7 @@ Color mips are averaged in linear space, and normal mips are renormalized. BC te
 | 3. Chunk container | Define the binary format | File header, chunk bits, item chunks, nested typed data | Round-trip tests pass, and bad or old files are rejected cleanly |
 | 4. Library pipeline | Generate data from assets | GUID-addressed `Library/`, importer and processor interfaces, rebuild keys, `cat.png` -> `.xdt` | Deleting `Library/` rebuilds identical references |
 | 5. Textures at runtime | Reach the GPU | Source layer under resource loading, texture API in DX12 and Vulkan, threading model | A `.xdt` loads by breadcrumb and displays on both renderers (done: job system, async loads, test cube) |
-| 6. Meshes | Bring in models | Importer module, `.xrv`/`.xrh` -> `.xdv`/`.xdh`, mesh GPU API | An imported mesh draws in the Scene view |
+| 6. Meshes | Bring in models | Importer module, `.xrv`/`.xrh` -> `.xdv`/`.xdh`, mesh GPU API | An imported mesh draws in the Scene view (done: FBX via ufbx, static meshes and hierarchy) |
 | 7. Compositions | Let users author content | `.xds` shaders, `.xcm`, `.xco`, their editors, name-tree repair, dependency loading, drawer component | A saved `.xco` survives a `Library/` rebuild and renders |
 | 8. Later | Complete the system | `.xda`, `.xcf`, `.xca`, hot reload, eviction, player packaging | Planned separately |
 

@@ -7,6 +7,7 @@
 #include "pch.h"
 #include "RendererDX12.h"
 #include "xgLog.h"
+#include "dxil.scene.lit.h"
 #include "dxil.scene.textured.h"
 #include "dxil.scene.unlit.h"
 #include "xgShaderTypes.h"
@@ -18,6 +19,8 @@ namespace xg {
 
     namespace
     {
+        using shaders::SceneLitConstants;
+        using shaders::SceneLitVertex;
         using shaders::SceneTexturedConstants;
         using shaders::SceneTexturedVertex;
         using shaders::SceneVertex;
@@ -87,6 +90,18 @@ namespace xg {
             vertices.push_back({ 0.0f, 0.0f, 0.0f, Rgba(111, 160, 74) });
             vertices.push_back({ 0.0f, 2.0f, 0.0f, Rgba(111, 160, 74) });
             lineVertexCount = static_cast<UINT>(vertices.size());
+        }
+
+        void Multiply4x4(const float* a, const float* b, float* out)
+        {
+            for (int row = 0; row < 4; ++row)
+                for (int column = 0; column < 4; ++column)
+                {
+                    float sum = 0.0f;
+                    for (int k = 0; k < 4; ++k)
+                        sum += a[row * 4 + k] * b[k * 4 + column];
+                    out[row * 4 + column] = sum;
+                }
         }
 
         bool CreateUploadVertices(ID3D12Device* device, const void* data, size_t size, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer)
@@ -302,7 +317,138 @@ namespace xg {
         const TextureMip mip{ white, sizeof(white), 4 };
         const TextureDesc desc{ 1, 1, 1, TextureFormat::RGBA8, TextureFlags::None };
         _whiteTexture = CreateTexture(&desc, &mip);
-        return _whiteTexture != 0;
+        return _whiteTexture != 0 && CreateLitPipeline();
+    }
+
+    bool RendererDX12::CreateLitPipeline()
+    {
+        D3D12_DESCRIPTOR_RANGE range = {};
+        range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        range.NumDescriptors = 1;
+        range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        D3D12_ROOT_PARAMETER params[2] = {};
+        params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        params[0].Constants.Num32BitValues = sizeof(SceneLitConstants) / 4;
+        params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[1].DescriptorTable.NumDescriptorRanges = 1;
+        params[1].DescriptorTable.pDescriptorRanges = &range;
+        params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+        D3D12_STATIC_SAMPLER_DESC sampler = {};
+        sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.MaxLOD = D3D12_FLOAT32_MAX;
+        sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+        D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
+        rootDesc.NumParameters = 2;
+        rootDesc.pParameters = params;
+        rootDesc.NumStaticSamplers = 1;
+        rootDesc.pStaticSamplers = &sampler;
+        rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+        ComPtr<ID3DBlob> signature;
+        ComPtr<ID3DBlob> error;
+        if (FAILED(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error)))
+        {
+            xg::Log(xg::MessageType::Error, "RendererDX12: lit root signature: %s",
+                error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
+            return false;
+        }
+        if (!Check(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_litRootSignature)), "CreateRootSignature (lit)"))
+            return false;
+
+        D3D12_INPUT_ELEMENT_DESC layout[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, offsetof(SceneLitVertex, X),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, offsetof(SceneLitVertex, NX),    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SceneLitVertex, TX),    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, offsetof(SceneLitVertex, U),     D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM,     0, offsetof(SceneLitVertex, Color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC pso = {};
+        pso.pRootSignature = _litRootSignature.Get();
+        pso.VS = { shaders::dxil::_sceneLitVS, sizeof(shaders::dxil::_sceneLitVS) };
+        pso.PS = { shaders::dxil::_sceneLitPS, sizeof(shaders::dxil::_sceneLitPS) };
+        pso.InputLayout = { layout, 5 };
+        pso.NumRenderTargets = 1;
+        pso.RTVFormats[0] = ViewColorTarget;
+        pso.DSVFormat = DepthFormat;
+        pso.SampleMask = UINT_MAX;
+        pso.SampleDesc.Count = 1;
+        pso.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+        pso.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+        pso.RasterizerState.DepthClipEnable = TRUE;
+        pso.DepthStencilState.DepthEnable = TRUE;
+        pso.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        pso.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        pso.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+        pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        return Check(_device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&_litPipeline)), "CreateGraphicsPipelineState (scene lit)");
+    }
+
+    RendererDX12::GpuMesh* RendererDX12::FindMesh(uint64_t id)
+    {
+        if (id == 0 || id > _meshes.size())
+            return nullptr;
+        GpuMesh& mesh = _meshes[static_cast<size_t>(id - 1)];
+        return mesh.Vertices ? &mesh : nullptr;
+    }
+
+    uint64_t RendererDX12::CreateMesh(const MeshDesc* desc)
+    {
+        if (_failed || !desc || !desc->Vertices || !desc->Indices || desc->VertexCount <= 0 || desc->IndexCount <= 0
+            || desc->Stride != static_cast<int32_t>(sizeof(SceneLitVertex)))
+            return 0;
+        const size_t vertexBytes = static_cast<size_t>(desc->VertexCount) * static_cast<size_t>(desc->Stride);
+        const size_t indexSize = desc->Format == IndexFormat::UInt32 ? 4 : 2;
+        const size_t indexBytes = static_cast<size_t>(desc->IndexCount) * indexSize;
+        GpuMesh mesh;
+        if (!CreateUploadVertices(_device.Get(), desc->Vertices, vertexBytes, mesh.Vertices)
+            || !CreateUploadVertices(_device.Get(), desc->Indices, indexBytes, mesh.Indices))
+        {
+            xg::Log(xg::MessageType::Error, "RendererDX12: mesh buffers of %llu bytes failed", static_cast<unsigned long long>(vertexBytes + indexBytes));
+            return 0;
+        }
+        mesh.VertexBytes = static_cast<UINT>(vertexBytes);
+        mesh.Stride = static_cast<UINT>(desc->Stride);
+        mesh.IndexCount = static_cast<UINT>(desc->IndexCount);
+        mesh.IndexFormat = desc->Format == IndexFormat::UInt32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+        UINT slot;
+        if (!_freeMeshes.empty())
+        {
+            slot = _freeMeshes.back();
+            _freeMeshes.pop_back();
+            _meshes[slot] = std::move(mesh);
+        }
+        else
+        {
+            slot = static_cast<UINT>(_meshes.size());
+            _meshes.push_back(std::move(mesh));
+        }
+        return static_cast<uint64_t>(slot) + 1;
+    }
+
+    void RendererDX12::DestroyMesh(uint64_t id)
+    {
+        GpuMesh* mesh = FindMesh(id);
+        if (!mesh)
+            return;
+        WaitForGPU();
+        *mesh = GpuMesh();
+        _freeMeshes.push_back(static_cast<UINT>(id - 1));
+    }
+
+    void RendererDX12::SetRenderViewDraws(uint64_t viewId, const RenderViewDraw* draws, uint32_t count)
+    {
+        RenderView* view = FindRenderView(viewId);
+        if (!view)
+            return;
+        view->Draws.assign(draws, draws ? draws + count : draws);
     }
 
     bool RendererDX12::CreateRenderViewTargets(RenderView& view, UINT width, UINT height)
@@ -501,6 +647,35 @@ namespace xg {
             _commandList->IASetVertexBuffers(0, 1, &cubeView);
             _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             _commandList->DrawInstanced(_cubeVertexCount, 1, 0, 0);
+
+            if (!view.Draws.empty() && _litPipeline)
+            {
+                _commandList->SetGraphicsRootSignature(_litRootSignature.Get());
+                _commandList->SetPipelineState(_litPipeline.Get());
+                _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                for (const RenderViewDraw& draw : view.Draws)
+                {
+                    GpuMesh* mesh = FindMesh(draw.Mesh);
+                    if (!mesh)
+                        continue;
+                    SceneLitConstants lit = {};
+                    Multiply4x4(draw.World, constants.ViewProjection, lit.WorldViewProjection);
+                    for (int row = 0; row < 3; ++row)
+                        for (int k = 0; k < 4; ++k)
+                            lit.WorldRows[row * 4 + k] = k < 3 ? draw.World[row * 4 + k] : 0.0f;
+                    const uint64_t drawTexture = draw.Texture != 0 && FindTexture(draw.Texture) ? draw.Texture : _whiteTexture;
+                    D3D12_GPU_DESCRIPTOR_HANDLE drawSrv = heapStart;
+                    drawSrv.ptr += static_cast<UINT64>(drawTexture - 1) * _srvDescriptorSize;
+                    _commandList->SetGraphicsRoot32BitConstants(0, sizeof(SceneLitConstants) / 4, &lit, 0);
+                    _commandList->SetGraphicsRootDescriptorTable(1, drawSrv);
+                    D3D12_VERTEX_BUFFER_VIEW meshVertices = { mesh->Vertices->GetGPUVirtualAddress(), mesh->VertexBytes, mesh->Stride };
+                    D3D12_INDEX_BUFFER_VIEW meshIndices = { mesh->Indices->GetGPUVirtualAddress(),
+                        mesh->IndexCount * (mesh->IndexFormat == DXGI_FORMAT_R32_UINT ? 4u : 2u), mesh->IndexFormat };
+                    _commandList->IASetVertexBuffers(0, 1, &meshVertices);
+                    _commandList->IASetIndexBuffer(&meshIndices);
+                    _commandList->DrawIndexedInstanced(mesh->IndexCount, 1, 0, 0, 0);
+                }
+            }
 
             _commandList->SetGraphicsRootSignature(_sceneRootSignature.Get());
             _commandList->SetGraphicsRoot32BitConstants(0, 16, constants.ViewProjection, 0);

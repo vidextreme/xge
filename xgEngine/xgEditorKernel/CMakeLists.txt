@@ -1,8 +1,11 @@
 # Copyright (c) 2026 John David Uy
 # Licensed under the MIT License. See LICENSE for details.
 # Mirrors xgEditorKernel.vcxproj (its Generated/*.cpp are not compiled, as in the vcxproj).
+set(_ufbx ${XGE_ROOT}/3rdparty/ufbx/ufbx.c)
+xge_quiet_sources(${_ufbx})
 xge_target(xgEditorKernel SHARED
     SOURCES pch.cpp EditorKernel.cpp NativeTestWindow.cpp SceneViewWindow.cpp EditorSceneViewExports.cpp EditorTextureExports.cpp
+            EditorMeshExports.cpp ${_ufbx}
     INCLUDES ${XGE_ROOT}/xgImUIKit/public ${XGE_ROOT}/xgCore/public ${XGE_ROOT}/xgCore/Generated ${XGE_ROOT}/xgSharedKit
              ${XGE_ROOT}/xgSharedKit/public ${XGE_ROOT}/xgEditorKit ${XGE_ROOT}/xgEditorKit/public Generated
     WHOLE_ARCHIVE xgEditorKit xgSharedKit

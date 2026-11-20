@@ -20,6 +20,8 @@ XG_MODULE_EXPORT void XG_EditorSetSceneViewCamera(uint64_t id, const xg::RenderV
 // Texture on the view's test cube (a renderer texture id, e.g. from a "texture" resource; 0 = none). mode is
 // xg::RenderViewTextureMode (0 color, 1 normal, 2 luminance).
 XG_MODULE_EXPORT void XG_EditorSetSceneViewTexture(uint64_t id, uint64_t textureId, int32_t mode);
+// Meshes drawn in the view after its test cube (xg::RenderViewDraw: mesh id, texture id, world 4x4); count 0 clears.
+XG_MODULE_EXPORT void XG_EditorSetSceneViewDraws(uint64_t id, const void* draws, uint32_t count);
 
 namespace xg
 {

@@ -105,6 +105,14 @@ namespace xg {
 
             DestroyBuffer(_sceneVertexBuffer);
             DestroyBuffer(_cubeVertexBuffer);
+            for (GpuMesh& mesh : _meshes)
+            {
+                DestroyBuffer(mesh.Vertices);
+                DestroyBuffer(mesh.Indices);
+            }
+            _meshes.clear();
+            if (_litPipeline) vkDestroyPipeline(_device, _litPipeline, nullptr);
+            if (_litPipelineLayout) vkDestroyPipelineLayout(_device, _litPipelineLayout, nullptr);
             if (_sceneLinePipeline) vkDestroyPipeline(_device, _sceneLinePipeline, nullptr);
             if (_scenePipelineLayout) vkDestroyPipelineLayout(_device, _scenePipelineLayout, nullptr);
             if (_texturedPipeline) vkDestroyPipeline(_device, _texturedPipeline, nullptr);

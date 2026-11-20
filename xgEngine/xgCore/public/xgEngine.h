@@ -108,6 +108,7 @@ namespace xg
         void RunJobTest();
 
         uint32_t _textureType = 0;
+        uint32_t _modelType = 0;
 
         int _startupSteps = 0;
         int _startupStepLimit = -1;

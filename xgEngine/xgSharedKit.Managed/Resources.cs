@@ -113,6 +113,28 @@ namespace xg
         public uint Flags;
     }
 
+    // Mirrors xg::ModelResourceInfo (xgCore/public/xgRenderer.h) without the parts pointer (read parts with
+    // Resources.GetModelPart). Bounds are in model space.
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct ModelInfo
+    {
+        public int PartCount;
+        public int NodeCount;
+        public fixed float BoundsMin[3];
+        public fixed float BoundsMax[3];
+        private nint _parts;
+    }
+
+    // Mirrors xg::ModelPartInfo: a GPU mesh id and its model-space world matrix (row-major, row vectors).
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct ModelPartInfo
+    {
+        public ulong Mesh;
+        public int MaterialIndex;
+        public int TriangleCount;
+        public fixed float World[16];
+    }
+
     // The engine-wide resource cache. Main thread only. A resource can be Pending or Failed after Acquire, so check State.
     // Async types (like "texture") load on job workers: Acquire returns Pending and the resource becomes Ready or Failed
     // in a later frame (or call Wait).
@@ -157,6 +179,23 @@ namespace xg
 
         // The engine's texture resource type (registered when a renderer exists): breadcrumb <asset guid>/<texture item guid>.
         public const string TextureType = "texture";
+
+        // The engine's model resource type (registered when a renderer exists): an imported mesh asset by its GUID alone.
+        public const string ModelType = "model";
+
+        // The summary of a Ready "model" resource.
+        public static bool GetModel(ResourceHandle handle, out ModelInfo info)
+        {
+            info = default;
+            return ScriptRuntime._enginePtr != 0 && XG_ResourceGetModel(ScriptRuntime._enginePtr, handle.Value, out info);
+        }
+
+        // Drawn part index of a Ready "model" resource: its GPU mesh and model-space placement.
+        public static bool GetModelPart(ResourceHandle handle, int index, out ModelPartInfo part)
+        {
+            part = default;
+            return ScriptRuntime._enginePtr != 0 && XG_ResourceGetModelPart(ScriptRuntime._enginePtr, handle.Value, index, out part);
+        }
 
         // Test hook: registers a native in-memory type owned by this module.
         public static uint RegisterTestType(string name) =>
@@ -225,6 +264,14 @@ namespace xg
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceRemoveSource")]
         [return: MarshalAs(UnmanagedType.U1)]
         private static partial bool XG_ResourceRemoveSource(nint engine, uint moduleId, uint source);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetModel")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_ResourceGetModel(nint engine, ulong handle, out ModelInfo info);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetModelPart")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_ResourceGetModelPart(nint engine, ulong handle, int index, out ModelPartInfo part);
 
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetTexture")]
         [return: MarshalAs(UnmanagedType.U1)]

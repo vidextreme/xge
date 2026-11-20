@@ -39,6 +39,18 @@ namespace xgEditor.CoreCLR
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewCamera")]
         public static partial void SetCamera(ulong id, Camera* camera);
 
+        // Mirrors xg::RenderViewDraw: a GPU mesh drawn lit with a texture (0 = white) at a world matrix (row-major, row vectors).
+        [StructLayout(LayoutKind.Sequential)]
+        public struct Draw
+        {
+            public ulong Mesh;
+            public ulong Texture;
+            public fixed float World[16];
+        }
+
+        [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewDraws")]
+        public static partial void SetDraws(ulong id, Draw* draws, uint count);
+
         // mode: 0 color, 1 tangent-space normal (BC5), 2 luminance (BC4). textureId 0 = untextured.
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewTexture")]
         public static partial void SetTexture(ulong id, ulong textureId, int mode);

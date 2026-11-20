@@ -111,6 +111,7 @@
     <ClInclude Include="CompositeSceneGraph.h" />
     <ClInclude Include="JobSystemImpl.h" />
     <ClInclude Include="TextureResources.h" />
+    <ClInclude Include="ModelResources.h" />
     <ClInclude Include="DynamicObjectImpl.h" />
     <ClInclude Include="EventDispatcherImpl.h" />
     <ClInclude Include="EventQueueImpl.h" />
@@ -144,6 +145,7 @@
     <ClCompile Include="CompositeSceneGraph.cpp" />
     <ClCompile Include="JobSystemImpl.cpp" />
     <ClCompile Include="TextureResources.cpp" />
+    <ClCompile Include="ModelResources.cpp" />
     <ClCompile Include="LoggerImpl.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="SceneGraphFactoryImpl.cpp" />
