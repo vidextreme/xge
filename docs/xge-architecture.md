@@ -78,9 +78,9 @@ auto* factory = engine->GetSubsystem<SceneGraphFactory>(module);
 ```
 
 - The subsystem's type id is the FNV-1a hash of the base type name (`SuperTypeID`).
-- `RegisterSubsystemWithAlias(module, subsystem, "name")` / `GetSubsystemWithAlias(module, "name")` register several subsystems of the same type on one module, for example one component graph per component type.
+- `RegisterSubsystemWithAlias(module, subsystem, "name")` / `GetSubsystemWithAlias(module, "name")` register several subsystems of the same type on one module, for example one service per named context.
 - Passing `nullptr` as the module registers on the root.
-- The engine registers these on the root at startup: `Messenger`, `ActorRegistry`, `EventDispatcher`, `SceneGraphFactory` and `EventQueue`. `game.kernel` currently registers its scene graphs on the root too.
+- The engine registers these on the root at startup: `Messenger`, `ActorRegistry`, `ComponentDataRegistry`, `TransformSystem`, `JobSystem`, `ResourceSystem`, `EventDispatcher`, `SceneGraphFactory` and `EventQueue`. `game.kernel` registers the actor tree (`SceneGraph`) on the root too. See [SceneGraph and actors](xge-scenegraph.md) and [Native component data](xge-components2.md).
 
 ---
 

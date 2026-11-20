@@ -471,8 +471,8 @@ Numbers (VRAM saved, barrier count, CPU time) are measured and logged in each ph
 | DX12 backend | `xgRendererDX12/RendererDX12.*` | About 720 lines. Adapter selection, debug layer, swap chain with resize. One UI pipeline compiled at run time with `D3DCompile` (vs_5_0, ps_5_0). One 256-slot SRV heap. Committed resources only. Manual `ResourceBarrier` transitions. One command allocator, and `WaitForGPU()` after every present and every texture upload, so there are no frames in flight. |
 | SDL GPU fallback | `xgPlatform/UIRenderTargetSDLGPU.cpp` | UI-only presenter used when `RendererModule` is empty. Supports multi-viewport. |
 | Frame loop | `Engine::Run` in `xgCore/xgEngine.cpp` | Delta time, `PollEvents`, ScriptTree, `UpdateActors`, `Renderer->Render()`. |
-| Scene data | `xgBase/public/xgSceneNodeEngine.h` | `SceneNodeTransform` holds a local `Transform` but nothing uses it. No transform propagation, camera, mesh or material components. |
-| Component storage | `xgCore` `CompositeSceneGraph` / `StridePool` | Pointers into storage are invalidated by growth and swap-and-pop (ENGINE_STATUS §4 P1). |
+| Scene data | `xgBase/public/xgTransforms.h` | `TransformSystem` keeps optional transforms (local pose in the `"xg.Transform"` pool, world matrices from the actor tree, updated each frame). No camera, mesh or material components yet. |
+| Component storage | `xgCore` `ComponentDataRegistry` / `ComponentPool` | Packed pools per data type keyed by ActorID, with change versions and listeners. Elements still move on removal, so extraction reads by ActorID or at sync points, never through kept pointers. |
 | Assets | — | None. Only `FileWin` file I/O. No mesh, texture or shader assets. |
 | Math | `xgBase/math/` | Ready: `Mat4x4`, `Frustum` (D3D 0..1 depth), `AABB`, `Sphere`, `OBB`, culling helpers including a batch `XG_FrustumCullSpheres`. |
 | Scheduler | [xge-dispatch-group.md](xge-dispatch-group.md) | Design only. Everything runs on the main thread. |
@@ -499,8 +499,8 @@ Numbers (VRAM saved, barrier count, CPU time) are measured and logged in each ph
 |---|---|---|---|
 | E1 | **Renderer ABI** for render data: appended virtuals on `xg::Renderer` or C exports, POD descriptors, no STL | Modules and C# must feed the renderer across DLLs | Hard |
 | E2 | **Something to draw:** mesh, material and texture data, procedural or from a minimal loader; asset ids later | A scene pass has no input otherwise | Hard for phase 4 |
-| E3 | **Transforms and a camera:** world transform propagation from `SceneNodeTransform`, a camera component or system | Needed to build view and projection, and proxy transforms | Hard for phase 4 |
-| E4 | **Render world extraction:** a proxy store fed from scene graphs, after the `StridePool` pointer fixes | Proxies must not point into storage that moves | Hard for phase 4 |
+| E3 | **Transforms and a camera:** world transforms from `TransformSystem` (done), a camera component or system | Needed to build view and projection, and proxy transforms | Hard for phase 4 |
+| E4 | **Render world extraction:** a proxy store fed from the actor tree and component data pools (`CollectChanged` for incremental updates) | Proxies must not point into storage that moves | Hard for phase 4 |
 | E5 | **Dispatch Graph phases 1–2** (frame stages, `RenderPrep` group) | The natural home for extraction | Soft: extraction can run inline in `Engine::Run` first |
 | E6 | **Dispatch Graph phase 5** (worker pool) | Parallel command list recording | Soft (render phase 6) |
 | E7 | **Editor viewport plumbing:** an `XG_UI*` export that wraps a renderer-owned texture id in an `XG_UITexture`, so a panel can show it with `XG_UIDrawImage` | The editor viewport is the first visible 3D output | Hard for phase 4 |
