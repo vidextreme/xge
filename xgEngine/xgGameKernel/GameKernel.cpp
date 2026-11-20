@@ -7,7 +7,6 @@
 #include "xgActorRegistry.h"
 #include "xgHierarchyNode.h"
 #include "xgActorSystem.h"
-#include "xgComponentSceneGraph.h"
 
 namespace xg
 {
@@ -23,14 +22,6 @@ namespace xg
 		auto sceneGraph = sceneGraphFactory->Create("tree", *actorRegistry);
 		engine->RegisterSubsystem<SceneGraph>(nullptr, sceneGraph);
 
-		auto sceneRoot = xg::CreateNode<HierarchyNode>(*sceneGraph);
-		sceneRoot->Name = "mr root";
-
-		auto componentSG = sceneGraphFactory->Create("compset", *actorRegistry);
-		auto componentSet = static_cast<ComponentSceneGraph*>(componentSG);
-		engine->RegisterSubsystemWithAlias(nullptr, componentSet, "PlayerComponent");
-		componentSet->InitializeComponentSet("PlayerComponent", 12);
-		ComponentSetNode* co = componentSet->CreateComponent<ComponentSetNode>(55);
 		return true;
 	}
 	void GameKernelModule::Update(float dt)

@@ -54,6 +54,7 @@ namespace xg
         public object AddComponent(object component)
         {
             ArgumentNullException.ThrowIfNull(component);
+            ScriptThread.CheckMain("Actor.AddComponent");
             ThrowIfDestroyed();
             if (component is Transform)
                 return AddTransform();
@@ -89,6 +90,7 @@ namespace xg
         // Adds an identity transform, or returns the existing one.
         public Transform AddTransform()
         {
+            ScriptThread.CheckMain("Actor.AddTransform");
             ThrowIfDestroyed();
             if (!Transform.Exists(ID) && !Transform.Add(ID))
                 throw new InvalidOperationException($"Cannot add a Transform to actor {(ulong)ID}.");
@@ -97,6 +99,7 @@ namespace xg
 
         public bool RemoveTransform()
         {
+            ScriptThread.CheckMain("Actor.RemoveTransform");
             ThrowIfDestroyed();
             _transform = null;
             return Transform.Remove(ID);
@@ -151,6 +154,7 @@ namespace xg
 
         internal bool RemoveComponent(object component)
         {
+            ScriptThread.CheckMain("Actor.RemoveComponent");
             int index = _components.IndexOf(component);
             if (index < 0)
                 return false;
@@ -161,6 +165,7 @@ namespace xg
 
         public bool RemoveComponent<T>() where T : class
         {
+            ScriptThread.CheckMain("Actor.RemoveComponent");
             if (typeof(T) == typeof(Transform))
                 return RemoveTransform();
             for (int i = 0; i < _components.Count; i++)
@@ -179,6 +184,7 @@ namespace xg
         {
             if (!IsValid)
                 return;
+            ScriptThread.CheckMain("Actor.Destroy");
             Release();
             ActorRegistry.Unregister(this);
             if (!_adopted)

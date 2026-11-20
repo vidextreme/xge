@@ -127,4 +127,24 @@ namespace xg
         _data = data;
         _capacity = capacity;
     }
+
+    void ComponentPool::MoveListenersTo(ComponentPool& other)
+    {
+        for (const DataPoolListener& l : _listeners)
+            other.AddListener(l);
+        _listeners.clear();
+    }
+
+    uint32_t ComponentPool::AppendRaw(ActorID actor, uint32_t refCount, uint64_t version)
+    {
+        const uint32_t slot = Count();
+        if (slot == _capacity)
+            Reserve(_capacity ? _capacity * 2 : 16);
+        std::memset(Data(slot), 0, _stride);
+        _owners.push_back(actor);
+        _refCounts.push_back(refCount);
+        _versions.push_back(version);
+        _slots.emplace(actor, slot);
+        return slot;
+    }
 }

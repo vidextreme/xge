@@ -40,6 +40,11 @@ namespace xg
         void RemoveListener(DataTypeID type, const DataPoolListener* listener) override;
 
         void ReleaseModule(uint32_t moduleId) override;
+        DataTypeID RegisterTypeWithLayout(uint32_t moduleId, const DataTypeDesc* desc, const char* layout) override;
+        bool ClaimUpdater(DataTypeID type, uint32_t moduleId) override;
+        void ReleaseUpdater(DataTypeID type, uint32_t moduleId) override;
+        int32_t CopyTypes(DataTypeID* out, int32_t capacity) const override;
+        int32_t Join(DataTypeID type, DataTypeID other, int32_t* outSlots, int32_t capacity) const override;
 
     private:
         struct TypeEntry
@@ -47,12 +52,15 @@ namespace xg
             std::string Key;
             DataTypeDesc Desc = {};
             uint32_t ModuleId = 0;
+            uint32_t UpdaterModule = 0;
+            std::string Layout;
             std::unique_ptr<ComponentPool> Pool;
         };
 
         TypeEntry* Find(DataTypeID type);
         const TypeEntry* Find(DataTypeID type) const;
         uint64_t NextVersion() { return ++_version; }
+        void Migrate(TypeEntry& entry, const DataTypeDesc& desc, const char* layout);
 
         std::vector<std::unique_ptr<TypeEntry>> _types;
         std::unordered_map<std::string, DataTypeID> _keys;

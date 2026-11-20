@@ -7,7 +7,8 @@ namespace xg
 {
     // Mirror of the native xg::TransformData (40 bytes): position, rotation quaternion (x, y, z, w), scale.
     [StructLayout(LayoutKind.Sequential)]
-    public struct TransformData
+    [ComponentDataKey("xg.Transform")]
+    public struct TransformData : IComponentData
     {
         public float PositionX, PositionY, PositionZ;
         public float RotationX, RotationY, RotationZ, RotationW;
@@ -53,13 +54,13 @@ namespace xg
         public TransformData Local
         {
             get { TransformData t; Check(XG_TransformGetLocal(ScriptRuntime._enginePtr, ActorID, &t)); return t; }
-            set => Check(XG_TransformSetLocal(ScriptRuntime._enginePtr, ActorID, &value));
+            set { ScriptThread.CheckMain("Transform.Local"); Check(XG_TransformSetLocal(ScriptRuntime._enginePtr, ActorID, &value)); }
         }
 
         public TransformData World
         {
-            get { TransformData t; Check(XG_TransformGetWorld(ScriptRuntime._enginePtr, ActorID, &t)); return t; }
-            set => Check(XG_TransformSetWorld(ScriptRuntime._enginePtr, ActorID, &value));
+            get { ScriptThread.CheckMain("Transform.World"); TransformData t; Check(XG_TransformGetWorld(ScriptRuntime._enginePtr, ActorID, &t)); return t; }
+            set { ScriptThread.CheckMain("Transform.World"); Check(XG_TransformSetWorld(ScriptRuntime._enginePtr, ActorID, &value)); }
         }
 
         public Vector3 LocalPosition

@@ -8,8 +8,6 @@
 
 namespace xg
 {
-    using ComponentRaw = void*;
-    using ComponentSetRaw = void*;
     struct SceneNodeMixinBase
     {
         SceneNode* Owner = nullptr;
@@ -31,13 +29,6 @@ namespace xg
         SceneNodeHierarchy* NextSibling = nullptr;
     };
 
-    struct SceneNodeTransform : SceneNodeMixinBase
-    {
-        static constexpr SceneNodeFlags Mask = SceneNode_Transform;
-
-        xg::Transform Transform;
-    };
-
     struct SceneNodeMetadata : SceneNodeMixinBase
     {
         static constexpr SceneNodeFlags Mask = SceneNode_Metadata;
@@ -52,16 +43,6 @@ namespace xg
 
         bool Locked = false;
     };
-
-
-    struct SceneNodeComponentSet : SceneNodeMixinBase
-    {
-        static constexpr SceneNodeFlags Mask = SceneNode_Components;
-        const char* Context;
-        size_t Size = 0;
-        ComponentSetRaw Data = nullptr;
-    };
-
 
 
     //

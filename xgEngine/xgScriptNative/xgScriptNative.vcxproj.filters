@@ -68,6 +68,9 @@
     <ClCompile Include="interop\xgResourceInterop.cpp">
       <Filter>interop</Filter>
     </ClCompile>
+    <ClCompile Include="interop\xgComponentDataInterop.cpp">
+      <Filter>interop</Filter>
+    </ClCompile>
     <ClCompile Include="interop\xgUIHostInterop.cpp">
       <Filter>interop</Filter>
     </ClCompile>
@@ -88,9 +91,6 @@
     </ClCompile>
     <ClCompile Include="interop\xgGeometryInterop.cpp">
       <Filter>interop</Filter>
-    </ClCompile>
-    <ClCompile Include="CompositeComponent.cpp">
-      <Filter>private\source</Filter>
     </ClCompile>
     <ClCompile Include="NativeSubsystem.cpp">
       <Filter>private\source</Filter>

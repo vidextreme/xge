@@ -221,6 +221,120 @@ namespace xgEditor.CoreCLR
         }
     }
 
+    public struct SpinData : IComponentData
+    {
+        public float Angle;
+        public float Speed;
+        public int Doomed;
+    }
+
+    public struct LiftData : IComponentData
+    {
+        public float Height;
+    }
+
+    // Test component for XG_DATA_TEST: two data structs, one plain data update and one that reads the native transform.
+    public sealed class DataSpinner : ComponentDataSet<SpinData, LiftData>,
+                                      IComponentDataUpdate<DataSpinner, SpinData>,
+                                      IComponentDataUpdate<DataSpinner, LiftData, TransformData>
+    {
+        internal static readonly System.Collections.Concurrent.ConcurrentDictionary<int, byte> Threads = new();
+        internal static int InvokeCount;
+        internal static bool InvokeOnMain = true;
+
+        public static void OnDataUpdate(ref SpinData data, in DataUpdateContext context)
+        {
+            Threads.TryAdd(Environment.CurrentManagedThreadId, 0);
+            data.Angle += data.Speed * context.DeltaTime;
+            if (data.Doomed == 1)
+            {
+                data.Doomed = 2;
+                context.Commands.Destroy(context.Actor);
+            }
+            if (data.Speed > 1.5f)
+                context.Commands.Invoke(() =>
+                {
+                    InvokeCount++;
+                    InvokeOnMain &= ScriptThread.IsMain && !ScriptThread.InDataPass;
+                });
+        }
+
+        public static void OnDataUpdate(ref LiftData lift, in TransformData transform, in DataUpdateContext context)
+        {
+            lift.Height = transform.PositionY;
+        }
+    }
+
+    // Test hook (XG_DATA_TEST=1, with XG_UI_TEST_PLAY=play,frames,stop): 3000 DataSpinner actors (enough for range jobs),
+    // every other one with a transform at y = index. In play: angles advance, LiftData follows the transform only where
+    // there is one, command buffers destroy flagged actors and run main-thread callbacks; after Stop the data is restored.
+    internal static class DataSmoke
+    {
+        const int Count = 3000;
+        static readonly List<Actor> _actors = new();
+        static int _playFrames;
+        static bool _checkedPlay;
+        static bool _checkedStop;
+        static int _failures;
+
+        static void Check(string label, bool ok)
+        {
+            if (!ok)
+                _failures++;
+            Debug.Log($"[Data] {(ok ? "PASS" : "FAIL")} {label}");
+        }
+
+        public static void Init()
+        {
+            if (Environment.GetEnvironmentVariable("XG_DATA_TEST") != "1")
+                return;
+            for (int i = 0; i < Count; i++)
+            {
+                Actor actor = Actor.Create($"DataTest {i}");
+                DataSpinner spinner = actor.AddComponent<DataSpinner>();
+                ref SpinData spin = ref spinner.Data1;
+                spin.Speed = i == 0 ? 2.0f : 1.0f;
+                spin.Doomed = i >= Count - 10 ? 1 : 0;
+                if (i % 2 == 0)
+                    actor.AddTransform().LocalPosition = new Vector3(0, i, 0);
+                _actors.Add(actor);
+            }
+            ComponentData.All<SpinData>(out ReadOnlySpan<ActorID> owners);
+            Check($"pool holds {owners.Length} SpinData", owners.Length == Count);
+            DataSpinner shared = _actors[1].AddComponent<DataSpinner>();
+            Check("second component shares the element", Unsafe.AreSame(ref shared.Data1, ref _actors[1].GetComponent<DataSpinner>()!.Data1));
+            _actors[1].RemoveComponent<DataSpinner>();
+            Check("element kept while one component holds it", ComponentData.Has<SpinData>(_actors[1].ID));
+        }
+
+        public static void Update()
+        {
+            if (_actors.Count == 0)
+                return;
+            if (PlayMode.State == PlayState.Playing && !_checkedPlay && ++_playFrames == 30)
+            {
+                _checkedPlay = true;
+                float angle = _actors[1].GetComponent<DataSpinner>()!.Data1.Angle;
+                Check($"angle advanced ({angle:F3})", angle > 0.05f);
+                Check($"speed 2 advances twice as fast ({_actors[0].GetComponent<DataSpinner>()!.Data1.Angle:F3})",
+                    MathF.Abs(_actors[0].GetComponent<DataSpinner>()!.Data1.Angle - 2 * angle) < 1e-3f);
+                Check($"transformed lift = y ({_actors[100].GetComponent<DataSpinner>()!.Data2.Height})", _actors[100].GetComponent<DataSpinner>()!.Data2.Height == 100);
+                Check("untransformed lift skipped", _actors[101].GetComponent<DataSpinner>()!.Data2.Height == 0);
+                Check($"ran on {DataSpinner.Threads.Count} thread(s)", DataSpinner.Threads.Count > 1);
+                Check($"command callbacks ran on main thread ({DataSpinner.InvokeCount})", DataSpinner.InvokeCount > 0 && DataSpinner.InvokeOnMain);
+                int doomedAlive = _actors.Skip(Count - 10).Count(a => a.IsValid);
+                ComponentData.All<SpinData>(out ReadOnlySpan<ActorID> owners);
+                Check($"destroyed by command buffer ({doomedAlive} alive, pool {owners.Length})", doomedAlive == 0 && owners.Length == Count - 10);
+            }
+            if (_checkedPlay && !_checkedStop && PlayMode.State == PlayState.Edit)
+            {
+                _checkedStop = true;
+                Check($"angle restored after Stop ({_actors[1].GetComponent<DataSpinner>()!.Data1.Angle})", _actors[1].GetComponent<DataSpinner>()!.Data1.Angle == 0);
+                Debug.Log($"[Data] done, {_failures} failure(s)");
+            }
+        }
+    }
+
     internal static unsafe class ModelSmoke
     {
         static ResourceHandle _handle;
@@ -399,7 +513,7 @@ namespace xgEditor.CoreCLR
             Console.WriteLine(actor.Name);
 
             _player = actor.AddComponent<PlayerComponent>();
-            _player.Data.Stats.Health = 100;
+            _player.Data1.Stats.Health = 100;
 
             _temporary = xg.Actor.Create("temporary");
             _temporaryEnemy = _temporary.AddComponent<EnemyComponent>();
@@ -613,6 +727,7 @@ namespace xgEditor.CoreCLR
             TextureSmoke.Init();
             ModelSmoke.Init();
             TransformSmoke.Init();
+            DataSmoke.Init();
             return 1;
         }
 
@@ -689,6 +804,7 @@ namespace xgEditor.CoreCLR
             TextureSmoke.Update();
             ModelSmoke.Update();
             TransformSmoke.Update();
+            DataSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)
             {
                 _elapsedAtStart = _player.ElapsedTime;

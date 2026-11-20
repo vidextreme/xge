@@ -29,7 +29,6 @@
 #include "SceneGraphFactoryImpl.h"
 
 #include "TreeSceneGraph.h"
-#include "CompositeSceneGraph.h"
 
 #include "CodecJSON.h"
 #include "CodecBinary.h"
@@ -109,11 +108,6 @@ namespace xg
                 return new TreeSceneGraph(reg);
             });
 
-        sceneGraphFactory->RegisterType("compset",
-            [](ActorRegistry& reg) -> SceneGraph*
-            {
-                return new CompositeSceneGraph(reg);
-            });
 
 		_typeRegistry = CreateTypeRegistry();
 

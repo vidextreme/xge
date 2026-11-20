@@ -55,6 +55,7 @@ namespace xg
             }
             for (int i = 0; i < _groups.Count; i++)
                 _groups[i].FlushRemovals();
+            DataUpdateGroup.UpdateAll(deltaTime);
             FrameCount++;
         }
 
@@ -170,6 +171,7 @@ namespace xg
         {
             if (_attached || enginePtr == 0)
                 return;
+            ScriptThread.SetMain();
             XG_RegisterActorUpdate(enginePtr, moduleId, &NativeUpdate);
             XG_ActorRegisterComponentSource(enginePtr, moduleId, RuntimeFeature.IsDynamicCodeSupported ? 1 : 2, &NativeComponentSource);
             if (RuntimeFeature.IsDynamicCodeSupported)
@@ -192,6 +194,7 @@ namespace xg
             FreeComponentHandles();
             foreach (Actor actor in _actors.Values.ToArray())
                 actor.Release();
+            DataUpdateGroup.ClearAll(enginePtr);
             _actors.Clear();
             foreach (IComponentUpdateGroup group in _groups)
                 group.Clear();

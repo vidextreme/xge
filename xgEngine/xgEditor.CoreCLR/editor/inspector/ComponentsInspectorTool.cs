@@ -217,9 +217,37 @@ namespace xgEditor.CoreCLR
         private static void DrawBody(ComponentsViewState view, ComponentsDriver driver, object component)
         {
             if (component is Transform transform)
+            {
                 DrawTransform(view, transform);
-            else
-                DrawFields(driver.Serialized(component));
+                return;
+            }
+            SerializedObject serialized = driver.Serialized(component);
+            if (component is ComponentDataSet set)
+            {
+                if (serialized.Properties.Count > 0)
+                    EditorGUI.ObjectFields(serialized);
+                DrawData(set);
+                return;
+            }
+            DrawFields(serialized);
+        }
+
+        private static void DrawData(ComponentDataSet set)
+        {
+            for (int i = 0; i < set.DataCount; i++)
+            {
+                object? boxed = set.GetData(i);
+                using (Gui.Font(FontStyle.Bold))
+                    Gui.Label(SerializedProperty.Nicify(set.DataType(i).Name));
+                if (boxed is null)
+                {
+                    Gui.Label("Not available.");
+                    continue;
+                }
+                using (Gui.Id(1000 + i))
+                    EditorGUI.ObjectFields(new SerializedObject(boxed));
+                set.SetData(i, boxed);
+            }
         }
 
         private static void DrawTransform(ComponentsViewState view, Transform transform)

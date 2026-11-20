@@ -209,12 +209,6 @@
     <ClInclude Include="math\xgMat4x4Interop.h">
       <Filter>math</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgComponentSceneGraph.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="public\xgComponentNode.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgID.h">
       <Filter>public</Filter>
     </ClInclude>

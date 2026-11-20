@@ -225,9 +225,6 @@ namespace xg
         [LibraryImport(NativeLib, EntryPoint = "XG_GetNewProjectPath")]
         private static partial nint XG_GetNewProjectPath(nint enginePtr);
 
-        [LibraryImport(NativeLib, EntryPoint = "XG_AllocateComponent", StringMarshalling = StringMarshalling.Utf8)]
-        private static partial IntPtr XG_AllocateComponent(nint enginePtr, ulong actorID, string componentType, uint size);
-
         [LibraryImport(NativeLib, EntryPoint = "XG_RegisterSubsystemWithAlias", StringMarshalling = StringMarshalling.Utf8)]
         public static unsafe partial IntPtr RegisterSubsystemWithAlias(nint engine, uint moduleID, nint instancePtr,
                                         string subsystemName,
@@ -318,17 +315,6 @@ namespace xg
         public static void DispatchMessage(string typeName, object obj)
         {
             Console.WriteLine($"[Managed] Message received: {typeName}");
-        }
-
-        public static unsafe ComponentHandle<T> AllocateComponent<T>(ActorID id)
-            where T : ComponentOLD, new()
-        {
-            var componentType = typeof(T);
-            T component = new();
-            IntPtr ptr = XG_AllocateComponent(_enginePtr, id.Value, componentType.Name, (uint)component.DataSize);
-            var componentRef = new ComponentHandle<T>(ptr);
-            componentRef.Bind(component);
-            return componentRef;
         }
     }
 }

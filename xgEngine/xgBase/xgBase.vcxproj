@@ -136,8 +136,6 @@
     <ClInclude Include="public\xgChunkFile.h" />
     <ClInclude Include="public\xgBase.h" />
     <ClInclude Include="public\xgCodecRegistry.h" />
-    <ClInclude Include="public\xgComponentNode.h" />
-    <ClInclude Include="public\xgComponentSceneGraph.h" />
     <ClInclude Include="public\xgDynamicObject.h" />
     <ClInclude Include="public\xgEvent.h" />
     <ClInclude Include="public\xgEventDispatcher.h" />
