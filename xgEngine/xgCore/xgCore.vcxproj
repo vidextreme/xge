@@ -111,7 +111,6 @@
     <ClInclude Include="ResourceSystemImpl.h" />
     <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="CodecRegistryImpl.h" />
-    <ClInclude Include="CompositeSceneGraph.h" />
     <ClInclude Include="JobSystemImpl.h" />
     <ClInclude Include="TextureResources.h" />
     <ClInclude Include="ModelResources.h" />
@@ -139,7 +138,6 @@
     <ClInclude Include="ScriptTree.h" />
     <ClInclude Include="CodecBinary.h" />
     <ClInclude Include="CodecJSON.h" />
-    <ClInclude Include="StridePool.h" />
     <ClInclude Include="TreeSceneGraph.h" />
   </ItemGroup>
   <ItemGroup>
@@ -148,7 +146,6 @@
     <ClCompile Include="ComponentDataRegistryImpl.cpp" />
     <ClCompile Include="TransformSystemImpl.cpp" />
     <ClCompile Include="ResourceSystemImpl.cpp" />
-    <ClCompile Include="CompositeSceneGraph.cpp" />
     <ClCompile Include="JobSystemImpl.cpp" />
     <ClCompile Include="TextureResources.cpp" />
     <ClCompile Include="ModelResources.cpp" />
@@ -161,7 +158,6 @@
     <ClCompile Include="DynamicObjectImpl.cpp" />
     <ClCompile Include="CodecBinary.cpp" />
     <ClCompile Include="CodecJSON.cpp" />
-    <ClCompile Include="StridePool.cpp" />
     <ClCompile Include="TreeSceneGraph.cpp" />
     <ClCompile Include="xgEngine.cpp" />
     <ClCompile Include="EventDispatcherImpl.cpp" />

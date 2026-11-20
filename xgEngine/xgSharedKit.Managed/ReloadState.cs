@@ -37,7 +37,13 @@ namespace xg
                     ["components"] = components,
                 });
             }
-            return new JsonObject { ["actors"] = actors }.ToJsonString();
+            JsonArray data = new();
+            foreach (Actor actor in ActorRegistry.Actors.ToArray())
+                foreach (object component in actor.Components)
+                    if (component is ComponentDataSet set)
+                        foreach ((uint _, string key) in set.DataTypes)
+                            data.Add(new JsonObject { ["type"] = key, ["actor"] = (ulong)actor.ID });
+            return new JsonObject { ["actors"] = actors, ["data"] = data }.ToJsonString();
         }
 
         // Re-creates the captured actors' components in this module and sets their values. Returns a summary.
@@ -79,7 +85,24 @@ namespace xg
             }
             foreach (string item in skipped)
                 Debug.LogWarning($"[Scripts] Not restored: {item}");
+            ReleaseHeldData(root);
             return $"{actorCount} actor(s), {componentCount} component(s)";
+        }
+
+        // The old scripts kept their data elements through the unload (one reference per component); the restored
+        // components added their own, so the old ones are dropped here.
+        private static void ReleaseHeldData(JsonNode? root)
+        {
+            nint engine = ScriptRuntime._enginePtr;
+            if (engine == 0)
+                return;
+            foreach (JsonNode? entry in root?["data"]?.AsArray() ?? new JsonArray())
+            {
+                string key = entry?["type"]?.GetValue<string>() ?? string.Empty;
+                uint type = key.Length == 0 ? 0 : ComponentData.Native.FindType(engine, key);
+                if (type != 0 && entry?["actor"] is JsonNode actor)
+                    ComponentData.Native.Release(engine, type, actor.GetValue<ulong>());
+            }
         }
 
         // Puts this module's live actors back to a capture taken earlier in the same load context (play mode in the

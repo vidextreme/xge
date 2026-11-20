@@ -37,6 +37,10 @@ namespace xg
 
         void AddListener(const DataPoolListener& listener);
         void RemoveListener(const DataPoolListener& listener);
+        // Moves this pool's listeners to other (used when a pool is replaced by a migrated one).
+        void MoveListenersTo(ComponentPool& other);
+        // Appends an element without notifying listeners (migration), keeping the reference count and version.
+        uint32_t AppendRaw(ActorID actor, uint32_t refCount, uint64_t version);
 
     private:
         void Reserve(uint32_t capacity);

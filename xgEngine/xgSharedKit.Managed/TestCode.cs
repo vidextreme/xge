@@ -40,15 +40,11 @@ namespace xg
         }
     }
     [ComponentIcon("Account", Color = "#5585D0")]
-    public class PlayerComponent : ComponentDataSet<CharacterData>, IComponentUpdate<PlayerComponent>, IComponentDataUpdate<CharacterData>
+    public class PlayerComponent : ComponentDataSet<CharacterData>, IComponentUpdate<PlayerComponent>, IComponentDataUpdate<PlayerComponent, CharacterData>
     {
-
-        public static void OnDataUpdate(ComponentData<CharacterData> componentData, float dt)
+        public static void OnDataUpdate(ref CharacterData data, in DataUpdateContext context)
         {
-            using (componentData.BeginEdit())
-            {
-                componentData.Data.Skill.SkillLevel = 100;
-            }
+            data.Skill.SkillLevel = 100;
         }
 
         public int UpdateCount;
@@ -59,29 +55,19 @@ namespace xg
         public static void OnUpdate(PlayerComponent component, float deltaTime)
         {
             component.UpdateCount++;
-            if(component.ElapsedTime < component.TargetTime)
+            if (component.ElapsedTime < component.TargetTime)
             {
                 component.ElapsedTime += deltaTime;
                 if (component.ElapsedTime >= component.TargetTime)
                     Debug.LogSuccess("Great Success!");
             }
         }
-
-        CharacterData _data;
-        public ref CharacterData Data => ref _data;
-
-        //public override string ToString()
-        //{
-        //    return $"PlayerComponent [HP: {Data.Stats.Health} DataSize: {DataSize}]";
-        //}
     }
 
     public class EditableAttribute : Attribute
     {
-
     }
 
-    // ECS Data (pure SoA)
     public struct NPCData : IComponentData
     {
         public float Health;
@@ -90,38 +76,28 @@ namespace xg
         public float HealthRegenRate;
     }
 
-    // Hybrid Component (Standard + ECS)
+    // Hybrid component: a per-instance update (managed state) plus an ECS-style update over every NPCData element.
     [ComponentIcon("Object", Color = "#6A9A48")]
-    public class NPCComponent : ComponentDataSet<NPCData>, // ComponentSet<D1, D2, ...>
-                                  IComponentUpdate<NPCComponent>, // standard update (optional)
-                                  IComponentDataUpdate<NPCData> // ECS update (optional)
+    public class NPCComponent : ComponentDataSet<NPCData>,
+                                IComponentUpdate<NPCComponent>,
+                                IComponentDataUpdate<NPCComponent, NPCData>
     {
         [Editable] private float _decisionTimer;
         [Editable] private bool _alerted;
 
-        // CRTP-style static dispatch (no virtual calls)
-
-        // Standard Update (instance-based)
         public static void OnUpdate(NPCComponent npc, float dt)
         {
             npc._decisionTimer += dt;
-
-            // ECS data is safely mutable in this edit scope
-            ref var npcData = ref npc.D1.Data;
-            npc._alerted = npcData.Awareness > 0.5f;
-            npcData.AwarenessGainRate = npc._alerted ? 0.3f : 0.1f;
-            npcData.HealthRegenRate = npc._alerted ? 0.0f : 0.05f;
+            ref NPCData data = ref npc.Data1;
+            npc._alerted = data.Awareness > 0.5f;
+            data.AwarenessGainRate = npc._alerted ? 0.3f : 0.1f;
+            data.HealthRegenRate = npc._alerted ? 0.0f : 0.05f;
         }
 
-        // ECS Update (pure SoA)
-        public static void OnDataUpdate(ComponentData<NPCData> cd, float dt)
+        public static void OnDataUpdate(ref NPCData data, in DataUpdateContext context)
         {
-            using (cd.BeginEdit())
-            {
-                ref var data = ref cd.Data;
-                data.Awareness += data.AwarenessGainRate * dt;
-                data.Health += data.HealthRegenRate * dt;
-            }// commit changes to ECS storage
+            data.Awareness += data.AwarenessGainRate * context.DeltaTime;
+            data.Health += data.HealthRegenRate * context.DeltaTime;
         }
     }
 }

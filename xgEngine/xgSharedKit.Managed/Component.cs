@@ -24,14 +24,20 @@ namespace xg
         void IComponent.OnAttached(Actor actor)
         {
             Actor = actor;
+            AttachInternal(actor);
             OnAttached();
         }
 
         void IComponent.OnDetached()
         {
             OnDetached();
+            if (Actor is not null)
+                DetachInternal(Actor);
             Actor = null!;
         }
+
+        internal virtual void AttachInternal(Actor actor) { }
+        internal virtual void DetachInternal(Actor actor) { }
 
         protected virtual void OnAttached() { }
         protected virtual void OnDetached() { }
@@ -54,19 +60,31 @@ namespace xg
         void Detach();
     }
 
+    // A blittable struct stored natively in its own pool (see ComponentDataSet, ComponentData).
     public interface IComponentData { }
-    public interface IEditScope : IDisposable { }
-
-    public struct EditScope : IEditScope
+    public unsafe interface IComponentUpdate<T> : IComponentUpdate
+        where T : IComponentUpdate<T>
     {
-        private ComponentData _data;
-        public EditScope(ComponentData data)
+        protected static delegate* managed<T, float, void> UpdateFunc { get; set; }
+        static abstract void OnUpdate(T component, float deltaTime);
+        void IComponentUpdate.Setup()
         {
-            _data = data;
+            UpdateFunc = &T.OnUpdate;
         }
-        public void Dispose()
+
+        void IComponentUpdate.Update(float deltaTime)
         {
-            _data.Commit();
+            UpdateFunc((T)this, deltaTime);
+        }
+
+        void IComponentUpdate.Attach()
+        {
+            ComponentUpdateGroup<T>.Instance.Add((T)this);
+        }
+
+        void IComponentUpdate.Detach()
+        {
+            ComponentUpdateGroup<T>.Instance.Remove((T)this);
         }
     }
 }

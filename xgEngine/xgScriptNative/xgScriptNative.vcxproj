@@ -92,11 +92,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
-    <ClCompile Include="CompositeComponent.cpp" />
     <ClCompile Include="InteropSubsystem.cpp" />
     <ClCompile Include="interop\xgLogInterop.cpp" />
     <ClCompile Include="interop\xgProjectInterop.cpp" />
     <ClCompile Include="interop\xgResourceInterop.cpp" />
+    <ClCompile Include="interop\xgComponentDataInterop.cpp" />
     <ClCompile Include="interop\xgJobInterop.cpp" />
     <ClCompile Include="interop\xgUIHostInterop.cpp" />
     <ClCompile Include="interop\xgMat4x4Interop.cpp" />

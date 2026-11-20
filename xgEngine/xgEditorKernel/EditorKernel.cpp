@@ -19,7 +19,6 @@
 #include "xgEngineDef.generated.h"
 
 #include "xgHierarchyNode.h"
-#include "xgComponentSceneGraph.h"
 #include "xgVec3.h"
 #include "xgImage.h"
 #include "xgImUI.h"
@@ -81,20 +80,6 @@ namespace xg
         //
         InitUI();
 
-		/*auto sceneGraphFactory = engine->GetSubsystem<SceneGraphFactory>(this);
-		auto actorRegistry = engine->GetSubsystem<ActorRegistry>(this);
-        auto sceneGraph = sceneGraphFactory->Create("tree", *actorRegistry);
-		engine->RegisterSubsystem<SceneGraph>(nullptr, sceneGraph);
-
-        auto sceneRoot = xg::CreateNode<HierarchyNode>(*sceneGraph);
-        sceneRoot->Name = "mr root";*/
-
-       /* auto componentSG = sceneGraphFactory->Create("compset", *actorRegistry);
-        auto componentSet = static_cast<ComponentSceneGraph*>(componentSG);
-        engine->RegisterSubsystemWithAlias(nullptr, componentSet, "PlayerComponent");
-        
-        componentSet->InitializeComponentSet("PlayerComponent", 12);
-        ComponentSetNode* co = componentSet->CreateComponent<ComponentSetNode>(55);*/
         //xg::TypeRegistry::Register(&xg::TypeInfo<PlayerState>::Instance);
 
         CodecRegistry* registry = _host->GetCodecRegistry();

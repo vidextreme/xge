@@ -19,6 +19,8 @@ namespace xg
         None = 0,
         // Owned by an engine system (e.g. "xg.Transform"): scripts may read it, but writes go through that system.
         EngineOwned = 1u << 0,
+        // Kept when the registering module unloads (script types survive hot reload); elements still go with their actors.
+        Shared = 1u << 1,
     };
 
     // Key is copied by RegisterType ("Full.Type.Name, Assembly" for managed types). Size > 0, Align a power of two <= 64.
@@ -87,6 +89,21 @@ namespace xg
 
         // Unregisters the module's types. The engine calls it after the module's Shutdown.
         virtual void ReleaseModule(uint32_t moduleId) = 0;
+
+        // Like RegisterType, with a field layout "name:type:offset:size;..." (type is any stable name). When the key exists
+        // with another layout and both layouts are known, the pool is migrated in place: the type id and slot order stay,
+        // fields matched by name, type and size are copied, others are zero-filled (reported once).
+        virtual DataTypeID RegisterTypeWithLayout(uint32_t moduleId, const DataTypeDesc* desc, const char* layout) = 0;
+
+        // One module updates a type's elements. Claim returns true for the claiming module (or when it already holds it).
+        virtual bool ClaimUpdater(DataTypeID type, uint32_t moduleId) = 0;
+        virtual void ReleaseUpdater(DataTypeID type, uint32_t moduleId) = 0;
+
+        // Writes up to capacity registered type ids and returns the total count.
+        virtual int32_t CopyTypes(DataTypeID* out, int32_t capacity) const = 0;
+
+        // For each element of type (slot order), writes the slot of the same actor's element of other, or -1. Returns count.
+        virtual int32_t Join(DataTypeID type, DataTypeID other, int32_t* outSlots, int32_t capacity) const = 0;
     };
 
     inline uint32_t DataStride(uint32_t size, uint32_t align)

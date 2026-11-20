@@ -46,8 +46,7 @@
     <Compile Include="ComponentUpdateGroup.cs" />
     <Compile Include="ComponentData.cs" />
     <Compile Include="ComponentDataSet.cs" />
-    <Compile Include="ComponentHandle.cs" />
-    <Compile Include="ComponentUtils.cs" />
+    <Compile Include="DataUpdate.cs" />
     <Compile Include="Debug.cs" />
     <Compile Include="Matrix4x4Interop.cs" />
     <Compile Include="QuaternionInterop.cs" />
