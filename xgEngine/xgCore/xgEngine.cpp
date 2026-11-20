@@ -20,6 +20,8 @@
 #include "DynamicObjectImpl.h"
 #include "ActorRegistryImpl.h"
 #include "ResourceSystemImpl.h"
+#include "ComponentDataRegistryImpl.h"
+#include "TransformSystemImpl.h"
 #include "JobSystemImpl.h"
 #include "TextureResources.h"
 #include "ModelResources.h"
@@ -79,7 +81,15 @@ namespace xg
 		_rootNode = _scriptTree->FindNode(_rootModule);
         //auto ha = MessengerImpl::SuperTypeID;
 		RegisterSubsystem(_rootModule, new MessengerImpl(_scriptTree));
-        RegisterSubsystem(_rootModule, new ActorRegistryImpl());
+        auto* actorRegistry = new ActorRegistryImpl();
+        RegisterSubsystem(_rootModule, actorRegistry);
+        auto* componentData = new ComponentDataRegistryImpl();
+        RegisterSubsystem(_rootModule, componentData);
+        actorRegistry->AddDestroyListener(_rootModule->GetModuleId(), [](void* user, ActorID id)
+            {
+                static_cast<ComponentDataRegistry*>(user)->RemoveActor(id);
+            }, componentData);
+        RegisterSubsystem(_rootModule, new TransformSystemImpl(this, componentData, _rootModule->GetModuleId()));
         auto* jobs = new JobSystemImpl();
         RegisterSubsystem(_rootModule, jobs);
         RegisterSubsystem(_rootModule, new ResourceSystemImpl(jobs));
@@ -497,6 +507,10 @@ namespace xg
             jobs->WaitModule(module->GetModuleId());
         if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
             resources->ReleaseModule(module->GetModuleId());
+        if (ComponentDataRegistry* componentData = GetSubsystem<ComponentDataRegistry>())
+            componentData->ReleaseModule(module->GetModuleId());
+        if (ActorRegistry* actors = GetSubsystem<ActorRegistry>())
+            actors->RemoveDestroyListeners(module->GetModuleId());
         if (ScriptNode* node = _scriptTree->FindNode(module))
             node->ShutdownAllSubsystems();
         delete module;
@@ -684,6 +698,9 @@ namespace xg
 
             DrainBetweenFrames();
 
+            if (TransformSystem* transforms = GetSubsystem<TransformSystem>())
+                transforms->Update();
+
             if (Renderer)
                 Renderer->Render();
 
@@ -761,6 +778,10 @@ namespace xg
                 jobs->WaitModule(module->GetModuleId());
             if (ResourceSystem* resources = GetSubsystem<ResourceSystem>())
                 resources->ReleaseModule(module->GetModuleId());
+            if (ComponentDataRegistry* componentData = GetSubsystem<ComponentDataRegistry>())
+                componentData->ReleaseModule(module->GetModuleId());
+            if (ActorRegistry* actors = GetSubsystem<ActorRegistry>())
+                actors->RemoveDestroyListeners(module->GetModuleId());
             delete module;
             XG_RELEASE_ONE(host);
         }

@@ -30,6 +30,7 @@ namespace xgEditor.CoreCLR
         private static int _building;
         private static readonly TimeSpan WatchQuiet = TimeSpan.FromSeconds(1.0);
         private static readonly ConcurrentQueue<Action> _mainThread = new();
+        private static CancellationTokenSource? _buildCancel;
         private static LoadedScriptModule? _scripts;
         private static ScriptLoadContext? _editorContext;
         private static Assembly? _editorAssembly;
@@ -307,7 +308,10 @@ namespace xgEditor.CoreCLR
             return previous.Count != current.Count ? "script files removed" : null;
         }
 
-        // Runs "dotnet build" on the project in the background and reports diagnostics to the Console.
+        // Runs "dotnet build" on the project and reports diagnostics to the Console. The wait for the external process
+        // happens on a thread-pool task (not a job worker, which it would hold for the whole build); the build shows in
+        // the status bar's background tasks, where cancelling kills the process tree and keeps the current scripts. The
+        // result is applied by a main-thread job: the task completes and a successful build reloads the scripts.
         public static Task<bool> BuildScripts()
         {
             ProjectInfo? project = Current;
@@ -321,23 +325,43 @@ namespace xgEditor.CoreCLR
 
             ProjectFiles.Generate(project);
             Debug.Log($"[Project] Building {project.Name} scripts...");
+            CancellationTokenSource cancel = new();
+            _buildCancel = cancel;
+            BackgroundTask task = BackgroundTasks.Add($"Build {project.Name} scripts", Icon.Script, cancel.Cancel, "Building scripts");
+            task.Start();
+            task.Report(-1.0f, "dotnet build");
             return Task.Run(() =>
             {
+                bool built = false;
+                bool canceled = false;
                 try
                 {
-                    bool built = RunBuild(project);
-                    if (built)
-                    {
-                        Debug.Log($"[Project] {project.Name} scripts built; reloading");
-                        _mainThread.Enqueue(RequestReload);
-                    }
-                    return built;
+                    built = RunBuild(project, out canceled, task: task, cancel: cancel.Token);
                 }
                 finally
                 {
                     Volatile.Write(ref _building, 0);
+                    Jobs.Schedule(() => FinishScriptBuild(project, task, cancel, built, canceled), JobQueue.Main);
                 }
+                return built;
             });
+        }
+
+        private static void FinishScriptBuild(ProjectInfo project, BackgroundTask task, CancellationTokenSource cancel, bool built, bool canceled)
+        {
+            BackgroundTasks.Complete(task);
+            if (ReferenceEquals(_buildCancel, cancel))
+                _buildCancel = null;
+            cancel.Dispose();
+            if (canceled)
+            {
+                Debug.Log($"[Project] {project.Name} script build canceled; the current scripts keep running");
+                return;
+            }
+            if (!built)
+                return;
+            Debug.Log($"[Project] {project.Name} scripts built; reloading");
+            RequestReload();
         }
 
         private static void BuildNow(ProjectInfo project, string reason)
@@ -349,7 +373,7 @@ namespace xgEditor.CoreCLR
                 Debug.Log($"[Project] Building {project.Name} scripts ({reason})...");
                 Startup.Report($"Building {project.Name} scripts", reason, Startup.Indeterminate);
                 Stopwatch clock = Stopwatch.StartNew();
-                if (RunBuild(project, pumpSplash: true, reason))
+                if (RunBuild(project, out _, pumpSplash: true, reason))
                     Debug.LogSuccess($"[Project] {project.Name} scripts built in {clock.Elapsed.TotalSeconds:F1} s");
             }
             finally
@@ -359,8 +383,12 @@ namespace xgEditor.CoreCLR
         }
 
         // pumpSplash: called on the main thread during startup; keeps the splash responsive and shows the build output.
-        private static bool RunBuild(ProjectInfo project, bool pumpSplash = false, string? reason = null)
+        // task gets the latest output line as its stage; cancel kills the process tree (canceled = true, nothing marked
+        // as failed).
+        private static bool RunBuild(ProjectInfo project, out bool canceled, bool pumpSplash = false, string? reason = null, BackgroundTask? task = null,
+            CancellationToken cancel = default)
         {
+            canceled = false;
             List<string> inputs = InputStamp(project);
             string target = project.HasEditorScripts ? project.EditorCsprojPath : project.CsprojPath;
             ProcessStartInfo info = new("dotnet", $"build \"{target}\" -nologo -v:quiet -clp:NoSummary -nodeReuse:false")
@@ -384,13 +412,26 @@ namespace xgEditor.CoreCLR
                 process.OutputDataReceived += (_, e) =>
                 {
                     if (!string.IsNullOrWhiteSpace(e.Data))
+                    {
                         Volatile.Write(ref lastLine, e.Data.Trim());
+                        task?.Report(-1.0f, e.Data.Trim());
+                    }
                     Report(e.Data, reported, ref errors, ref warnings);
                 };
                 process.ErrorDataReceived += (_, e) => Report(e.Data, reported, ref errors, ref warnings);
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
-                if (!(pumpSplash ? WaitPumpingSplash(process, reason ?? Path.GetFileName(target), () => Volatile.Read(ref lastLine)) : process.WaitForExit(BuildTimeoutMilliseconds)))
+                bool exited = pumpSplash
+                    ? WaitPumpingSplash(process, reason ?? Path.GetFileName(target), () => Volatile.Read(ref lastLine))
+                    : WaitCancellable(process, cancel);
+                if (cancel.IsCancellationRequested && !process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit();
+                    canceled = true;
+                    return false;
+                }
+                if (!exited)
                 {
                     process.Kill(entireProcessTree: true);
                     MarkFailed(project, true);
@@ -417,6 +458,18 @@ namespace xgEditor.CoreCLR
                 Debug.LogError($"[Project] Could not run dotnet build: {e.Message}");
                 return false;
             }
+        }
+
+        // Waits for the build up to the timeout; returns early (false) when canceled.
+        private static bool WaitCancellable(Process process, CancellationToken cancel)
+        {
+            Stopwatch clock = Stopwatch.StartNew();
+            while (!process.WaitForExit(100))
+            {
+                if (cancel.IsCancellationRequested || clock.ElapsedMilliseconds >= BuildTimeoutMilliseconds)
+                    return false;
+            }
+            return true;
         }
 
         private static bool WaitPumpingSplash(Process process, string what, Func<string?> lastLine)

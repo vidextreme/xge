@@ -106,6 +106,22 @@ namespace xg
         }
 
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static void NativeActorDestroyed(nint user, ulong id)
+        {
+            try
+            {
+                if (!_actors.TryGetValue(new ActorID(id), out Actor? actor))
+                    return;
+                actor.Release();
+                _actors.Remove(actor.ID);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+        }
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static int NativeComponentFactory(ulong id, byte* typeKey, int adopt)
         {
             try
@@ -158,6 +174,7 @@ namespace xg
             XG_ActorRegisterComponentSource(enginePtr, moduleId, RuntimeFeature.IsDynamicCodeSupported ? 1 : 2, &NativeComponentSource);
             if (RuntimeFeature.IsDynamicCodeSupported)
                 XG_ActorRegisterComponentFactory(enginePtr, moduleId, 1, &NativeComponentFactory);
+            XG_ActorRegisterDestroyListener(enginePtr, moduleId, &NativeActorDestroyed, 0);
             _moduleId = moduleId;
             _attached = true;
         }
@@ -169,6 +186,7 @@ namespace xg
                 XG_UnregisterActorUpdate(enginePtr, _moduleId);
                 XG_ActorUnregisterComponentSource(enginePtr, _moduleId);
                 XG_ActorUnregisterComponentFactory(enginePtr, _moduleId);
+                XG_ActorUnregisterDestroyListener(enginePtr, _moduleId, &NativeActorDestroyed, 0);
                 _attached = false;
             }
             FreeComponentHandles();
@@ -196,5 +214,11 @@ namespace xg
 
         [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorUnregisterComponentFactory")]
         private static partial void XG_ActorUnregisterComponentFactory(nint engine, uint moduleId);
+
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorRegisterDestroyListener")]
+        private static partial void XG_ActorRegisterDestroyListener(nint engine, uint moduleId, delegate* unmanaged[Cdecl]<nint, ulong, void> listener, nint user);
+
+        [LibraryImport("xgGameKernel", EntryPoint = "XG_ActorUnregisterDestroyListener")]
+        private static partial void XG_ActorUnregisterDestroyListener(nint engine, uint moduleId, delegate* unmanaged[Cdecl]<nint, ulong, void> listener, nint user);
     }
 }

@@ -23,17 +23,32 @@ namespace xgEditor.CoreCLR
         private string _stage = "Queued";
         private BackgroundTaskState _state = BackgroundTaskState.Queued;
 
-        internal BackgroundTask(long id, string title, Icon icon, Action? cancel)
+        private long _started;
+
+        internal BackgroundTask(long id, string title, Icon icon, string verb, Action? cancel)
         {
             Id = id;
             Title = title;
             Icon = icon;
+            Verb = verb;
             _cancel = cancel;
         }
 
         public long Id { get; }
         public string Title { get; }
         public Icon Icon { get; }
+        // What the status bar chip says while only this kind of task runs ("Importing", "Building scripts").
+        public string Verb { get; }
+
+        // Time since Start (zero while queued).
+        public TimeSpan Elapsed
+        {
+            get
+            {
+                long started = Interlocked.Read(ref _started);
+                return started == 0 ? TimeSpan.Zero : System.Diagnostics.Stopwatch.GetElapsedTime(started);
+            }
+        }
         public bool CanCancel => _cancel is not null;
 
         public BackgroundTaskState State
@@ -60,6 +75,7 @@ namespace xgEditor.CoreCLR
                     _state = BackgroundTaskState.Running;
                 _stage = "Starting";
             }
+            Interlocked.Exchange(ref _started, System.Diagnostics.Stopwatch.GetTimestamp());
         }
 
         public void Report(float progress, string stage)
@@ -98,14 +114,14 @@ namespace xgEditor.CoreCLR
         public static int BatchTotal { get; private set; }
         public static int BatchDone { get; private set; }
 
-        public static BackgroundTask Add(string title, Icon icon, Action? cancel = null)
+        public static BackgroundTask Add(string title, Icon icon, Action? cancel = null, string verb = "Importing")
         {
             if (_tasks.Count == 0)
             {
                 BatchTotal = 0;
                 BatchDone = 0;
             }
-            BackgroundTask task = new(++_nextId, title, icon, cancel);
+            BackgroundTask task = new(++_nextId, title, icon, verb, cancel);
             _tasks.Add(task);
             BatchTotal++;
             return task;
@@ -119,6 +135,20 @@ namespace xgEditor.CoreCLR
 
         public static BackgroundTask? Find(string title) =>
             _tasks.FirstOrDefault(t => t.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+
+        // The verb shared by every task, or "Working" for a mix.
+        public static string Verb()
+        {
+            string? verb = null;
+            foreach (BackgroundTask task in _tasks)
+            {
+                if (verb is null)
+                    verb = task.Verb;
+                else if (verb != task.Verb)
+                    return "Working";
+            }
+            return verb ?? "Working";
+        }
 
         // Finished work plus the progress of running tasks, over the batch.
         public static float OverallProgress()

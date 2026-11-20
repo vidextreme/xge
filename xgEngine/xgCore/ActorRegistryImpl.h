@@ -35,6 +35,11 @@ namespace xg
         void UpdateActors(float dt) override;
         void UpdateActorsPerModule(float dt, ActorDeltaFn delta, void* user) override;
 
+        void AddDestroyListener(uint32_t moduleId, ActorDestroyedFn fn, void* user) override;
+        void RemoveDestroyListener(uint32_t moduleId, ActorDestroyedFn fn, void* user) override;
+        void RemoveDestroyListeners(uint32_t moduleId) override;
+        void NotifyDestroyed(ActorID id) override;
+
     private:
         struct ActorRecord
         {
@@ -45,5 +50,13 @@ namespace xg
         xgIDGenerator _idGen;
         std::unordered_map<ActorID, ActorRecord> _actors;
         std::vector<std::pair<uint32_t, ActorUpdateFn>> _updateCallbacks;
+
+        struct DestroyListener
+        {
+            uint32_t ModuleId;
+            ActorDestroyedFn Fn;
+            void* User;
+        };
+        std::vector<DestroyListener> _destroyListeners;
     };
 }

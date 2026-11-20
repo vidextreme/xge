@@ -139,4 +139,29 @@ namespace xg
                 entry.second(moduleDt);
         }
     }
+
+    void ActorRegistryImpl::AddDestroyListener(uint32_t moduleId, ActorDestroyedFn fn, void* user)
+    {
+        if (!fn)
+            return;
+        RemoveDestroyListener(moduleId, fn, user);
+        _destroyListeners.push_back({ moduleId, fn, user });
+    }
+
+    void ActorRegistryImpl::RemoveDestroyListener(uint32_t moduleId, ActorDestroyedFn fn, void* user)
+    {
+        std::erase_if(_destroyListeners, [&](const DestroyListener& l) { return l.ModuleId == moduleId && l.Fn == fn && l.User == user; });
+    }
+
+    void ActorRegistryImpl::RemoveDestroyListeners(uint32_t moduleId)
+    {
+        std::erase_if(_destroyListeners, [&](const DestroyListener& l) { return l.ModuleId == moduleId; });
+    }
+
+    void ActorRegistryImpl::NotifyDestroyed(ActorID id)
+    {
+        const std::vector<DestroyListener> listeners = _destroyListeners;
+        for (const DestroyListener& l : listeners)
+            l.Fn(l.User, id);
+    }
 }

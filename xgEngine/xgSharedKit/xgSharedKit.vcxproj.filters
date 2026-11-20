@@ -27,9 +27,6 @@
     <ClInclude Include="pch.h">
       <Filter>private\headers</Filter>
     </ClInclude>
-    <ClInclude Include="public\xgHierarchyNode.h">
-      <Filter>public</Filter>
-    </ClInclude>
     <ClInclude Include="public\xgActorSystem.h">
       <Filter>public</Filter>
     </ClInclude>

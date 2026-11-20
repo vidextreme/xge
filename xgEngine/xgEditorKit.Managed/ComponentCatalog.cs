@@ -23,7 +23,7 @@ namespace xg.editor
 
     // Component types of every CoreCLR module (they share this runtime, each in its own load context): public,
     // non-abstract, non-generic classes with a public parameterless constructor that have [ComponentIcon] or implement
-    // IComponentUpdate. Shared assemblies loaded by several modules are listed once.
+    // IComponentUpdate or IComponent, plus the native Transform. Shared assemblies loaded by several modules are listed once.
     public static class ComponentCatalog
     {
         private static List<ComponentType>? _types;
@@ -36,6 +36,7 @@ namespace xg.editor
         private static List<ComponentType> Build()
         {
             Dictionary<string, ComponentType> found = new();
+            found[TypeBridge.KeyOf(typeof(Transform))] = new ComponentType(typeof(Transform));
             foreach (AssemblyLoadContext context in AssemblyLoadContext.All)
             {
                 foreach (Assembly assembly in context.Assemblies)

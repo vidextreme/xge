@@ -17,6 +17,8 @@ namespace xg
     using ActorUpdateFn = void (*)(float dt);
     // The delta time a module's actors update with this frame; negative skips them.
     using ActorDeltaFn = float (*)(void* user, uint32_t moduleId, float dt);
+    // Runs once per destroyed actor (children before their parent) while the actor's node still exists.
+    using ActorDestroyedFn = void (*)(void* user, ActorID id);
 
     class ActorRegistry : public Subsystem
     {
@@ -58,5 +60,11 @@ namespace xg
         virtual void UpdateActors(float dt) = 0;
         // Like UpdateActors, with each module's delta time from delta (null = dt for every module).
         virtual void UpdateActorsPerModule(float dt, ActorDeltaFn delta, void* user) = 0;
+
+        // Listeners are removed with their module (RemoveDestroyListeners runs after the module's Shutdown).
+        virtual void AddDestroyListener(uint32_t moduleId, ActorDestroyedFn fn, void* user) = 0;
+        virtual void RemoveDestroyListener(uint32_t moduleId, ActorDestroyedFn fn, void* user) = 0;
+        virtual void RemoveDestroyListeners(uint32_t moduleId) = 0;
+        virtual void NotifyDestroyed(ActorID id) = 0;
     };
 }

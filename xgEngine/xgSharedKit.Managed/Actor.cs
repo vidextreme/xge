@@ -13,6 +13,8 @@ namespace xg
 
         private bool _adopted;
 
+        private Transform? _transform;
+
         // True for a proxy of an actor another module created (see Adopt).
         public bool IsAdopted => _adopted;
 
@@ -38,21 +40,86 @@ namespace xg
 
         public T AddComponent<T>() where T : class, new() => (T)AddComponent(new T());
 
-        // Adds a new component of type (a class with a public parameterless constructor).
+        // Adds a new component of type (a class with a public parameterless constructor, or Transform).
         public object AddComponent(Type type)
         {
             ArgumentNullException.ThrowIfNull(type);
+            if (type == typeof(Transform))
+                return AddTransform();
             return AddComponent(Activator.CreateInstance(type) ?? throw new ArgumentException($"Cannot create {type}.", nameof(type)));
         }
 
-        private object AddComponent(object component)
+        // Attaches an existing object (runtime attachment). An object has one owner at a time: remove it from its current
+        // actor first. IComponent objects get OnAttached.
+        public object AddComponent(object component)
         {
+            ArgumentNullException.ThrowIfNull(component);
             ThrowIfDestroyed();
+            if (component is Transform)
+                return AddTransform();
+            Actor? owner = ActorRegistry.GetOwner(component);
+            if (owner is not null)
+                throw new InvalidOperationException(ReferenceEquals(owner, this)
+                    ? $"{component.GetType().Name} is already attached to actor {(ulong)ID}."
+                    : $"{component.GetType().Name} is attached to actor {(ulong)owner.ID}; remove it there first.");
+            AddRequired(component.GetType());
             _components.Add(component);
             ActorRegistry.SetOwner(component, this);
+            if (component is IComponent attachable)
+                attachable.OnAttached(this);
             if (component is IComponentUpdate updatable)
                 updatable.Attach();
             return component;
+        }
+
+        // The actor's native transform, or null when it has none.
+        public Transform? Transform
+        {
+            get
+            {
+                if (!IsValid)
+                    return null;
+                if (_transform is not null && _transform.IsValid)
+                    return _transform;
+                _transform = Transform.Exists(ID) ? new Transform(ID) : null;
+                return _transform;
+            }
+        }
+
+        // Adds an identity transform, or returns the existing one.
+        public Transform AddTransform()
+        {
+            ThrowIfDestroyed();
+            if (!Transform.Exists(ID) && !Transform.Add(ID))
+                throw new InvalidOperationException($"Cannot add a Transform to actor {(ulong)ID}.");
+            return _transform ??= new Transform(ID);
+        }
+
+        public bool RemoveTransform()
+        {
+            ThrowIfDestroyed();
+            _transform = null;
+            return Transform.Remove(ID);
+        }
+
+        private void AddRequired(Type type)
+        {
+            foreach (object attribute in type.GetCustomAttributes(typeof(RequireComponentAttribute), true))
+            {
+                Type required = ((RequireComponentAttribute)attribute).Type;
+                if (required == typeof(Transform))
+                    AddTransform();
+                else if (!HasComponent(required))
+                    AddComponent(required);
+            }
+        }
+
+        private bool HasComponent(Type type)
+        {
+            foreach (object component in _components)
+                if (type.IsInstanceOfType(component))
+                    return true;
+            return false;
         }
 
         // A proxy for an actor another module created, so this module can hold components on it. Destroying the proxy
@@ -74,6 +141,8 @@ namespace xg
 
         public T? GetComponent<T>() where T : class
         {
+            if (typeof(T) == typeof(Transform))
+                return Transform as T;
             foreach (object component in _components)
                 if (component is T match)
                     return match;
@@ -92,6 +161,8 @@ namespace xg
 
         public bool RemoveComponent<T>() where T : class
         {
+            if (typeof(T) == typeof(Transform))
+                return RemoveTransform();
             for (int i = 0; i < _components.Count; i++)
             {
                 if (_components[i] is T)
@@ -149,6 +220,7 @@ namespace xg
             foreach (object component in _components)
                 DetachComponent(component);
             _components.Clear();
+            _transform = null;
             IsValid = false;
         }
 
@@ -156,6 +228,8 @@ namespace xg
         {
             if (component is IComponentUpdate updatable)
                 updatable.Detach();
+            if (component is IComponent attachable)
+                attachable.OnDetached();
             ActorRegistry.ClearOwner(component);
         }
 

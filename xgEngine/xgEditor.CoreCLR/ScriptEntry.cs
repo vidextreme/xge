@@ -72,6 +72,155 @@ namespace xgEditor.CoreCLR
     // Test hook (XG_RESOURCE_TEST_MODEL=<asset path>): builds the mesh asset, acquires its "model" resource by the asset
     // GUID (loaded on a job worker, GPU meshes created on the main thread) and draws it next to the Scene panel's test
     // cube, scaled to about 2 units tall and standing on the grid at x = -2.
+    // Test hook (XG_TRANSFORM_TEST=1): native transforms through the managed proxy. Parent/child world poses, keep-world
+    // reparenting, an actor without a transform in the middle, change versions, and destroying a parent's subtree.
+    // XG_TRANSFORM_TEST=play (with XG_UI_TEST_PLAY=play,stop): transforms changed, added or removed during play are put back
+    // at Stop. XG_TRANSFORM_TEST_INSPECT=<actor name>: gives that actor a posed transform (for the Inspector card).
+    internal static class TransformSmoke
+    {
+        static int _failures;
+        static Actor? _playActor;
+        static Actor? _playAdded;
+        static Actor? _playRemoved;
+        static bool _playChanged;
+        static bool _playChecked;
+        static string? _inspectTarget = Environment.GetEnvironmentVariable("XG_TRANSFORM_TEST_INSPECT");
+        static int _frames;
+
+        static void Check(string label, Vector3 actual, float x, float y, float z)
+        {
+            bool ok = MathF.Abs(actual.x - x) < 1e-3f && MathF.Abs(actual.y - y) < 1e-3f && MathF.Abs(actual.z - z) < 1e-3f;
+            if (!ok)
+                _failures++;
+            Debug.Log($"[Transforms] {(ok ? "PASS" : "FAIL")} {label}: ({actual.x:F3}, {actual.y:F3}, {actual.z:F3}) expected ({x:F3}, {y:F3}, {z:F3})");
+        }
+
+        static void Check(string label, bool ok)
+        {
+            if (!ok)
+                _failures++;
+            Debug.Log($"[Transforms] {(ok ? "PASS" : "FAIL")} {label}");
+        }
+
+        public static void Init()
+        {
+            string? mode = Environment.GetEnvironmentVariable("XG_TRANSFORM_TEST");
+            if (mode == "play")
+            {
+                _playActor = Actor.Create("TransformTest Play");
+                _playActor.AddTransform().LocalPosition = new Vector3(1, 2, 3);
+                _playAdded = Actor.Create("TransformTest Play Added");
+                _playRemoved = Actor.Create("TransformTest Play Removed");
+                _playRemoved.AddTransform().LocalPosition = new Vector3(4, 5, 6);
+                return;
+            }
+            if (mode != "1")
+                return;
+            try
+            {
+                Run();
+            }
+            catch (Exception e)
+            {
+                _failures++;
+                Debug.LogException(e);
+            }
+            Debug.Log($"[Transforms] done, {_failures} failure(s)");
+        }
+
+        public static void Update()
+        {
+            _frames++;
+            if (_inspectTarget is not null && _frames > 10)
+            {
+                foreach (Actor actor in ActorRegistry.Actors)
+                {
+                    if (actor.Name != _inspectTarget)
+                        continue;
+                    Transform t = actor.AddTransform();
+                    t.SetLocal(new Vector3(1.5f, 0.25f, -3), Transform.FromEuler(new Vector3(10, 45, 0)), new Vector3(1, 1, 1));
+                    Debug.Log($"[Transforms] gave '{_inspectTarget}' a transform, euler {t.LocalEulerAngles}");
+                    _inspectTarget = null;
+                    break;
+                }
+            }
+            if (_playActor is null || _playChecked)
+                return;
+            if (!_playChanged && PlayMode.State == PlayState.Playing)
+            {
+                _playActor.Transform!.LocalPosition = new Vector3(9, 9, 9);
+                _playAdded!.AddTransform();
+                _playRemoved!.RemoveTransform();
+                _playChanged = true;
+                Debug.Log("[Transforms] changed transforms during play");
+            }
+            else if (_playChanged && PlayMode.State == PlayState.Edit)
+            {
+                _playChecked = true;
+                Check("play: moved transform restored", _playActor.Transform!.LocalPosition, 1, 2, 3);
+                Check("play: transform added in play removed", _playAdded!.Transform is null);
+                Check("play: transform removed in play re-added", _playRemoved!.Transform is { } r && MathF.Abs(r.LocalPosition.y - 5) < 1e-3f);
+                Vector3 e = Transform.ToEuler(Transform.FromEuler(new Vector3(30, -60, 15)));
+                Check("euler round trip", e, 30, -60, 15);
+                Debug.Log($"[Transforms] play done, {_failures} failure(s)");
+            }
+        }
+
+        static void Run()
+        {
+            Actor parent = Actor.Create("TransformTest Parent");
+            Actor child = Actor.Create("TransformTest Child");
+            child.Parent = parent;
+            Check("no transform by default", parent.Transform is null && child.GetComponent<Transform>() is null);
+
+            Transform pt = parent.AddTransform();
+            Transform ct = (Transform)child.AddComponent(typeof(Transform));
+            Check("identity local", ct.LocalPosition.x == 0 && ct.LocalScale.y == 1 && ct.LocalRotation.w == 1);
+
+            pt.LocalPosition = new Vector3(10, 0, 0);
+            ct.LocalPosition = new Vector3(1, 2, 3);
+            Check("child world = parent + local", ct.Position, 11, 2, 3);
+
+            float h = MathF.Sqrt(0.5f);
+            pt.LocalRotation = new Quaternion(0, h, 0, h);
+            Check("parent yaw 90 rotates child", ct.Position, 13, 2, -1);
+
+            ulong before = Transform.CurrentVersion;
+            pt.LocalScale = new Vector3(2, 2, 2);
+            List<ActorID> changed = new();
+            Transform.CollectChanged(before, changed);
+            Check($"changed after scale ({changed.Count})", changed.Count >= 1);
+            Check("parent scale 2", ct.Position, 16, 4, -2);
+            pt.LocalScale = new Vector3(1, 1, 1);
+
+            Check("reparent to root keeps world", ct.SetParent(null));
+            Check("world kept", ct.Position, 13, 2, -1);
+            Check("local = world at root", ct.LocalPosition, 13, 2, -1);
+
+            Check("reparent keepWorld=false", ct.SetParent(pt, keepWorld: false));
+            Check("local kept", ct.LocalPosition, 13, 2, -1);
+            Check("world follows parent", ct.Position, 9, 2, -13);
+
+            Actor mid = Actor.Create("TransformTest Mid");
+            mid.Parent = parent;
+            Check("reparent under untransformed mid", child.SetParent(mid.ID));
+            Check("mid passes parent world through", ct.Position, 9, 2, -13);
+            pt.LocalPosition = new Vector3(0, 5, 0);
+            Check("parent move reaches grandchild", ct.Position, -1, 7, -13);
+
+            Check("cycle rejected", !parent.SetParent(child.ID));
+
+            child.RemoveTransform();
+            Check("transform removed", child.Transform is null && !Transform.Exists(child.ID));
+
+            ActorID childId = child.ID;
+            ActorID midId = mid.ID;
+            parent.Destroy();
+            Check("children destroyed with parent", !child.IsValid && !mid.IsValid);
+            Check("native subtree gone", ActorTree.GetName(childId).Length == 0 && ActorTree.GetName(midId).Length == 0);
+        }
+    }
+
     internal static unsafe class ModelSmoke
     {
         static ResourceHandle _handle;
@@ -463,6 +612,7 @@ namespace xgEditor.CoreCLR
                 ManagedJobTest();
             TextureSmoke.Init();
             ModelSmoke.Init();
+            TransformSmoke.Init();
             return 1;
         }
 
@@ -507,6 +657,8 @@ namespace xgEditor.CoreCLR
         private static void UpdateSelectionHooks()
         {
             int frame = ++_selectionFrames;
+            if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_SCRIPT_BUILD") == "1")
+                _ = ProjectService.BuildScripts();
             if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
             {
                 BackgroundTask? task = BackgroundTasks.Find(cancelName);
@@ -536,6 +688,7 @@ namespace xgEditor.CoreCLR
             ResourceSmoke.Update(frames);
             TextureSmoke.Update();
             ModelSmoke.Update();
+            TransformSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)
             {
                 _elapsedAtStart = _player.ElapsedTime;

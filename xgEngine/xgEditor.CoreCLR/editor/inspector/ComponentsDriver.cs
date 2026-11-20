@@ -84,6 +84,10 @@ namespace xgEditor.CoreCLR
         public readonly Dictionary<string, bool> Open = new();
         public readonly List<ComponentType> Filtered = new();
         public readonly xg.imui.TextBuffer Search = new(64);
+        // Rotation shown as Euler angles, kept while the transform's rotation stays the one they produced.
+        public Vector3 Euler;
+        public Quaternion EulerSource;
+        public ulong EulerActor;
 
         public void SelectTab(int tab)
         {
