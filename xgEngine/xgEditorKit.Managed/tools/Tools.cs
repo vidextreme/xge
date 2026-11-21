@@ -82,6 +82,7 @@ namespace xg.editor
         private readonly List<PanelTypeEntry> _panelTypes = new();
         private readonly List<(IInspectorTool Tool, InspectorToolAttribute Attribute, int Order)> _inspectorTools = new();
         private readonly List<IPanelTool> _panels = new();
+        private readonly List<(IContextMenuTool Tool, int Order)> _menuTools = new();
         private readonly HashSet<IPanelTool> _seenOpen = new();
         private ToolEntry? _active;
         private readonly Dictionary<string, ToolCategoryAttribute> _categories = new();
@@ -114,6 +115,27 @@ namespace xg.editor
         // The Inspector tools (one instance each), the ones tried first come first. Every Inspector draws these same
         // instances with its own selection, drivers and view state.
         public IReadOnlyList<IInspectorTool> InspectorTools { get; private set; } = Array.Empty<IInspectorTool>();
+
+        // Every context menu tool: the tools above and the open panel tools that implement IContextMenuTool, plus one
+        // instance of each other concrete IContextMenuTool class, lowest ContextMenuPriority first.
+        public IReadOnlyList<IContextMenuTool> ContextMenuTools
+        {
+            get
+            {
+                List<(IContextMenuTool Tool, int Order)> all = new();
+                foreach (ToolEntry entry in _tools)
+                    if (entry.Tool is IContextMenuTool tool)
+                        all.Add((tool, entry.Order));
+                foreach (var inspector in _inspectorTools)
+                    if (inspector.Tool is IContextMenuTool tool)
+                        all.Add((tool, inspector.Order));
+                for (int i = 0; i < _panels.Count; i++)
+                    if (_panels[i] is IContextMenuTool tool)
+                        all.Add((tool, int.MaxValue / 2 + i));
+                all.AddRange(_menuTools);
+                return all.OrderBy(t => t.Tool.ContextMenuPriority).ThenBy(t => t.Order).Select(t => t.Tool).Distinct().ToArray();
+            }
+        }
 
         public Tools()
         {
@@ -232,15 +254,18 @@ namespace xg.editor
             }
             int panelTypes = _panelTypes.Count;
             int inspectorTools = _inspectorTools.Count;
+            int menuTools = _menuTools.Count;
             foreach (Type type in types.OrderBy(t => t.MetadataToken))
             {
                 ToolEntry? tool = RegisterTool(type);
                 RegisterControls(type, tool);
                 RegisterPanelType(type);
                 RegisterInspectorTool(type);
+                RegisterContextMenuTool(type);
             }
 
-            if (_tools.Count != tools || _controls.Count != controls || _panelTypes.Count != panelTypes || _inspectorTools.Count != inspectorTools)
+            if (_tools.Count != tools || _controls.Count != controls || _panelTypes.Count != panelTypes || _inspectorTools.Count != inspectorTools
+                || _menuTools.Count != menuTools)
             {
                 Version++;
                 if (log)
@@ -278,6 +303,12 @@ namespace xg.editor
                 _inspectorTools.Remove(inspectorTool);
             }
             InspectorTools = _inspectorTools.OrderBy(t => t.Attribute.Priority).ThenBy(t => t.Order).Select(t => t.Tool).ToArray();
+            foreach (var menuTool in _menuTools.Where(t => Owned(t.Tool.GetType())).ToArray())
+            {
+                if (menuTool.Tool is IDisposable disposable)
+                    Safe(menuTool.Tool.GetType().Name, disposable.Dispose);
+                _menuTools.Remove(menuTool);
+            }
             foreach (IPanelTool panel in _panels.Where(p => Owned(p.GetType())).ToArray())
             {
                 _panels.Remove(panel);
@@ -364,6 +395,33 @@ namespace xg.editor
             _inspectorTools.Add((tool, attribute, _order++));
             InspectorTools = _inspectorTools.OrderBy(t => t.Attribute.Priority).ThenBy(t => t.Order).Select(t => t.Tool).ToArray();
         }
+
+        // A concrete IContextMenuTool that no other registration holds (not an [EditorTool], [InspectorTool] or panel).
+        private void RegisterContextMenuTool(Type type)
+        {
+            if (type.IsAbstract || type.IsInterface || !typeof(IContextMenuTool).IsAssignableFrom(type) || typeof(Panel).IsAssignableFrom(type)
+                || type.IsDefined(typeof(EditorToolAttribute), false) || type.IsDefined(typeof(InspectorToolAttribute), false))
+                return;
+            if (type.GetConstructor(Type.EmptyTypes) is null)
+            {
+                Debug.LogError($"[Tools] {type.FullName}: an IContextMenuTool needs a parameterless constructor");
+                return;
+            }
+            try
+            {
+                _menuTools.Add(((IContextMenuTool)Activator.CreateInstance(type)!, _order++));
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Tools] {type.FullName}: constructor threw: {(e as TargetInvocationException)?.InnerException ?? e}");
+            }
+        }
+
+        internal ToolUsability SafeMenuUsability(IContextMenuTool tool, ContextMenuContext context) =>
+            SafeUsability(tool.GetType().Name, () => tool.OnContextMenu(context));
+
+        internal void SafeMenuGUI(IContextMenuTool tool, ContextMenu menu, ContextMenuContext context) =>
+            Safe(tool.GetType().Name, () => tool.OnContextMenuGUI(menu, context));
 
         private void RegisterPanelType(Type type)
         {

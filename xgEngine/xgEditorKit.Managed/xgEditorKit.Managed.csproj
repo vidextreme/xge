@@ -36,6 +36,7 @@
     <Compile Include="assets\MaterialAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
+    <Compile Include="tools\ContextMenus.cs" />
     <Compile Include="tools\EditorTool.cs" />
     <Compile Include="tools\ToolDriver.cs" />
     <Compile Include="tools\ToolSelection.cs" />

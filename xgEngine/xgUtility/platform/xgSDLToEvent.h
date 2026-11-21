@@ -94,6 +94,18 @@ namespace xg
         return mods;
     }
 
+    inline xgMouseButton ToXgMouseButton(Uint8 button)
+    {
+        switch (button)
+        {
+        case SDL_BUTTON_RIGHT: return xgMouseButton::Right;
+        case SDL_BUTTON_MIDDLE: return xgMouseButton::Middle;
+        case SDL_BUTTON_X1: return xgMouseButton::X1;
+        case SDL_BUTTON_X2: return xgMouseButton::X2;
+        default: return xgMouseButton::Left;
+        }
+    }
+
     inline xgEvent FromSDL(const SDL_Event& sdl)
     {
         xgEvent e{};
@@ -179,7 +191,7 @@ namespace xg
 
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
             e.Type = xgEventType::MouseButtonDown;
-            e.MouseButton.Button = static_cast<xgMouseButton>(sdl.button.button);
+            e.MouseButton.Button = ToXgMouseButton(sdl.button.button);
             e.MouseButton.X = static_cast<int>(sdl.button.x);
             e.MouseButton.Y = static_cast<int>(sdl.button.y);
             e.MouseButton.Clicks = sdl.button.clicks;
@@ -187,7 +199,7 @@ namespace xg
 
         case SDL_EVENT_MOUSE_BUTTON_UP:
             e.Type = xgEventType::MouseButtonUp;
-            e.MouseButton.Button = static_cast<xgMouseButton>(sdl.button.button);
+            e.MouseButton.Button = ToXgMouseButton(sdl.button.button);
             e.MouseButton.X = static_cast<int>(sdl.button.x);
             e.MouseButton.Y = static_cast<int>(sdl.button.y);
             e.MouseButton.Clicks = sdl.button.clicks;

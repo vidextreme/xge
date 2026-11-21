@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 19;
+        public const uint ApiVersion = 20;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -185,6 +185,9 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetItemRect")]
         public static partial byte GetItemRect(nint ctx, Rect* rect);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIGetMousePosition")]
+        public static partial byte GetMousePosition(nint ctx, Vector2* position);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUITextArea")]
         public static partial Result TextArea(nint ctx, byte* id, byte* text, Vector2* size);
