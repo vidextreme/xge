@@ -14,7 +14,7 @@ namespace xgEditor.CoreCLR
     // Search) and the asset grid, side by side when the panel is wide and stacked otherwise. Back/forward walk the
     // runtime history of locations; bookmarks (saved searches and items) are shared through ProjectSettings.
     [PanelTool("Navigator", Icon = "Folder", Unique = true, Priority = 30, Tooltip = "Project content browser")]
-    public sealed class NavigatorPanel : Panel, IPanelTool
+    public sealed class NavigatorPanel : Panel, IPanelTool, IContextMenuTool
     {
         private enum OptionTab { None, View, Filter, Sort }
         private enum SortMode { None, Type, Status, User }
@@ -142,10 +142,10 @@ namespace xgEditor.CoreCLR
         private bool _openAllTags;
         private bool _openKindMore;
         private Rect _kindMoreRect;
-        private bool _openContext;
+        private readonly ContextMenuHost _contextMenu = new(ContextPopupId);
         private int _contextSection = -1;
-        private Rect _contextRect;
-        private string? _contextPath;
+        private string? _contextHook;
+        private int _contextHookIn;
         private bool _openEditTags;
         private string? _editTagsPath;
         private string? _typeTags;
@@ -166,6 +166,70 @@ namespace xgEditor.CoreCLR
         public int InstanceIndex { get; set; }
 
         public ToolUsability OnSelectItems(object[] selection) => ToolUsability.Usable;
+
+        // Context menu sources: a tile or Details row ("navigator.item", target = the AssetRef) and the empty space of
+        // the grid ("navigator.background", target = the current folder's AssetRef).
+        public const string ItemMenu = "navigator.item";
+        public const string BackgroundMenu = "navigator.background";
+
+        public string ContextMenuGroup => "Asset";
+
+        public ToolUsability OnContextMenu(ContextMenuContext context) =>
+            ReferenceEquals(context.Owner, this) && context.Source == ItemMenu && context.TryGet(out AssetRef _)
+                ? ToolUsability.Usable : ToolUsability.NotApplicable;
+
+        public void OnContextMenuGUI(ContextMenu menu, ContextMenuContext context)
+        {
+            if (!context.TryGet(out AssetRef target))
+                return;
+            string path = target.Path;
+            AssetEntry? entry = _index?.Find(path);
+            bool canTag = entry is { IsFolder: false };
+            menu.Item("Edit tags...", Icon.Tag, () => OpenEditTags(path), canTag, canTag ? null : "Folders have no tags");
+            bool bookmarked = _bookmarks?.IsBookmarked(path) ?? false;
+            menu.Item(bookmarked ? "Remove bookmark" : "Bookmark", Icon.Star, () =>
+            {
+                if (bookmarked)
+                    _bookmarks?.RemoveItem(path);
+                else
+                    _bookmarks?.AddItem(path);
+            }, _bookmarks is not null);
+            menu.Item("Reveal in Explorer", Icon.Folder, () => RevealInExplorer(entry!.FullPath), entry is not null);
+            menu.Item("Rename...", Icon.File, () => OpenRename(path), entry is not null);
+        }
+
+        // Selects an asset that was just created and opens its Rename modal once the grid has picked it up.
+        public void RenameCreated(string relPath)
+        {
+            _selected = relPath;
+            OpenRename(relPath, 2);
+        }
+
+        // Opens the Edit tags modal for an asset.
+        public void OpenEditTags(string relPath)
+        {
+            _editTagsPath = relPath;
+            _openEditTags = true;
+        }
+
+        // Opens a context menu after the given number of frames (test hook): an asset path for its item menu, or
+        // "empty" for the grid's background menu.
+        public void OpenContextMenu(string target, int frames)
+        {
+            _contextHook = target;
+            _contextHookIn = Math.Max(frames, 1);
+        }
+
+        // Opens a context menu at the mouse cursor, or at position (results draw space) for test hooks.
+        private void OpenContextMenu(string source, string path, int section, Vector2? position = null)
+        {
+            _contextSection = section;
+            ContextMenuContext context = new(source, new object[] { new AssetRef(path) }, this);
+            if (position is Vector2 at)
+                _contextMenu.Open(context, at);
+            else
+                _contextMenu.Open(context);
+        }
         public override string? MenuPath => "General/Navigator";
         public override DockSlot Slot => Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_DOCK")?.ToLowerInvariant() switch
         {
@@ -331,6 +395,12 @@ namespace xgEditor.CoreCLR
 
         private void TickHooks()
         {
+            if (_contextHook is not null && _contextHookIn > 0 && --_contextHookIn == 0)
+            {
+                bool background = _contextHook is "empty" or "background";
+                OpenContextMenu(background ? BackgroundMenu : ItemMenu, background ? _folder : _contextHook, 0, new Vector2(24.0f, 48.0f));
+                _contextHook = null;
+            }
             if (_openBookmarksIn > 0 && --_openBookmarksIn == 0)
                 _openBookmarks = true;
             if (_renameHookPath is not null && _renameHookIn > 0 && --_renameHookIn == 0)
@@ -1290,8 +1360,13 @@ namespace xgEditor.CoreCLR
                     NavigatorMode.Search when _searchText.Text.Trim().Length == 0 && !_filterBookmarked && !_filterRecent && !_filterUntagged => "Type a name or pick a filter to search.",
                     _ => "No matching assets.",
                 };
-                using var canvas = Gui.Canvas("##nav_empty", new Vector2(0.0f, 24.0f));
-                canvas.Draw.Text(new Vector2(4.0f, 4.0f), Style.Color(StyleColor.TextDim), message);
+                using (var canvas = Gui.Canvas("##nav_empty", new Vector2(0.0f, Math.Max(24.0f, MathF.Floor(Gui.AvailableSize.y) - 1.0f))))
+                {
+                    canvas.Draw.Text(new Vector2(4.0f, 4.0f), Style.Color(StyleColor.TextDim), message);
+                    if ((Gui.HitArea("##nav_empty_area", Rect.FromXYWH(0.0f, 0.0f, canvas.Size.x, canvas.Size.y)) & Result.RightClicked) != 0)
+                        OpenContextMenu(BackgroundMenu, _folder, 0);
+                }
+                DrawContextPopup(0);
                 return;
             }
             if (_view == ViewSize.Details)
@@ -1354,12 +1429,7 @@ namespace xgEditor.CoreCLR
             DrawSectionBar(draw, Rect.FromXYWH(0.0f, 0.0f, width, barHeight), SectionLabel(section));
             draw.Rect(frame, Style.Color(StyleColor.Border), 4.0f);
             if ((Gui.HitArea("##tiles_background", frame) & Result.RightClicked) != 0)
-            {
-                _contextPath = null;
-                _contextSection = sectionIndex;
-                _contextRect = Offset(Rect.FromXYWH(pad, barHeight, 0.0f, pad), canvas.Bounds.min);
-                _openContext = true;
-            }
+                OpenContextMenu(BackgroundMenu, _folder, sectionIndex);
             for (int i = 0; i < section.Items.Count; i++)
             {
                 GridItem item = section.Items[i];
@@ -1420,6 +1490,8 @@ namespace xgEditor.CoreCLR
             float frameHeight = Math.Max(height + 1.0f, MathF.Floor(Gui.AvailableSize.y) - 1.0f);
             using var canvas = Gui.Canvas("##nav_details", new Vector2(width, frameHeight));
             Painter draw = canvas.Draw;
+            if ((Gui.HitArea("##details_background", Rect.FromXYWH(0.0f, 0.0f, width, frameHeight)) & Result.RightClicked) != 0)
+                OpenContextMenu(BackgroundMenu, _folder, 0);
             Color32 border = Style.Color(StyleColor.Border);
             Color32 text = Style.Color(StyleColor.Text);
             Color32 dim = Style.Color(StyleColor.TextDim);
@@ -1563,85 +1635,14 @@ namespace xgEditor.CoreCLR
             if ((hit & Result.RightClicked) != 0)
             {
                 _selected = entry.RelPath;
-                _contextPath = entry.RelPath;
-                _contextSection = sectionIndex;
-                _contextRect = Offset(rect, canvasBounds.min);
-                _openContext = true;
+                OpenContextMenu(ItemMenu, entry.RelPath, sectionIndex);
             }
         }
 
         private void DrawContextPopup(int sectionIndex)
         {
-            if (_contextSection != sectionIndex)
-                return;
-            if (_openContext)
-            {
-                _openContext = false;
-                Gui.OpenPopup(ContextPopupId);
-            }
-            const float width = 180.0f;
-            using var popup = Gui.Popup(ContextPopupId, new Vector2(_contextRect.min.x + 8.0f, _contextRect.max.y - 6.0f), new Vector2(width, 0.0f));
-            if (!popup.IsOpen)
-                return;
-            if (_contextPath is null)
-            {
-                DrawCreateRows(width);
-                return;
-            }
-            bool bookmarked = _bookmarks!.IsBookmarked(_contextPath);
-            using var canvas = Gui.Canvas("##nav_context_rows", new Vector2(width, 4.0f * (SegHeight + 2.0f) + 6.0f));
-            Painter draw = canvas.Draw;
-            float inner = width - 8.0f;
-            AssetEntry? entry = _index!.Find(_contextPath);
-            bool canTag = entry is { IsFolder: false };
-            if (ToggleButton.Draw(draw, "##ctx_tags", Rect.FromXYWH(4.0f, 4.0f, inner, SegHeight), Icon.Tag, null, "Edit tags...", null,
-                canTag ? null : "Folders have no tags", false, canTag, ToggleDot.None).Clicked())
-            {
-                _editTagsPath = _contextPath;
-                _openEditTags = true;
-                Gui.ClosePopup();
-            }
-            if (ToggleButton.Draw(draw, "##ctx_bookmark", Rect.FromXYWH(4.0f, 6.0f + SegHeight, inner, SegHeight), Icon.Star, null,
-                bookmarked ? "Remove bookmark" : "Bookmark", null, null, false, true, ToggleDot.None).Clicked())
-            {
-                if (bookmarked)
-                    _bookmarks.RemoveItem(_contextPath);
-                else
-                    _bookmarks.AddItem(_contextPath);
-                Gui.ClosePopup();
-            }
-            if (ToggleButton.Draw(draw, "##ctx_reveal", Rect.FromXYWH(4.0f, 8.0f + SegHeight * 2.0f, inner, SegHeight), Icon.Folder, null,
-                "Reveal in Explorer", null, null, false, entry is not null, ToggleDot.None).Clicked() && entry is not null)
-            {
-                RevealInExplorer(entry.FullPath);
-                Gui.ClosePopup();
-            }
-            if (ToggleButton.Draw(draw, "##ctx_rename", Rect.FromXYWH(4.0f, 10.0f + SegHeight * 3.0f, inner, SegHeight), Icon.File, null,
-                "Rename...", null, null, false, entry is not null, ToggleDot.None).Clicked() && entry is not null)
-            {
-                OpenRename(entry.RelPath);
-                Gui.ClosePopup();
-            }
-        }
-
-        // Create menu of the grid's background: new assets in the current folder, then the Rename modal.
-        private void DrawCreateRows(float width)
-        {
-            using var canvas = Gui.Canvas("##nav_create_rows", new Vector2(width, 2.0f * (SegHeight + 2.0f) + 6.0f));
-            Painter draw = canvas.Draw;
-            float inner = width - 8.0f;
-            string? created = null;
-            if (ToggleButton.Draw(draw, "##create_material", Rect.FromXYWH(4.0f, 4.0f, inner, SegHeight), Icon.Material, null,
-                "Create material", null, $"A new .xcm in {_folder}", false, true, ToggleDot.None).Clicked())
-                created = AssetTemplates.CreateMaterial(_folder);
-            if (ToggleButton.Draw(draw, "##create_shader", Rect.FromXYWH(4.0f, 6.0f + SegHeight, inner, SegHeight), Icon.Code, null,
-                "Create shader", null, $"A new surface shader in {_folder}", false, true, ToggleDot.None).Clicked())
-                created = AssetTemplates.CreateShader(_folder);
-            if (created is null)
-                return;
-            Gui.ClosePopup();
-            _selected = created;
-            OpenRename(created, 2);
+            if (_contextSection == sectionIndex)
+                _contextMenu.OnGUI();
         }
 
         // ------------------------------------------------------------
@@ -1773,8 +1774,6 @@ namespace xgEditor.CoreCLR
             _folder = move.Apply(_folder);
             if (_selected is not null)
                 _selected = move.Apply(_selected);
-            if (_contextPath is not null)
-                _contextPath = move.Apply(_contextPath);
             if (_editTagsPath is not null)
                 _editTagsPath = move.Apply(_editTagsPath);
             if (move.IsFolder)

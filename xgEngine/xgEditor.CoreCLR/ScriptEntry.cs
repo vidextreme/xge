@@ -740,6 +740,9 @@ namespace xgEditor.CoreCLR
             string? navRenameOpen = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_RENAME_OPEN");
             if (!string.IsNullOrEmpty(navRenameOpen))
                 navigator.OpenRename(navRenameOpen, 30);
+            string? navContext = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_CONTEXT");
+            if (!string.IsNullOrEmpty(navContext))
+                navigator.OpenContextMenu(navContext, 30);
             if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOCUS") == "navigator")
                 navigator.Focus();
 

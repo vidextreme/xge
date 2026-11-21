@@ -204,7 +204,7 @@ namespace
             result = result | Result::Active;
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
             result = result | Result::Clicked;
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
             result = result | Result::RightClicked;
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             result = result | Result::DoubleClicked;
@@ -1142,6 +1142,16 @@ namespace xg
         const ImVec2 min = ImGui::GetItemRectMin();
         const ImVec2 max = ImGui::GetItemRectMax();
         interop::Store(out, Rect(Vec2(min.x - origin.x, min.y - origin.y), Vec2(max.x - origin.x, max.y - origin.y)));
+        return true;
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUIGetMousePosition(imui::Context* ctx, Vec2* out)
+    {
+        if (!ctx || !out)
+            return false;
+        const ImVec2 origin = ctx->Origin();
+        const ImVec2 mouse = ImGui::GetMousePos();
+        interop::Store(out, Vec2(mouse.x - origin.x, mouse.y - origin.y));
         return true;
     }
 

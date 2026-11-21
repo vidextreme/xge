@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 19;
+    inline constexpr uint32_t ApiVersion = 20;
 
     struct Context;
     struct PanelEntry;
@@ -382,7 +382,8 @@ namespace xg
     // draw space (row or canvas space, like the Draw* calls) over the row, and the layout cursor is left unchanged.
     // size <= 0 uses the frame height. Returns Clicked (and Changed) when pressed.
     XG_MODULE_EXPORT imui::Result XG_ImUIIconButton(imui::Context* ctx, const char* id, imui::Icon icon, const Vec2* position, float size, Color32 color);
-    // Invisible interactive rectangle in the current draw space (Hovered, Clicked, DoubleClicked, RightClicked).
+    // Invisible interactive rectangle in the current draw space (Hovered, Clicked, DoubleClicked, RightClicked). RightClicked
+    // fires when the right button is released over the item, so a context menu opened then stays open.
     XG_MODULE_EXPORT imui::Result XG_ImUIHitArea(imui::Context* ctx, const char* id, const Rect* rect);
     // Tooltip shown while the previous item is hovered.
     XG_MODULE_EXPORT void XG_ImUIItemTooltip(imui::Context* ctx, const char* text);
@@ -396,6 +397,8 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUISetClipboardText(imui::Context* ctx, const char* text);
     // Rect of the previous item in the current draw space (to place an overlay or popup under a field).
     XG_MODULE_EXPORT bool XG_ImUIGetItemRect(imui::Context* ctx, Rect* out);
+    // Mouse cursor in the current draw space (ApiVersion 20), e.g. to open a context menu at the cursor.
+    XG_MODULE_EXPORT bool XG_ImUIGetMousePosition(imui::Context* ctx, Vec2* out);
 
     // Modals: OpenPopup(id) once, then each frame if (BeginModal(id, title, size)) { ...; EndModal(); }.
     // The modal is centered on the main window and dims it; size.y <= 0 fits the content. Escape closes it.

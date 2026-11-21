@@ -329,6 +329,17 @@ namespace xg.imui
             }
         }
 
+        // Mouse cursor in the current draw space (to open a context menu at the cursor).
+        public static Vector2 MousePosition
+        {
+            get
+            {
+                Vector2 position;
+                Native.GetMousePosition(Context, &position);
+                return position;
+            }
+        }
+
         // Square flat icon button laid out inline. size <= 0 uses the frame height.
         public static bool IconButton(string id, Icon icon, float size, Color32 color)
         {
@@ -343,7 +354,8 @@ namespace xg.imui
                 return (Native.IconButton(Context, p, icon, &position, size, color) & Result.Clicked) != 0;
         }
 
-        // Invisible interactive rectangle in the current draw space: Hovered, Clicked, DoubleClicked, RightClicked.
+        // Invisible interactive rectangle in the current draw space: Hovered, Clicked, DoubleClicked, RightClicked (on
+        // release of the right button, so a context menu opened then stays open).
         public static Result HitArea(string id, Rect rect)
         {
             fixed (byte* p = Utf8.Encode(id.AsSpan()))
