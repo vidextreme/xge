@@ -34,6 +34,14 @@ namespace xg.editor
         public bool ActiveByDefault { get; set; }
     }
 
+    public sealed class ContextMenuButtonAttribute : ToolLayoutAttribute
+    {
+        public ContextMenuButtonAttribute(string label) => Label = label;
+        public string Label { get; }
+        // Name of a [ToolValidator] method on the same type.
+        public string? Validate { get; set; }
+    }
+
     // A ribbon button running the method: static void M(), or an instance method of a tool class. Category and Group
     // default to the tool's on a tool class and are required otherwise.
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]

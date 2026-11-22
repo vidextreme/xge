@@ -14,6 +14,7 @@ namespace xgEditor.CoreCLR
     {
         [ToolButton("Create material", Category = "Scene", Group = "Assets", Icon = "Material", Priority = 10,
             Validate = nameof(HasProject), Tooltip = "Create a material in the Navigator's folder and open it in the Material Editor")]
+        [ContextMenuButton("Create material", Category = "Scene", Group = "Assets", Icon = "Material", Priority = 10)]
         public static void CreateMaterial()
         {
             string folder = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault()?.Folder ?? AssetIndex.RootFolder;

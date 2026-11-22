@@ -154,6 +154,9 @@ namespace xg.editor
             if (tools is null)
                 return menu;
             string? group = null;
+
+            tools.DrawContextMenuEntries(menu, context);
+
             foreach (IContextMenuTool tool in tools.ContextMenuTools)
             {
                 ToolUsability usability = tools.SafeMenuUsability(tool, context);

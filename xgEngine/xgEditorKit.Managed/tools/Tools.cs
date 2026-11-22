@@ -79,6 +79,7 @@ namespace xg.editor
 
         private readonly List<ToolEntry> _tools = new();
         private readonly List<ControlEntry> _controls = new();
+        private readonly List<ControlEntry> _contextMenuEntries = new();
         private readonly List<PanelTypeEntry> _panelTypes = new();
         private readonly List<(IInspectorTool Tool, InspectorToolAttribute Attribute, int Order)> _inspectorTools = new();
         private readonly List<IPanelTool> _panels = new();
@@ -134,6 +135,22 @@ namespace xg.editor
                         all.Add((tool, int.MaxValue / 2 + i));
                 all.AddRange(_menuTools);
                 return all.OrderBy(t => t.Tool.ContextMenuPriority).ThenBy(t => t.Order).Select(t => t.Tool).Distinct().ToArray();
+            }
+        }
+
+        public void DrawContextMenuEntries(ContextMenu menu, ContextMenuContext context)
+        {
+            foreach (ControlEntry control in _contextMenuEntries)
+            {
+                MethodInfo? validator = control.Validator;
+                control.Usability = validator is null
+                    ? ToolUsability.Usable
+                    : SafeUsability(control.Key, () => (ToolUsability)validator.Invoke(validator.IsStatic ? null : control.Target, null)!);
+
+                if(control.Usability == ToolUsability.Usable)
+                {
+                    menu.Item(control.Label, control.Icon.Icon, () => control.Method.Invoke(null, null));
+                }
             }
         }
 
@@ -259,6 +276,7 @@ namespace xg.editor
             {
                 ToolEntry? tool = RegisterTool(type);
                 RegisterControls(type, tool);
+                RegisterContextMenuButton(type, tool);
                 RegisterPanelType(type);
                 RegisterInspectorTool(type);
                 RegisterContextMenuTool(type);
@@ -577,6 +595,77 @@ namespace xg.editor
                 };
                 if (isToggle)
                     entry.State = ToggleStore.TryGet(key, out bool stored) ? stored : toggle!.Default;
+                _controls.Add(entry);
+            }
+        }
+
+        private void RegisterContextMenuButton(Type type, ToolEntry? tool)
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+            foreach (MethodInfo method in type.GetMethods(flags).OrderBy(m => m.MetadataToken))
+            {
+                ContextMenuButtonAttribute? cbutton = method.GetCustomAttribute<ContextMenuButtonAttribute>();
+                if (cbutton is null)
+                    continue;
+                var button = cbutton;
+                string where = $"{type.FullName}.{method.Name}";
+                ToolLayoutAttribute layout = button;
+                string label = button.Label;
+
+                bool signatureOk = method.ReturnType == typeof(void) && method.GetParameters().Length == 0;
+                if (!signatureOk)
+                {
+                    Debug.LogError($"[Tools] {where}: [ContextMenuButton] needs void M()");
+                    continue;
+                }
+                object? target = null;
+                if (!method.IsStatic)
+                {
+                    if (tool is null)
+                    {
+                        Debug.LogError($"[Tools] {where}: instance controls must be declared on an [EditorTool] class; make it static");
+                        continue;
+                    }
+                    target = tool.Tool;
+                }
+
+                string? category = layout.Category ?? tool?.Attribute.Category;
+                string? group = layout.Group ?? tool?.Attribute.Group;
+                if (method.IsStatic && tool is null && (category is null || group is null))
+                {
+                    Debug.LogError($"[Tools] {where}: Category and Group are required on a control outside a tool class");
+                    continue;
+                }
+
+                MethodInfo? validator = null;
+                string? validate = button.Validate;
+                if (validate is not null)
+                {
+                    validator = type.GetMethod(validate, flags);
+                    if (validator is null || validator.GetCustomAttribute<ToolValidatorAttribute>() is null
+                        || validator.ReturnType != typeof(ToolUsability) || validator.GetParameters().Length != 0
+                        || (!validator.IsStatic && target is null))
+                    {
+                        Debug.LogError($"[Tools] {where}: Validate = \"{validate}\" must name a [ToolValidator] ToolUsability {validate}() on {type.Name}");
+                        validator = null;
+                    }
+                }
+
+                string key = $"{type.FullName}.{method.Name}";
+                ControlEntry entry = new()
+                {
+                    Method = method,
+                    Target = target,
+                    Label = label,
+                    Key = key,
+                    IsToggle = false,
+                    Layout = layout,
+                    Category = category ?? DefaultCategory,
+                    Group = group ?? DefaultGroup,
+                    Order = _order++,
+                    Validator = validator,
+                    Icon = ComponentIcons.Resolve(layout.Icon, layout.IconColor, imui.Icon.None),
+                };
                 _controls.Add(entry);
             }
         }

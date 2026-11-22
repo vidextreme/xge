@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "guid": "c4f5e1a8727e4c4090f988d5ab0c93b0",
+  "tags": [],
+  "importer": {
+    "import": {},
+    "process": {}
+  },
+  "items": [
+    {
+      "kind": "shader",
+      "path": "surface.tinted",
+      "guid": "ec02bb50b4e04f86aeee62fdf19f2d7b"
+    }
+  ]
+}
