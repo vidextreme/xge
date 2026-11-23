@@ -12,6 +12,14 @@
       "commandLineArgs": "--config hub.config",
       "workingDirectory": "$(TargetDir)",
       "nativeDebugging": true
+    },
+    "XGE Sample Project": {
+      "commandName": "Executable",
+      "executablePath": "$(TargetDir)xge.exe",
+      "commandLineArgs": "--project ../../samples/SampleGame",
+      "workingDirectory": "$(TargetDir)",
+      "nativeDebugging": true
     }
+    
   }
 }
