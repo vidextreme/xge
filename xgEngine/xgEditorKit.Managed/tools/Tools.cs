@@ -74,12 +74,29 @@ namespace xg.editor
             public RibbonItem Item { get; }
         }
 
+        private sealed class ContextMenuEntry
+        {
+            public required MethodInfo Method;
+            public required object? Target;
+            public required string Label;
+            public required string Tooltip;
+            public required string Key;
+            public required bool IsToggle;
+            public required string Category;
+            public required string Group;
+            public required int Order;
+            public MethodInfo? Validator;
+            public ToolUsability Usability = ToolUsability.Usable;
+            public bool State;
+            public ComponentIcon Icon;
+            public bool HasSeparator = false;
+        }
         private const string DefaultCategory = "Tools";
         private const string DefaultGroup = "General";
 
         private readonly List<ToolEntry> _tools = new();
         private readonly List<ControlEntry> _controls = new();
-        private readonly List<ControlEntry> _contextMenuEntries = new();
+        private readonly List<ContextMenuEntry> _contextMenuEntries = new();
         private readonly List<PanelTypeEntry> _panelTypes = new();
         private readonly List<(IInspectorTool Tool, InspectorToolAttribute Attribute, int Order)> _inspectorTools = new();
         private readonly List<IPanelTool> _panels = new();
@@ -139,17 +156,19 @@ namespace xg.editor
         }
 
         public void DrawContextMenuEntries(ContextMenu menu, ContextMenuContext context)
-        {
-            foreach (ControlEntry control in _contextMenuEntries)
+        {            
+            foreach (ContextMenuEntry ctxMenu in _contextMenuEntries.OrderBy(ctx => ctx.Order))
             {
-                MethodInfo? validator = control.Validator;
-                control.Usability = validator is null
+                MethodInfo? validator = ctxMenu.Validator;
+                ctxMenu.Usability = validator is null
                     ? ToolUsability.Usable
-                    : SafeUsability(control.Key, () => (ToolUsability)validator.Invoke(validator.IsStatic ? null : control.Target, null)!);
+                    : SafeUsability(ctxMenu.Key, () => (ToolUsability)validator.Invoke(validator.IsStatic ? null : ctxMenu.Target, null)!);
 
-                if(control.Usability == ToolUsability.Usable)
+                if(ctxMenu.Usability == ToolUsability.Usable)
                 {
-                    menu.Item(control.Label, control.Icon.Icon, () => control.Method.Invoke(null, null));
+                    if (ctxMenu.HasSeparator)
+                        menu.Separator();
+                    menu.Item(ctxMenu.Label, ctxMenu.Icon.Icon, () => ctxMenu.Method.Invoke(null, null), ContextMenu.EntryType.Button, true, ctxMenu.Tooltip);
                 }
             }
         }
@@ -605,6 +624,7 @@ namespace xg.editor
             foreach (MethodInfo method in type.GetMethods(flags).OrderBy(m => m.MetadataToken))
             {
                 ContextMenuButtonAttribute? cbutton = method.GetCustomAttribute<ContextMenuButtonAttribute>();
+                bool hasSeparator = method.GetCustomAttribute<MenuSeparatorAttribute>() is not null;
                 if (cbutton is null)
                     continue;
                 var button = cbutton;
@@ -652,21 +672,22 @@ namespace xg.editor
                 }
 
                 string key = $"{type.FullName}.{method.Name}";
-                ControlEntry entry = new()
+                ContextMenuEntry entry = new()
                 {
                     Method = method,
                     Target = target,
                     Label = label,
                     Key = key,
                     IsToggle = false,
-                    Layout = layout,
+                    Tooltip = cbutton?.Tooltip ?? "",
                     Category = category ?? DefaultCategory,
                     Group = group ?? DefaultGroup,
                     Order = _order++,
                     Validator = validator,
                     Icon = ComponentIcons.Resolve(layout.Icon, layout.IconColor, imui.Icon.None),
+                    HasSeparator = hasSeparator,
                 };
-                _controls.Add(entry);
+                _contextMenuEntries.Add(entry);
             }
         }
 

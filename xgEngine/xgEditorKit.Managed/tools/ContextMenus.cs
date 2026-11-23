@@ -75,6 +75,13 @@ namespace xg.editor
         public const float Gap = 2.0f;
         public const float SeparatorHeight = 7.0f;
 
+        public enum EntryType
+        {
+            Button,
+            Separator,
+            Group
+        }
+
         internal sealed class Entry
         {
             public string? Label;
@@ -84,21 +91,21 @@ namespace xg.editor
             public string? Tooltip;
             public float Height;
             public Action<Painter, Rect>? Draw;
-            public bool Separator;
+            public EntryType EntryType;
         }
 
         internal readonly List<Entry> Entries = new();
         internal bool Disabled;
 
-        public int Count => Entries.Count(e => !e.Separator);
+        public int Count => Entries.Count(e => e.EntryType != EntryType.Separator);
 
-        public void Item(string label, Icon icon, Action clicked, bool enabled = true, string? tooltip = null) =>
-            Entries.Add(new Entry { Label = label, Icon = icon, Clicked = clicked, Enabled = enabled && !Disabled, Tooltip = tooltip, Height = RowHeight });
+        public void Item(string label, Icon icon, Action clicked, EntryType entryType = EntryType.Button, bool enabled = true, string? tooltip = null) =>
+            Entries.Add(new Entry { Label = label, Icon = icon, Clicked = clicked, Enabled = enabled && !Disabled, Tooltip = tooltip, Height = RowHeight, EntryType = entryType });
 
         public void Separator()
         {
-            if (Entries.Count > 0 && !Entries[^1].Separator)
-                Entries.Add(new Entry { Separator = true, Height = SeparatorHeight });
+            if (Entries.Count > 0 && Entries[^1].EntryType != EntryType.Separator)
+                Entries.Add(new Entry { EntryType = EntryType.Separator, Height = SeparatorHeight });
         }
 
         // A row drawn by the tool in rect (menu canvas space).
@@ -171,7 +178,7 @@ namespace xg.editor
                 if (menu.Entries.Count > before)
                     group = tool.ContextMenuGroup;
             }
-            if (menu.Entries.Count > 0 && menu.Entries[^1].Separator)
+            if (menu.Entries.Count > 0 && menu.Entries[^1].EntryType == ContextMenu.EntryType.Separator)
                 menu.Entries.RemoveAt(menu.Entries.Count - 1);
             return menu;
         }
@@ -206,7 +213,7 @@ namespace xg.editor
             {
                 ContextMenu.Entry entry = menu.Entries[i];
                 Rect rect = Rect.FromXYWH(ContextMenu.Padding, y, inner, entry.Height);
-                if (entry.Separator)
+                if (entry.EntryType == ContextMenu.EntryType.Separator)
                     draw.Line(new Vector2(rect.min.x + 2.0f, MathF.Round(rect.min.y + entry.Height * 0.5f) + 0.5f),
                         new Vector2(rect.max.x - 2.0f, MathF.Round(rect.min.y + entry.Height * 0.5f) + 0.5f), Style.Color(StyleColor.Border));
                 else if (entry.Draw is not null)

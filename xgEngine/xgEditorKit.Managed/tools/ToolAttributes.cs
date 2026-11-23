@@ -33,13 +33,14 @@ namespace xg.editor
         public string Name { get; }
         public bool ActiveByDefault { get; set; }
     }
-
+    public sealed class MenuSeparatorAttribute : Attribute { }
     public sealed class ContextMenuButtonAttribute : ToolLayoutAttribute
     {
         public ContextMenuButtonAttribute(string label) => Label = label;
         public string Label { get; }
         // Name of a [ToolValidator] method on the same type.
         public string? Validate { get; set; }
+        public bool HasSeparator = false;
     }
 
     // A ribbon button running the method: static void M(), or an instance method of a tool class. Category and Group

@@ -10,26 +10,51 @@ using xg.imui;
 namespace xgEditor.CoreCLR
 {
     // The Tools ribbon's Scene > Assets group: create a material in the Navigator's folder, or edit the selected one.
-    public static class AssetCommands
+    public static partial class AssetCommands
     {
-        [ToolButton("Create material", Category = "Scene", Group = "Assets", Icon = "Material", Priority = 10,
+        [ToolButton("Create material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 10,
             Validate = nameof(HasProject), Tooltip = "Create a material in the Navigator's folder and open it in the Material Editor")]
-        [ContextMenuButton("Create material", Category = "Scene", Group = "Assets", Icon = "Material", Priority = 10)]
+        [ContextMenuButton("Create material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 10,
+            Validate = nameof(HasProject), Tooltip = "Create a material in the Navigator's folder and open it in the Material Editor")]
         public static void CreateMaterial()
         {
-            string folder = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault()?.Folder ?? AssetIndex.RootFolder;
+            NavigatorPanel? navigator = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault();
+            string folder = navigator?.Folder ?? AssetIndex.RootFolder;            
             if (AssetTemplates.CreateMaterial(folder) is not string path)
                 return;
-            Selection.Set(new AssetRef(path));
-            MaterialEditorPanel.Open(path);
+            navigator?.RenameCreated(path, ()=> 
+                {
+                    Selection.Set(path);
+                    MaterialEditorPanel.Open(path);
+                });
         }
 
-        [ToolButton("Edit material", Category = "Scene", Group = "Assets", Icon = "Material", Priority = 20,
+        [ToolButton("Edit material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 20,
+            Validate = nameof(MaterialSelected), Tooltip = "Open the selected material in the Material Editor")]
+        [ContextMenuButton("Edit material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 20,
             Validate = nameof(MaterialSelected), Tooltip = "Open the selected material in the Material Editor")]
         public static void EditMaterial()
         {
             if (SelectedMaterial() is string path)
                 MaterialEditorPanel.Open(path);
+        }
+
+        [MenuSeparator]
+        [ToolButton("Create shader", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Code), Priority = 10,
+            Validate = nameof(HasProject), Tooltip = "Create a new shader.")]
+        [ContextMenuButton("Create shader", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Code), Priority = 10,
+            Validate = nameof(HasProject), Tooltip = "Create a new shader.")]
+        public static void CreateShader()
+        {
+            NavigatorPanel? navigator = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault();
+            string folder = navigator?.Folder ?? AssetIndex.RootFolder;
+            if (AssetTemplates.CreateShader(folder) is not string path)
+                return;
+            navigator?.RenameCreated(path, () =>
+            {
+                Selection.Set(path);
+                MaterialEditorPanel.Open(path);
+            });
         }
 
         [ToolValidator]

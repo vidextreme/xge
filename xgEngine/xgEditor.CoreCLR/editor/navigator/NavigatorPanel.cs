@@ -160,6 +160,7 @@ namespace xgEditor.CoreCLR
         private bool _openTag;
         private bool _tagConfirmDelete;
         private string? _tagEdit;
+        private Action? _onRename = null;
 
         public override string Title => "Navigator";
 
@@ -185,7 +186,7 @@ namespace xgEditor.CoreCLR
             string path = target.Path;
             AssetEntry? entry = _index?.Find(path);
             bool canTag = entry is { IsFolder: false };
-            menu.Item("Edit tags...", Icon.Tag, () => OpenEditTags(path), canTag, canTag ? null : "Folders have no tags");
+            menu.Item("Edit tags...", Icon.Tag, () => OpenEditTags(path), ContextMenu.EntryType.Button, canTag, canTag ? null : "Folders have no tags");
             bool bookmarked = _bookmarks?.IsBookmarked(path) ?? false;
             menu.Item(bookmarked ? "Remove bookmark" : "Bookmark", Icon.Star, () =>
             {
@@ -193,15 +194,16 @@ namespace xgEditor.CoreCLR
                     _bookmarks?.RemoveItem(path);
                 else
                     _bookmarks?.AddItem(path);
-            }, _bookmarks is not null);
-            menu.Item("Reveal in Explorer", Icon.Folder, () => RevealInExplorer(entry!.FullPath), entry is not null);
-            menu.Item("Rename...", Icon.File, () => OpenRename(path), entry is not null);
+            }, ContextMenu.EntryType.Button, _bookmarks is not null);
+            menu.Item("Reveal in Explorer", Icon.Folder, () => RevealInExplorer(entry!.FullPath), ContextMenu.EntryType.Button, entry is not null);
+            menu.Item("Rename...", Icon.File, () => OpenRename(path), ContextMenu.EntryType.Button, entry is not null);
         }
 
         // Selects an asset that was just created and opens its Rename modal once the grid has picked it up.
-        public void RenameCreated(string relPath)
+        public void RenameCreated(string relPath, Action? onRename = null)
         {
             _selected = relPath;
+            _onRename = onRename;
             OpenRename(relPath, 2);
         }
 
@@ -1703,7 +1705,11 @@ namespace xgEditor.CoreCLR
                 return;
             string? result = _db!.Rename(_renamePath, _renameText.Text);
             if (result is null)
+            {
+                _onRename?.Invoke();
+                _onRename = null;
                 Gui.ClosePopup();
+            }
             else
                 _renameError = result;
         }
