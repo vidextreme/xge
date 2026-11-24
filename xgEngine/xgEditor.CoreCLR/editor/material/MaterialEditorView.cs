@@ -31,7 +31,7 @@ namespace xgEditor.CoreCLR
         private readonly TextBuffer _saveAsName = new(128);
         private string? _saveAsError;
         private bool _openSaveAs;
-        private float _leftWidth = 230.0f;
+        private float _leftWidth = 800.0f;
         private bool _previewOpen = true;
 
         public MaterialEditorView(string id)
@@ -40,6 +40,10 @@ namespace xgEditor.CoreCLR
             _tags = new TagField("##" + id + "_tags", TagFieldMode.Asset);
         }
 
+        public void SetLeftWidth(float leftWidth)
+        {
+            _leftWidth = leftWidth;
+        }
         public MaterialDriver? Driver { get; set; }
         public MaterialPreview Preview => _preview;
         // Raised after Save as, with the new path (hosts follow it).
@@ -64,7 +68,6 @@ namespace xgEditor.CoreCLR
                         {
                             FillBackground();
                             DrawPreview(driver);
-                            DrawTools(driver);
                         }
                     }
                     if (Gui.SplitterVertical("##material_split", ref leftWidth, MinLeftWidth, maxLeft))
@@ -76,6 +79,7 @@ namespace xgEditor.CoreCLR
                         {
                             FillBackground();
                             DrawProperties(driver);
+                            DrawTools(driver);
                         }
                     }
                 }

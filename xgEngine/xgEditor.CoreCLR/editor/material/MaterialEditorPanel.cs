@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 John David Uy
+﻿// Copyright (c) 2026 John David Uy 
 // Licensed under the MIT License. See LICENSE for details.
 
 using xg;
@@ -41,6 +41,8 @@ namespace xgEditor.CoreCLR
             if (!wasOpen)
                 panel.Dock();
             panel.Edit(path);
+            if(panel.InitialRect is Rect rect)
+                panel.View.SetLeftWidth(rect.Width * 0.5f);
             panel.Focus();
             return panel;
         }

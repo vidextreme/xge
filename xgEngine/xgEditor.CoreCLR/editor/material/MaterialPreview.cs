@@ -30,7 +30,7 @@ namespace xgEditor.CoreCLR
         private readonly ulong[] _builtTextures = new ulong[4];
         private float _yaw = 0.6f;
         private float _pitch = 0.35f;
-        private float _distance = 3.0f;
+        private float _distance = 3.5f;
         private Vector2 _menuPosition;
         private int _openMenuDelay = -1;
 
