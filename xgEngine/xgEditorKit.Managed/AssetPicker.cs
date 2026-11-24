@@ -32,7 +32,7 @@ namespace xg.editor
             if (string.IsNullOrEmpty(guid))
                 return "None";
             string? path = Current?.PathOf(guid);
-            return path is null ? $"Missing ({guid[..Math.Min(8, guid.Length)]})" : System.IO.Path.GetFileName(path);
+            return path is null ? $"Missing ({guid[..Math.Min(8, guid.Length)]})" : AssetNames.DisplayName(path);
         }
     }
 

@@ -46,7 +46,7 @@ namespace xgEditor.CoreCLR
             driver.RefreshAnnotations();
             using (Gui.Card("##material_summary", "Material", Icon.Material, null, Style.Color(StyleColor.IconMaterial)))
             {
-                Gui.PropertyLabel("Shader", driver.ShaderPath is null ? AssetBrowser.NameOf(driver.Draft.Shader) : Path.GetFileName(driver.ShaderPath));
+                Gui.PropertyLabel("Shader", driver.ShaderPath is null ? AssetBrowser.NameOf(driver.Draft.Shader) : AssetNames.DisplayName(driver.ShaderPath));
                 if (driver.Annotations is { } annotations)
                 {
                     foreach (string group in annotations.Groups)

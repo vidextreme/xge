@@ -48,6 +48,10 @@ namespace xgEditor.CoreCLR
         // File size in bytes (0 for folders).
         public long Size { get; }
         public bool IsFolder => Kind == AssetKind.Folder;
+        // The name the editor shows: without the extension (AssetNames).
+        public string DisplayName => AssetNames.DisplayName(Name, IsFolder);
+        // The extension with its dot (".png"), or empty for folders.
+        public string DisplayExtension => AssetNames.Extension(Name, IsFolder);
     }
 
     // Everything under the project's Assets folder, rescanned when a directory changes (checked at most once a second)
@@ -148,6 +152,21 @@ namespace xgEditor.CoreCLR
             AssetKind.Mesh => Style.Color(StyleColor.IconComponent),
             AssetKind.Scene => Style.Color(StyleColor.IconWarning),
             _ => Style.Color(StyleColor.Icon),
+        };
+
+        // The kind's name as the editor shows it ("Texture" for images).
+        public static string LabelOf(AssetKind kind) => kind switch
+        {
+            AssetKind.Folder => "Folder",
+            AssetKind.Script => "Script",
+            AssetKind.Image => "Texture",
+            AssetKind.Material => "Material",
+            AssetKind.Shader => "Shader",
+            AssetKind.Mesh => "Mesh",
+            AssetKind.Audio => "Audio",
+            AssetKind.Scene => "Scene",
+            AssetKind.Text => "Text",
+            _ => "File",
         };
 
         public static string PluralName(AssetKind kind) => kind switch

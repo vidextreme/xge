@@ -705,7 +705,11 @@ namespace xgEditor.CoreCLR
             int renameColon = navRename?.LastIndexOf(':') ?? -1;
             if (navRename is not null && renameColon > 0)
             {
-                string? error = ProjectService.Assets?.Rename(navRename[..renameColon], navRename[(renameColon + 1)..]);
+                string renameFrom = navRename[..renameColon];
+                string renameTo = navRename[(renameColon + 1)..];
+                if (xg.editor.AssetNames.Extension(renameTo).Length == 0)
+                    renameTo += xg.editor.AssetNames.Extension(renameFrom);
+                string? error = ProjectService.Assets?.Rename(renameFrom, renameTo);
                 Debug.Log($"[Debug] Navigator rename {navRename}: {error ?? "ok"}");
             }
             string? testItems = Environment.GetEnvironmentVariable("XG_ASSET_TEST_ITEMS");
@@ -739,7 +743,7 @@ namespace xgEditor.CoreCLR
             }
             string? navRenameOpen = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_RENAME_OPEN");
             if (!string.IsNullOrEmpty(navRenameOpen))
-                navigator.OpenRename(navRenameOpen, 30);
+                RenameDialog.Open(navRenameOpen, new RenameOptions { DelayFrames = 30 });
             string? navContext = Environment.GetEnvironmentVariable("XG_UI_TEST_NAV_CONTEXT");
             if (!string.IsNullOrEmpty(navContext))
                 navigator.OpenContextMenu(navContext, 30);
@@ -895,6 +899,7 @@ namespace xgEditor.CoreCLR
         {
             ProjectService.Assets?.Update();
             ProjectService.Update();
+            AssetThumbnails.NewFrame();
             PlayMode.Update(dt);
             UpdateSelectionHooks();
             long frames = ++_updateFrames;

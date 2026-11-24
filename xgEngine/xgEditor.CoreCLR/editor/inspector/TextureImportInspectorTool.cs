@@ -43,7 +43,7 @@ namespace xgEditor.CoreCLR
             using (Gui.Horizontal())
             {
                 using (Gui.Font(FontStyle.Bold))
-                    Gui.Label(Path.GetFileName(driver?.Path ?? "Texture"));
+                    Gui.Label(driver?.Path is string texturePath ? AssetNames.DisplayName(texturePath) : "Texture");
                 Gui.FlexibleSpace();
                 context.DrawLock();
             }

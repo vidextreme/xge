@@ -46,6 +46,7 @@ namespace xgEditor.CoreCLR
             ProjectInfo? project = ProjectService.Current;
             Gui.Label(project?.Name ?? "No project");
             DrawPlayCapsule();
+            RenameDialog.OnGUI();
             Gui.FlexibleSpace();
 
             float buildWidth = ToggleButton.Measure("Build Scripts", null, false);

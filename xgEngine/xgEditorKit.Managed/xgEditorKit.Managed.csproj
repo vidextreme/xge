@@ -22,6 +22,7 @@
     <Compile Include="Selection.cs" />
     <Compile Include="EnumDescriptions.cs" />
     <Compile Include="AssetRef.cs" />
+    <Compile Include="AssetNames.cs" />
     <Compile Include="assets\JSONFile.cs" />
     <Compile Include="assets\AssetMeta.cs" />
     <Compile Include="assets\AssetReconciler.cs" />

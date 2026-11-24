@@ -75,13 +75,11 @@ namespace xgEditor.CoreCLR
         private static readonly Color32 _sectionBg = new(58, 58, 58, 255);
         private const float WideRatio = 1.6f;
         private const float WideMinWidth = 560.0f;
-        private const int MaxThumbnailSide = 2048;
         private const string BookmarksPopupId = "nav_bookmarks";
         private const string AllTagsPopupId = "nav_all_tags";
         private const string ContextPopupId = "nav_context";
         private const string KindMorePopupId = "nav_kind_more";
         private const string EditTagsModalId = "nav_edit_tags";
-        private const string RenameModalId = "nav_rename";
         private const string TagModalId = "nav_tag";
 
         private static readonly AssetKind[] _filterKinds =
@@ -100,10 +98,8 @@ namespace xgEditor.CoreCLR
         private readonly List<Section> _sections = new();
         private readonly List<AssetEntry> _base = new();
         private readonly int[] _kindCounts = new int[Enum.GetValues<AssetKind>().Length];
-        private readonly Dictionary<string, (Texture? Texture, DateTime Modified)> _thumbnails = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<(string, int), string> _ellipsized = new();
 
-        private readonly TextBuffer _renameText = new(256);
         private readonly TextBuffer _tagRenameText = new(128);
         private readonly TextBuffer _tagDescriptionText = new(256);
 
@@ -135,7 +131,6 @@ namespace xgEditor.CoreCLR
         private int _candidateFrames;
         private float _browseWidth = 260.0f;
         private float _gridHeight = 220.0f;
-        private int _thumbnailLoads;
 
         private bool _openBookmarks;
         private int _openBookmarksIn;
@@ -151,16 +146,9 @@ namespace xgEditor.CoreCLR
         private string? _typeTags;
         private string? _pendingFolder;
         private int _typeTagsIn;
-        private bool _openRename;
-        private string? _renameHookPath;
-        private int _renameHookIn;
-        private bool _renameSetText;
-        private string? _renamePath;
-        private string? _renameError;
         private bool _openTag;
         private bool _tagConfirmDelete;
         private string? _tagEdit;
-        private Action? _onRename = null;
 
         public override string Title => "Navigator";
 
@@ -196,15 +184,13 @@ namespace xgEditor.CoreCLR
                     _bookmarks?.AddItem(path);
             }, ContextMenu.EntryType.Button, _bookmarks is not null);
             menu.Item("Reveal in Explorer", Icon.Folder, () => RevealInExplorer(entry!.FullPath), ContextMenu.EntryType.Button, entry is not null);
-            menu.Item("Rename...", Icon.File, () => OpenRename(path), ContextMenu.EntryType.Button, entry is not null);
         }
 
         // Selects an asset that was just created and opens its Rename modal once the grid has picked it up.
         public void RenameCreated(string relPath, Action? onRename = null)
         {
             _selected = relPath;
-            _onRename = onRename;
-            OpenRename(relPath, 2);
+            RenameDialog.Open(relPath, new RenameOptions { DelayFrames = 2, Renamed = _ => onRename?.Invoke() });
         }
 
         // Opens the Edit tags modal for an asset.
@@ -327,11 +313,10 @@ namespace xgEditor.CoreCLR
             if (_index!.Version != _seenIndexVersion)
             {
                 _seenIndexVersion = _index.Version;
-                _thumbnails.Clear();
+                AssetThumbnails.Clear();
                 if (!_index.IsDirectory(_folder))
                     _folder = AssetIndex.RootFolder;
             }
-            _thumbnailLoads = 0;
             TickHooks();
             BuildResults();
 
@@ -361,7 +346,6 @@ namespace xgEditor.CoreCLR
             }
 
             DrawEditTagsModal();
-            DrawRenameModal();
             DrawTagModal();
         }
 
@@ -380,7 +364,7 @@ namespace xgEditor.CoreCLR
                 _tags = db.Tags;
                 _bookmarks = db.Bookmarks;
                 _seenIndexVersion = _index.Version;
-                _thumbnails.Clear();
+                AssetThumbnails.Clear();
                 _folder = AssetIndex.RootFolder;
                 _history.Push(CurrentState());
                 if (_pendingFolder is not null)
@@ -405,11 +389,6 @@ namespace xgEditor.CoreCLR
             }
             if (_openBookmarksIn > 0 && --_openBookmarksIn == 0)
                 _openBookmarks = true;
-            if (_renameHookPath is not null && _renameHookIn > 0 && --_renameHookIn == 0)
-            {
-                OpenRename(_renameHookPath);
-                _renameHookPath = null;
-            }
             if (_typeTags is not null && _typeTagsIn > 0 && --_typeTagsIn == 0)
             {
                 if (_mode != NavigatorMode.Tags)
@@ -568,7 +547,7 @@ namespace xgEditor.CoreCLR
             return _sortDescending ? -result : result;
         }
 
-        private static string TypeLabel(AssetEntry entry) => entry.IsFolder ? "Folder" : entry.Kind.ToString();
+        private static string TypeLabel(AssetEntry entry) => AssetIndex.LabelOf(entry.Kind);
 
         private static string SizeLabel(AssetEntry entry)
         {
@@ -696,7 +675,7 @@ namespace xgEditor.CoreCLR
                     if (SegGlyph(draw, "##refresh", cells[2], "Refresh", false, true, DrawRefresh).Clicked())
                     {
                         _db!.Refresh();
-                        _thumbnails.Clear();
+                        AssetThumbnails.Clear();
                     }
                     if (SegIcon(draw, "##bookmarks", cells[3], Icon.Star, "Bookmarks", false, true).Clicked())
                         _openBookmarks = true;
@@ -995,7 +974,7 @@ namespace xgEditor.CoreCLR
                 string item = bookmarks.Items[i];
                 AssetEntry? entry = _index!.Find(item);
                 Icon icon = entry is null ? Icon.Warning : AssetIndex.IconOf(entry.Kind);
-                int action = DrawBookmarkRow(draw, "##item" + i, icon, item, y, width);
+                int action = DrawBookmarkRow(draw, "##item" + i, icon, AssetNames.DisplayPath(item, entry?.IsFolder ?? false), y, width);
                 if (action == 1)
                 {
                     RevealItem(item);
@@ -1414,7 +1393,7 @@ namespace xgEditor.CoreCLR
             const float pad = 8.0f;
             (float tile, float iconSize) = TileSize();
             float lineHeight = Gui.MeasureText("A").y;
-            float tileHeight = tile + lineHeight - 8.0f;
+            float tileHeight = tile + lineHeight * 2.0f - 10.0f;
             float width = Gui.AvailableSize.x;
             float inner = width - pad * 2.0f;
             int columns = Math.Max(1, (int)((inner + TileGap) / (tile + TileGap)));
@@ -1439,8 +1418,8 @@ namespace xgEditor.CoreCLR
                 Result hit;
                 using (Gui.Id(i))
                     hit = Gui.HitArea("##tile", rect);
-                string name = item.Up ? ".." : item.Entry!.Name;
-                Gui.Tooltip(item.Up ? "Up one folder" : item.Entry!.RelPath);
+                string name = item.Up ? ".." : item.Entry!.DisplayName;
+                Gui.Tooltip(item.Up ? "Up one folder" : $"{AssetNames.DisplayPath(item.Entry!.RelPath, item.Entry.IsFolder)}\n{AssetIndex.LabelOf(item.Entry.Kind)}");
                 bool selected = !item.Up && string.Equals(_selected, item.Entry!.RelPath, StringComparison.OrdinalIgnoreCase);
                 if (selected)
                 {
@@ -1456,8 +1435,14 @@ namespace xgEditor.CoreCLR
                 DrawAssetIcon(draw, item, iconRect, iconSize);
                 string label = Ellipsize(name, (int)(tile - 4.0f));
                 float labelWidth = Gui.MeasureText(label).x;
-                draw.Text(new Vector2(MathF.Round(rect.Center.x - labelWidth * 0.5f), rect.max.y - lineHeight - 3.0f),
+                draw.Text(new Vector2(MathF.Round(rect.Center.x - labelWidth * 0.5f), rect.max.y - lineHeight * 2.0f - 1.0f),
                     selected ? Style.Color(StyleColor.TextSelected) : Style.Color(StyleColor.Text), label);
+                if (!item.Up)
+                {
+                    string kind = AssetIndex.LabelOf(item.Entry!.Kind);
+                    float kindWidth = Gui.MeasureText(kind).x;
+                    draw.Text(new Vector2(MathF.Round(rect.Center.x - kindWidth * 0.5f), rect.max.y - lineHeight - 2.0f), Style.Color(StyleColor.TextDim), kind);
+                }
 
                 HandleItemInput(hit, item, sectionIndex, rect, canvas.Bounds);
             }
@@ -1578,7 +1563,7 @@ namespace xgEditor.CoreCLR
                         {
                             case DetailColumn.Name:
                                 DrawAssetIcon(draw, item, Rect.FromCenterSize(new Vector2(cx + 14.0f, y + RowHeight * 0.5f), new Vector2(14.0f, 14.0f)), 14.0f);
-                                draw.Text(new Vector2(cx + 28.0f, y + textY), rowText, item.Up ? ".." : item.Entry!.Name);
+                                draw.Text(new Vector2(cx + 28.0f, y + textY), rowText, item.Up ? ".." : item.Entry!.DisplayName);
                                 break;
                             case DetailColumn.Type:
                                 draw.Text(new Vector2(cx + 8.0f, y + textY), rowDim, item.Up ? "Up one folder" : TypeLabel(item.Entry!));
@@ -1650,69 +1635,6 @@ namespace xgEditor.CoreCLR
         // ------------------------------------------------------------
         // Rename and tag management
         // ------------------------------------------------------------
-        // Opens the Rename modal for an asset or folder, after the given number of frames (test hooks).
-        public void OpenRename(string relPath, int frames = 0)
-        {
-            if (frames > 0)
-            {
-                _renameHookPath = relPath;
-                _renameHookIn = frames;
-                return;
-            }
-            _renamePath = relPath;
-            _renameText.Text = Path.GetFileName(relPath);
-            _renameError = null;
-            _renameSetText = true;
-            _openRename = true;
-        }
-
-        private void DrawRenameModal()
-        {
-            if (_openRename)
-            {
-                _openRename = false;
-                Gui.OpenPopup(RenameModalId);
-            }
-            using var modal = Gui.Modal(RenameModalId, "Rename", new Vector2(360.0f, 0.0f));
-            if (!modal.IsOpen || _renamePath is null)
-                return;
-            Gui.Label(_renamePath);
-            Gui.Space(4.0f);
-            if (_renameSetText)
-                Gui.FocusNext();
-            TextFieldFlags flags = _renameSetText ? TextFieldFlags.SetText : TextFieldFlags.None;
-            _renameSetText = false;
-            if ((Gui.TextField("##nav_rename_name", _renameText, "New name", 0.0f, flags) & Result.Changed) != 0)
-                _renameError = AssetDatabase.ValidateName(_renameText.Text.Trim());
-            if (_renameError is not null)
-            {
-                using var error = Gui.Canvas("##nav_rename_error", new Vector2(0.0f, 18.0f));
-                error.Draw.Text(new Vector2(0.0f, 2.0f), Style.Color(StyleColor.IconWarning), _renameError);
-            }
-            Gui.Space(6.0f);
-            bool commit = Gui.KeyPressed(Key.Enter, false);
-            using (Gui.Horizontal())
-            {
-                Gui.FlexibleSpace();
-                if (Gui.Button("Cancel") || Gui.KeyPressed(Key.Escape, false))
-                {
-                    Gui.ClosePopup();
-                    return;
-                }
-                commit |= Gui.Button("Rename");
-            }
-            if (!commit)
-                return;
-            string? result = _db!.Rename(_renamePath, _renameText.Text);
-            if (result is null)
-            {
-                _onRename?.Invoke();
-                _onRename = null;
-                Gui.ClosePopup();
-            }
-            else
-                _renameError = result;
-        }
 
         private void OpenTagModal(string tag)
         {
@@ -1791,7 +1713,7 @@ namespace xgEditor.CoreCLR
                 if (_mode == NavigatorMode.Directory)
                     _pathField.SetText(_folder, false);
             }
-            _thumbnails.Clear();
+            AssetThumbnails.Clear();
         }
 
         private void DrawEditTagsModal()
@@ -1805,7 +1727,7 @@ namespace xgEditor.CoreCLR
             using var modal = Gui.Modal(EditTagsModalId, "Edit tags", new Vector2(340.0f, 0.0f));
             if (!modal.IsOpen || _editTagsPath is null)
                 return;
-            Gui.Label(_editTagsPath);
+            Gui.Label(AssetNames.DisplayPath(_editTagsPath));
             Gui.Space(4.0f);
             _editTags.OnAssetGUI(_tags!, _index, _editTagsPath);
             Gui.Space(6.0f);
@@ -1828,34 +1750,7 @@ namespace xgEditor.CoreCLR
                 DrawLeftArrow(draw, new Vector2(rect.Center.x, rect.Center.y + size * 0.08f), Style.Color(StyleColor.ToolbarBg));
                 return;
             }
-            AssetEntry entry = item.Entry!;
-            if (entry.Kind == AssetKind.Image && Thumbnail(entry) is Texture texture)
-            {
-                float scale = Math.Min(rect.Width / texture.Width, rect.Height / texture.Height);
-                Vector2 fit = new(texture.Width * scale, texture.Height * scale);
-                draw.Image(texture, Rect.FromCenterSize(rect.Center, fit));
-                return;
-            }
-            draw.Icon(AssetIndex.IconOf(entry.Kind), rect.Center, size, AssetIndex.IconColorOf(entry.Kind));
-        }
-
-        private Texture? Thumbnail(AssetEntry entry)
-        {
-            if (entry.Extension != "png" && entry.Extension != "bmp")
-                return null;
-            if (_thumbnails.TryGetValue(entry.RelPath, out var cached) && cached.Modified == entry.Modified)
-                return cached.Texture;
-            if (_thumbnailLoads >= 4)
-                return null;
-            _thumbnailLoads++;
-            if (cached.Texture is not null)
-                cached.Texture.Dispose();
-            Texture? texture = null;
-            byte[]? pixels = ImageFile.LoadRGBA(entry.FullPath, out int width, out int height);
-            if (pixels is not null && width > 0 && height > 0 && width <= MaxThumbnailSide && height <= MaxThumbnailSide)
-                texture = new Texture(pixels, width, height);
-            _thumbnails[entry.RelPath] = (texture, entry.Modified);
-            return texture;
+            AssetThumbnails.Draw(draw, rect, item.Entry!, size);
         }
 
         private string Ellipsize(string text, int width)

@@ -749,7 +749,7 @@ namespace xgEditor.CoreCLR
                     AssetKind.Shader => Icon.Code,
                     _ => Icon.File,
                 };
-                _buildTasks[path] = BackgroundTasks.Add("Import " + Path.GetFileName(path), icon, () => CancelBuild(path));
+                _buildTasks[path] = BackgroundTasks.Add("Import " + AssetNames.DisplayName(path), icon, () => CancelBuild(path));
             }
         }
 
@@ -824,7 +824,7 @@ namespace xgEditor.CoreCLR
         private void StartBuild(string path)
         {
             if (!_buildTasks.Remove(path, out BackgroundTask? task))
-                task = BackgroundTasks.Add("Import " + Path.GetFileName(path), Icon.File, () => CancelBuild(path));
+                task = BackgroundTasks.Add("Import " + AssetNames.DisplayName(path), Icon.File, () => CancelBuild(path));
             if (!_metas.TryGetValue(path, out MetaInfo? info) || !_cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
             {
                 BackgroundTasks.Complete(task);

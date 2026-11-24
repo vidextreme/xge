@@ -12,7 +12,11 @@ namespace xg.editor
 
         public string Guid => GuidResolver?.Invoke(Path) ?? string.Empty;
 
+        // The real file name (with its extension), for code.
         public string Name => System.IO.Path.GetFileName(Path);
+
+        // The name the editor shows: without the extension (AssetNames).
+        public string DisplayName => AssetNames.DisplayName(Path);
 
         public string FullPath => System.IO.Path.Combine(ScriptRuntime.ProjectPath, Path);
 
