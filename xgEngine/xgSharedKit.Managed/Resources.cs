@@ -211,6 +211,13 @@ namespace xg
             return ScriptRuntime._enginePtr != 0 && XG_ResourceGetModel(ScriptRuntime._enginePtr, handle.Value, out info);
         }
 
+        // The submesh item GUID of a model part (the GUID in the model's .xmd items).
+        public static bool GetModelPartItem(ResourceHandle handle, int index, out ResourceGUID item)
+        {
+            item = default;
+            return ScriptRuntime._enginePtr != 0 && XG_ResourceGetModelPartItem(ScriptRuntime._enginePtr, handle.Value, index, out item) != 0;
+        }
+
         // Drawn part index of a Ready "model" resource: its GPU mesh and model-space placement.
         public static bool GetModelPart(ResourceHandle handle, int index, out ModelPartInfo part)
         {
@@ -302,6 +309,9 @@ namespace xg
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetModel")]
         [return: MarshalAs(UnmanagedType.U1)]
         private static partial bool XG_ResourceGetModel(nint engine, ulong handle, out ModelInfo info);
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetModelPartItem")]
+        private static partial byte XG_ResourceGetModelPartItem(nint engine, ulong handle, int index, out ResourceGUID item);
 
         [LibraryImport(NativeLib, EntryPoint = "XG_ResourceGetModelPart")]
         [return: MarshalAs(UnmanagedType.U1)]

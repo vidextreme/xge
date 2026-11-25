@@ -11,4 +11,7 @@ namespace xg
     // through the resource sources and places every part on the nodes that use its mesh; the main thread creates the
     // GPU meshes. The data is a ModelResourceInfo. The renderer must outlive the type.
     ResourceTypeID RegisterModelResources(ResourceSystem& resources, uint32_t moduleId, Renderer* renderer);
+
+    // The submesh item GUID of every part of a Ready model's data (parallel to Parts), or null.
+    const ResourceGUID* GetModelPartItems(const ModelResourceInfo* info);
 }

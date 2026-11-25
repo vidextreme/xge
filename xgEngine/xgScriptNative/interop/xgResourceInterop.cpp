@@ -6,6 +6,7 @@
 #include "xgRenderer.h"
 #include "xgResources.h"
 #include "xgMeshRenderer.h"
+#include "xgObjectDriver.h"
 #include <cstring>
 #include "xgScriptEngine.h"
 
@@ -114,6 +115,54 @@ XG_MODULE_EXPORT int32_t XG_MeshRenderStats(xg::ScriptEngine* engine, int32_t* o
     if (outMaterialDraws)
         *outMaterialDraws = system ? system->GetMaterialDrawCount() : 0;
     return system ? system->GetDrawCount() : 0;
+}
+
+// Draws the object drive system added last frame, and how many object instances were ready.
+XG_MODULE_EXPORT int32_t XG_ObjectDriveStats(xg::ScriptEngine* engine, int32_t* outReady)
+{
+    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    if (outReady)
+        *outReady = system ? system->GetReadyCount() : 0;
+    return system ? system->GetDrawCount() : 0;
+}
+
+// World matrix (16 floats) of the named node of an actor's object (exposed proxies first).
+XG_MODULE_EXPORT bool XG_ObjectDriverGetNodeWorld(xg::ScriptEngine* engine, uint64_t actor, const char* name, float* outWorld)
+{
+    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    return system && system->GetNodeWorld(static_cast<xg::ActorID>(actor), name, outWorld);
+}
+
+// The Composition Actor of a driver actor by Object name (0 when none).
+XG_MODULE_EXPORT uint64_t XG_ObjectDriverGetActor(xg::ScriptEngine* engine, uint64_t driver, const char* name)
+{
+    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    return system ? system->GetCompositionActor(static_cast<xg::ActorID>(driver), name) : 0;
+}
+
+// The driver actor owning a Composition Actor (0 when the actor isn't one).
+XG_MODULE_EXPORT uint64_t XG_ObjectDriverGetOwner(xg::ScriptEngine* engine, uint64_t actor)
+{
+    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    return system ? system->GetCompositionOwner(static_cast<xg::ActorID>(actor)) : 0;
+}
+
+// Takes the next spawned Composition Actor waiting for its authored components (see ObjectDriveSystem::TakeSpawned).
+XG_MODULE_EXPORT int32_t XG_ObjectDriverTakeSpawned(xg::ScriptEngine* engine, uint64_t* outActor, char* json, int32_t capacity)
+{
+    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    xg::ActorID actor = 0;
+    const int32_t length = system ? system->TakeSpawned(&actor, json, capacity) : -1;
+    if (outActor)
+        *outActor = actor;
+    return length;
+}
+
+// The submesh item GUID of a part of a Ready "model" resource.
+XG_MODULE_EXPORT bool XG_ResourceGetModelPartItem(xg::ScriptEngine* engine, uint64_t handle, int32_t index, xg::ResourceGUID* outItem)
+{
+    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    return system && system->GetModelPartItem(static_cast<xg::ResourceHandle>(handle), index, outItem);
 }
 
 // The renderer shader of a Ready "shader" resource (0 otherwise).

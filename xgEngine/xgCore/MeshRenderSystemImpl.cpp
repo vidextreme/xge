@@ -128,7 +128,7 @@ namespace xg
         return _resources && _resources->GetState(material) == ResourceState::Ready ? xg::ResolveMaterial(material) : 0;
     }
 
-    void MeshRenderSystemImpl::Update(Renderer* renderer)
+    void MeshRenderSystemImpl::Update(Renderer* renderer, const std::vector<SceneDraw>& before)
     {
         if (!_registry || !_resources)
             return;
@@ -141,7 +141,7 @@ namespace xg
             _modelType = 0;
             _materialType = 0;
         }
-        _draws.clear();
+        _draws.assign(before.begin(), before.end());
         _drawCount = 0;
         _materialDrawCount = 0;
         if (!renderer)
@@ -184,7 +184,7 @@ namespace xg
                     ++_materialDrawCount;
             }
         }
-        _drawCount = static_cast<int32_t>(_draws.size());
+        _drawCount = static_cast<int32_t>(_draws.size() - before.size());
         renderer->SetSceneDraws(_draws.data(), static_cast<uint32_t>(_draws.size()));
     }
 }

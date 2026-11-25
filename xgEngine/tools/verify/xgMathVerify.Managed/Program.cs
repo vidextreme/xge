@@ -82,6 +82,7 @@ internal static class Program
         Run(nameof(TestShaderAnnotations), TestShaderAnnotations);
         Run(nameof(TestMaterialAsset), TestMaterialAsset);
         Run(nameof(TestEmbeddedMeta), TestEmbeddedMeta);
+        Run(nameof(TestObjectAsset), TestObjectAsset);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -943,6 +944,91 @@ internal static class Program
         {
             Directory.Delete(root, true);
         }
+    }
+
+    private static void TestObjectAsset()
+    {
+        const string model = "7d0000000000000000000000000000b1";
+        const string material = "8bfa0fa8e2b74e13b9ba4e4cba2a5674";
+        List<AssetItem> items = new()
+        {
+            new AssetItem { Kind = MeshAssets.SubmeshKind, Path = "Body/Fur", Guid = "11000000000000000000000000000001" },
+            new AssetItem { Kind = MeshAssets.SubmeshKind, Path = "Body/Eyes", Guid = "11000000000000000000000000000002" },
+            new AssetItem { Kind = MeshAssets.SubmeshKind, Path = "Hat/Felt", Guid = "11000000000000000000000000000003" },
+            new AssetItem { Kind = MeshAssets.SubmeshKind, Path = "Old/Gone", Guid = "11000000000000000000000000000004", Missing = true },
+            new AssetItem { Kind = "hierarchy", Path = "", Guid = "11000000000000000000000000000005" },
+        };
+        ObjectAsset asset = ObjectAsset.FromModel("Bear", model, items);
+        Check(asset.Objects.Count == 3 && asset.Objects[0].Name == "Bear" && asset.Objects[0].Kind == ObjectNodeKind.Proxy, "FromModel: a root proxy and one Mesh Object per mesh");
+        ObjectNodeAsset body = asset.Objects.First(o => o.Name == "Body");
+        Check(body.Parts.Count == 2 && body.Model == model && body.Parent == asset.Objects[0].Id, "FromModel groups submeshes by mesh and skips missing items");
+        body.Parts[0].Material = material;
+        body.Expose = ObjectNodeExpose.Actor;
+        asset.Objects[0].Position = new[] { 0.0f, 0.0f, 2.0f };
+        asset.Objects[0].Scale = new[] { 2.0f, 2.0f, 2.0f };
+        ObjectNodeAsset muzzle = new()
+        {
+            Id = AssetMeta.NewGuid(), Name = "Muzzle", Expose = ObjectNodeExpose.Proxy, Parent = body.Id, Position = new[] { 0.0f, 1.0f, 0.0f },
+            Rotation = new[] { 0.0f, 0.70710677f, 0.0f, 0.70710677f },
+        };
+        asset.Objects.Insert(0, muzzle);
+        asset.Meta = new System.Text.Json.Nodes.JsonObject { ["guid"] = AssetMeta.NewGuid(), ["tags"] = new System.Text.Json.Nodes.JsonArray() };
+
+        string json = asset.ToJSON();
+        ObjectAsset parsed = ObjectAsset.Parse(json);
+        Check(parsed.SameAs(asset) && json.EndsWith("\r\n") && json.Contains("\"meta\""), "JSON round trip with the embedded meta");
+        ObjectAsset retagged = parsed.Clone();
+        retagged.Meta!["tags"] = new System.Text.Json.Nodes.JsonArray("prop");
+        Check(retagged.ContentJSON() == asset.ContentJSON(), "the content JSON ignores the meta");
+        Check(asset.ReferencedGuids().Distinct().Count() == 2, "references: the model and the material");
+
+        List<string> errors = new();
+        List<ObjectNodeAsset> ordered = asset.Ordered(errors);
+        Check(errors.Count == 0 && ordered.IndexOf(muzzle) > ordered.IndexOf(body) && ordered[0] == asset.Objects[1], "Ordered puts parents first");
+
+        var (nodes, parts) = ObjectAssets.Unpack(ObjectAssets.Pack(asset));
+        Check(nodes.Count == 4 && parts.Count == 3, "pack: every node, one part per submesh");
+        Check(parts.Count(p => p.Material == material) == 1 && parts.All(p => p.Model == model), "parts keep the model and material GUIDs");
+        ObjectAssets.PackedNode packedMuzzle = nodes.First(n => n.Name == "Muzzle");
+        Check(packedMuzzle.Expose == ObjectNodeExpose.Proxy && packedMuzzle.NameHash == ObjectAssets.HashName("Muzzle") && nodes[packedMuzzle.Parent].Name == "Body",
+            "nodes keep their name, hash, exposure and parent index");
+        float[] baked = packedMuzzle.Baked;
+        Check(MathF.Abs(baked[13] - 2.0f) < 1e-4f && MathF.Abs(baked[14] - 2.0f) < 1e-4f && MathF.Abs(baked[12]) < 1e-4f,
+            "baked pose composes the parent chain (scale 2, offset z 2)");
+        Check(MathF.Abs(baked[2] + 2.0f) < 1e-4f && MathF.Abs(baked[8] - 2.0f) < 1e-4f, "baked pose keeps the rotation (90 degrees around y) and scale");
+        int packedBody = nodes.FindIndex(n => n.Name == "Body");
+        Check(packedMuzzle.ActorParent == packedBody && MathF.Abs(packedMuzzle.ActorPose[1] - 1.0f) < 1e-4f && MathF.Abs(packedMuzzle.ActorPose[7] - 1.0f) < 1e-4f,
+            "the actor pose is relative to the nearest exposed actor (Body), so the root's scale stays out");
+        Check(nodes[packedBody].ActorParent == -1 && MathF.Abs(nodes[packedBody].ActorPose[7] - 2.0f) < 1e-4f && MathF.Abs(nodes[packedBody].ActorPose[2] - 2.0f) < 1e-4f,
+            "an actor without an exposed ancestor is posed relative to the driver");
+        ObjectAsset authored = asset.Clone();
+        authored.Objects.First(o => o.Name == "Body").Components = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject { ["type"] = "Game.Spin, Game" });
+        authored.Objects.First(o => o.Name == "Muzzle").Components = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject { ["type"] = "Game.Ignored, Game" });
+        List<(int Node, string JSON)> packedComponents = ObjectAssets.UnpackComponents(ObjectAssets.Pack(authored));
+        Check(packedComponents.Count == 1 && packedComponents[0].Node == packedBody && packedComponents[0].JSON.Contains("Game.Spin"),
+            "OBCP holds the authored components of actor nodes only");
+
+        ObjectAsset broken = asset.Clone();
+        broken.Objects.Add(new ObjectNodeAsset { Id = AssetMeta.NewGuid(), Name = "Muzzle", Expose = ObjectNodeExpose.Proxy });
+        broken.Objects.Add(new ObjectNodeAsset { Id = AssetMeta.NewGuid(), Name = "Lost", Parent = AssetMeta.NewGuid() });
+        List<string> brokenErrors = new();
+        broken.Ordered(brokenErrors);
+        Check(brokenErrors.Count == 2, "duplicate exposed names and missing parents are errors");
+        bool threw = false;
+        try { ObjectAssets.Pack(broken); } catch (InvalidDataException) { threw = true; }
+        Check(threw, "Pack refuses a broken tree");
+
+        ObjectAsset cycle = new();
+        string a = AssetMeta.NewGuid(), b = AssetMeta.NewGuid();
+        cycle.Objects.Add(new ObjectNodeAsset { Id = a, Name = "A", Parent = b });
+        cycle.Objects.Add(new ObjectNodeAsset { Id = b, Name = "B", Parent = a });
+        List<string> cycleErrors = new();
+        cycle.Ordered(cycleErrors);
+        Check(cycleErrors.Count == 2, "a cycle is an error");
+
+        ObjectAsset moved = asset.Clone();
+        Check(moved.ReplaceGuid(model, "00000000000000000000000000000abc") && moved.Objects.Where(o => o.Kind == ObjectNodeKind.Mesh).All(o => o.Model == "00000000000000000000000000000abc"),
+            "ReplaceGuid repairs model references");
     }
 
     private static void TestEmbeddedMeta()

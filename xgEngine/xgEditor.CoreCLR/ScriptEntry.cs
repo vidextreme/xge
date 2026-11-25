@@ -492,6 +492,120 @@ namespace xgEditor.CoreCLR
         }
     }
 
+    // Test hook (XG_RESOURCE_TEST_OBJECT=<model path>[:<material path>]): creates <model>.xco next to the model when it's
+    // missing (one Mesh Object per mesh, the material on every part, plus a "Muzzle" proxy one unit above the root),
+    // builds it, creates "ObjectDriver Test" (Transform + ObjectDriverComponent) at the origin, two units tall, and logs
+    // [Objects] lines: the build, the draw counts and the Muzzle proxy's world position.
+    internal static unsafe class ObjectSmoke
+    {
+        static Actor? _actor;
+        static ObjectDriverComponent? _driver;
+        static ResourceHandle _model;
+        static bool _placed;
+        static int _frames;
+        static string? _actorName;
+
+        public static void Init()
+        {
+            string? spec = Environment.GetEnvironmentVariable("XG_RESOURCE_TEST_OBJECT");
+            if (string.IsNullOrEmpty(spec) || ProjectService.Assets is not { } assets)
+                return;
+            string[] parts = spec.Split(':');
+            string modelPath = parts[0];
+            assets.BuildAll();
+            string objectPath = modelPath[..^Path.GetExtension(modelPath).Length] + xg.editor.ObjectAsset.Extension;
+            if (assets.GuidOf(objectPath) is null)
+            {
+                if (AssetTemplates.CreateObjectFromModel(modelPath) is not string created)
+                {
+                    Debug.LogError($"[Objects] test: could not create an object from {modelPath}");
+                    return;
+                }
+                objectPath = created;
+                xg.editor.ObjectAsset asset = xg.editor.ObjectAsset.Read(assets.FullPath(objectPath));
+                string? material = parts.Length > 1 && parts[1] != "actors" ? assets.GuidOf(parts[1]) : null;
+                foreach (xg.editor.ObjectNodeAsset node in asset.Objects)
+                    foreach (xg.editor.ObjectPartAsset part in node.Parts)
+                        part.Material = material ?? string.Empty;
+                xg.editor.ObjectNodeAsset root = asset.Objects[0];
+                asset.Objects.Add(new xg.editor.ObjectNodeAsset
+                {
+                    Id = xg.editor.AssetMeta.NewGuid(), Name = "Muzzle", Kind = xg.editor.ObjectNodeKind.Proxy,
+                    Expose = xg.editor.ObjectNodeExpose.Proxy, Parent = root.Id, Position = new[] { 0.0f, 1.0f, 0.0f },
+                });
+                asset.Write(assets.FullPath(objectPath));
+                assets.Refresh();
+                Debug.Log($"[Objects] test: created {objectPath} with {asset.Objects.Count} Objects");
+            }
+            if (parts.Contains("actors"))
+            {
+                xg.editor.ObjectAsset asset = xg.editor.ObjectAsset.Read(assets.FullPath(objectPath));
+                xg.editor.ObjectNodeAsset? body = asset.Objects.FirstOrDefault(o => o.Kind == xg.editor.ObjectNodeKind.Mesh);
+                if (body is not null)
+                {
+                    body.Expose = xg.editor.ObjectNodeExpose.Actor;
+                    body.Components = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["type"] = "xgEditor.CoreCLR.WeaponSample, xgEditor.CoreCLR",
+                        ["fields"] = new System.Text.Json.Nodes.JsonObject { ["Ammo"] = new System.Text.Json.Nodes.JsonObject { ["type"] = "System.Int32", ["value"] = 7 } },
+                    });
+                    asset.Write(assets.FullPath(objectPath));
+                    _actorName = body.Name;
+                    Debug.Log($"[Objects] test: exposed {body.Name} as an actor with an authored WeaponSample (Ammo 7)");
+                }
+            }
+            assets.RequestBuild(objectPath);
+            assets.BuildAll();
+            string? guid = assets.GuidOf(objectPath);
+            xg.editor.AssetBuildManifest? manifest = guid is null ? null : assets.Pipeline.ManifestOf(guid);
+            Debug.Log($"[Objects] test: {objectPath}: {(guid is null ? "no asset" : manifest?.Error ?? string.Join(" ", manifest?.Tags ?? new List<string>()))}");
+            _actor = Actor.Create("ObjectDriver Test");
+            _actor.AddTransform();
+            _driver = _actor.AddComponent<ObjectDriverComponent>();
+            _driver.Object = AssetReference.FromText(guid);
+            uint modelType = Resources.FindType(Resources.ModelType);
+            string? modelGuid = assets.GuidOf(modelPath);
+            if (modelType != 0 && ResourceID.TryParse(modelGuid, out ResourceID modelId))
+                _model = Resources.Acquire(modelType, modelId);
+            Debug.Log($"[Objects] test: created {_actor.Name} driving {_driver.Object}");
+        }
+
+        public static void Update()
+        {
+            if (_actor is null || _driver is null)
+                return;
+            ++_frames;
+            if (!_placed && _model.State == ResourceState.Ready && Resources.GetModel(_model, out ModelInfo info))
+            {
+                _placed = true;
+                float extent = Math.Max(info.BoundsMax[1] - info.BoundsMin[1], Math.Max(info.BoundsMax[0] - info.BoundsMin[0], info.BoundsMax[2] - info.BoundsMin[2]));
+                float scale = extent > 0.0f ? 2.0f / extent : 1.0f;
+                Transform transform = _actor.Transform!;
+                transform.LocalScale = new Vector3(scale, scale, scale);
+                transform.LocalPosition = new Vector3(-(info.BoundsMin[0] + info.BoundsMax[0]) * 0.5f * scale, -info.BoundsMin[1] * scale,
+                    -(info.BoundsMin[2] + info.BoundsMax[2]) * 0.5f * scale);
+                _model.Dispose();
+            }
+            if (_frames == 60 || _frames == 300)
+            {
+                int draws = ObjectDriverComponent.DrawCount(out int ready);
+                string proxy = _driver.TryGetProxy("Muzzle", out TransformData muzzle)
+                    ? $"Muzzle at ({muzzle.PositionX:0.###}, {muzzle.PositionY:0.###}, {muzzle.PositionZ:0.###})"
+                    : "no Muzzle";
+                Debug.Log($"[Objects] test: frame {_frames}: {draws} draw(s), {ready} ready object(s), {proxy}");
+                if (_actorName is not null)
+                {
+                    ActorID composed = _driver.GetCompositionActor(_actorName);
+                    List<object> components = new();
+                    if (composed.Value != 0)
+                        ActorTree.GetComponents(composed, components);
+                    string weapon = components.OfType<WeaponSample>().FirstOrDefault() is WeaponSample sample ? $"WeaponSample Ammo {sample.Ammo}" : "no WeaponSample";
+                    Debug.Log($"[Objects] test: Composition Actor {_actorName} = {composed.Value} (parent {ActorTree.GetParent(composed)?.Value ?? 0}, owner {ObjectDriverComponent.CompositionOwner(composed).Value}, driver {_actor.ID.Value}), {components.Count} component(s), {weapon}");
+                }
+            }
+        }
+    }
+
     // Test hook (XG_THUMBNAIL_TEST=<asset path>): deletes the composition's thumbnail after 30 frames so it's rendered
     // again, and logs when it's written.
     internal static class ThumbnailSmoke
@@ -840,6 +954,7 @@ namespace xgEditor.CoreCLR
             TextureSmoke.Init();
             ModelSmoke.Init();
             MaterialSmoke.Init();
+            ObjectSmoke.Init();
             TransformSmoke.Init();
             DataSmoke.Init();
             return 1;
@@ -901,6 +1016,42 @@ namespace xgEditor.CoreCLR
                 if (Environment.GetEnvironmentVariable("XG_UI_TEST_MATERIAL_PREVIEW_MENU") == "1")
                     panel.View.Preview.OpenMenu(30);
             }
+            if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_OBJECT_EDIT") is { Length: > 0 } objectEdit)
+            {
+                string[] parts = objectEdit.Split(':');
+                ObjectEditorPanel panel = ObjectEditorPanel.Open(parts[0]);
+                foreach (string option in parts.Skip(1))
+                {
+                    string[] pair = option.Split('=', 2);
+                    if (pair[0] == "select" && pair.Length > 1)
+                        Debug.Log($"[Debug] Object editor select {pair[1]}: {panel.View.SelectByName(pair[1])}");
+                    else if (pair[0] == "tab" && pair.Length > 1 && int.TryParse(pair[1], out int tab))
+                        panel.View.Tab = tab;
+                    else if (pair[0] == "menu")
+                        panel.View.Preview.OpenMenu(30);
+                    else if (pair[0] == "editmaterial" && panel.Driver is { } owner && panel.View.Selected is string selectedId
+                        && owner.Find(selectedId)?.Parts.FirstOrDefault(p => p.Material.Length > 0) is { } part)
+                        panel.View.EditMaterial = part.Material;
+                    else if (pair[0] == "addcomponent" && pair.Length > 1 && panel.Driver is { } author && panel.View.Selected is string authorId
+                        && author.Find(authorId) is { } authorNode && xg.editor.ComponentCatalog.Types.FirstOrDefault(t => t.Type.Name == pair[1]) is { } componentType)
+                    {
+                        authorNode.Expose = xg.editor.ObjectNodeExpose.Actor;
+                        panel.View.AddAuthored(author, authorNode, componentType);
+                        Debug.Log($"[Debug] Object authored {componentType.Key} on {authorNode.Name}");
+                    }
+                    else if (pair[0] == "save" && panel.Driver is { } saved)
+                    {
+                        saved.Apply();
+                        Debug.Log($"[Debug] Object saved {parts[0]} (pending: {saved.HasPendingChanges})");
+                    }
+                    else if (pair[0] == "edit" && pair.Length > 1 && panel.Driver is { } driver && panel.View.Selected is string id && driver.Find(id) is { } node)
+                    {
+                        node.Position = pair[1].Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).Concat(new float[3]).Take(3).ToArray();
+                        driver.Changed();
+                        Debug.Log($"[Debug] Object draft {parts[0]}: {node.Name} position = {pair[1]} (pending: {driver.HasPendingChanges})");
+                    }
+                }
+            }
             if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
             {
                 BackgroundTask? task = BackgroundTasks.Find(cancelName);
@@ -932,8 +1083,10 @@ namespace xgEditor.CoreCLR
             TextureSmoke.Update();
             ModelSmoke.Update();
             MaterialSmoke.Update();
+            ObjectSmoke.Update();
             ThumbnailSmoke.Update();
             CompositionThumbnails.Update();
+            CompositionComponents.Update();
             TransformSmoke.Update();
             DataSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)

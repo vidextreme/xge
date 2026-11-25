@@ -122,6 +122,16 @@ namespace xg
             return XG_ActorAddComponent(engine, id, key, 1) == 1;
         }
 
+        // Adds a component by its type key ("Full.Name, Assembly"), through the module that owns the actor or defines the
+        // type. Returns false when no module could add it.
+        public static bool AddComponent(ActorID id, string typeKey)
+        {
+            nint engine = ScriptRuntime._enginePtr;
+            if (engine == 0 || string.IsNullOrEmpty(typeKey) || !RuntimeFeature.IsDynamicCodeSupported)
+                return false;
+            return XG_ActorAddComponent(engine, id, typeKey, 1) == 1;
+        }
+
         private static void Resolve(nint* handles, int count, List<object> result)
         {
             for (int i = 0; i < count; ++i)

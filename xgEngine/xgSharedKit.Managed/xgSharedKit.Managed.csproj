@@ -47,6 +47,7 @@
     <Compile Include="ComponentData.cs" />
     <Compile Include="ComponentDataSet.cs" />
     <Compile Include="MeshRenderer.cs" />
+    <Compile Include="ObjectDriver.cs" />
     <Compile Include="DataUpdate.cs" />
     <Compile Include="Debug.cs" />
     <Compile Include="Matrix4x4Interop.cs" />

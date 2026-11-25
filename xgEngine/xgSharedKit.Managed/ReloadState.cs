@@ -170,6 +170,17 @@ namespace xg
             return destroyed;
         }
 
+        // The Inspector-visible field values of a component, in the capture form ({ name: { type, value } }).
+        public static JsonObject CaptureFields(object component) => WriteFields(component, component.GetType());
+
+        // Writes captured field values into a component; returns what couldn't be applied.
+        public static List<string> ApplyFields(object component, JsonObject? fields)
+        {
+            List<string> skipped = new();
+            ReadFields(component, component.GetType(), fields, skipped);
+            return skipped;
+        }
+
         public static IEnumerable<FieldInfo> VisibleFields(Type type)
         {
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;

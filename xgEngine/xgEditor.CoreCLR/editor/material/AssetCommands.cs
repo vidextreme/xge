@@ -57,6 +57,66 @@ namespace xgEditor.CoreCLR
             });
         }
 
+        [MenuSeparator]
+        [ToolButton("Create object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
+            Validate = nameof(HasProject), Tooltip = "Create a composition object in the Navigator's folder")]
+        [ContextMenuButton("Create object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
+            Validate = nameof(HasProject), Tooltip = "Create a composition object in the Navigator's folder")]
+        public static void CreateObject()
+        {
+            NavigatorPanel? navigator = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault();
+            string folder = navigator?.Folder ?? AssetIndex.RootFolder;
+            if (AssetTemplates.CreateObject(folder) is not string path)
+                return;
+            navigator?.RenameCreated(path, () =>
+            {
+                Selection.Set(path);
+                ObjectEditorPanel.Open(path);
+            });
+        }
+
+        [ToolButton("Edit object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
+            Validate = nameof(ObjectSelected), Tooltip = "Open the selected composition object in the Object Editor")]
+        [ContextMenuButton("Edit object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
+            Validate = nameof(ObjectSelected), Tooltip = "Open the selected composition object in the Object Editor")]
+        public static void EditObject()
+        {
+            if (Selection.Objects.LastOrDefault() is AssetRef asset && ObjectAsset.IsObject(asset.Path))
+                ObjectEditorPanel.Open(asset.Path);
+        }
+
+        [ToolValidator]
+        public static ToolUsability ObjectSelected() =>
+            Selection.Objects.LastOrDefault() is AssetRef asset && ObjectAsset.IsObject(asset.Path) ? ToolUsability.Usable : ToolUsability.Unusable;
+
+        [ToolButton("Object from model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
+            Validate = nameof(ModelSelected), Tooltip = "Create a composition object from the selected model, one Mesh Object per mesh")]
+        [ContextMenuButton("Object from model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
+            Validate = nameof(ModelSelected), Tooltip = "Create a composition object from the selected model, one Mesh Object per mesh")]
+        public static void CreateObjectFromModel()
+        {
+            if (SelectedModel() is not string model || AssetTemplates.CreateObjectFromModel(model) is not string path)
+                return;
+            NavigatorPanel? navigator = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault();
+            Debug.Log($"[Objects] Created {path} from {model}");
+            void Opened()
+            {
+                Selection.Set(path);
+                ObjectEditorPanel.Open(path);
+            }
+            if (navigator is not null)
+                navigator.RenameCreated(path, Opened);
+            else
+                Opened();
+        }
+
+        [ToolValidator]
+        public static ToolUsability ModelSelected() => SelectedModel() is not null ? ToolUsability.Usable : ToolUsability.Unusable;
+
+        private static string? SelectedModel() =>
+            Selection.Objects.LastOrDefault() is AssetRef asset && AssetIndex.KindOf(Path.GetExtension(asset.Path).TrimStart('.')) == AssetKind.Mesh
+                && ProjectService.Assets?.Pipeline.CanImport(asset.Path) == true ? asset.Path : null;
+
         [ToolValidator]
         public static ToolUsability HasProject() => ProjectService.Assets is not null ? ToolUsability.Usable : ToolUsability.Unusable;
 

@@ -25,8 +25,8 @@ namespace xg
         int32_t GetMaterialDrawCount() const override { return _materialDrawCount; }
         uint64_t ResolveMaterial(ResourceHandle material) override;
 
-        // Builds and submits the frame's scene draws (the engine calls it after the transform update).
-        void Update(Renderer* renderer);
+        // Builds and submits the frame's scene draws, after the given ones (object drivers), once the transforms update.
+        void Update(Renderer* renderer, const std::vector<SceneDraw>& before);
 
     private:
         struct SlotState

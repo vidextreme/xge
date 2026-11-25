@@ -32,6 +32,7 @@ namespace xg
             const uint8_t* Indices = nullptr;
             int32_t IndexCount = 0;
             IndexFormat Format = IndexFormat::UInt16;
+            ResourceGUID Item = {};
             int32_t MeshIndex = -1;
             int32_t MaterialIndex = 0;
             float BoundsMin[3] = {};
@@ -52,10 +53,12 @@ namespace xg
             int32_t NodeCount = 0;
         };
 
+        // Info first: GetData returns this object as a ModelResourceInfo.
         struct ModelData
         {
             ModelResourceInfo Info = {};
             std::vector<ModelPartInfo> Parts;
+            std::vector<ResourceGUID> PartItems;
             std::vector<uint64_t> Meshes;
         };
 
@@ -127,6 +130,8 @@ namespace xg
             return ForEachItem(data, size, [&](const ChunkView& item)
             {
                 LoadedPart part;
+                if (item.Size >= sizeof(ResourceGUID))
+                    std::memcpy(&part.Item, data + item.Offset, sizeof(ResourceGUID));
                 bool header = false;
                 bool vertices = false;
                 bool indices = false;
@@ -294,6 +299,7 @@ namespace xg
                     info.TriangleCount = part.IndexCount / 3;
                     std::memcpy(info.World, instance.World, sizeof(info.World));
                     result->Parts.push_back(info);
+                    result->PartItems.push_back(part.Item);
                     TransformBounds(part, instance.World, result->Info.BoundsMin, result->Info.BoundsMax, first);
                 }
                 result->Info.PartCount = static_cast<int32_t>(result->Parts.size());
@@ -332,5 +338,13 @@ namespace xg
         _context.Target = renderer;
         const ResourceTypeDesc desc{ ModelResourceType, &LoadModel, &UnloadModel, &_context, &FinalizeModel, ResourceTypeFlags::Async };
         return resources.RegisterType(moduleId, &desc);
+    }
+
+    const ResourceGUID* GetModelPartItems(const ModelResourceInfo* info)
+    {
+        if (!info)
+            return nullptr;
+        const auto* model = reinterpret_cast<const ModelData*>(info);
+        return model->PartItems.empty() ? nullptr : model->PartItems.data();
     }
 }

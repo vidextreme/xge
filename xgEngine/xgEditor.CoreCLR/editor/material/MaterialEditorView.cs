@@ -98,6 +98,17 @@ namespace xgEditor.CoreCLR
             DrawSaveAs(driver);
         }
 
+        // The properties and Save / Revert / Save as without the preview, for hosts that mount the material inside
+        // their own layout (the Composition Object Editor's Mesh and material card).
+        public void OnEmbeddedGUI()
+        {
+            MaterialDriver? driver = Driver;
+            driver?.RefreshAnnotations();
+            DrawProperties(driver);
+            DrawTools(driver);
+            DrawSaveAs(driver);
+        }
+
         private static void FillBackground()
         {
             Vector2 avail = Gui.AvailableSize;
@@ -189,7 +200,7 @@ namespace xgEditor.CoreCLR
                     Gui.Tooltip("Unsaved changes");
                 }
                 Gui.FlexibleSpace();
-                DrawStatusChip(driver);
+                DrawStatusChip(driver.Guid);
             }
             using (Gui.Font(FontStyle.Mono))
             {
@@ -200,9 +211,10 @@ namespace xgEditor.CoreCLR
             Gui.Space(EditorStyle.BarGap);
         }
 
-        private static void DrawStatusChip(MaterialDriver driver)
+        // Built / Not built / Build failed (the error as a tooltip) for a composition's GUID.
+        internal static void DrawStatusChip(string? assetGuid)
         {
-            if (ProjectService.Assets is not { } assets || driver.Guid is not string guid)
+            if (ProjectService.Assets is not { } assets || assetGuid is not string guid)
                 return;
             string text;
             Color32 fill;

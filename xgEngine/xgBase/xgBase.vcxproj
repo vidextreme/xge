@@ -132,6 +132,7 @@
     <ClInclude Include="public\xgComponentData.h" />
     <ClInclude Include="public\xgTransforms.h" />
     <ClInclude Include="public\xgMeshRenderer.h" />
+    <ClInclude Include="public\xgObjectDriver.h" />
     <ClInclude Include="public\xgResources.h" />
     <ClInclude Include="public\xgJobs.h" />
     <ClInclude Include="public\xgChunkFile.h" />

@@ -36,6 +36,7 @@
     <Compile Include="assets\MeshAssets.cs" />
     <Compile Include="assets\ShaderAssets.cs" />
     <Compile Include="assets\MaterialAssets.cs" />
+    <Compile Include="assets\ObjectAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
     <Compile Include="tools\ContextMenus.cs" />

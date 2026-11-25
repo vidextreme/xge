@@ -165,6 +165,7 @@ namespace xgEditor.CoreCLR
             MeshAssets.Register(Pipeline);
             ShaderAssets.Register(Pipeline, new DxcShaderCompiler(ProjectFiles.SdkDirectory));
             MaterialAssets.Register(Pipeline);
+            ObjectAssets.Register(Pipeline);
             Sync();
             _startupScanned = true;
             Tags = new AssetTags(this);
@@ -762,6 +763,7 @@ namespace xgEditor.CoreCLR
                     AssetKind.Mesh => Icon.Mesh,
                     AssetKind.Material => Icon.Material,
                     AssetKind.Shader => Icon.Code,
+                    AssetKind.Object => Icon.Object,
                     _ => Icon.File,
                 };
                 _buildTasks[path] = BackgroundTasks.Add("Import " + AssetNames.DisplayName(path), icon, () => CancelBuild(path));

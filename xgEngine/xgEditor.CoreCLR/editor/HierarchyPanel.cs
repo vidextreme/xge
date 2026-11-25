@@ -39,6 +39,7 @@ namespace xgEditor.CoreCLR
         private readonly TextBuffer _search = new(128);
         private ListState _list;
         private ulong _selected;
+        private ulong _revealed;
         private bool _selectedSeen;
         private bool _expandAll;
         private string? _selectName;
@@ -89,11 +90,25 @@ namespace xgEditor.CoreCLR
                 _laterName = null;
             }
             _selected = Selection.ActiveActor;
+            if (_selected != 0 && _selected != _revealed)
+                Reveal(new ActorID(_selected));
             using (Gui.Toolbar())
                 Gui.SearchField("##hierarchy_search", _search, 0.0f);
 
             Rebuild();
             DrawTree();
+        }
+
+        // Expands the ancestors of a newly selected actor, so a selection made elsewhere shows in the tree.
+        private void Reveal(ActorID actor)
+        {
+            _revealed = actor.Value;
+            ActorID? parent = ActorTree.GetParent(actor);
+            for (int guard = 0; parent is { } p && p.Value != 0 && guard < 256; guard++)
+            {
+                _expanded.Add(p.Value);
+                parent = ActorTree.GetParent(p);
+            }
         }
 
         private void Rebuild()
@@ -186,8 +201,17 @@ namespace xgEditor.CoreCLR
                 Painter draw = scope.Draw;
                 if (selected)
                     EditorStyle.SelectionBar(draw, -(TreeArrowOffset + row.Depth * TreeIndent), RowHeight);
-                draw.Icon(Icon.Object, new Vector2(7.0f, RowHeight * 0.5f), 13.0f, icon);
-                draw.Text(new Vector2(18.0f, textY), selected ? textSelected : text, ActorTree.GetName(new ActorID(row.Id)));
+                bool composed = ObjectDriverComponent.IsCompositionActor(new ActorID(row.Id));
+                draw.Icon(Icon.Object, new Vector2(7.0f, RowHeight * 0.5f), 13.0f, composed ? new Color32(143, 209, 158, 255) : icon);
+                string name = ActorTree.GetName(new ActorID(row.Id));
+                draw.Text(new Vector2(18.0f, textY), selected ? textSelected : text, name);
+                if (composed)
+                {
+                    float x = 18.0f + Gui.MeasureText(name).x + 8.0f;
+                    draw.Icon(Icon.Lock, new Vector2(x, RowHeight * 0.5f), 11.0f, Style.Color(StyleColor.TextDim));
+                    if (scope.Interaction.Hovered())
+                        Gui.Tooltip("A Composition Actor: added and removed by its object (.xco); its transform follows the composition");
+                }
             }
         }
     }

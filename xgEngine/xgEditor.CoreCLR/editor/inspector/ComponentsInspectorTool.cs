@@ -266,6 +266,8 @@ namespace xgEditor.CoreCLR
                 Gui.Label("The transform was removed.");
                 return;
             }
+            if (ObjectDriverComponent.IsCompositionActor(transform.ActorID))
+                Gui.Label($"Driven by {ActorTree.GetName(ObjectDriverComponent.CompositionOwner(transform.ActorID))}'s composition (edits snap back)");
             TransformData local = transform.Local;
             Quaternion rotation = local.Rotation;
             if (view.EulerActor != transform.ActorID.Value || !SameRotation(view.EulerSource, rotation))
