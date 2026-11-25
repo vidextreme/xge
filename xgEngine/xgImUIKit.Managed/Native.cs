@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 22;
+        public const uint ApiVersion = 23;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -135,6 +135,9 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIPropertyLabel")]
         public static partial Result PropertyLabel(nint ctx, byte* label, byte* value);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldPicker")]
+        public static partial Result FieldPicker(nint ctx, byte* label, byte* text, Icon icon, Color32 iconColor, nint thumbnail, byte* chip, byte open);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIToggleButton")]
         public static partial Result ToggleButton(nint ctx, byte* label, byte* on);

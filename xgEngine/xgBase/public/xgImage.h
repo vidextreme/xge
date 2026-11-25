@@ -17,5 +17,7 @@ namespace xg {
     // Implemented in xgPlatform. Returns false and leaves the image empty on failure.
     XG_API bool LoadImageRGBA(const char* path, ImageRGBA* image);
     XG_API void FreeImageRGBA(ImageRGBA* image);
+    // Writes tightly packed RGBA8 pixels as a PNG (UTF-8 path). Returns false on failure.
+    XG_API bool SaveImagePNG(const char* path, const uint8_t* rgba, int width, int height);
 
 } // namespace xg

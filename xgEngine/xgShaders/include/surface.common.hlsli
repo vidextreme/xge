@@ -15,6 +15,10 @@
 // Annotations (one per line, in declaration order; at most 4 params and 4 textures):
 //   //@group Surface                  following params and textures go in this group (default "General")
 //   //@param Roughness float 0.5      float, float2, float3, float4 or color; the default fills the slot's xyzw
+//   //@param Tiling float2 2,2 notchtags=u,v range=0,16
+//                                     editor-only options: notchtags= (one notch tag per component, quoted when it has
+//                                     spaces; "near=#c8a040, far=#a060c8" sets colours) and range=<min>,<max> (clamps and
+//                                     draws a range line); colour params default to notchtags=r,g,b,a range=0,1
 //   //@texture Albedo color           color, normal or luminance
 // Write spaces in names as underscores (Tint_color); the editor shows them as spaces.
 

@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 22;
+    inline constexpr uint32_t ApiVersion = 23;
 
     struct Context;
     struct PanelEntry;
@@ -398,6 +398,10 @@ namespace xg
     XG_MODULE_EXPORT imui::Result XG_ImUIFoldout(imui::Context* ctx, const char* label, bool* open);
     // A label in the property label column with value text (read only) next to it.
     XG_MODULE_EXPORT imui::Result XG_ImUIPropertyLabel(imui::Context* ctx, const char* label, const char* value);
+    // A picker field row (ApiVersion 23): an inset well with a 14 px thumbnail (or the icon), the text, an optional dim
+    // chip and a dropdown cell; open draws it focused (its popup is open). Clicked when the field is clicked.
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldPicker(imui::Context* ctx, const char* label, const char* text, imui::Icon icon, Color32 iconColor,
+        imui::TextureHandle thumbnail, const char* chip, bool open);
     // Icon toggle with optional text after it (e.g. a count). Dimmed while off.
     XG_MODULE_EXPORT imui::Result XG_ImUIIconToggle(imui::Context* ctx, const char* id, imui::Icon icon, bool* on, Color32 color, const char* text);
     // Single-line search box editing a UTF-8 buffer in place. Returns Changed when the text changed.

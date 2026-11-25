@@ -836,6 +836,20 @@ internal static class Program
         Check(ShaderAnnotations.Parse(string.Join("\n", Enumerable.Range(0, 5).Select(i => $"//@param P{i} float"))).Errors.Count == 1, "at most four params");
         Check(ShaderAnnotations.Parse("//@unknown x").Errors.Count == 1, "an unknown annotation is an error");
 
+        ShaderAnnotations options = ShaderAnnotations.Parse("//@param Tiling float2 2,3 notchtags=u,v range=0,16\n"
+            + "//@param Fade float 0.35 notchtags=\"near=#c8a040\" range=0,1\n//@param Tint color 1,0.5,0.25,1\n//@param Plain float 1");
+        ShaderParam tiling = options.FindParam("Tiling")!;
+        Check(options.Errors.Count == 0 && tiling.NotchTags == "u,v" && tiling.Min == 0.0f && tiling.Max == 16.0f && tiling.Default.SequenceEqual([2.0f, 3.0f, 0.0f, 0.0f]),
+            "notchtags= and range= are read beside the default");
+        Check(options.FindParam("Fade")!.NotchTags == "near=#c8a040", "a quoted notchtags value keeps its colour");
+        ShaderParam color = options.FindParam("Tint")!;
+        Check(color.NotchTags == "r,g,b,a" && color.HasRange && color.Max == 1.0f, "colour params default to r,g,b,a over 0..1");
+        Check(options.FindParam("Plain")!.NotchTags is null && !options.FindParam("Plain")!.HasRange, "params without options have no tags or range");
+        Check(ShaderAnnotations.Parse("//@param A float notchtags=\"x, y\"").Errors.Count == 1, "more notch tags than components is an error");
+        Check(ShaderAnnotations.Parse("//@param A float range=2,1").Errors.Count == 1, "a range with min >= max is an error");
+        Check(ShaderAnnotations.Parse("//@param A float speed=2").Errors.Count == 1, "an unknown option is an error");
+        Check(ShaderAnnotations.Parse("//@texture A color range=0,1").Errors.Count == 1, "textures take no options");
+
         byte[] packed = ShaderAssets.PackParams(parsed.Params);
         Check(packed.Length == 3 * ShaderAssets.ParamRecordSize && Encoding.UTF8.GetString(packed, ShaderAssets.ParamRecordSize, 10) == "Tint_color"
             && BitConverter.ToInt32(packed, ShaderAssets.ParamRecordSize + 36) == 1 && BitConverter.ToSingle(packed, ShaderAssets.ParamRecordSize + 44) == 0.5f,

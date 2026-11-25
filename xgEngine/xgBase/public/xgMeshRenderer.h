@@ -40,5 +40,9 @@ namespace xg
         // Draws handed to the renderer last frame, and how many of them had their material resolved.
         virtual int32_t GetDrawCount() const = 0;
         virtual int32_t GetMaterialDrawCount() const = 0;
+
+        // The renderer material of a Ready "material" resource, as the scene draws it (0 until its shader and textures
+        // are loaded). Main thread only.
+        virtual uint64_t ResolveMaterial(ResourceHandle material) = 0;
     };
 }

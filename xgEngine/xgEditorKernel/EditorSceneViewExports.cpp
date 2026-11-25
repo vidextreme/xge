@@ -86,6 +86,11 @@ XG_MODULE_EXPORT int XG_EditorUpdateMaterial(uint64_t id, const void* desc)
     return _sceneRenderer && desc && _sceneRenderer->UpdateMaterial(id, static_cast<const xg::MaterialDesc*>(desc)) ? 1 : 0;
 }
 
+XG_MODULE_EXPORT int XG_EditorReadSceneView(uint64_t id, void* rgba, uint64_t capacity)
+{
+    return _sceneRenderer && _sceneRenderer->ReadRenderView(id, rgba, capacity) ? 1 : 0;
+}
+
 XG_MODULE_EXPORT void XG_EditorDestroyMaterial(uint64_t id)
 {
     if (_sceneRenderer)

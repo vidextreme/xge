@@ -21,6 +21,10 @@ namespace xg.editor
         string? SelectedGuid(string kind);
         // Icon of a kind.
         Icon IconOf(string kind);
+        // Colour of a kind's icon.
+        Color32 IconColorOf(string kind) => Style.Color(StyleColor.Icon);
+        // A thumbnail of the asset, or null (the field shows the kind icon).
+        Texture? ThumbnailOf(string guid) => null;
     }
 
     public static class AssetBrowser
@@ -47,15 +51,22 @@ namespace xg.editor
         private readonly TextBuffer _search = new(64);
         private readonly List<AssetChoice> _filtered = new();
         private Vector2 _popupPosition;
+        private bool _open;
 
         // guid: 32 hex digits, or empty for none. Returns true when the user picked another asset.
-        public bool Field(string id, string label, string kind, ref string guid)
+        // chip: optional dim text inside the field (a texture slot's usage).
+        public bool Field(string id, string label, string kind, ref string guid, string? chip = null)
         {
             string popupId = "asset_picker##" + id;
             bool changed = false;
             using (Gui.Id(id))
             {
-                Result row = Gui.PropertyLabel(label, AssetBrowser.NameOf(guid));
+                IAssetBrowser? browser = AssetBrowser.Current;
+                bool empty = string.IsNullOrEmpty(guid);
+                Icon icon = empty ? Icon.None : browser?.IconOf(kind) ?? Icon.File;
+                Color32 iconColor = browser?.IconColorOf(kind) ?? Style.Color(StyleColor.Icon);
+                Texture? thumbnail = empty ? null : browser?.ThumbnailOf(guid);
+                Result row = Gui.PickerField(label, AssetBrowser.NameOf(guid), icon, iconColor, thumbnail, chip, _open);
                 string? path = string.IsNullOrEmpty(guid) ? null : AssetBrowser.Current?.PathOf(guid);
                 Gui.Tooltip(path ?? (string.IsNullOrEmpty(guid) ? $"Click to pick a {kind}" : $"No asset has the GUID {guid}"));
                 if ((row & Result.Clicked) != 0)
@@ -73,6 +84,7 @@ namespace xg.editor
         private bool DrawPopup(string popupId, string kind, ref string guid)
         {
             using var popup = Gui.Popup(popupId, _popupPosition, new Vector2(PopupWidth, 0.0f));
+            _open = popup.IsOpen;
             if (!popup.IsOpen)
                 return false;
             IAssetBrowser? browser = AssetBrowser.Current;

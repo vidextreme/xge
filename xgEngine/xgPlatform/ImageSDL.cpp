@@ -9,6 +9,18 @@
 
 namespace xg {
 
+    XG_API bool SaveImagePNG(const char* path, const uint8_t* rgba, int width, int height)
+    {
+        if (!path || !rgba || width <= 0 || height <= 0)
+            return false;
+        SDL_Surface* surface = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32, const_cast<uint8_t*>(rgba), width * 4);
+        if (!surface)
+            return false;
+        const bool saved = SDL_SavePNG(surface, path);
+        SDL_DestroySurface(surface);
+        return saved;
+    }
+
     XG_API bool LoadImageRGBA(const char* path, ImageRGBA* image)
     {
         if (!image)

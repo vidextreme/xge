@@ -115,7 +115,7 @@ namespace xgEditor.CoreCLR
                     _preview.OnGUI(driver, new Vector2(width, MathF.Round(width * PreviewAspect)));
                 }
             }
-            Gui.Space(2.0f);
+            Gui.Space(EditorStyle.BarGap);
         }
 
         private void DrawTools(MaterialDriver? driver)
@@ -166,7 +166,7 @@ namespace xgEditor.CoreCLR
                 foreach (string group in annotations.Groups)
                     DrawGroup(driver, annotations, group);
                 if (annotations.Errors.Count > 0)
-                    Gui.Label("Annotation errors: " + string.Join("; ", annotations.Errors));
+                    DrawAnnotationErrors(annotations.Errors);
             }
             using (Gui.Card("##material_tags", "Tags", Icon.Tag, null, Style.Color(StyleColor.Icon)))
             {
@@ -175,26 +175,72 @@ namespace xgEditor.CoreCLR
             }
         }
 
+        // Name (amber dot while unsaved), build status chip, then the path in dim mono.
         private static void DrawHeader(MaterialDriver driver)
         {
-            using (Gui.Horizontal())
+            using (Gui.Horizontal(EditorStyle.BarGap))
             {
                 using (Gui.Font(FontStyle.Bold))
-                    Gui.Label(driver.HasPendingChanges ? driver.Name + " *" : driver.Name);
+                    Gui.Label(driver.Name);
+                if (driver.HasPendingChanges)
+                {
+                    using (var dot = Gui.Canvas("##unsaved", new Vector2(8.0f, 18.0f)))
+                        dot.Draw.CircleFilled(new Vector2(4.0f, 9.0f), 3.5f, Style.Color(StyleColor.IconWarning));
+                    Gui.Tooltip("Unsaved changes");
+                }
                 Gui.FlexibleSpace();
-                Gui.Label(BuildStatus(driver));
+                DrawStatusChip(driver);
             }
-            Gui.Label(driver.Path);
-            Gui.Space(4.0f);
+            using (Gui.Font(FontStyle.Mono))
+            {
+                Vector2 size = Gui.MeasureText(driver.Path);
+                using var path = Gui.Canvas("##path", new Vector2(0.0f, size.y + 2.0f));
+                path.Draw.Text(new Vector2(0.0f, 1.0f), Style.Color(StyleColor.TextDim), driver.Path);
+            }
+            Gui.Space(EditorStyle.BarGap);
         }
 
-        private static string BuildStatus(MaterialDriver driver)
+        private static void DrawStatusChip(MaterialDriver driver)
         {
             if (ProjectService.Assets is not { } assets || driver.Guid is not string guid)
-                return string.Empty;
-            if (assets.Pipeline.ManifestOf(guid) is not { } manifest)
-                return "Not built";
-            return manifest.Error is null ? "Built" : "Build failed";
+                return;
+            string text;
+            Color32 fill;
+            Color32 color;
+            var manifest = assets.Pipeline.ManifestOf(guid);
+            if (manifest is null)
+            {
+                text = "Not built";
+                fill = new Color32(43, 43, 43, 255);
+                color = Style.Color(StyleColor.TextDim);
+            }
+            else if (manifest.Error is null)
+            {
+                text = "Built";
+                fill = new Color32(40, 56, 38, 255);
+                color = new Color32(143, 192, 112, 255);
+            }
+            else
+            {
+                text = "Build failed";
+                fill = new Color32(66, 34, 34, 255);
+                color = new Color32(224, 120, 112, 255);
+            }
+            Vector2 size = Gui.MeasureText(text);
+            using var chip = Gui.Canvas("##status", new Vector2(size.x + 16.0f, 18.0f));
+            chip.Draw.RectFilled(Rect.FromXYWH(0.0f, 0.0f, size.x + 16.0f, 18.0f), fill, 9.0f);
+            chip.Draw.Text(new Vector2(8.0f, MathF.Round(9.0f - size.y * 0.5f)), color, text);
+            if (manifest?.Error is string error)
+                Gui.Tooltip(error);
+        }
+
+        private static void DrawAnnotationErrors(List<string> errors)
+        {
+            using (Gui.Card("##material_errors", "Annotation errors", Icon.Warning, null, Style.Color(StyleColor.IconWarning)))
+            {
+                foreach (string error in errors)
+                    Gui.Label(error);
+            }
         }
 
         private void DrawShader(MaterialDriver driver)
@@ -242,33 +288,25 @@ namespace xgEditor.CoreCLR
             float[] value = driver.ParamValue(param);
             using (Gui.Id(param.Name))
             {
-                if (param.Components == 1)
-                {
-                    float x = value[0];
-                    if (Gui.Field(label, ref x, 0.01f))
-                        driver.SetParam(param.Name, new[] { x, value[1], value[2], value[3] });
-                    return;
-                }
                 bool color = param.Type == ShaderParamType.Color;
+                NumberFieldStyle style = new() { NotchTags = param.NotchTags };
+                if (param.HasRange)
+                {
+                    style.Flags |= NumberFieldFlags.Range;
+                    style.Min = param.Min!.Value;
+                    style.Max = param.Max!.Value;
+                }
+                if (color)
+                    style.Flags |= NumberFieldFlags.Color;
                 Span<float> values = stackalloc float[param.Components];
                 for (int i = 0; i < values.Length; i++)
                     values[i] = value[i];
-                if (Gui.Field(color ? "      " + label : label, values, color ? 0.005f : 0.01f))
+                if (Gui.Field(label, values, style, param.HasRange ? 0.0f : 0.01f))
                 {
                     float[] next = (float[])value.Clone();
                     for (int i = 0; i < values.Length; i++)
-                        next[i] = color ? Math.Clamp(values[i], 0.0f, 1.0f) : values[i];
+                        next[i] = values[i];
                     driver.SetParam(param.Name, next);
-                }
-                if (color)
-                {
-                    Rect row = Gui.ItemRect;
-                    float y = row.min.y + row.Height * 0.5f;
-                    Rect swatch = Rect.FromXYWH(row.min.x + 2.0f, y - 6.0f, 20.0f, 12.0f);
-                    Color32 fill = new((byte)(Math.Clamp(value[0], 0.0f, 1.0f) * 255.0f), (byte)(Math.Clamp(value[1], 0.0f, 1.0f) * 255.0f),
-                        (byte)(Math.Clamp(value[2], 0.0f, 1.0f) * 255.0f), 255);
-                    Gui.Draw.RectFilled(swatch, fill, 2.0f);
-                    Gui.Draw.Rect(swatch, Style.Color(StyleColor.Border), 2.0f);
                 }
             }
         }
@@ -281,8 +319,8 @@ namespace xgEditor.CoreCLR
                 _texturePickers[texture.Name] = picker;
             }
             string guid = driver.TextureGuid(texture);
-            string label = $"{ShaderAnnotations.DisplayName(texture.Name)} ({texture.Usage.ToString().ToLowerInvariant()})";
-            if (picker.Field("texture_" + texture.Name, label, "image", ref guid))
+            string label = ShaderAnnotations.DisplayName(texture.Name);
+            if (picker.Field("texture_" + texture.Name, label, "image", ref guid, texture.Usage.ToString().ToLowerInvariant()))
                 driver.SetTexture(texture.Name, guid);
         }
 

@@ -82,6 +82,12 @@ XG_MODULE_EXPORT uint8_t* XG_LoadImageRGBA(const char* path, int* width, int* he
     return image.Pixels;
 }
 
+// Writes tightly packed RGBA8 pixels as a PNG.
+XG_MODULE_EXPORT bool XG_SaveImagePNG(const char* path, const uint8_t* rgba, int32_t width, int32_t height)
+{
+    return xg::SaveImagePNG(path, rgba, width, height);
+}
+
 XG_MODULE_EXPORT void XG_FreeImageRGBA(uint8_t* pixels)
 {
     xg::ImageRGBA image = { 0, 0, pixels };

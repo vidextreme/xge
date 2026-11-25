@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace xg.editor
 {
@@ -26,9 +27,13 @@ namespace xg.editor
         Luminance = 2,
     }
 
-    // A //@param line: a float4 slot of the XGMaterial constant buffer.
-    public sealed record ShaderParam(string Name, ShaderParamType Type, float[] Default, string Group, int Slot, int Order)
+    // A //@param line: a float4 slot of the XGMaterial constant buffer. NotchTags and Min/Max come from the editor-only
+    // options notchtags= and range= (colour params default to r,g,b,a over 0..1); they don't reach the built shader.
+    public sealed record ShaderParam(string Name, ShaderParamType Type, float[] Default, string Group, int Slot, int Order,
+        string? NotchTags = null, float? Min = null, float? Max = null)
     {
+        public bool HasRange => Min is float min && Max is float max && max > min;
+
         public int Components => Type switch
         {
             ShaderParamType.Float => 1,
@@ -65,6 +70,8 @@ namespace xg.editor
             Params.Where(p => p.Group == group).Cast<object>().Concat(Textures.Where(t => t.Group == group))
                 .OrderBy(e => e is ShaderParam p ? p.Order : ((ShaderTexture)e).Order);
 
+        private static readonly Regex _option = new(@"(?<=\s)([A-Za-z_]+)=(""[^""]*""|\S+)", RegexOptions.CultureInvariant);
+
         public static ShaderAnnotations Parse(string text)
         {
             ShaderAnnotations result = new();
@@ -77,7 +84,16 @@ namespace xg.editor
                 string line = rawLine.Trim();
                 if (!line.StartsWith("//@", StringComparison.Ordinal))
                     continue;
-                string[] parts = line[3..].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                List<(string Key, string Value)> options = new();
+                string body = _option.Replace(line[3..], m =>
+                {
+                    string value = m.Groups[2].Value;
+                    if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+                        value = value[1..^1];
+                    options.Add((m.Groups[1].Value, value));
+                    return " ";
+                });
+                string[] parts = body.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 0)
                     continue;
                 string keyword = parts[0];
@@ -126,10 +142,17 @@ namespace xg.editor
                         result.Errors.Add($"line {lineNumber}: invalid default for '{name}'");
                         continue;
                     }
-                    result.Params.Add(new ShaderParam(name, type, value, group, result.Params.Count, order++));
+                    if (!TryParseOptions(options, type, lineNumber, result.Errors, out string? notchTags, out float? min, out float? max))
+                        continue;
+                    result.Params.Add(new ShaderParam(name, type, value, group, result.Params.Count, order++, notchTags, min, max));
                 }
                 else
                 {
+                    if (options.Count > 0)
+                    {
+                        result.Errors.Add($"line {lineNumber}: //@texture takes no options ({options[0].Key}=)");
+                        continue;
+                    }
                     if (!TryParseUsage(parts[2], out ShaderTextureUsage usage))
                     {
                         result.Errors.Add($"line {lineNumber}: unknown texture usage '{parts[2]}'");
@@ -146,6 +169,48 @@ namespace xg.editor
                     result.Groups.Add(group);
             }
             return result;
+        }
+
+        // notchtags=<tags> (one per component, see NotchTagsAttribute; quote it when it has spaces) and range=<min>,<max>.
+        private static bool TryParseOptions(List<(string Key, string Value)> options, ShaderParamType type, int lineNumber, List<string> errors,
+            out string? notchTags, out float? min, out float? max)
+        {
+            bool color = type == ShaderParamType.Color;
+            notchTags = color ? "r,g,b,a" : null;
+            min = color ? 0.0f : null;
+            max = color ? 1.0f : null;
+            int components = type switch { ShaderParamType.Float => 1, ShaderParamType.Float2 => 2, ShaderParamType.Float3 => 3, _ => 4 };
+            foreach ((string key, string value) in options)
+            {
+                switch (key)
+                {
+                    case "notchtags":
+                        if (value.Split(',').Length > components)
+                        {
+                            errors.Add($"line {lineNumber}: notchtags has more tags than the param's {components} component(s)");
+                            return false;
+                        }
+                        notchTags = value.Trim().Length == 0 ? null : value;
+                        break;
+                    case "range":
+                        string[] bounds = value.Split(',');
+                        if (bounds.Length != 2
+                            || !float.TryParse(bounds[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float low)
+                            || !float.TryParse(bounds[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float high)
+                            || high <= low)
+                        {
+                            errors.Add($"line {lineNumber}: range needs <min>,<max> with min < max");
+                            return false;
+                        }
+                        min = low;
+                        max = high;
+                        break;
+                    default:
+                        errors.Add($"line {lineNumber}: unknown option '{key}=' (notchtags=, range=)");
+                        return false;
+                }
+            }
+            return true;
         }
 
         public static bool ValidName(string name) =>

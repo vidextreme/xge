@@ -123,6 +123,11 @@ namespace xg
         }
     }
 
+    uint64_t MeshRenderSystemImpl::ResolveMaterial(ResourceHandle material)
+    {
+        return _resources && _resources->GetState(material) == ResourceState::Ready ? xg::ResolveMaterial(material) : 0;
+    }
+
     void MeshRenderSystemImpl::Update(Renderer* renderer)
     {
         if (!_registry || !_resources)

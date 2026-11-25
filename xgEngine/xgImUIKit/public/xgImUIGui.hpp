@@ -142,6 +142,11 @@ namespace xg::imui
         bool Checkbox(const char* label, bool& value) const { return Changed(XG_ImUICheckbox(_ctx, label, &value)); }
         bool Combo(const char* label, int& index, const char* const* items, int count) const { return Changed(XG_ImUICombo(_ctx, label, &index, items, count)); }
         Result PropertyLabel(const char* label, const char* value) const { return XG_ImUIPropertyLabel(_ctx, label, value); }
+        Result PickerField(const char* label, const char* text, Icon icon, Color32 iconColor, TextureHandle thumbnail = nullptr, const char* chip = nullptr,
+            bool open = false) const
+        {
+            return XG_ImUIFieldPicker(_ctx, label, text, icon, iconColor, thumbnail, chip, open);
+        }
         bool Foldout(const char* label, bool& open) const { XG_ImUIFoldout(_ctx, label, &open); return open; }
 
         [[nodiscard]] IdScope Id(const char* id) const { XG_ImUIPushID(_ctx, id); return IdScope(_ctx); }

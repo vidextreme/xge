@@ -609,6 +609,42 @@ namespace xg {
             view->Flags = flags;
     }
 
+    bool RendererVulkan::ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity)
+    {
+        RenderView* view = FindRenderView(viewId);
+        if (_failed || !view || !rgba || capacity < static_cast<uint64_t>(view->Width) * view->Height * 4)
+            return false;
+        const Image& color = _textures[static_cast<size_t>(view->Id - 1)].Target;
+        const VkDeviceSize bytes = static_cast<VkDeviceSize>(view->Width) * view->Height * 4;
+        Buffer readback;
+        if (!CreateBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, readback))
+            return false;
+        vkDeviceWaitIdle(_device);
+        VkCommandBuffer commands = BeginUpload();
+        if (!commands)
+        {
+            DestroyBuffer(readback);
+            return false;
+        }
+        const VkImageMemoryBarrier2 toCopy = ViewBarrier(color.Handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+            VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+        ViewBarriers(commands, &toCopy, 1);
+        VkBufferImageCopy region = {};
+        region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+        region.imageExtent = { view->Width, view->Height, 1 };
+        vkCmdCopyImageToBuffer(commands, color.Handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, readback.Handle, 1, &region);
+        const VkImageMemoryBarrier2 toShader = ViewBarrier(color.Handle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        ViewBarriers(commands, &toShader, 1);
+        const bool ok = EndUpload();
+        if (ok)
+            std::memcpy(rgba, readback.Mapped, static_cast<size_t>(bytes));
+        DestroyBuffer(readback);
+        return ok;
+    }
+
     void RendererVulkan::RecordLitMesh(const GpuMesh& mesh, VkPipelineLayout layout, const float* world, const float* viewProjection)
     {
         SceneLitConstants lit = {};

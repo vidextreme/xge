@@ -4,11 +4,11 @@
 
 //@group Surface
 //@texture Albedo color
-//@param Roughness float 0.5
+//@param Roughness float 0.5 range=0,1
 //@group Tint
 //@param Tint_color color 1,1,1,1
 //@texture Tint_mask luminance
-//@param Mask_strength float 1
+//@param Mask_strength float 1 range=0,4 notchtags="amount=#c8a040"
 
 PSInput VSMain(VSInput input)
 {

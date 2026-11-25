@@ -1753,6 +1753,69 @@ namespace xg
         return ItemResult(changed);
     }
 
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldPicker(imui::Context* ctx, const char* label, const char* text, imui::Icon icon, Color32 iconColor,
+        imui::TextureHandle thumbnail, const char* chip, bool open)
+    {
+        if (!ctx)
+            return imui::Result::None;
+        return PropertyRow(ctx, label, [&]
+        {
+            using namespace imui::detail;
+            const float height = ImGui::GetFrameHeight();
+            const float width = ImMax(ImGui::GetContentRegionAvail().x, height * 3.0f);
+            ImGui::InvisibleButton("##picker_field", ImVec2(width, height));
+            const ImRect r(ImFloor(ImGui::GetItemRectMin()), ImFloor(ImGui::GetItemRectMax()));
+            const bool hovered = ImGui::IsItemHovered();
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            dl->AddRectFilled(r.Min, r.Max, open ? FieldBgActive : (hovered ? FieldBgHover : FieldBg), 2.0f);
+            const float cell = height - 2.0f;
+            const ImVec2 arrowMin(r.Max.x - cell - 1.0f, r.Min.y + 1.0f);
+            dl->AddRectFilled(arrowMin, ImVec2(r.Max.x - 1.0f, r.Max.y - 1.0f), (hovered || open) ? NotchTagHover : NotchTagBg, 2.0f, ImDrawFlags_RoundCornersRight);
+            dl->AddLine(ImVec2(arrowMin.x - 0.5f, r.Min.y + 1.0f), ImVec2(arrowMin.x - 0.5f, r.Max.y - 1.0f), NotchDivider, 1.0f);
+            const float arrowScale = 0.6f;
+            const float arrowSize = ImGui::GetFontSize() * arrowScale;
+            ImGui::RenderArrow(dl, ImVec2(ImFloor(arrowMin.x + (cell - arrowSize) * 0.5f), ImFloor(arrowMin.y + (cell - arrowSize) * 0.5f + 1.0f)),
+                hovered || open ? TextColor : TextDim, ImGuiDir_Down, arrowScale);
+            const float cy = (r.Min.y + r.Max.y) * 0.5f;
+            float x = r.Min.x + 5.0f;
+            if (thumbnail && thumbnail->Data)
+            {
+                dl->AddImageRounded(thumbnail->Data->GetTexRef(), ImVec2(x, cy - 7.0f), ImVec2(x + 14.0f, cy + 7.0f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f),
+                    IM_COL32_WHITE, 2.0f);
+                x += 19.0f;
+            }
+            else if (icon > imui::Icon::None && icon < imui::Icon::Count)
+            {
+                DrawIcon(dl, static_cast<Icon>(icon), ImVec2(x + 7.0f, cy), 12.0f, ToImU32(iconColor));
+                x += 19.0f;
+            }
+            float textRight = arrowMin.x - 6.0f;
+            if (chip && *chip)
+            {
+                ImFont* font = FontSlot(1);
+                const float size = font->LegacySize;
+                const ImVec2 chipText = font->CalcTextSizeA(size, FLT_MAX, 0.0f, chip);
+                const ImVec2 chipMax(ImFloor(arrowMin.x - 5.0f), ImFloor(cy + 7.0f));
+                const ImVec2 chipMin(ImFloor(chipMax.x - chipText.x - 12.0f), ImFloor(cy - 7.0f));
+                if (chipMin.x > x + 40.0f)
+                {
+                    dl->AddRectFilled(chipMin, chipMax, NotchTagHover, 7.0f);
+                    dl->AddText(font, size, ImVec2(chipMin.x + 6.0f, ImFloor(cy - chipText.y * 0.5f)), TextDim, chip);
+                    textRight = chipMin.x - 6.0f;
+                }
+            }
+            const char* shown = text ? text : "";
+            const ImVec2 textSize = ImGui::CalcTextSize(shown);
+            dl->PushClipRect(ImVec2(x, r.Min.y), ImVec2(ImMax(x, textRight), r.Max.y), true);
+            dl->AddText(ImVec2(x, ImFloor(cy - textSize.y * 0.5f)), TextColor, shown);
+            dl->PopClipRect();
+            DrawFieldFrame(r, hovered, open);
+            if (hovered)
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            return false;
+        });
+    }
+
     XG_MODULE_EXPORT imui::Result XG_ImUIPropertyLabel(imui::Context* ctx, const char* label, const char* value)
     {
         if (!ctx)

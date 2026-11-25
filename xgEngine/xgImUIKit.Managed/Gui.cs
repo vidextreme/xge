@@ -197,6 +197,16 @@ namespace xg.imui
             return open;
         }
 
+        // A picker field row: an inset well with the thumbnail (or icon), text, an optional chip and a dropdown cell. open
+        // draws it focused while its popup is open. Check Clicked to open the popup (Gui.ItemRect is the field).
+        public static Result PickerField(string label, string text, Icon icon, Color32 iconColor, Texture? thumbnail = null, string? chip = null, bool open = false)
+        {
+            fixed (byte* p = Utf8.Encode(label.AsSpan(), 0))
+            fixed (byte* t = Utf8.Encode(text.AsSpan(), 1))
+            fixed (byte* c = chip is null ? null : Utf8.Encode(chip.AsSpan(), 2))
+                return Native.FieldPicker(Context, p, t, icon, iconColor, thumbnail?.Handle ?? 0, c, open ? (byte)1 : (byte)0);
+        }
+
         public static Result PropertyLabel(string label, string value)
         {
             fixed (byte* p = Utf8.Encode(label.AsSpan(), 0))

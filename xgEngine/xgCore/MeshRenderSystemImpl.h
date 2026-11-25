@@ -23,6 +23,7 @@ namespace xg
         DataTypeID GetDataType() const override { return _type; }
         int32_t GetDrawCount() const override { return _drawCount; }
         int32_t GetMaterialDrawCount() const override { return _materialDrawCount; }
+        uint64_t ResolveMaterial(ResourceHandle material) override;
 
         // Builds and submits the frame's scene draws (the engine calls it after the transform update).
         void Update(Renderer* renderer);

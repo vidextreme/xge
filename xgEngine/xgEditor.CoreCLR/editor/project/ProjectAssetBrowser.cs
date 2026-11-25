@@ -3,6 +3,7 @@
 
 using xg.editor;
 using xg.imui;
+using xg.math;
 
 namespace xgEditor.CoreCLR
 {
@@ -49,5 +50,11 @@ namespace xgEditor.CoreCLR
         }
 
         public Icon IconOf(string kind) => AssetTags.TryParseType(kind, out AssetKind wanted) ? AssetIndex.IconOf(wanted) : Icon.File;
+
+        public Color32 IconColorOf(string kind) =>
+            AssetTags.TryParseType(kind, out AssetKind wanted) ? AssetIndex.IconColorOf(wanted) : Style.Color(StyleColor.Icon);
+
+        public Texture? ThumbnailOf(string guid) =>
+            _assets.PathOf(guid) is string path && _assets.Index.Find(path) is AssetEntry entry ? AssetThumbnails.Get(entry) : null;
     }
 }

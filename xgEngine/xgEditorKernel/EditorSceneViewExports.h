@@ -33,6 +33,8 @@ XG_MODULE_EXPORT void XG_EditorDestroyMesh(uint64_t id);
 XG_MODULE_EXPORT uint64_t XG_EditorCreateMaterial(const void* desc);
 XG_MODULE_EXPORT int XG_EditorUpdateMaterial(uint64_t id, const void* desc);
 XG_MODULE_EXPORT void XG_EditorDestroyMaterial(uint64_t id);
+// Copies the view's last rendered color as RGBA8 (width * height * 4 bytes). Between frames only. 1 = done.
+XG_MODULE_EXPORT int XG_EditorReadSceneView(uint64_t id, void* rgba, uint64_t capacity);
 
 namespace xg
 {

@@ -105,6 +105,10 @@ namespace xgEditor.CoreCLR
         [LibraryImport(DLL, EntryPoint = "XG_EditorDestroyMaterial")]
         public static partial void DestroyMaterial(ulong id);
 
+        // The view's last rendered color as RGBA8 (width * height * 4 bytes); between frames only.
+        [LibraryImport(DLL, EntryPoint = "XG_EditorReadSceneView")]
+        public static partial int Read(ulong id, byte* rgba, ulong capacity);
+
         // mode: 0 color, 1 tangent-space normal (BC5), 2 luminance (BC4). textureId 0 = untextured.
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewTexture")]
         public static partial void SetTexture(ulong id, ulong textureId, int mode);

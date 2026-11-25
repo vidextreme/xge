@@ -269,6 +269,11 @@ namespace xg {
         // Material draws of one view, drawn after its RenderViewDraws (copied; count 0 clears).
         virtual void SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count) = 0;
         virtual void SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags) = 0;
+
+        // Copies the view's last rendered color into tightly packed RGBA8 (the sRGB bytes the UI shows; alpha as
+        // cleared and drawn). capacity must be at least width * height * 4. Runs its own copy and waits for the GPU, so
+        // call it between frames (main thread). Returns false for an unknown view or a short buffer.
+        virtual bool ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity) = 0;
     };
 
     XG_DECLARE_MODULE_FUNCTION(XG_CreateRenderer, Renderer*, Window&);

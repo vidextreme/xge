@@ -47,6 +47,7 @@ namespace xg {
         void SetSceneDraws(const SceneDraw* draws, uint32_t count) override;
         void SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count) override;
         void SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags) override;
+        bool ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity) override;
 
         bool SupportsSurfaces() const override { return !_failed; }
         uint64_t CreateUISurface(Window& window) override;

@@ -660,6 +660,63 @@ namespace xg {
             view->Flags = flags;
     }
 
+    bool RendererDX12::ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity)
+    {
+        RenderView* view = FindRenderView(viewId);
+        if (_failed || !view || !rgba || capacity < static_cast<uint64_t>(view->Width) * view->Height * 4)
+            return false;
+        ID3D12Resource* color = _textures[static_cast<size_t>(view->Id - 1)].Resource.Get();
+        const UINT rowBytes = view->Width * 4;
+        const UINT rowPitch = (rowBytes + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+
+        D3D12_HEAP_PROPERTIES heap = {};
+        heap.Type = D3D12_HEAP_TYPE_READBACK;
+        D3D12_RESOURCE_DESC buffer = {};
+        buffer.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        buffer.Width = static_cast<UINT64>(rowPitch) * view->Height;
+        buffer.Height = 1;
+        buffer.DepthOrArraySize = 1;
+        buffer.MipLevels = 1;
+        buffer.SampleDesc.Count = 1;
+        buffer.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        ComPtr<ID3D12Resource> readback;
+        if (!Check(_device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &buffer, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback)),
+            "CreateCommittedResource (readback)"))
+            return false;
+
+        if (!WaitForGPU() || !Check(_uploadAllocator->Reset(), "upload allocator Reset")
+            || !Check(_uploadList->Reset(_uploadAllocator.Get(), nullptr), "upload list Reset"))
+            return false;
+        D3D12_RESOURCE_BARRIER toCopy = ViewTransition(color, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        _uploadList->ResourceBarrier(1, &toCopy);
+        D3D12_TEXTURE_COPY_LOCATION source = {};
+        source.pResource = color;
+        source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        D3D12_TEXTURE_COPY_LOCATION destination = {};
+        destination.pResource = readback.Get();
+        destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        destination.PlacedFootprint.Footprint = { DXGI_FORMAT_R8G8B8A8_UNORM, view->Width, view->Height, 1, rowPitch };
+        _uploadList->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+        D3D12_RESOURCE_BARRIER toShader = ViewTransition(color, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        _uploadList->ResourceBarrier(1, &toShader);
+        if (!Check(_uploadList->Close(), "upload list Close"))
+            return false;
+        ID3D12CommandList* lists[] = { _uploadList.Get() };
+        _commandQueue->ExecuteCommandLists(1, lists);
+        if (!WaitForGPU())
+            return false;
+
+        void* mapped = nullptr;
+        const D3D12_RANGE range = { 0, static_cast<SIZE_T>(buffer.Width) };
+        if (!Check(readback->Map(0, &range, &mapped), "Map (readback)"))
+            return false;
+        for (UINT y = 0; y < view->Height; ++y)
+            std::memcpy(static_cast<uint8_t*>(rgba) + static_cast<size_t>(y) * rowBytes, static_cast<const uint8_t*>(mapped) + static_cast<size_t>(y) * rowPitch, rowBytes);
+        const D3D12_RANGE noWrite = { 0, 0 };
+        readback->Unmap(0, &noWrite);
+        return true;
+    }
+
     void RendererDX12::RecordLitMesh(const GpuMesh& mesh, const float* world, const float* viewProjection)
     {
         SceneLitConstants lit = {};

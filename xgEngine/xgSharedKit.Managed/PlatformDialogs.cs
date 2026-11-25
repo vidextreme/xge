@@ -75,6 +75,19 @@ namespace xg
             }
         }
 
+        // Writes tightly packed RGBA8 pixels (width * height * 4 bytes) as a PNG.
+        public static bool SavePNG(string path, ReadOnlySpan<byte> rgba, int width, int height)
+        {
+            if (width <= 0 || height <= 0 || rgba.Length < width * height * 4)
+                return false;
+            fixed (byte* pixels = rgba)
+                return XG_SaveImagePNG(path, pixels, width, height);
+        }
+
+        [LibraryImport(NativeLib, EntryPoint = "XG_SaveImagePNG", StringMarshalling = StringMarshalling.Utf8)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static partial bool XG_SaveImagePNG(string path, byte* rgba, int width, int height);
+
         [LibraryImport(NativeLib, EntryPoint = "XG_LoadImageRGBA", StringMarshalling = StringMarshalling.Utf8)]
         private static partial byte* XG_LoadImageRGBA(string path, int* width, int* height);
 

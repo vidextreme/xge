@@ -492,6 +492,31 @@ namespace xgEditor.CoreCLR
         }
     }
 
+    // Test hook (XG_THUMBNAIL_TEST=<asset path>): deletes the composition's thumbnail after 30 frames so it's rendered
+    // again, and logs when it's written.
+    internal static class ThumbnailSmoke
+    {
+        static int _frames;
+        static bool _hooked;
+
+        public static void Update()
+        {
+            string? path = Environment.GetEnvironmentVariable("XG_THUMBNAIL_TEST");
+            if (string.IsNullOrEmpty(path) || ++_frames != 30 || ProjectService.Assets is not { } assets || assets.GuidOf(path) is not string guid)
+                return;
+            if (CompositionThumbnails.PathFor(guid) is string thumbnail && File.Exists(thumbnail))
+                File.Delete(thumbnail);
+            CompositionThumbnails.Forget(guid);
+            if (!_hooked)
+            {
+                _hooked = true;
+                CompositionThumbnails.Written += (written, file) => Debug.Log($"[Debug] Thumbnail test: {file} ({new FileInfo(file).Length} bytes)");
+            }
+            CompositionThumbnails.Request(guid);
+            Debug.Log($"[Debug] Thumbnail test: requested {path}");
+        }
+    }
+
     // Test hook (XG_RESOURCE_TEST=1): exercises the shared resource cache, then quits so shutdown cleanup is visible.
     internal static class ResourceSmoke
     {
@@ -907,6 +932,8 @@ namespace xgEditor.CoreCLR
             TextureSmoke.Update();
             ModelSmoke.Update();
             MaterialSmoke.Update();
+            ThumbnailSmoke.Update();
+            CompositionThumbnails.Update();
             TransformSmoke.Update();
             DataSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)

@@ -15,6 +15,9 @@ namespace xgEditor.CoreCLR
 
         // RGBA8 pixels, or null when the asset can't be previewed.
         byte[]? Generate(AssetEntry entry, out int width, out int height);
+
+        // What the cached thumbnail is keyed by: it's regenerated when this changes (default: the asset's write time).
+        DateTime Version(AssetEntry entry) => entry.Modified;
     }
 
     // The editor's asset thumbnails, shared by every view (Navigator tiles, the Rename dialog, ...): cached by path and
@@ -23,7 +26,7 @@ namespace xgEditor.CoreCLR
     {
         private const int LoadsPerFrame = 4;
 
-        private static readonly List<IThumbnailGenerator> _generators = new() { new ImageThumbnails() };
+        private static readonly List<IThumbnailGenerator> _generators = new() { new CompositionThumbnailGenerator(), new ImageThumbnails() };
         private static readonly Dictionary<string, (Texture? Texture, DateTime Modified)> _cache = new(StringComparer.OrdinalIgnoreCase);
         private static int _loads;
 
@@ -46,7 +49,8 @@ namespace xgEditor.CoreCLR
             IThumbnailGenerator? generator = _generators.FirstOrDefault(g => g.Supports(entry));
             if (generator is null)
                 return null;
-            if (_cache.TryGetValue(entry.RelPath, out var cached) && cached.Modified == entry.Modified)
+            DateTime version = generator.Version(entry);
+            if (_cache.TryGetValue(entry.RelPath, out var cached) && cached.Modified == version)
                 return cached.Texture;
             if (_loads >= LoadsPerFrame)
                 return null;
@@ -56,7 +60,7 @@ namespace xgEditor.CoreCLR
             byte[]? pixels = generator.Generate(entry, out int width, out int height);
             if (pixels is not null && width > 0 && height > 0)
                 texture = new Texture(pixels, width, height);
-            _cache[entry.RelPath] = (texture, entry.Modified);
+            _cache[entry.RelPath] = (texture, version);
             return texture;
         }
 
@@ -70,6 +74,23 @@ namespace xgEditor.CoreCLR
                 return;
             }
             draw.Icon(AssetIndex.IconOf(entry.Kind), rect.Center, iconSize, AssetIndex.IconColorOf(entry.Kind));
+        }
+
+        // Compositions show their rendered thumbnail (CompositionThumbnails), and their kind icon until one exists.
+        private sealed class CompositionThumbnailGenerator : IThumbnailGenerator
+        {
+            public bool Supports(AssetEntry entry) => CompositionThumbnails.Supports(entry);
+
+            public DateTime Version(AssetEntry entry) => CompositionThumbnails.Version(entry);
+
+            public byte[]? Generate(AssetEntry entry, out int width, out int height)
+            {
+                width = 0;
+                height = 0;
+                if (ProjectService.Assets?.GuidOf(entry.RelPath) is not string guid || CompositionThumbnails.PathFor(guid) is not string path || !File.Exists(path))
+                    return null;
+                return ImageFile.LoadRGBA(path, out width, out height);
+            }
         }
 
         // PNG and BMP files preview their own pixels.

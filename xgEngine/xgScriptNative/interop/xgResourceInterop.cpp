@@ -126,6 +126,13 @@ XG_MODULE_EXPORT uint64_t XG_ResourceGetShader(xg::ScriptEngine* engine, uint64_
     return info ? info->ShaderId : 0;
 }
 
+// The renderer material of a Ready "material" resource (0 until its shader and textures are loaded).
+XG_MODULE_EXPORT uint64_t XG_ResourceResolveMaterial(xg::ScriptEngine* engine, uint64_t handle)
+{
+    xg::MeshRenderSystem* system = engine ? engine->GetSubsystem<xg::MeshRenderSystem>() : nullptr;
+    return system ? system->ResolveMaterial(handle) : 0;
+}
+
 XG_MODULE_EXPORT bool XG_ResourceIsStale(xg::ScriptEngine* engine, uint64_t handle)
 {
     xg::ResourceSystem* resources = ResourcesOf(engine);

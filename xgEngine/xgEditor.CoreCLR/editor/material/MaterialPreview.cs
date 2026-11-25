@@ -70,7 +70,8 @@ namespace xgEditor.CoreCLR
             Result hit = Gui.HitArea("##preview_menu", button);
             Gui.Tooltip("Preview settings");
             Painter draw = Gui.Draw;
-            draw.RectFilled(button, hit.Hovered() ? Style.Color(StyleColor.ButtonHover) : new Color32(20, 22, 26, 190), 4.0f);
+            Color32 fill = Style.Color(hit.Hovered() ? StyleColor.ButtonHover : StyleColor.Button);
+            draw.RectFilled(button, new Color32(fill.r, fill.g, fill.b, 220), 2.0f);
             draw.Icon(Icon.Settings, button.Center, 14.0f, Style.Color(StyleColor.Text));
             if (hit.Clicked() || _openMenuDelay == 0)
             {
