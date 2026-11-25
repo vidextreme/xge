@@ -104,6 +104,28 @@ namespace xg.imui
                 return (Native.FieldVector(Context, p, v, values.Length, speed) & Result.Changed) != 0;
         }
 
+        // 1 to 4 numbers in one row with notch tags, a range line per element and an optional colour swatch (style).
+        // speed <= 0 picks one from the range or type.
+        public static bool Field(string label, Span<float> values, NumberFieldStyle style, float speed = 0.0f)
+        {
+            if (values.Length < 1 || values.Length > 4)
+                throw new ArgumentException("Field takes 1 to 4 values", nameof(values));
+            fixed (byte* p = Utf8.Encode(label.AsSpan()))
+            fixed (byte* tags = style.NotchTags is null ? null : Utf8.Encode(style.NotchTags.AsSpan(), 1))
+            fixed (float* v = values)
+            {
+                Native.NumberFieldStyleAbi abi = new()
+                {
+                    Size = (uint)sizeof(Native.NumberFieldStyleAbi),
+                    Flags = style.Flags,
+                    Min = style.Min,
+                    Max = style.Max,
+                    NotchTags = tags,
+                };
+                return (Native.FieldNumbers(Context, p, v, values.Length, speed, &abi) & Result.Changed) != 0;
+            }
+        }
+
         public static bool Field(string label, TextBuffer text)
         {
             Result result;

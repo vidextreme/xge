@@ -24,6 +24,23 @@ namespace xg
         public float Max { get; }
     }
 
+    // Notch tags of a number field: one tag per element, comma separated, drawn in a shaded notch at the left of each
+    // element ("x,y,z", "deg", "min,max"). An entry may carry its colour: "near=#c8a040, far=#a060c8". Tags without one
+    // use the axis colours for x/y/z/w and r/g/b/a, and otherwise a stable colour derived from the text. Labels only:
+    // the value is never converted. Without this attribute, no tags are drawn.
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+    public sealed class NotchTagsAttribute : Attribute
+    {
+        public NotchTagsAttribute(string tags) => Tags = tags;
+        public string Tags { get; }
+    }
+
+    // Draws a Vector4 (or Vector3) field as a colour: a swatch with a picker, then its r/g/b(/a) elements.
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+    public sealed class ColorFieldAttribute : Attribute
+    {
+    }
+
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     public sealed class TooltipAttribute : Attribute
     {

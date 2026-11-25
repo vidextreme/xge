@@ -133,6 +133,32 @@ namespace xg.imui
         Border,
     }
 
+    // Mirrors xg::imui::NumberFieldFlags (ApiVersion 21).
+    [Flags]
+    public enum NumberFieldFlags : byte
+    {
+        None = 0,
+        Range = 1 << 0,
+        Integer = 1 << 1,
+        Color = 1 << 2,
+    }
+
+    // How Gui.Field(label, Span<float>, style) draws its elements: Range (Min/Max) clamps and draws a range line per
+    // element, Integer shows whole numbers, Color puts a swatch before 3 or 4 elements. NotchTags: "x,y,z", "deg",
+    // "near=#c8a040, far=#a060c8" (see NotchTagsAttribute); null draws no tags.
+    public struct NumberFieldStyle
+    {
+        public NumberFieldFlags Flags;
+        public float Min;
+        public float Max;
+        public string? NotchTags;
+
+        public static NumberFieldStyle Ranged(float min, float max, string? tags = null) =>
+            new() { Flags = NumberFieldFlags.Range, Min = min, Max = max, NotchTags = tags };
+
+        public static NumberFieldStyle Tagged(string? tags) => new() { NotchTags = tags };
+    }
+
     // Mirrors xg::imui::ScrollAreaFlags.
     [Flags]
     public enum ScrollAreaFlags : byte

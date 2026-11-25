@@ -17,9 +17,9 @@ namespace xg::imui::detail
         c[ImGuiCol_PopupBg]                   = rgb( 21,  21,  21, 0.98f);
         c[ImGuiCol_Border]                    = rgb( 50,  50,  50);
         c[ImGuiCol_BorderShadow]              = rgb(  0,   0,   0, 0.0f);
-        c[ImGuiCol_FrameBg]                   = ImGui::ColorConvertU32ToFloat4(ButtonBg);
-        c[ImGuiCol_FrameBgHovered]            = ImGui::ColorConvertU32ToFloat4(ButtonHover);
-        c[ImGuiCol_FrameBgActive]             = rgb( 29,  29,  29);
+        c[ImGuiCol_FrameBg]                   = ImGui::ColorConvertU32ToFloat4(FieldBg);
+        c[ImGuiCol_FrameBgHovered]            = ImGui::ColorConvertU32ToFloat4(FieldBgHover);
+        c[ImGuiCol_FrameBgActive]             = ImGui::ColorConvertU32ToFloat4(FieldBgActive);
         c[ImGuiCol_TitleBg]                   = rgb( 21,  21,  21);
         c[ImGuiCol_TitleBgActive]             = rgb( 21,  21,  21);
         c[ImGuiCol_TitleBgCollapsed]          = rgb( 21,  21,  21);
@@ -29,15 +29,15 @@ namespace xg::imui::detail
         c[ImGuiCol_ScrollbarGrabHovered]      = rgb( 88,  88,  88);
         c[ImGuiCol_ScrollbarGrabActive]       = rgb(101, 101, 101);
         c[ImGuiCol_CheckMark]                 = rgb(232, 238, 250);
-        c[ImGuiCol_CheckboxSelectedBg]        = rgb( 71, 114, 179);
-        c[ImGuiCol_SliderGrab]                = rgb( 71, 114, 179);
-        c[ImGuiCol_SliderGrabActive]          = rgb( 84, 129, 196);
+        c[ImGuiCol_CheckboxSelectedBg]        = rgb( 44,  52,  66);
+        c[ImGuiCol_SliderGrab]                = ImGui::ColorConvertU32ToFloat4(RangeHandle);
+        c[ImGuiCol_SliderGrabActive]          = ImGui::ColorConvertU32ToFloat4(RangeHandleActive);
         c[ImGuiCol_Button]                    = ImGui::ColorConvertU32ToFloat4(ButtonBg);
         c[ImGuiCol_ButtonHovered]             = ImGui::ColorConvertU32ToFloat4(ButtonHover);
         c[ImGuiCol_ButtonActive]              = rgb( 71, 114, 179);
-        c[ImGuiCol_Header]                    = rgb( 51,  77, 128);
-        c[ImGuiCol_HeaderHovered]             = rgb(255, 255, 255, 0.05f);
-        c[ImGuiCol_HeaderActive]              = rgb( 51,  77, 128);
+        c[ImGuiCol_Header]                    = ImGui::ColorConvertU32ToFloat4(PanelHeaderBg);
+        c[ImGuiCol_HeaderHovered]             = ImGui::ColorConvertU32ToFloat4(PanelHeaderHov);
+        c[ImGuiCol_HeaderActive]              = rgb( 60,  60,  60);
         c[ImGuiCol_Separator]                 = rgb( 13,  13,  13);
         c[ImGuiCol_SeparatorHovered]          = rgb( 71, 114, 179, 0.70f);
         c[ImGuiCol_SeparatorActive]           = rgb( 84, 129, 196);
@@ -65,9 +65,9 @@ namespace xg::imui::detail
 
         s.WindowRounding = 0.0f;
         s.ChildRounding = 0.0f;
-        s.FrameRounding = 4.0f;
+        s.FrameRounding = 2.0f;
         s.PopupRounding = 4.0f;
-        s.GrabRounding = 4.0f;
+        s.GrabRounding = 2.0f;
         s.TabRounding = 4.0f;
         s.ScrollbarRounding = 8.0f;
 
@@ -80,7 +80,7 @@ namespace xg::imui::detail
         s.TabCloseButtonMinWidthUnselected = 0.0f;
 
         s.WindowPadding = ImVec2(8.0f, 6.0f);
-        s.FramePadding = ImVec2(7.0f, 3.0f);
+        s.FramePadding = ImVec2(7.0f, 4.0f);
         s.ItemSpacing = ImVec2(6.0f, 4.0f);
         s.ItemInnerSpacing = ImVec2(5.0f, 4.0f);
         s.IndentSpacing = 14.0f;

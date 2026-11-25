@@ -21,18 +21,75 @@ namespace xg::imui::detail
     bool SearchField(const char* id, char* buffer, size_t size, float width)
     {
         ImVec2 p = ImGui::GetCursorScreenPos();
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, DropdownBg);
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, DropdownHover);
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, DropdownBg);
-        ImGui::PushStyleColor(ImGuiCol_Border, DropdownBorder);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(22.0f, 3.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(22.0f, 4.0f));
         ImGui::SetNextItemWidth(width);
         const bool changed = ImGui::InputTextWithHint(id, "Search", buffer, size);
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(4);
+        ImGui::PopStyleVar();
+        DrawFieldFrame(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), ImGui::IsItemHovered(), ImGui::IsItemActive());
         DrawIcon(ImGui::GetWindowDrawList(), Icon::Search, ImVec2(p.x + 12.0f, p.y + ImGui::GetFrameHeight() * 0.5f), 11.0f, TextDim);
         return changed;
+    }
+
+    void DrawFieldFrame(const ImRect& rect, bool hovered, bool active)
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImVec2 a(ImFloor(rect.Min.x), ImFloor(rect.Min.y));
+        const ImVec2 b(ImFloor(rect.Max.x), ImFloor(rect.Max.y));
+        if (active)
+        {
+            _fieldActive = true;
+            dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), Accent, 2.0f, 0, 1.0f);
+            return;
+        }
+        const ImU32 side = hovered ? FieldEdgeHover : FieldEdgeSide;
+        dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), side, 2.0f, 0, 1.0f);
+        dl->AddLine(ImVec2(a.x + 2.0f, a.y + 0.5f), ImVec2(b.x - 2.0f, a.y + 0.5f), hovered ? FieldEdgeHover : FieldEdgeTop, 1.0f);
+        dl->AddLine(ImVec2(a.x + 1.0f, a.y + 1.5f), ImVec2(b.x - 1.0f, a.y + 1.5f), FieldShadow, 1.0f);
+        dl->AddLine(ImVec2(a.x + 2.0f, b.y - 0.5f), ImVec2(b.x - 2.0f, b.y - 0.5f), hovered ? FieldEdgeHoverBottom : FieldEdgeBottom, 1.0f);
+    }
+
+    void DrawChecker(ImDrawList* dl, const ImRect& rect, float cell)
+    {
+        const ImVec2 a(ImFloor(rect.Min.x), ImFloor(rect.Min.y));
+        const ImVec2 b(ImFloor(rect.Max.x), ImFloor(rect.Max.y));
+        dl->AddRectFilled(a, b, ColorCheckerDark);
+        dl->PushClipRect(a, b, true);
+        int row = 0;
+        for (float y = a.y; y < b.y; y += cell, ++row)
+        {
+            int column = 0;
+            for (float x = a.x; x < b.x; x += cell, ++column)
+            {
+                if (((row + column) & 1) == 0)
+                    dl->AddRectFilled(ImVec2(x, y), ImVec2(x + cell, y + cell), ColorCheckerLight);
+            }
+        }
+        dl->PopClipRect();
+    }
+
+    void DrawColorBox(ImDrawList* dl, const ImRect& rect, const ImVec4& color, float rounding)
+    {
+        const ImVec2 a(ImFloor(rect.Min.x), ImFloor(rect.Min.y));
+        const ImVec2 b(ImFloor(rect.Max.x), ImFloor(rect.Max.y));
+        const ImU32 solid = ImGui::ColorConvertFloat4ToU32(ImVec4(color.x, color.y, color.z, 1.0f));
+        if (color.w >= 1.0f)
+        {
+            dl->AddRectFilled(a, b, solid, rounding);
+        }
+        else
+        {
+            DrawChecker(dl, ImRect(a, b), b.y - a.y > 24.0f ? 8.0f : 4.0f);
+            const ImU32 alpha = ImGui::ColorConvertFloat4ToU32(ImVec4(color.x, color.y, color.z, ImMax(color.w, 0.0f)));
+            dl->AddTriangleFilled(ImVec2(b.x, a.y), b, ImVec2(a.x, b.y), alpha);
+            dl->AddTriangleFilled(a, ImVec2(b.x, a.y), ImVec2(a.x, b.y), solid);
+        }
+        dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), FieldEdgeSide, rounding, 0, 1.0f);
+    }
+
+    ImFont* FontSlot(int slot)
+    {
+        ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+        return slot >= 0 && slot < atlas->Fonts.Size ? atlas->Fonts[slot] : ImGui::GetFont();
     }
 
     bool FlatButton(const char* label, bool active)
@@ -94,9 +151,9 @@ namespace xg::imui::detail
     void BeginHeader()
     {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, HeaderBg);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f, 3.0f));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 4.0f));
-        ImGui::BeginChild("##header", ImVec2(0.0f, HeaderHeight), ImGuiChildFlags_AlwaysUseWindowPadding,
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(BarPaddingX, BarPaddingY));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(BarGap, BarGap));
+        ImGui::BeginChild("##header", ImVec2(0.0f, BarHeight), ImGuiChildFlags_AlwaysUseWindowPadding,
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     }
 

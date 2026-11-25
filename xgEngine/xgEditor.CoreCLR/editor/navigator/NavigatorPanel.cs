@@ -664,7 +664,7 @@ namespace xgEditor.CoreCLR
             using (Gui.Toolbar())
             {
                 float navWidth = SegmentWidth(4);
-                using (var canvas = Gui.Canvas("##nav_buttons", new Vector2(navWidth, SegHeight + 4.0f)))
+                using (var canvas = Gui.Canvas("##nav_buttons", new Vector2(navWidth, SegHeight)))
                 {
                     Painter draw = canvas.Draw;
                     Rect[] cells = SegmentCells(draw, 4);
@@ -682,7 +682,7 @@ namespace xgEditor.CoreCLR
                     bookmarkButton = Offset(cells[3], canvas.Bounds.min);
                 }
                 Gui.FlexibleSpace();
-                using (var canvas = Gui.Canvas("##nav_modes", new Vector2(SegmentWidth(3), SegHeight + 4.0f)))
+                using (var canvas = Gui.Canvas("##nav_modes", new Vector2(SegmentWidth(3), SegHeight)))
                 {
                     Painter draw = canvas.Draw;
                     Rect[] cells = SegmentCells(draw, 3);
@@ -701,10 +701,9 @@ namespace xgEditor.CoreCLR
         {
             if (!_pathField.Active && _pathField.Text.Text != _folder && !_pathField.IsOpen)
                 _pathField.SetText(_folder, false);
-            Gui.Space(2.0f);
-            using (Gui.Horizontal(2.0f))
+            using (Gui.Horizontal(EditorStyle.BarGap))
             {
-                Gui.Space(4.0f);
+                Gui.Space(EditorStyle.BarEdge);
                 AutoCompleteEvent ev = _pathField.OnGUI("Folder path", 0.0f, out string value);
                 if (ev == AutoCompleteEvent.Commit)
                     Navigate(value);
@@ -718,18 +717,17 @@ namespace xgEditor.CoreCLR
                     if (SegGlyph(draw, "##go", go, "Go to folder", false, true, DrawRightArrow).Clicked())
                         Navigate(_pathField.Text.Text);
                 }
-                Gui.Space(4.0f);
+                Gui.Space(EditorStyle.BarEdge);
             }
             if (_pathError is not null)
             {
-                using (Gui.Horizontal())
+                using (Gui.Horizontal(EditorStyle.BarGap))
                 {
-                    Gui.Space(6.0f);
+                    Gui.Space(EditorStyle.BarEdge);
                     using var canvas = Gui.Canvas("##nav_path_error", new Vector2(0.0f, 18.0f));
                     canvas.Draw.Text(new Vector2(0.0f, 1.0f), new Color32(232, 96, 96, 255), _pathError);
                 }
             }
-            Gui.Space(2.0f);
             DrawTree();
         }
 
@@ -789,10 +787,9 @@ namespace xgEditor.CoreCLR
 
         private void DrawTagsMode()
         {
-            Gui.Space(2.0f);
-            using (Gui.Horizontal())
+            using (Gui.Horizontal(EditorStyle.BarGap))
             {
-                Gui.Space(6.0f);
+                Gui.Space(EditorStyle.BarEdge);
                 using (Gui.Vertical())
                 {
                     using (var card = Gui.Card("##nav_tag_card", "Filter by tags", Icon.Tag, null, Style.Color(StyleColor.IconComponent)))
@@ -804,12 +801,11 @@ namespace xgEditor.CoreCLR
                                 _history.Push(CurrentState());
                         }
                     }
-                    Gui.Space(6.0f);
                     if (Gui.Button("Show all tags"))
                         _openAllTags = true;
                     DrawAllTagsPopup();
                 }
-                Gui.Space(6.0f);
+                Gui.Space(EditorStyle.BarEdge);
             }
         }
 
@@ -868,10 +864,9 @@ namespace xgEditor.CoreCLR
 
         private void DrawSearchMode()
         {
-            Gui.Space(2.0f);
-            using (Gui.Horizontal())
+            using (Gui.Horizontal(EditorStyle.BarGap))
             {
-                Gui.Space(6.0f);
+                Gui.Space(EditorStyle.BarEdge);
                 using (Gui.Vertical())
                 {
                     if (Gui.SearchField("##nav_search", _searchText, 0.0f))
@@ -881,7 +876,6 @@ namespace xgEditor.CoreCLR
                         _searchDirty = false;
                         _history.Push(CurrentState());
                     }
-                    Gui.Space(6.0f);
                     using var card = Gui.Card("##nav_search_filters", "Search filter", Icon.Search, null, Style.Color(StyleColor.Icon));
                     if (card.IsOpen)
                     {
@@ -893,7 +887,7 @@ namespace xgEditor.CoreCLR
                         DrawQuickFilter(draw, 2, "Untagged", Icon.Tag, Style.Color(StyleColor.TextDim), ref _filterUntagged, width);
                     }
                 }
-                Gui.Space(6.0f);
+                Gui.Space(EditorStyle.BarEdge);
             }
         }
 
@@ -1123,7 +1117,7 @@ namespace xgEditor.CoreCLR
         {
             using (Gui.Toolbar())
             {
-                using (var canvas = Gui.Canvas("##nav_options", new Vector2(SegmentWidth(4), SegHeight + 4.0f)))
+                using (var canvas = Gui.Canvas("##nav_options", new Vector2(SegmentWidth(4), SegHeight)))
                 {
                     Painter draw = canvas.Draw;
                     Rect[] cells = SegmentCells(draw, 4);
@@ -1140,7 +1134,6 @@ namespace xgEditor.CoreCLR
                     if (SegIcon(draw, "##opt_sort", cells[3], Icon.Sort, "Sorting", _option == OptionTab.Sort, true).Clicked())
                         _option = _option == OptionTab.Sort ? OptionTab.None : OptionTab.Sort;
                 }
-                Gui.Space(8.0f);
                 Gui.SearchField("##nav_grid_search", _gridSearch, 0.0f);
                 Gui.Tooltip("Filter by name; t:image, t:script, ... filter by type");
                 if (Gui.Button("Clear"))
@@ -1160,7 +1153,7 @@ namespace xgEditor.CoreCLR
         {
             using (Gui.Horizontal(0.0f))
             {
-                Gui.Space(6.0f);
+                Gui.Space(EditorStyle.BarPadding);
                 switch (_option)
                 {
                     case OptionTab.View:
@@ -1173,7 +1166,7 @@ namespace xgEditor.CoreCLR
                         DrawSortRow();
                         break;
                 }
-                Gui.Space(6.0f);
+                Gui.Space(EditorStyle.BarPadding);
             }
         }
 
@@ -1820,14 +1813,14 @@ namespace xgEditor.CoreCLR
 
         private static Rect Offset(Rect rect, Vector2 offset) => Rect.FromXYWH(rect.min.x + offset.x, rect.min.y + offset.y, rect.Width, rect.Height);
 
-        private static float SegmentWidth(int count) => count * SegButton + (count - 1) * 2.0f + 4.0f;
+        private static float SegmentWidth(int count) => count * SegButton + (count - 1) * 2.0f + 2.0f;
 
         private static Rect[] SegmentCells(Painter draw, int count)
         {
-            draw.RectFilled(Rect.FromXYWH(0.0f, 0.0f, SegmentWidth(count), SegHeight + 4.0f), Style.Color(StyleColor.SegmentBg), 4.0f);
+            draw.RectFilled(Rect.FromXYWH(0.0f, -1.0f, SegmentWidth(count), SegHeight + 2.0f), Style.Color(StyleColor.SegmentBg), 3.0f);
             Rect[] cells = new Rect[count];
             for (int i = 0; i < count; i++)
-                cells[i] = Rect.FromXYWH(2.0f + i * (SegButton + 2.0f), 2.0f, SegButton, SegHeight);
+                cells[i] = Rect.FromXYWH(1.0f + i * (SegButton + 2.0f), 0.0f, SegButton, SegHeight);
             return cells;
         }
 

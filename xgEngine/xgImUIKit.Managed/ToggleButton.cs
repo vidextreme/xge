@@ -20,7 +20,7 @@ namespace xg.imui
     // Button grey with a darker bottom edge, Accent while on, flat and dim while disabled.
     public static class ToggleButton
     {
-        public const float Rounding = 3.0f;
+        public const float Rounding = 2.0f;
         public const float IconSize = 14.0f;
 
         public static void Background(Painter draw, Rect rect, bool on, bool enabled, bool hovered, bool pressed)

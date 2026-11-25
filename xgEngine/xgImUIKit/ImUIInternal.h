@@ -28,8 +28,8 @@ namespace xg::imui::detail
     inline constexpr ImU32 PanelHeaderBg  = IM_COL32( 46,  46,  46, 255);
     inline constexpr ImU32 PanelHeaderHov = IM_COL32( 54,  54,  54, 255);
     inline constexpr ImU32 SegmentBg      = IM_COL32( 27,  27,  27, 255);
-    inline constexpr ImU32 ButtonBg       = IM_COL32( 74,  74,  74, 255);
-    inline constexpr ImU32 ButtonHover    = IM_COL32( 88,  88,  88, 255);
+    inline constexpr ImU32 ButtonBg       = IM_COL32( 62,  62,  62, 255);
+    inline constexpr ImU32 ButtonHover    = IM_COL32( 74,  74,  74, 255);
     inline constexpr ImU32 DropdownBg     = IM_COL32( 27,  27,  27, 255);
     inline constexpr ImU32 DropdownHover  = IM_COL32( 38,  38,  38, 255);
     inline constexpr ImU32 DropdownBorder = IM_COL32( 50,  50,  50, 255);
@@ -52,6 +52,32 @@ namespace xg::imui::detail
     inline constexpr ImU32 IconComponent  = IM_COL32( 85, 133, 208, 255);
     inline constexpr ImU32 IconMaterial   = IM_COL32(196,  74,  74, 255);
     inline constexpr ImU32 IconWarning    = IM_COL32(214, 170,  60, 255);
+    inline constexpr ImU32 AxisW          = IM_COL32(168, 168, 168, 255);
+    inline constexpr ImU32 FieldBg        = IM_COL32( 26,  26,  26, 255);
+    inline constexpr ImU32 FieldBgHover   = IM_COL32( 29,  29,  29, 255);
+    inline constexpr ImU32 FieldBgActive  = IM_COL32( 22,  22,  22, 255);
+    inline constexpr ImU32 FieldEdgeTop   = IM_COL32( 16,  16,  16, 255);
+    inline constexpr ImU32 FieldEdgeSide  = IM_COL32( 20,  20,  20, 255);
+    inline constexpr ImU32 FieldEdgeBottom = IM_COL32( 48,  48,  48, 255);
+    inline constexpr ImU32 FieldEdgeHover = IM_COL32( 52,  52,  52, 255);
+    inline constexpr ImU32 FieldEdgeHoverBottom = IM_COL32( 72,  72,  72, 255);
+    inline constexpr ImU32 FieldShadow    = IM_COL32(  0,   0,   0,  55);
+    inline constexpr ImU32 NotchTagBg     = IM_COL32( 33,  33,  33, 255);
+    inline constexpr ImU32 NotchTagHover  = IM_COL32( 40,  40,  40, 255);
+    inline constexpr ImU32 NotchTagActive = IM_COL32( 34,  34,  34, 255);
+    inline constexpr ImU32 NotchDivider   = IM_COL32( 20,  20,  20, 255);
+    inline constexpr ImU32 RangeTrack     = IM_COL32( 42,  42,  42, 255);
+    inline constexpr ImU32 RangeTrackHover = IM_COL32( 46,  46,  46, 255);
+    inline constexpr ImU32 RangeFill      = IM_COL32(255, 255, 255,  89);
+    inline constexpr ImU32 RangeFillHover = IM_COL32(255, 255, 255, 153);
+    inline constexpr ImU32 RangeHandleHover = IM_COL32(230, 230, 230, 255);
+    inline constexpr ImU32 RowHover       = IM_COL32(255, 255, 255,   8);
+    inline constexpr ImU32 RowFocus       = IM_COL32( 71, 114, 179,  26);
+    inline constexpr ImU32 RangeFillActive = IM_COL32( 90, 130, 192, 255);
+    inline constexpr ImU32 RangeHandle    = IM_COL32(106, 144, 204, 255);
+    inline constexpr ImU32 RangeHandleActive = IM_COL32(134, 168, 221, 255);
+    inline constexpr ImU32 ColorCheckerLight = IM_COL32(138, 138, 138, 255);
+    inline constexpr ImU32 ColorCheckerDark  = IM_COL32( 90,  90,  90, 255);
     inline constexpr ImU32 Clear          = IM_COL32(  0,   0,   0,   0);
     inline constexpr ImU32 CloseHover     = IM_COL32(196,  49,  75, 255);
 
@@ -63,12 +89,19 @@ namespace xg::imui::detail
     inline constexpr float SegButtonSize      = 20.0f;
     inline constexpr float SegmentGap         = 6.0f;
     inline constexpr float PanelHeaderHeight  = 22.0f;
+    // Panel toolbars (Gui.Toolbar): 22 px controls with 4 px above and below, 6 px at the sides, 4 px between items.
+    inline constexpr float BarHeight          = 30.0f;
+    inline constexpr float BarPaddingX        = 6.0f;
+    inline constexpr float BarPaddingY        = 4.0f;
+    inline constexpr float BarGap             = 4.0f;
     inline constexpr float PropertyLabelWidth = 92.0f;
     inline constexpr float WindowButtonWidth  = 46.0f;
     inline constexpr int   AppIconSize        = 18;
 
     inline bool _resetLayout = true;
     inline ImU32 _dockOutline = 0;
+    // Set by DrawFieldFrame when a field it draws is active, so a property row can tell it holds the focused field.
+    inline bool _fieldActive = false;
     // True for the frame the dock layout was rebuilt in; panel focus requests wait until it has settled.
     inline bool _layoutJustReset = false;
     inline ImTextureData* _appIcon = nullptr;
@@ -108,6 +141,16 @@ namespace xg::imui::detail
     void DrawIcon(ImDrawList* dl, Icon icon, ImVec2 c, float s, ImU32 col);
     bool IconButton(const char* id, Icon icon, bool active = false, float size = 20.0f, ImU32 iconCol = IconColor);
     bool SearchField(const char* id, char* buffer, size_t size, float width);
+    // The editor's input frame drawn over a frame widget that was just submitted (rect = its frame): dark inset edges,
+    // lifted on hover, a 1 px Accent outline while active.
+    void DrawFieldFrame(const ImRect& rect, bool hovered, bool active);
+    // An axis-aligned checker (cell px squares) filling rect, clipped to it.
+    void DrawChecker(ImDrawList* dl, const ImRect& rect, float cell);
+    // The standard colour box: the upper-left triangle in the opaque colour, the lower-right triangle in the colour with
+    // its alpha over a straight checker (an opaque colour fills the box), and a thin dark outline.
+    void DrawColorBox(ImDrawList* dl, const ImRect& rect, const ImVec4& color, float rounding = 2.0f);
+    // A loaded font slot ([0] Sans 14, [1] Sans 13, [2] Bold 13, [3] Mono 13), or the current font.
+    ImFont* FontSlot(int slot);
     bool FlatButton(const char* label, bool active = false);
     void AlignRight(float width);
 

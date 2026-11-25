@@ -53,6 +53,7 @@ namespace xg::imui
         void Line(const Vec2& from, const Vec2& to, Color32 color, float thickness = 1.0f) const { XG_ImUIDrawLine(_ctx, &from, &to, color, thickness); }
         void DrawRect(const xg::Rect& r, Color32 color, float rounding = 0.0f, float thickness = 1.0f) const { XG_ImUIDrawRect(_ctx, &r, color, rounding, thickness); }
         void DrawRectFilled(const xg::Rect& r, Color32 color, float rounding = 0.0f) const { XG_ImUIDrawRectFilled(_ctx, &r, color, rounding); }
+        void ColorBox(const xg::Rect& r, Color32 color) const { XG_ImUIDrawColorBox(_ctx, &r, color); }
         void Circle(const Vec2& center, float radius, Color32 color, float thickness = 1.0f) const { XG_ImUIDrawCircle(_ctx, &center, radius, color, thickness); }
         void CircleFilled(const Vec2& center, float radius, Color32 color) const { XG_ImUIDrawCircleFilled(_ctx, &center, radius, color); }
         void TriangleFilled(const Vec2& a, const Vec2& b, const Vec2& c, Color32 color) const { XG_ImUIDrawTriangleFilled(_ctx, &a, &b, &c, color); }
@@ -131,6 +132,10 @@ namespace xg::imui
         bool Field(const char* label, int& value, float speed = 0.2f) const { return Changed(XG_ImUIFieldInt(_ctx, label, &value, speed)); }
         bool Field(const char* label, Vec2& value, float speed = 0.1f) const { return Changed(XG_ImUIFieldVector(_ctx, label, &value.x, 2, speed)); }
         bool Field(const char* label, Vec3& value, float speed = 0.1f) const { return Changed(XG_ImUIFieldVector(_ctx, label, &value.x, 3, speed)); }
+        bool Field(const char* label, float* values, int count, const NumberFieldStyle& style, float speed = 0.0f) const
+        {
+            return Changed(XG_ImUIFieldNumbers(_ctx, label, values, count, speed, &style));
+        }
         bool Field(const char* label, char* buffer, int capacity) const { return Changed(XG_ImUIFieldText(_ctx, label, buffer, capacity)); }
         bool Slider(const char* label, float& value, float min, float max) const { return Changed(XG_ImUISliderFloat(_ctx, label, &value, min, max)); }
         bool Slider(const char* label, int& value, int min, int max) const { return Changed(XG_ImUISliderInt(_ctx, label, &value, min, max)); }

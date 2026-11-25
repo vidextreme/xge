@@ -1,4 +1,4 @@
-// Copyright (c) 2026 John David Uy
+﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
 using xg;
@@ -250,6 +250,15 @@ namespace xgEditor.CoreCLR
             }
         }
 
+        private static bool TransformField(string label, ref Vector3 value, NumberFieldStyle style, float speed)
+        {
+            Span<float> v = stackalloc float[3] { value.x, value.y, value.z };
+            if (!Gui.Field(label, v, style, speed))
+                return false;
+            value = new Vector3(v[0], v[1], v[2]);
+            return true;
+        }
+
         private static void DrawTransform(ComponentsViewState view, Transform transform)
         {
             if (!transform.IsValid)
@@ -270,19 +279,19 @@ namespace xgEditor.CoreCLR
             Vector3 euler = view.Euler;
             Vector3 scale = local.Scale;
             bool changed = false;
-            if (Gui.Field("Position", ref position))
+            if (TransformField("Position", ref position, NumberFieldStyle.Tagged("x,y,z"), 0.1f))
             {
                 local.Position = position;
                 changed = true;
             }
-            if (Gui.Field("Rotation", ref euler, 0.5f))
+            if (TransformField("Rotation", ref euler, NumberFieldStyle.Ranged(-180.0f, 180.0f, "x,y,z"), 0.5f))
             {
                 view.Euler = euler;
                 view.EulerSource = Transform.FromEuler(euler);
                 local.Rotation = view.EulerSource;
                 changed = true;
             }
-            if (Gui.Field("Scale", ref scale, 0.01f))
+            if (TransformField("Scale", ref scale, NumberFieldStyle.Tagged("x,y,z"), 0.01f))
             {
                 local.Scale = scale;
                 changed = true;

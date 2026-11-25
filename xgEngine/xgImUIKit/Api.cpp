@@ -4,9 +4,13 @@
 #include "ImUIInternal.h"
 #include "ImUIHost.h"
 #include "xgUIDraw.h"
+#include "xgEnv.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cfloat>
+#include <cmath>
+#include <cstdlib>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -845,7 +849,11 @@ namespace xg
             return imui::Result::None;
         LayoutItem(ctx);
         ImGui::Button(label ? label : "");
-        return ItemResult(false);
+        const imui::Result result = ItemResult(false);
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        ImGui::GetWindowDrawList()->AddLine(ImVec2(min.x + 2.0f, max.y - 0.5f), ImVec2(max.x - 2.0f, max.y - 0.5f), imui::detail::SegmentBg, 1.0f);
+        return result;
     }
 
     namespace
@@ -864,15 +872,726 @@ namespace xg
             ImGui::SetNextItemWidth(-FLT_MIN);
         }
 
+        struct NotchTag
+        {
+            std::string Text;
+            ImU32 Color = 0;
+        };
+
+        std::string Trim(const std::string& text)
+        {
+            const size_t first = text.find_first_not_of(" \t");
+            if (first == std::string::npos)
+                return std::string();
+            const size_t last = text.find_last_not_of(" \t");
+            return text.substr(first, last - first + 1);
+        }
+
+        ImU32 ParseHexColor(const std::string& text)
+        {
+            std::string hex = Trim(text);
+            if (!hex.empty() && hex[0] == '#')
+                hex = hex.substr(1);
+            if (hex.size() != 6)
+                return 0;
+            char* end = nullptr;
+            const unsigned long value = std::strtoul(hex.c_str(), &end, 16);
+            if (!end || *end != '\0')
+                return 0;
+            return IM_COL32((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255);
+        }
+
+        std::vector<NotchTag> ParseNotchTags(const char* text, int count)
+        {
+            std::vector<NotchTag> tags;
+            if (!text || !*text)
+                return tags;
+            const std::string all(text);
+            size_t start = 0;
+            while (start <= all.size() && static_cast<int>(tags.size()) < count)
+            {
+                size_t comma = all.find(',', start);
+                if (comma == std::string::npos)
+                    comma = all.size();
+                const std::string item = Trim(all.substr(start, comma - start));
+                NotchTag tag;
+                const size_t eq = item.find('=');
+                tag.Text = Trim(eq == std::string::npos ? item : item.substr(0, eq));
+                if (eq != std::string::npos)
+                    tag.Color = ParseHexColor(item.substr(eq + 1));
+                tags.push_back(tag);
+                start = comma + 1;
+            }
+            return tags;
+        }
+
+        ImU32 NotchColor(const NotchTag& tag)
+        {
+            if (tag.Color != 0)
+                return tag.Color;
+            std::string lower;
+            for (char c : tag.Text)
+                lower += static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+            if (lower == "x" || lower == "r")
+                return imui::detail::AxisX;
+            if (lower == "y" || lower == "g")
+                return imui::detail::AxisY;
+            if (lower == "z" || lower == "b")
+                return imui::detail::AxisZ;
+            if (lower == "w" || lower == "a")
+                return imui::detail::AxisW;
+            uint32_t hash = 2166136261u;
+            for (char c : lower)
+                hash = (hash ^ static_cast<uint8_t>(c)) * 16777619u;
+            float r = 0.0f, g = 0.0f, b = 0.0f;
+            ImGui::ColorConvertHSVtoRGB(static_cast<float>(hash % 360u) / 360.0f, 0.42f, 0.86f, r, g, b);
+            return ImGui::GetColorU32(ImVec4(r, g, b, 1.0f));
+        }
+
+        // The value as text that fits width: two decimals, then one, then none.
+        std::string FormatNumber(float value, bool integer, float width)
+        {
+            char text[64];
+            if (integer)
+            {
+                std::snprintf(text, sizeof(text), "%d", static_cast<int>(std::lround(value)));
+                return text;
+            }
+            for (int decimals = 2; decimals >= 0; --decimals)
+            {
+                std::snprintf(text, sizeof(text), "%.*f", decimals, value);
+                if (decimals == 0 || ImGui::CalcTextSize(text).x <= width)
+                    break;
+            }
+            return text;
+        }
+
+        std::string FormatLimit(float value, bool integer)
+        {
+            char text[64];
+            if (integer)
+                std::snprintf(text, sizeof(text), "%d", static_cast<int>(std::lround(value)));
+            else
+                std::snprintf(text, sizeof(text), "%g", value);
+            return text;
+        }
+
+        // The shaded notch cell at the left of a field frame (a..b) with its centred tag text.
+        void DrawNotchCell(ImDrawList* dl, ImVec2 a, ImVec2 b, float tagWidth, const char* text, ImU32 color, bool hovered, bool active)
+        {
+            using namespace imui::detail;
+            const ImU32 bg = active ? NotchTagActive : (hovered ? NotchTagHover : NotchTagBg);
+            dl->AddRectFilled(ImVec2(a.x + 1.0f, a.y + 1.0f), ImVec2(a.x + tagWidth, b.y - 1.0f), bg, 2.0f, ImDrawFlags_RoundCornersLeft);
+            dl->AddLine(ImVec2(a.x + tagWidth + 0.5f, a.y + 1.0f), ImVec2(a.x + tagWidth + 0.5f, b.y - 1.0f), NotchDivider, 1.0f);
+            ImFont* font = FontSlot(2);
+            const float size = font->LegacySize;
+            const ImVec2 textSize = font->CalcTextSizeA(size, FLT_MAX, 0.0f, text);
+            dl->AddText(font, size, ImVec2(ImFloor(a.x + (tagWidth - textSize.x) * 0.5f + 0.5f), ImFloor(a.y + (b.y - a.y - textSize.y) * 0.5f)), color, text);
+        }
+
+        float NotchWidth(const char* text)
+        {
+            ImFont* font = imui::detail::FontSlot(2);
+            return (std::max)(16.0f, ImFloor(font->CalcTextSizeA(font->LegacySize, FLT_MAX, 0.0f, text).x) + 8.0f);
+        }
+
+        // The tag, value and range decorations of one number element whose frame is rect.
+        void DrawNumberDecor(const ImRect& rect, float value, const imui::NumberFieldStyle& style, const NotchTag* tag, float tagWidth,
+            bool hovered, bool active, bool editing)
+        {
+            using namespace imui::detail;
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            const bool ranged = HasFlag(style.Flags, imui::NumberFieldFlags::Range) && style.Max > style.Min;
+            const bool integer = HasFlag(style.Flags, imui::NumberFieldFlags::Integer);
+            const bool hot = hovered || active;
+            DrawFieldFrame(rect, hovered, active || editing);
+            const ImVec2 a(ImFloor(rect.Min.x), ImFloor(rect.Min.y));
+            const ImVec2 b(ImFloor(rect.Max.x), ImFloor(rect.Max.y));
+            if (tag && tagWidth > 0.0f)
+                DrawNotchCell(dl, a, b, tagWidth, tag->Text.c_str(), NotchColor(*tag), hovered, active || editing);
+            if (!editing)
+            {
+                const std::string text = FormatNumber(value, integer, b.x - 6.0f - (a.x + tagWidth + 4.0f));
+                const ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+                const float x = ImFloor(b.x - 6.0f - textSize.x);
+                const float y = ImFloor(a.y + (b.y - a.y - textSize.y) * 0.5f) - (ranged && hot ? 1.0f : 0.0f);
+                dl->PushClipRect(ImVec2(a.x + tagWidth + 2.0f, a.y), b, true);
+                dl->AddText(ImVec2(x, y), active ? IM_COL32_WHITE : TextColor, text.c_str());
+                dl->PopClipRect();
+            }
+            if (!ranged)
+                return;
+            const float t = ImClamp((value - style.Min) / (style.Max - style.Min), 0.0f, 1.0f);
+            const float x0 = a.x + (tagWidth > 0.0f ? tagWidth + 1.0f : 1.0f);
+            const float x1 = b.x - 1.0f;
+            const float thickness = hot ? 3.0f : 2.0f;
+            const float y1 = b.y - 1.0f;
+            const float y0 = y1 - thickness;
+            const float fx = ImFloor(x0 + (x1 - x0) * t);
+            dl->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), hot ? RangeTrackHover : RangeTrack, hot ? 1.5f : 0.0f);
+            if (fx > x0)
+                dl->AddRectFilled(ImVec2(x0, y0), ImVec2(fx, y1), active ? RangeFillActive : (hovered ? RangeFillHover : RangeFill), hot ? 1.5f : 0.0f);
+            if (!hot)
+                return;
+            const float radius = active ? 4.5f : 4.0f;
+            const ImVec2 center(ImClamp(fx, x0 + radius, x1 - radius), (y0 + y1) * 0.5f);
+            dl->AddCircleFilled(center, radius, active ? RangeHandleActive : RangeHandleHover, 16);
+            dl->AddCircle(center, radius, NotchDivider, 16, 1.0f);
+            ImDrawList* fg = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
+            ImFont* labelFont = FontSlot(1);
+            const float size = labelFont->LegacySize;
+            const std::string minText = FormatLimit(style.Min, integer);
+            const std::string maxText = FormatLimit(style.Max, integer);
+            const ImVec2 minSize = labelFont->CalcTextSizeA(size, FLT_MAX, 0.0f, minText.c_str());
+            const ImVec2 maxSize = labelFont->CalcTextSizeA(size, FLT_MAX, 0.0f, maxText.c_str());
+            const float ty = b.y + 1.0f;
+            const ImVec2 minPos(ImFloor(x0), ImFloor(ty));
+            const ImVec2 maxPos(ImFloor(x1 - maxSize.x), ImFloor(ty));
+            fg->AddRectFilled(ImVec2(minPos.x - 2.0f, minPos.y), ImVec2(minPos.x + minSize.x + 2.0f, minPos.y + minSize.y), PanelBg, 2.0f);
+            fg->AddRectFilled(ImVec2(maxPos.x - 2.0f, maxPos.y), ImVec2(maxPos.x + maxSize.x + 2.0f, maxPos.y + maxSize.y), PanelBg, 2.0f);
+            fg->AddText(labelFont, size, minPos, TextDim, minText.c_str());
+            fg->AddText(labelFont, size, maxPos, TextDim, maxText.c_str());
+        }
+
+        bool NumberFields(float* values, int count, float speed, const imui::NumberFieldStyle& style, float width = 0.0f);
+
+        std::vector<ImVec4> _recentColors;
+        int _colorPickerTest = -1;
+        bool _colorPickerTestDone = false;
+
+        // XG_UI_TEST_COLOR_PICKER: 0 = off, 1 = open the first picker in RGB, 2 = in HSV.
+        int ColorPickerTestMode()
+        {
+            if (_colorPickerTest < 0)
+            {
+                char value[16] = {};
+                _colorPickerTest = xg::GetEnv("XG_UI_TEST_COLOR_PICKER", value, sizeof(value)) ? (std::strcmp(value, "hsv") == 0 ? 2 : 1) : 0;
+            }
+            return _colorPickerTest;
+        }
+
+        bool SameColor(const ImVec4& a, const ImVec4& b)
+        {
+            return std::fabs(a.x - b.x) < 1e-4f && std::fabs(a.y - b.y) < 1e-4f && std::fabs(a.z - b.z) < 1e-4f && std::fabs(a.w - b.w) < 1e-4f;
+        }
+
+        void PushRecentColor(const ImVec4& color)
+        {
+            _recentColors.erase(std::remove_if(_recentColors.begin(), _recentColors.end(), [&](const ImVec4& c) { return SameColor(c, color); }),
+                _recentColors.end());
+            _recentColors.insert(_recentColors.begin(), color);
+            if (_recentColors.size() > 10)
+                _recentColors.resize(10);
+        }
+
+        // RRGGBB or RRGGBBAA, with or without a leading '#'.
+        bool ParseHexInput(const char* text, ImVec4& color)
+        {
+            std::string hex = Trim(text ? text : "");
+            if (!hex.empty() && hex[0] == '#')
+                hex = hex.substr(1);
+            if (hex.size() != 6 && hex.size() != 8)
+                return false;
+            for (char c : hex)
+            {
+                if (!std::isxdigit(static_cast<unsigned char>(c)))
+                    return false;
+            }
+            const unsigned long value = std::strtoul(hex.c_str(), nullptr, 16);
+            const int shift = hex.size() == 8 ? 8 : 0;
+            color.x = static_cast<float>((value >> (16 + shift)) & 0xFF) / 255.0f;
+            color.y = static_cast<float>((value >> (8 + shift)) & 0xFF) / 255.0f;
+            color.z = static_cast<float>((value >> shift) & 0xFF) / 255.0f;
+            if (shift)
+                color.w = static_cast<float>(value & 0xFF) / 255.0f;
+            return true;
+        }
+
+        // A 10 px strip in a 14 px hit area across width; while dragged, t follows the mouse (0..1).
+        bool PickerStrip(const char* id, float width, float& t, ImRect& strip, bool& active)
+        {
+            const ImVec2 p = ImGui::GetCursorScreenPos();
+            ImGui::InvisibleButton(id, ImVec2(width, 14.0f));
+            strip = ImRect(ImVec2(p.x, p.y + 2.0f), ImVec2(p.x + width, p.y + 12.0f));
+            active = ImGui::IsItemActive();
+            if (!active)
+                return false;
+            t = ImClamp((ImGui::GetIO().MousePos.x - strip.Min.x) / width, 0.0f, 1.0f);
+            return true;
+        }
+
+        void DrawStripHandle(ImDrawList* dl, const ImRect& strip, float t, bool active)
+        {
+            const float radius = 6.0f;
+            const ImVec2 center(ImClamp(strip.Min.x + strip.GetWidth() * t, strip.Min.x + 2.0f, strip.Max.x - 2.0f), strip.GetCenter().y);
+            dl->AddCircleFilled(center, radius, active ? imui::detail::RangeHandleActive : imui::detail::RangeHandleHover, 20);
+            dl->AddCircle(center, radius, imui::detail::Outline, 20, 1.0f);
+        }
+
+        // A segment of cells like the Navigator's: SegmentBg backing, the selected cell in Accent.
+        bool PickerSegment(const char* const* labels, int count, int& selected, float width)
+        {
+            using namespace imui::detail;
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            const ImVec2 p = ImGui::GetCursorScreenPos();
+            const float height = ImGui::GetFrameHeight();
+            dl->AddRectFilled(ImVec2(p.x, p.y - 1.0f), ImVec2(p.x + width, p.y + height + 1.0f), SegmentBg, 3.0f);
+            const float cell = ImFloor((width - 2.0f - 2.0f * static_cast<float>(count - 1)) / static_cast<float>(count));
+            bool changed = false;
+            ImGui::SetCursorScreenPos(ImVec2(p.x + 1.0f, p.y));
+            for (int i = 0; i < count; ++i)
+            {
+                if (i > 0)
+                    ImGui::SameLine(0.0f, 2.0f);
+                ImGui::PushID(i);
+                if (ImGui::InvisibleButton("##seg", ImVec2(cell, height)) && selected != i)
+                {
+                    selected = i;
+                    changed = true;
+                }
+                const ImRect r(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                const bool on = selected == i;
+                if (on || ImGui::IsItemHovered())
+                    dl->AddRectFilled(r.Min, r.Max, on ? Accent : DropdownHover, 2.0f);
+                const ImVec2 textSize = ImGui::CalcTextSize(labels[i]);
+                dl->AddText(ImVec2(ImFloor(r.GetCenter().x - textSize.x * 0.5f), ImFloor(r.GetCenter().y - textSize.y * 0.5f)),
+                    on ? TextOnAccent : TextColor, labels[i]);
+                ImGui::PopID();
+            }
+            return changed;
+        }
+
+        // The colour picker popup of a swatch at anchor: SV square, hue and alpha strips, old | new boxes, hex field,
+        // RGB/HSV switch, number row, recent colours and Revert. State (old colour, HSV, mode) lives in the window storage.
+        bool ColorPickerPopup(float* values, int count, const ImRect& anchor)
+        {
+            using namespace imui::detail;
+            const ImGuiID key = ImGui::GetID("##picker");
+            ImGuiStorage* storage = ImGui::GetStateStorage();
+            const bool alpha = count > 3;
+            const bool wasOpen = storage->GetBool(key + 1, false);
+            ImVec4 color(values[0], values[1], values[2], alpha ? values[3] : 1.0f);
+            const float width = 290.0f;
+            const ImGuiViewport* viewport = ImGui::GetWindowViewport();
+            const float popupWidth = width + 20.0f;
+            const float expectedHeight = alpha ? 330.0f : 306.0f;
+            ImVec2 position(anchor.Min.x, anchor.Max.y + 2.0f);
+            position.x = ImMax(viewport->WorkPos.x + 4.0f, ImMin(position.x, viewport->WorkPos.x + viewport->WorkSize.x - popupWidth - 4.0f));
+            if (position.y + expectedHeight > viewport->WorkPos.y + viewport->WorkSize.y && anchor.Min.y - expectedHeight - 2.0f >= viewport->WorkPos.y)
+                position.y = anchor.Min.y - expectedHeight - 2.0f;
+            ImGui::SetNextWindowPos(position, ImGuiCond_Appearing);
+            ImGui::SetNextWindowSizeConstraints(ImVec2(width + 20.0f, 0.0f), ImVec2(width + 20.0f, FLT_MAX));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f, 8.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 2.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 1.0f);
+            ImGui::PushStyleColor(ImGuiCol_PopupBg, HeaderBg);
+            ImGui::PushStyleColor(ImGuiCol_Border, DropdownBorder);
+            const bool open = ImGui::BeginPopup("##picker", ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::PopStyleColor(2);
+            ImGui::PopStyleVar(2);
+            if (!open)
+            {
+                ImGui::PopStyleVar(2);
+                if (wasOpen)
+                {
+                    storage->SetBool(key + 1, false);
+                    const ImVec4 old(storage->GetFloat(key + 2), storage->GetFloat(key + 3), storage->GetFloat(key + 4), storage->GetFloat(key + 5));
+                    if (!SameColor(old, color))
+                        PushRecentColor(color);
+                }
+                return false;
+            }
+            float h = 0.0f, s = 0.0f, v = 0.0f;
+            if (!wasOpen)
+            {
+                storage->SetBool(key + 1, true);
+                storage->SetFloat(key + 2, color.x);
+                storage->SetFloat(key + 3, color.y);
+                storage->SetFloat(key + 4, color.z);
+                storage->SetFloat(key + 5, color.w);
+                ImGui::ColorConvertRGBtoHSV(color.x, color.y, color.z, h, s, v);
+            }
+            else
+            {
+                h = storage->GetFloat(key + 6);
+                s = storage->GetFloat(key + 7);
+                v = storage->GetFloat(key + 8);
+            }
+            const ImVec4 old(storage->GetFloat(key + 2), storage->GetFloat(key + 3), storage->GetFloat(key + 4), storage->GetFloat(key + 5));
+            auto syncHSV = [&]()
+            {
+                float r = 0.0f, g = 0.0f, b = 0.0f;
+                ImGui::ColorConvertHSVtoRGB(h, s, v, r, g, b);
+                if (std::fabs(r - color.x) < 1e-4f && std::fabs(g - color.y) < 1e-4f && std::fabs(b - color.z) < 1e-4f)
+                    return;
+                float nh = 0.0f, ns = 0.0f, nv = 0.0f;
+                ImGui::ColorConvertRGBtoHSV(color.x, color.y, color.z, nh, ns, nv);
+                if (nv > 0.0f && ns > 0.0f)
+                    h = nh;
+                if (nv > 0.0f)
+                    s = ns;
+                v = nv;
+            };
+            auto applyHSV = [&]() { ImGui::ColorConvertHSVtoRGB(h, s, v, color.x, color.y, color.z); };
+            syncHSV();
+            int mode = storage->GetInt(key + 9, 0);
+            bool changed = false;
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+
+            const ImVec2 sv = ImGui::GetCursorScreenPos();
+            const ImVec2 svSize(width, 130.0f);
+            ImGui::InvisibleButton("##sv", svSize);
+            if (ImGui::IsItemActive())
+            {
+                const ImVec2 mouse = ImGui::GetIO().MousePos;
+                s = ImClamp((mouse.x - sv.x) / svSize.x, 0.0f, 1.0f);
+                v = 1.0f - ImClamp((mouse.y - sv.y) / svSize.y, 0.0f, 1.0f);
+                applyHSV();
+                changed = true;
+            }
+            float hr = 0.0f, hg = 0.0f, hb = 0.0f;
+            ImGui::ColorConvertHSVtoRGB(h, 1.0f, 1.0f, hr, hg, hb);
+            const ImU32 hue = ImGui::ColorConvertFloat4ToU32(ImVec4(hr, hg, hb, 1.0f));
+            const ImVec2 svMax(sv.x + svSize.x, sv.y + svSize.y);
+            dl->AddRectFilledMultiColor(sv, svMax, IM_COL32_WHITE, hue, hue, IM_COL32_WHITE);
+            dl->AddRectFilledMultiColor(sv, svMax, IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), IM_COL32_BLACK, IM_COL32_BLACK);
+            dl->AddRect(ImVec2(sv.x + 0.5f, sv.y + 0.5f), ImVec2(svMax.x - 0.5f, svMax.y - 0.5f), FieldEdgeSide, 0.0f, 0, 1.0f);
+            const ImVec2 handle(ImFloor(sv.x + s * svSize.x) + 0.5f, ImFloor(sv.y + (1.0f - v) * svSize.y) + 0.5f);
+            dl->PushClipRect(sv, svMax, true);
+            dl->AddCircle(handle, 7.5f, IM_COL32(0, 0, 0, 128), 24, 1.0f);
+            dl->AddCircle(handle, 6.0f, IM_COL32_WHITE, 24, 2.0f);
+            dl->PopClipRect();
+
+            ImRect strip;
+            bool stripActive = false;
+            float t = h;
+            if (PickerStrip("##hue", width, t, strip, stripActive))
+            {
+                h = (std::min)(t, 0.9999f);
+                applyHSV();
+                changed = true;
+            }
+            for (int i = 0; i < 6; ++i)
+            {
+                float r0 = 0.0f, g0 = 0.0f, b0 = 0.0f, r1 = 0.0f, g1 = 0.0f, b1 = 0.0f;
+                ImGui::ColorConvertHSVtoRGB(static_cast<float>(i) / 6.0f, 1.0f, 1.0f, r0, g0, b0);
+                ImGui::ColorConvertHSVtoRGB(static_cast<float>(i + 1) / 6.0f, 1.0f, 1.0f, r1, g1, b1);
+                const ImU32 c0 = ImGui::ColorConvertFloat4ToU32(ImVec4(r0, g0, b0, 1.0f));
+                const ImU32 c1 = ImGui::ColorConvertFloat4ToU32(ImVec4(r1, g1, b1, 1.0f));
+                const float x0 = ImFloor(strip.Min.x + strip.GetWidth() * static_cast<float>(i) / 6.0f);
+                const float x1 = i == 5 ? strip.Max.x : ImFloor(strip.Min.x + strip.GetWidth() * static_cast<float>(i + 1) / 6.0f);
+                dl->AddRectFilledMultiColor(ImVec2(x0, strip.Min.y), ImVec2(x1, strip.Max.y), c0, c1, c1, c0);
+            }
+            dl->AddRect(strip.Min, strip.Max, FieldEdgeSide, 0.0f, 0, 1.0f);
+            DrawStripHandle(dl, strip, h, stripActive);
+
+            if (alpha)
+            {
+                t = color.w;
+                if (PickerStrip("##alpha", width, t, strip, stripActive))
+                {
+                    color.w = t;
+                    changed = true;
+                }
+                DrawChecker(dl, strip, 5.0f);
+                dl->AddRectFilledMultiColor(strip.Min, strip.Max,
+                    ImGui::ColorConvertFloat4ToU32(ImVec4(color.x, color.y, color.z, 0.0f)), ImGui::ColorConvertFloat4ToU32(ImVec4(color.x, color.y, color.z, 1.0f)),
+                    ImGui::ColorConvertFloat4ToU32(ImVec4(color.x, color.y, color.z, 1.0f)), ImGui::ColorConvertFloat4ToU32(ImVec4(color.x, color.y, color.z, 0.0f)));
+                dl->AddRect(strip.Min, strip.Max, FieldEdgeSide, 0.0f, 0, 1.0f);
+                DrawStripHandle(dl, strip, color.w, stripActive);
+            }
+
+            const float frame = ImGui::GetFrameHeight();
+            const ImVec2 boxes = ImGui::GetCursorScreenPos();
+            if (ImGui::InvisibleButton("##old", ImVec2(frame, frame)))
+            {
+                color = old;
+                syncHSV();
+                changed = true;
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Original colour (click to revert)");
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::InvisibleButton("##new", ImVec2(frame, frame));
+            DrawColorBox(dl, ImRect(boxes, ImVec2(boxes.x + frame, boxes.y + frame)), old, 2.0f);
+            DrawColorBox(dl, ImRect(ImVec2(boxes.x + frame, boxes.y), ImVec2(boxes.x + frame * 2.0f, boxes.y + frame)), color, 2.0f);
+
+            const float segmentWidth = 104.0f;
+            const float hexWidth = width - frame * 2.0f - segmentWidth - 16.0f;
+            ImGui::SameLine(0.0f, 8.0f);
+            char hex[16];
+            const auto byte = [](float c) { return static_cast<int>(std::lround(ImClamp(c, 0.0f, 1.0f) * 255.0f)); };
+            if (alpha)
+                std::snprintf(hex, sizeof(hex), "%02X%02X%02X%02X", byte(color.x), byte(color.y), byte(color.z), byte(color.w));
+            else
+                std::snprintf(hex, sizeof(hex), "%02X%02X%02X", byte(color.x), byte(color.y), byte(color.z));
+            const float tagWidth = NotchWidth("hex");
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(tagWidth + 6.0f, ImGui::GetStyle().FramePadding.y));
+            ImGui::PushFont(FontSlot(3), FontSlot(3)->LegacySize);
+            ImGui::SetNextItemWidth(hexWidth);
+            if (ImGui::InputText("##hex", hex, sizeof(hex), ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_AutoSelectAll))
+            {
+                ImVec4 parsed = color;
+                if (ParseHexInput(hex, parsed))
+                {
+                    if (!alpha)
+                        parsed.w = 1.0f;
+                    color = parsed;
+                    syncHSV();
+                    changed = true;
+                }
+            }
+            ImGui::PopFont();
+            ImGui::PopStyleVar();
+            {
+                const ImRect r(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                const bool hovered = ImGui::IsItemHovered();
+                const bool active = ImGui::IsItemActive();
+                DrawFieldFrame(r, hovered, active);
+                DrawNotchCell(dl, ImVec2(ImFloor(r.Min.x), ImFloor(r.Min.y)), ImVec2(ImFloor(r.Max.x), ImFloor(r.Max.y)), tagWidth, "hex", TextDim, hovered, active);
+            }
+            ImGui::SameLine(0.0f, 8.0f);
+            static const char* const modes[] = { "RGB", "HSV" };
+            PickerSegment(modes, 2, mode, segmentWidth);
+
+            imui::NumberFieldStyle unit{};
+            unit.Size = sizeof(unit);
+            unit.Flags = imui::NumberFieldFlags::Range;
+            unit.Min = 0.0f;
+            unit.Max = 1.0f;
+            if (mode == 0)
+            {
+                float rgba[4] = { color.x, color.y, color.z, color.w };
+                unit.NotchTags = alpha ? "r,g,b,a" : "r,g,b";
+                ImGui::PushID("rgb");
+                if (NumberFields(rgba, count, 0.0f, unit, width))
+                {
+                    color = ImVec4(rgba[0], rgba[1], rgba[2], alpha ? rgba[3] : 1.0f);
+                    syncHSV();
+                    changed = true;
+                }
+                ImGui::PopID();
+            }
+            else
+            {
+                const float element = ImFloor((width - 4.0f * static_cast<float>(count - 1)) / static_cast<float>(count));
+                imui::NumberFieldStyle degrees = unit;
+                degrees.Max = 360.0f;
+                degrees.NotchTags = "h";
+                float hue360 = h * 360.0f;
+                ImGui::PushID("h");
+                if (NumberFields(&hue360, 1, 0.0f, degrees, element))
+                {
+                    h = ImClamp(hue360 / 360.0f, 0.0f, 0.9999f);
+                    applyHSV();
+                    changed = true;
+                }
+                ImGui::PopID();
+                ImGui::SameLine(0.0f, 4.0f);
+                float rest[3] = { s, v, color.w };
+                unit.NotchTags = alpha ? "s,v,a" : "s,v";
+                ImGui::PushID("sva");
+                if (NumberFields(rest, count - 1, 0.0f, unit, width - element - 4.0f))
+                {
+                    s = rest[0];
+                    v = rest[1];
+                    if (alpha)
+                        color.w = rest[2];
+                    applyHSV();
+                    changed = true;
+                }
+                ImGui::PopID();
+            }
+
+            const ImVec2 line = ImGui::GetCursorScreenPos();
+            dl->AddLine(ImVec2(line.x - 4.0f, line.y - 4.5f), ImVec2(line.x + width + 4.0f, line.y - 4.5f), DropdownBorder, 1.0f);
+            for (size_t i = 0; i < _recentColors.size(); ++i)
+            {
+                ImGui::SetCursorScreenPos(ImVec2(line.x + static_cast<float>(i) * 22.0f, line.y + 2.0f));
+                ImGui::PushID(static_cast<int>(i));
+                if (ImGui::InvisibleButton("##recent", ImVec2(18.0f, 18.0f)))
+                {
+                    color = ImVec4(_recentColors[i].x, _recentColors[i].y, _recentColors[i].z, alpha ? _recentColors[i].w : 1.0f);
+                    syncHSV();
+                    changed = true;
+                }
+                const ImRect r(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                DrawColorBox(dl, r, _recentColors[i], 2.0f);
+                if (ImGui::IsItemHovered())
+                    dl->AddRect(r.Min, r.Max, IM_COL32(255, 255, 255, 140), 2.0f, 0, 1.0f);
+                ImGui::PopID();
+            }
+            if (_recentColors.empty())
+            {
+                ImGui::SetCursorScreenPos(ImVec2(line.x, line.y + (frame - ImGui::GetTextLineHeight()) * 0.5f));
+                ImGui::TextColored(ToVec4(TextDim), "No recent colours");
+            }
+            ImGui::SetCursorScreenPos(ImVec2(line.x + width - segmentWidth, line.y));
+            if (ImGui::Button("Revert", ImVec2(segmentWidth, frame)))
+            {
+                color = old;
+                syncHSV();
+                changed = true;
+            }
+
+            if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+                ImGui::CloseCurrentPopup();
+            storage->SetFloat(key + 6, h);
+            storage->SetFloat(key + 7, s);
+            storage->SetFloat(key + 8, v);
+            storage->SetInt(key + 9, mode);
+            ImGui::EndPopup();
+            ImGui::PopStyleVar(2);
+            if (changed)
+            {
+                values[0] = color.x;
+                values[1] = color.y;
+                values[2] = color.z;
+                if (alpha)
+                    values[3] = color.w;
+            }
+            return changed;
+        }
+
+        // A colour swatch the size of a frame (the standard diagonal colour box); a click opens the colour picker.
+        bool ColorSwatch(float* values, int count)
+        {
+            const float height = ImGui::GetFrameHeight();
+            const ImVec4 color(values[0], values[1], values[2], count > 3 ? values[3] : 1.0f);
+            const bool pressed = ImGui::InvisibleButton("##swatch", ImVec2(height, height));
+            const ImRect rect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+            const bool hovered = ImGui::IsItemHovered();
+            const bool open = ImGui::IsPopupOpen("##picker");
+            imui::detail::DrawColorBox(ImGui::GetWindowDrawList(), rect, color, 2.0f);
+            imui::detail::DrawFieldFrame(rect, hovered, open);
+            const int test = ColorPickerTestMode();
+            if (pressed || (test != 0 && !_colorPickerTestDone && ImGui::GetFrameCount() > 90))
+            {
+                if (!pressed)
+                {
+                    _colorPickerTestDone = true;
+                    ImGui::GetStateStorage()->SetInt(ImGui::GetID("##picker") + 9, test == 2 ? 1 : 0);
+                }
+                ImGui::OpenPopup("##picker");
+            }
+            return ColorPickerPopup(values, count, rect);
+        }
+
+        // count number elements side by side filling the row: each a drag field (scrub, double-click or Ctrl+click to
+        // type) whose value, tag and range the kit draws itself (right-aligned value, never recentred while dragging).
+        bool NumberFields(float* values, int count, float speed, const imui::NumberFieldStyle& style, float width)
+        {
+            ImGuiWindow* window = ImGui::GetCurrentWindow();
+            const bool ranged = HasFlag(style.Flags, imui::NumberFieldFlags::Range) && style.Max > style.Min;
+            const bool integer = HasFlag(style.Flags, imui::NumberFieldFlags::Integer);
+            const bool color = HasFlag(style.Flags, imui::NumberFieldFlags::Color) && count >= 3;
+            const std::vector<NotchTag> tags = ParseNotchTags(style.NotchTags, count);
+            const float spacing = 4.0f;
+            float avail = width > 0.0f ? width : ImGui::GetContentRegionAvail().x;
+            bool changed = false;
+            if (color)
+            {
+                changed |= ColorSwatch(values, count);
+                ImGui::SameLine(0.0f, spacing);
+                avail -= ImGui::GetFrameHeight() + spacing;
+            }
+            const float element = (std::max)(1.0f, ImFloor((avail - spacing * static_cast<float>(count - 1)) / static_cast<float>(count)));
+            const float dragSpeed = speed > 0.0f ? speed : (ranged ? (style.Max - style.Min) / 200.0f : (integer ? 0.2f : 0.1f));
+            ImFont* tagFont = imui::detail::FontSlot(2);
+            const ImVec2 padding = ImGui::GetStyle().FramePadding;
+            for (int i = 0; i < count; ++i)
+            {
+                ImGui::PushID(i);
+                if (i > 0)
+                    ImGui::SameLine(0.0f, spacing);
+                const float w = i == count - 1 ? (std::max)(1.0f, avail - (element + spacing) * static_cast<float>(count - 1)) : element;
+                const NotchTag* tag = i < static_cast<int>(tags.size()) && !tags[i].Text.empty() ? &tags[i] : nullptr;
+                float tagWidth = tag ? (std::max)(16.0f, ImFloor(tagFont->CalcTextSizeA(tagFont->LegacySize, FLT_MAX, 0.0f, tag->Text.c_str()).x) + 8.0f) : 0.0f;
+                if (tag && element < tagWidth + ImGui::CalcTextSize("0.0").x + 12.0f)
+                {
+                    tag = nullptr;
+                    tagWidth = 0.0f;
+                }
+                const ImGuiID id = window->GetID("##n");
+                const bool editing = ImGui::TempInputIsActive(id);
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(tagWidth + 5.0f, padding.y));
+                if (!editing)
+                    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 0));
+                const ImGuiSliderFlags flags = ranged ? ImGuiSliderFlags_AlwaysClamp : ImGuiSliderFlags_None;
+                float value = values[i];
+                bool edited = false;
+                ImGui::SetNextItemWidth(w);
+                if (integer)
+                {
+                    int whole = static_cast<int>(std::lround(value));
+                    edited = ImGui::DragInt("##n", &whole, dragSpeed, ranged ? static_cast<int>(style.Min) : 0, ranged ? static_cast<int>(style.Max) : 0, "%d", flags);
+                    if (edited)
+                        value = static_cast<float>(whole);
+                }
+                else
+                {
+                    edited = ImGui::DragFloat("##n", &value, dragSpeed, ranged ? style.Min : 0.0f, ranged ? style.Max : 0.0f, "%.3f", flags);
+                }
+                if (!editing)
+                    ImGui::PopStyleColor();
+                ImGui::PopStyleVar();
+                if (edited)
+                {
+                    values[i] = value;
+                    changed = true;
+                }
+                const bool hovered = ImGui::IsItemHovered();
+                const bool active = ImGui::IsItemActive();
+                if (hovered && !editing)
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+                DrawNumberDecor(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), values[i], style, tag, tagWidth, hovered, active && !editing, editing);
+                ImGui::PopID();
+            }
+            return changed;
+        }
+
+        // A label column plus the body's field(s), over a subtle row bar: white on hover, accent with a left edge while
+        // one of the row's fields is focused. The bar is drawn on a channel behind the row's items.
         template <typename Body>
         imui::Result PropertyRow(imui::Context* ctx, const char* label, Body body)
         {
             const char* text = label ? label : "";
             LayoutItem(ctx);
             ImGui::PushID(text);
+            ImGuiWindow* window = ImGui::GetCurrentWindow();
+            ImDrawList* dl = window->DrawList;
+            const ImVec2 start = ImGui::GetCursorScreenPos();
+            const bool split = dl->_Splitter._Count <= 1;
+            if (split)
+            {
+                dl->ChannelsSplit(2);
+                dl->ChannelsSetCurrent(1);
+            }
+            const bool wasActive = imui::detail::_fieldActive;
+            imui::detail::_fieldActive = false;
             InspectorLabel(text);
             const bool changed = body();
             const imui::Result result = ItemResult(changed);
+            const bool focused = imui::detail::_fieldActive;
+            imui::detail::_fieldActive = wasActive;
+            if (split)
+            {
+                const ImRect row(ImVec2(ImFloor(start.x) - 4.0f, ImFloor(start.y) - 2.0f),
+                    ImVec2(ImFloor(window->WorkRect.Max.x) + 4.0f, ImFloor(start.y + ImGui::GetFrameHeight()) + 2.0f));
+                const bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(row.Min, row.Max, false);
+                dl->ChannelsSetCurrent(0);
+                if (focused)
+                {
+                    dl->AddRectFilled(row.Min, row.Max, imui::detail::RowFocus, 2.0f);
+                    dl->AddRectFilled(row.Min, ImVec2(row.Min.x + 2.0f, row.Max.y), imui::detail::Accent);
+                }
+                else if (hovered)
+                {
+                    dl->AddRectFilled(row.Min, row.Max, imui::detail::RowHover, 2.0f);
+                }
+                dl->ChannelsMerge();
+            }
             ImGui::PopID();
             return result;
         }
@@ -882,7 +1601,7 @@ namespace xg
     {
         if (!ctx || !value)
             return imui::Result::None;
-        return PropertyRow(ctx, label, [&] { return ImGui::DragFloat("##value", value, speed > 0.0f ? speed : 0.1f, 0.0f, 0.0f, "%.2f"); });
+        return PropertyRow(ctx, label, [&] { return NumberFields(value, 1, speed > 0.0f ? speed : 0.1f, imui::NumberFieldStyle{}); });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUIToggleButton(imui::Context* ctx, const char* label, bool* on)
@@ -900,42 +1619,92 @@ namespace xg
     {
         if (!ctx || !value)
             return imui::Result::None;
-        return PropertyRow(ctx, label, [&] { return ImGui::DragInt("##value", value, speed > 0.0f ? speed : 0.2f); });
+        return PropertyRow(ctx, label, [&]
+        {
+            imui::NumberFieldStyle style;
+            style.Flags = imui::NumberFieldFlags::Integer;
+            float number = static_cast<float>(*value);
+            const bool changed = NumberFields(&number, 1, speed > 0.0f ? speed : 0.2f, style);
+            if (changed)
+                *value = static_cast<int>(std::lround(number));
+            return changed;
+        });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldVector(imui::Context* ctx, const char* label, float* values, int count, float speed)
     {
         if (!ctx || !values || count < 1 || count > 4)
             return imui::Result::None;
-        return PropertyRow(ctx, label, [&] { return ImGui::DragScalarN("##value", ImGuiDataType_Float, values, count, speed > 0.0f ? speed : 0.1f, nullptr, nullptr, "%.2f"); });
+        return PropertyRow(ctx, label, [&] { return NumberFields(values, count, speed > 0.0f ? speed : 0.1f, imui::NumberFieldStyle{}); });
+    }
+
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldNumbers(imui::Context* ctx, const char* label, float* values, int count, float speed,
+        const imui::NumberFieldStyle* style)
+    {
+        if (!ctx || !values || count < 1 || count > 4)
+            return imui::Result::None;
+        const imui::NumberFieldStyle loaded = style ? interop::Load(style) : imui::NumberFieldStyle{};
+        return PropertyRow(ctx, label, [&] { return NumberFields(values, count, speed, loaded); });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldText(imui::Context* ctx, const char* label, char* buffer, int capacity)
     {
         if (!ctx || !buffer || capacity <= 0)
             return imui::Result::None;
-        return PropertyRow(ctx, label, [&] { return ImGui::InputText("##value", buffer, static_cast<size_t>(capacity)); });
+        return PropertyRow(ctx, label, [&]
+        {
+            const bool changed = ImGui::InputText("##value", buffer, static_cast<size_t>(capacity));
+            imui::detail::DrawFieldFrame(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), ImGui::IsItemHovered(), ImGui::IsItemActive());
+            return changed;
+        });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUISliderFloat(imui::Context* ctx, const char* label, float* value, float min, float max)
     {
         if (!ctx || !value)
             return imui::Result::None;
-        return PropertyRow(ctx, label, [&] { return ImGui::SliderFloat("##value", value, min, max, "%.2f"); });
+        return PropertyRow(ctx, label, [&]
+        {
+            imui::NumberFieldStyle style;
+            style.Flags = imui::NumberFieldFlags::Range;
+            style.Min = min;
+            style.Max = max;
+            return NumberFields(value, 1, 0.0f, style);
+        });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUISliderInt(imui::Context* ctx, const char* label, int* value, int min, int max)
     {
         if (!ctx || !value)
             return imui::Result::None;
-        return PropertyRow(ctx, label, [&] { return ImGui::SliderInt("##value", value, min, max); });
+        return PropertyRow(ctx, label, [&]
+        {
+            imui::NumberFieldStyle style;
+            style.Flags = imui::NumberFieldFlags::Range | imui::NumberFieldFlags::Integer;
+            style.Min = static_cast<float>(min);
+            style.Max = static_cast<float>(max);
+            float number = static_cast<float>(*value);
+            const bool changed = NumberFields(&number, 1, 0.0f, style);
+            if (changed)
+                *value = static_cast<int>(std::lround(number));
+            return changed;
+        });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUICheckbox(imui::Context* ctx, const char* label, bool* value)
     {
         if (!ctx || !value)
             return imui::Result::None;
-        return PropertyRow(ctx, label, [&] { return ImGui::Checkbox("##value", value); });
+        return PropertyRow(ctx, label, [&]
+        {
+            const ImVec2 padding = ImGui::GetStyle().FramePadding;
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(padding.x, padding.y - 2.0f));
+            const bool changed = ImGui::Checkbox("##value", value);
+            ImGui::PopStyleVar();
+            imui::detail::DrawFieldFrame(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), ImGui::IsItemHovered(), false);
+            return changed;
+        });
     }
 
     XG_MODULE_EXPORT imui::Result XG_ImUICombo(imui::Context* ctx, const char* label, int* index, const char* const* items, int count)
@@ -946,7 +1715,12 @@ namespace xg
         {
             const char* preview = *index >= 0 && *index < count && items[*index] ? items[*index] : "";
             bool changed = false;
-            if (ImGui::BeginCombo("##value", preview))
+            ImGui::PushStyleColor(ImGuiCol_Button, imui::detail::NotchTagBg);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, imui::detail::NotchTagHover);
+            const bool open = ImGui::BeginCombo("##value", preview);
+            ImGui::PopStyleColor(2);
+            imui::detail::DrawFieldFrame(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), ImGui::IsItemHovered(), open);
+            if (open)
             {
                 for (int i = 0; i < count; ++i)
                 {
@@ -1026,17 +1800,12 @@ namespace xg
             return imui::Result::None;
         LayoutItem(ctx);
         const float fieldWidth = width > 0.0f ? width : LayoutFill(ctx, true);
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::DropdownBg);
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, imui::detail::DropdownHover);
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, imui::detail::DropdownBg);
-        ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
         ImGui::SetNextItemWidth(fieldWidth);
         const bool changed = ImGui::InputTextWithHint(id ? id : "##textfield", hint ? hint : "", buffer, static_cast<size_t>(capacity));
         const imui::Result result = ItemResult(changed);
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(4);
+        ImGui::PopStyleVar();
+        imui::detail::DrawFieldFrame(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), ImGui::IsItemHovered(), ImGui::IsItemActive());
         return result;
     }
 
@@ -1096,18 +1865,13 @@ namespace xg
         ImGuiInputTextFlags inputFlags = ImGuiInputTextFlags_CallbackAlways;
         if (HasFlag(flags, imui::TextFieldFlags::CaptureNavKeys))
             inputFlags |= ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory;
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::DropdownBg);
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, imui::detail::DropdownHover);
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, imui::detail::DropdownBg);
-        ImGui::PushStyleColor(ImGuiCol_Border, imui::detail::DropdownBorder);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
         ImGui::SetNextItemWidth(fieldWidth);
         const bool changed = ImGui::InputTextWithHint(id ? id : "##textfield", hint ? hint : "", buffer, static_cast<size_t>(capacity),
             inputFlags, TextFieldCallback, &user);
         const imui::Result result = ItemResult(changed || (HasFlag(flags, imui::TextFieldFlags::SetText) && source != buffer));
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(4);
+        ImGui::PopStyleVar();
+        imui::detail::DrawFieldFrame(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), ImGui::IsItemHovered(), ImGui::IsItemActive());
         return result;
     }
 
@@ -1343,6 +2107,7 @@ namespace xg
         ImGui::PushStyleColor(ImGuiCol_FrameBg, imui::detail::AreaBg);
         ImGui::InputTextMultiline(id ? id : "##textarea", const_cast<char*>(value), std::strlen(value) + 1, areaSize, ImGuiInputTextFlags_ReadOnly);
         ImGui::PopStyleColor();
+        imui::detail::DrawFieldFrame(ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()), false, false);
         return ItemResult(false);
     }
 
@@ -1926,6 +2691,14 @@ namespace xg
             return;
         const Rect r = LoadRect(rect);
         ctx->DrawList()->AddRectFilled(ctx->ToScreen(r.min), ctx->ToScreen(r.max), ToImU32(color), rounding);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIDrawColorBox(imui::Context* ctx, const Rect* rect, Color32 color)
+    {
+        if (!ctx)
+            return;
+        const Rect r = LoadRect(rect);
+        imui::detail::DrawColorBox(ctx->DrawList(), ImRect(ctx->ToScreen(r.min), ctx->ToScreen(r.max)), ImGui::ColorConvertU32ToFloat4(ToImU32(color)), 2.0f);
     }
 
     XG_MODULE_EXPORT void XG_ImUIDrawCircle(imui::Context* ctx, const Vec2* center, float radius, Color32 color, float thickness)

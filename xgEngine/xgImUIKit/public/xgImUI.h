@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 20;
+    inline constexpr uint32_t ApiVersion = 22;
 
     struct Context;
     struct PanelEntry;
@@ -245,6 +245,31 @@ namespace xg::imui
         int PixelHeight() const noexcept { return static_cast<int>(PixelSize.y); }
     };
 
+    // XG_ImUIFieldNumbers (ApiVersion 21).
+    enum class NumberFieldFlags : uint8_t
+    {
+        None    = 0,
+        // Clamp to [Min, Max] and draw a range line per element.
+        Range   = 1 << 0,
+        // Whole numbers (values still pass as floats).
+        Integer = 1 << 1,
+        // 3 or 4 elements are a colour: a swatch (click for a picker) comes before them.
+        Color   = 1 << 2,
+    };
+    XG_ENABLE_FLAGS(NumberFieldFlags)
+
+    // How XG_ImUIFieldNumbers draws its elements. NotchTags: one tag per element, comma separated, each optionally
+    // "name=#rrggbb" ("x,y,z", "deg", "near=#c8a040, far=#a060c8"); null or empty draws no tags. Tags without a colour:
+    // x/y/z/w and r/g/b/a use the axis colours, anything else a stable colour derived from its text.
+    struct NumberFieldStyle
+    {
+        uint32_t Size = sizeof(NumberFieldStyle);
+        NumberFieldFlags Flags = NumberFieldFlags::None;
+        float Min = 0.0f;
+        float Max = 0.0f;
+        const char* NotchTags = nullptr;
+    };
+
     enum class ListFlags : uint8_t
     {
         None           = 0,
@@ -359,6 +384,10 @@ namespace xg
     // indented layout groups. They are the building blocks of inspector drawers.
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldInt(imui::Context* ctx, const char* label, int* value, float speed);
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldVector(imui::Context* ctx, const char* label, float* values, int count, float speed);
+    // 1 to 4 numbers in one property row with notch tags, ranges and colour swatch from style (ApiVersion 21; null style =
+    // plain). speed <= 0 picks one from the range or type.
+    XG_MODULE_EXPORT imui::Result XG_ImUIFieldNumbers(imui::Context* ctx, const char* label, float* values, int count, float speed,
+        const imui::NumberFieldStyle* style);
     XG_MODULE_EXPORT imui::Result XG_ImUIFieldText(imui::Context* ctx, const char* label, char* buffer, int capacity);
     XG_MODULE_EXPORT imui::Result XG_ImUISliderFloat(imui::Context* ctx, const char* label, float* value, float min, float max);
     XG_MODULE_EXPORT imui::Result XG_ImUISliderInt(imui::Context* ctx, const char* label, int* value, int min, int max);
@@ -496,6 +525,9 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUIDrawLine(imui::Context* ctx, const Vec2* from, const Vec2* to, Color32 color, float thickness);
     XG_MODULE_EXPORT void XG_ImUIDrawRect(imui::Context* ctx, const Rect* rect, Color32 color, float rounding, float thickness);
     XG_MODULE_EXPORT void XG_ImUIDrawRectFilled(imui::Context* ctx, const Rect* rect, Color32 color, float rounding);
+    // The standard colour box (ApiVersion 22): the upper-left triangle opaque, the lower-right triangle with the colour's
+    // alpha over a straight checker; an opaque colour fills the box.
+    XG_MODULE_EXPORT void XG_ImUIDrawColorBox(imui::Context* ctx, const Rect* rect, Color32 color);
     XG_MODULE_EXPORT void XG_ImUIDrawCircle(imui::Context* ctx, const Vec2* center, float radius, Color32 color, float thickness);
     XG_MODULE_EXPORT void XG_ImUIDrawCircleFilled(imui::Context* ctx, const Vec2* center, float radius, Color32 color);
     XG_MODULE_EXPORT void XG_ImUIDrawTriangleFilled(imui::Context* ctx, const Vec2* a, const Vec2* b, const Vec2* c, Color32 color);

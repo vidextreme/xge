@@ -23,6 +23,11 @@ namespace xg.imui
         public void RectFilled(Rect rect, Color32 color, float rounding = 0.0f) =>
             Native.DrawRectFilled(_ctx, &rect, color, rounding);
 
+        // The standard colour box: solid colour in the upper-left triangle, the colour's alpha over a checker in the
+        // lower-right one (an opaque colour fills the box).
+        public void ColorBox(Rect rect, Color32 color) =>
+            Native.DrawColorBox(_ctx, &rect, color);
+
         public void Circle(Vector2 center, float radius, Color32 color, float thickness = 1.0f) =>
             Native.DrawCircle(_ctx, &center, radius, color, thickness);
 

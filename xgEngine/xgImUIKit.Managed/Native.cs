@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 20;
+        public const uint ApiVersion = 22;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();
@@ -101,6 +101,19 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldVector")]
         public static partial Result FieldVector(nint ctx, byte* label, float* values, int count, float speed);
+
+        [StructLayout(LayoutKind.Explicit, Size = 24)]
+        public struct NumberFieldStyleAbi
+        {
+            [FieldOffset(0)] public uint Size;
+            [FieldOffset(4)] public NumberFieldFlags Flags;
+            [FieldOffset(8)] public float Min;
+            [FieldOffset(12)] public float Max;
+            [FieldOffset(16)] public byte* NotchTags;
+        }
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldNumbers")]
+        public static partial Result FieldNumbers(nint ctx, byte* label, float* values, int count, float speed, NumberFieldStyleAbi* style);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIFieldText")]
         public static partial Result FieldText(nint ctx, byte* label, byte* buffer, int capacity);
@@ -299,6 +312,9 @@ namespace xg.imui
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawRectFilled")]
         public static partial void DrawRectFilled(nint ctx, Rect* rect, Color32 color, float rounding);
+
+        [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawColorBox")]
+        public static partial void DrawColorBox(nint ctx, Rect* rect, Color32 color);
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIDrawCircle")]
         public static partial void DrawCircle(nint ctx, Vector2* center, float radius, Color32 color, float thickness);
