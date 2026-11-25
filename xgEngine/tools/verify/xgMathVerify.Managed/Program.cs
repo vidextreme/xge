@@ -81,6 +81,7 @@ internal static class Program
         Run(nameof(TestMeshAssets), TestMeshAssets);
         Run(nameof(TestShaderAnnotations), TestShaderAnnotations);
         Run(nameof(TestMaterialAsset), TestMaterialAsset);
+        Run(nameof(TestEmbeddedMeta), TestEmbeddedMeta);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -928,6 +929,86 @@ internal static class Program
         {
             Directory.Delete(root, true);
         }
+    }
+
+    private static void TestEmbeddedMeta()
+    {
+        Check(AssetMetaStore.IsEmbedded("Assets/Bear.xcm") && AssetMetaStore.IsEmbedded("a/b.XCO") && !AssetMetaStore.IsEmbedded("a/b.png") && !AssetMetaStore.IsEmbedded("a/b.xc"),
+            "compositions (.xc*) embed their meta, other assets don't");
+
+        string root = Path.Combine(Path.GetTempPath(), "xge-embedded-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            const string shader = "5ade00000000000000000000000000a1";
+            string file = Path.Combine(root, "Bear.xcm");
+            MaterialAsset material = new() { Shader = shader };
+            material.Params["Tint"] = [1.0f, 0.5f, 0.25f, 1.0f];
+            material.Write(file);
+
+            AssetMeta meta = AssetMeta.Create();
+            meta.Tags = ["character"];
+            Check(AssetMetaStore.Write(file, meta), "writing an embedded meta changes the file");
+            string text = File.ReadAllText(file);
+            Check(text.IndexOf("\"version\"") < text.IndexOf("\"meta\"") && text.IndexOf("\"meta\"") < text.IndexOf("\"shader\""), "the block sits after version, before the content");
+            Check(!text.Contains("importer") && !text.Contains("items"), "the block has no importer and no empty items");
+            AssetMeta read = AssetMetaStore.Read(file);
+            Check(read.Guid == meta.Guid && read.Tags.SequenceEqual(["character"]), "embedded meta round trip");
+            Check(!AssetMetaStore.Write(file, read), "an unchanged meta doesn't rewrite the file");
+            MaterialAsset reloaded = MaterialAsset.Read(file);
+            Check(reloaded.SameAs(material) && reloaded.Meta?["guid"]?.GetValue<string>() == meta.Guid, "the material keeps its content and carries the meta");
+            Check(MaterialAsset.Parse(reloaded.ToJSON()).Meta?["tags"]?.AsArray().Count == 1, "the meta survives a material round trip");
+
+            reloaded.SetNames(new Dictionary<string, string> { [shader] = "Assets/Shaders/surface.tinted.hlsl" });
+            Check(reloaded.SameAs(material) && reloaded.Names()[shader] == "Assets/Shaders/surface.tinted.hlsl", "the name tree lives in the meta and doesn't change the content");
+            Check(MaterialAssets.Pack(reloaded)[0].Data.SequenceEqual(MaterialAssets.Pack(material)[0].Data), "packing ignores the meta");
+
+            string library = Path.Combine(root, "Library");
+            AssetPipeline pipeline = new(library);
+            MaterialAssets.Register(pipeline);
+            AssetBuildStatus Build()
+            {
+                AssetMeta current = AssetMetaStore.Read(file);
+                return pipeline.Build(new AssetBuildRequest(current.Guid, file, null, current.ImportSettings, current.ProcessSettings, current.Items, items =>
+                {
+                    AssetItemUpdate update = AssetItemTable.Update(current.Items, items);
+                    current.Items = update.Items;
+                    AssetMetaStore.Write(file, current);
+                    return update;
+                })).Status;
+            }
+            Check(Build() == AssetBuildStatus.Imported && AssetMetaStore.Read(file).Items.Count == 1, "a material builds and its item GUID lands in the embedded meta");
+            AssetMeta tagged = AssetMetaStore.Read(file);
+            tagged.Tags = ["character", "toon"];
+            AssetMetaStore.Write(file, tagged);
+            Check(Build() == AssetBuildStatus.UpToDate, "a tag edit rebuilds nothing (the build hashes the content without the meta)");
+
+            string legacy = Path.Combine(root, "Old.xcm");
+            File.WriteAllText(legacy, "{\r\n  \"version\": 1,\r\n  \"shader\": \"\",\r\n  \"params\": {},\r\n  \"textures\": {}\r\n}\r\n");
+            AssetMeta sidecar = AssetMeta.Create();
+            sidecar.Tags = ["legacy"];
+            sidecar.Extra = new() { ["names"] = System.Text.Json.JsonSerializer.SerializeToElement(new Dictionary<string, string> { [shader] = "Assets/x.hlsl" }) };
+            sidecar.Write(AssetMeta.PathFor(legacy));
+            List<(string Asset, string? Problem)> moved = AssetMetaMigration.EmbedSidecars(root);
+            MaterialAsset migrated = MaterialAsset.Read(legacy);
+            Check(moved.Count == 1 && moved[0].Problem is null && !File.Exists(AssetMeta.PathFor(legacy)), "migration moves a composition's sidecar into the file and deletes it");
+            Check(AssetMetaStore.Read(legacy).Guid == sidecar.Guid && migrated.Names()[shader] == "Assets/x.hlsl" && File.ReadAllText(legacy).Contains("\"version\": 2"),
+                "the migrated file keeps the GUID, tags and name tree and becomes version 2");
+            Check(AssetMetaMigration.EmbedSidecars(root).Count == 0, "migration is idempotent");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+
+        List<AssetReconcileAction> actions = AssetReconciler.Reconcile(
+            [new AssetFileState("Assets/New.xcm", 10, 1, true), new AssetFileState("Assets/Copy.xcm", 10, 1, true), new AssetFileState("Assets/Bear.xcm", 10, 1, true)],
+            [new AssetMetaState("Assets/Bear.xcm", "00000000000000000000000000000001"), new AssetMetaState("Assets/Copy.xcm", "00000000000000000000000000000001"),
+             new AssetMetaState("Assets/Gone/New.xcm", "00000000000000000000000000000002")],
+            new Dictionary<string, AssetCacheState>(), _ => null);
+        Check(actions.Any(a => a is { Kind: AssetReconcileKind.Create, Path: "Assets/New.xcm" }) && !actions.Any(a => a.Kind == AssetReconcileKind.Recover),
+            "an embedded asset without a block gets a new one and never takes an orphan meta, even with the same name");
+        Check(actions.Any(a => a is { Kind: AssetReconcileKind.Regenerate, Path: "Assets/Copy.xcm" }), "a copied composition with a duplicate GUID gets a new one");
     }
 
     private static void TestChunkFile()

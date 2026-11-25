@@ -10,12 +10,14 @@ namespace xg.editor
 {
     // An authored .xcm material: a shader (asset GUID), param values and texture breadcrumbs, keyed by the names the
     // shader's annotations declare. Names the shader doesn't (or no longer) declare are kept and ignored at runtime.
+    // Meta is the embedded asset meta (AssetMetaStore: guid, tags, names), kept as is; comparisons and builds ignore it.
     public sealed class MaterialAsset
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
         public const string Extension = ".xcm";
 
         public int Version { get; set; } = CurrentVersion;
+        public JsonObject? Meta { get; set; }
         public string Shader { get; set; } = string.Empty;
         public SortedDictionary<string, float[]> Params { get; } = new(StringComparer.Ordinal);
         public SortedDictionary<string, string> Textures { get; } = new(StringComparer.Ordinal);
@@ -24,7 +26,7 @@ namespace xg.editor
 
         public MaterialAsset Clone()
         {
-            MaterialAsset copy = new() { Version = Version, Shader = Shader };
+            MaterialAsset copy = new() { Version = Version, Shader = Shader, Meta = Meta?.DeepClone().AsObject() };
             foreach (KeyValuePair<string, float[]> pair in Params)
                 copy.Params[pair.Key] = (float[])pair.Value.Clone();
             foreach (KeyValuePair<string, string> pair in Textures)
@@ -32,7 +34,31 @@ namespace xg.editor
             return copy;
         }
 
-        public bool SameAs(MaterialAsset other) => ToJSON() == other.ToJSON();
+        // Same content (shader, params, textures); the meta block doesn't count.
+        public bool SameAs(MaterialAsset other) => ContentJSON() == other.ContentJSON();
+
+        // The material's own JSON without the meta block (what builds hash).
+        public string ContentJSON() => Document(false).ToJsonString(JSONFile.Options) + "\r\n";
+
+        // A name tree entry kept in the meta ("names": GUID -> asset path).
+        public IReadOnlyDictionary<string, string> Names()
+        {
+            Dictionary<string, string> names = new(StringComparer.OrdinalIgnoreCase);
+            if (Meta?["names"] is JsonObject table)
+                foreach ((string guid, JsonNode? path) in table)
+                    if (path is JsonValue value && value.TryGetValue(out string? text))
+                        names[guid] = text;
+            return names;
+        }
+
+        public void SetNames(IReadOnlyDictionary<string, string> names)
+        {
+            Meta ??= new JsonObject();
+            JsonObject table = new();
+            foreach ((string guid, string path) in names.OrderBy(p => p.Key, StringComparer.Ordinal))
+                table[guid] = path;
+            Meta["names"] = table;
+        }
 
         public static MaterialAsset Parse(string json)
         {
@@ -43,6 +69,7 @@ namespace xg.editor
             {
                 Version = document["version"]?.GetValue<int>() ?? CurrentVersion,
                 Shader = document["shader"]?.GetValue<string>() ?? string.Empty,
+                Meta = document[AssetMetaStore.EmbeddedKey]?.DeepClone() as JsonObject,
             };
             if (material.Version > CurrentVersion)
                 throw new InvalidDataException($"Material version {material.Version} is newer than {CurrentVersion}");
@@ -77,7 +104,9 @@ namespace xg.editor
 
         public static MaterialAsset Read(string path) => Parse(File.ReadAllText(path));
 
-        public string ToJSON()
+        public string ToJSON() => Document(true).ToJsonString(JSONFile.Options) + "\r\n";
+
+        private JsonObject Document(bool withMeta)
         {
             JsonObject parameters = new();
             foreach (KeyValuePair<string, float[]> pair in Params)
@@ -85,14 +114,13 @@ namespace xg.editor
             JsonObject textures = new();
             foreach (KeyValuePair<string, string> pair in Textures)
                 textures[pair.Key] = pair.Value;
-            JsonObject document = new()
-            {
-                ["version"] = Version,
-                ["shader"] = Shader,
-                ["params"] = parameters,
-                ["textures"] = textures,
-            };
-            return document.ToJsonString(JSONFile.Options) + "\r\n";
+            JsonObject document = new() { ["version"] = CurrentVersion };
+            if (withMeta && Meta is not null)
+                document[AssetMetaStore.EmbeddedKey] = Meta.DeepClone();
+            document["shader"] = Shader;
+            document["params"] = parameters;
+            document["textures"] = textures;
+            return document;
         }
 
         public bool Write(string path) => JSONFile.WriteText(path, ToJSON());
@@ -257,6 +285,19 @@ namespace xg.editor
             public string DataExtension => ProcessedExtension;
 
             public bool Accepts(string extension) => extension.Equals(MaterialAsset.Extension, StringComparison.OrdinalIgnoreCase);
+
+            public string? HashSource(string sourcePath)
+            {
+                try
+                {
+                    MaterialAsset material = MaterialAsset.Parse(File.ReadAllText(sourcePath));
+                    return Convert.ToHexStringLower(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(material.ContentJSON())));
+                }
+                catch (Exception e) when (e is IOException or JsonException or InvalidDataException)
+                {
+                    return null;
+                }
+            }
 
             public IReadOnlyList<AssetDataFile> Import(string sourcePath, JsonObject settings)
             {

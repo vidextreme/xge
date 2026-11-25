@@ -29,6 +29,10 @@ namespace xg.editor
 
         // Fills the settings of a newly created meta file.
         void WriteDefaultSettings(JsonObject import, JsonObject process) { }
+
+        // The source's hash for the build key, or null to hash the whole file (compositions hash their content without
+        // the embedded meta, so tag edits rebuild nothing).
+        string? HashSource(string sourcePath) => null;
     }
 
     // Turns one raw file into one processed file. Output items use the same kinds, paths and order as the input.
@@ -211,7 +215,7 @@ namespace xg.editor
             try
             {
                 Stage(0.02f, "Hashing");
-                string sourceHash = request.SourceHash ?? HashFile(request.SourcePath) ?? throw new IOException($"Could not read {request.SourcePath}");
+                string sourceHash = request.SourceHash ?? importer.HashSource(request.SourcePath) ?? HashFile(request.SourcePath) ?? throw new IOException($"Could not read {request.SourcePath}");
                 string importSettings = Canonical(request.ImportSettings);
                 string processSettings = Canonical(request.ProcessSettings);
                 string processors = string.Join(",", _processors.Select(p => $"{p.Id}@{p.Version}").Order(StringComparer.Ordinal));

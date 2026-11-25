@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using xg;
 using xg.editor;
 
@@ -129,10 +130,10 @@ namespace xgEditor.CoreCLR
             Changed();
         }
 
-        // Writes the draft to another asset path ("Assets/..."), which this driver then edits.
+        // Writes the draft to another asset path ("Assets/..."), which this driver then edits. The copy gets a new GUID.
         public bool SaveAs(string path)
         {
-            if (!SaveTo(path))
+            if (!SaveTo(path, true))
                 return false;
             Path = path;
             return true;
@@ -142,13 +143,25 @@ namespace xgEditor.CoreCLR
         {
         }
 
-        private bool SaveTo(string path)
+        // The meta block is the file's current one (tags or item GUIDs may have been written since the material was
+        // loaded) with the draft's name tree; a copy (Save as) gets a fresh GUID.
+        private bool SaveTo(string path, bool copy = false)
         {
             if (ProjectService.Assets is not { } assets)
                 return false;
+            string full = assets.FullPath(path);
+            MaterialAsset written = Draft.Clone();
+            written.Meta = CurrentMeta(full) ?? written.Meta?.DeepClone().AsObject() ?? new JsonObject();
+            if (copy || written.Meta["guid"] is null)
+                written.Meta = new JsonObject { ["guid"] = AssetMeta.NewGuid(), ["tags"] = written.Meta["tags"]?.DeepClone() ?? new JsonArray() };
+            Dictionary<string, string> names = new(StringComparer.Ordinal);
+            foreach (string guid in written.ReferencedGuids())
+                if (assets.PathOf(guid) is string referenced)
+                    names[guid] = referenced;
+            written.SetNames(names);
             try
             {
-                Draft.Write(assets.FullPath(path));
+                written.Write(full);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
@@ -156,31 +169,23 @@ namespace xgEditor.CoreCLR
                 return false;
             }
             assets.RequestBuild(path);
-            WriteNames(assets, path);
+            Draft.Meta = written.Meta.DeepClone().AsObject();
             Saved = Draft.Clone();
             Changed();
             return true;
         }
 
-        private void WriteNames(AssetDatabase assets, string path)
+        private static JsonObject? CurrentMeta(string full)
         {
-            string metaPath = assets.FullPath(AssetMeta.PathFor(path));
-            if (!File.Exists(metaPath))
-                return;
+            if (!File.Exists(full))
+                return null;
             try
             {
-                AssetMeta meta = AssetMeta.Read(metaPath);
-                SortedDictionary<string, string> names = new(StringComparer.Ordinal);
-                foreach (string guid in Draft.ReferencedGuids())
-                    if (assets.PathOf(guid) is string referenced)
-                        names[guid] = referenced;
-                meta.Extra ??= new Dictionary<string, JsonElement>();
-                meta.Extra["names"] = JsonSerializer.SerializeToElement(names);
-                meta.Write(metaPath);
+                return MaterialAsset.Read(full).Meta;
             }
-            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            catch (Exception e) when (e is IOException or JsonException or InvalidDataException)
             {
-                Debug.LogWarning($"[Materials] Could not write the name tree of {path}: {e.Message}");
+                return null;
             }
         }
 
@@ -188,25 +193,11 @@ namespace xgEditor.CoreCLR
         // there, the draft points to it (a pending change, so saving keeps the fix).
         private void RepairReferences(AssetDatabase assets)
         {
-            string metaPath = assets.FullPath(AssetMeta.PathFor(Path));
-            if (!File.Exists(metaPath))
-                return;
-            AssetMeta meta;
-            try
+            foreach ((string guid, string recorded) in Draft.Names())
             {
-                meta = AssetMeta.Read(metaPath);
-            }
-            catch (Exception e) when (e is IOException or JsonException)
-            {
-                return;
-            }
-            if (meta.Extra is null || !meta.Extra.TryGetValue("names", out JsonElement names) || names.ValueKind != JsonValueKind.Object)
-                return;
-            foreach (JsonProperty entry in names.EnumerateObject())
-            {
-                if (assets.PathOf(entry.Name) is not null || entry.Value.GetString() is not string recorded)
+                if (assets.PathOf(guid) is not null)
                     continue;
-                if (assets.GuidOf(recorded) is string found && found != entry.Name && Draft.ReplaceGuid(entry.Name, found))
+                if (assets.GuidOf(recorded) is string found && found != guid && Draft.ReplaceGuid(guid, found))
                     Debug.LogWarning($"[Materials] {Path}: {recorded} has a new GUID; the material now points to it (save to keep the fix)");
             }
         }

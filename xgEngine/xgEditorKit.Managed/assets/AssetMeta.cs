@@ -75,6 +75,20 @@ namespace xg.editor
 
         public static AssetMeta Read(string path) => Parse(File.ReadAllText(path));
 
+        // An embedded meta block (AssetMetaStore): the same fields as a meta file, without version or importer.
+        public static AssetMeta FromJSON(JsonObject block) => Parse(block.ToJsonString());
+
+        // The embedded form: guid, tags, items (when there are any) and the extra keys, without version or importer.
+        public JsonObject ToEmbeddedJSON()
+        {
+            JsonObject full = JsonNode.Parse(ToJSON())!.AsObject();
+            full.Remove("version");
+            full.Remove("importer");
+            if (full["items"] is JsonArray { Count: 0 })
+                full.Remove("items");
+            return full;
+        }
+
         public string ToJSON()
         {
             Upgrade();

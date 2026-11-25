@@ -24,7 +24,7 @@ namespace xgEditor.CoreCLR
         {
             if (ProjectService.Assets is not { } assets)
                 return null;
-            MaterialAsset material = new();
+            MaterialAsset material = new() { Meta = new System.Text.Json.Nodes.JsonObject { ["guid"] = AssetMeta.NewGuid(), ["tags"] = new System.Text.Json.Nodes.JsonArray() } };
             if (AssetBrowser.Current?.List("shader").FirstOrDefault(c => ShaderAssets.IsShaderSource(c.Path)) is { Guid.Length: > 0 } shader)
                 material.Shader = shader.Guid;
             return assets.CreateAsset(folder, "New Material.xcm", material.ToJSON());

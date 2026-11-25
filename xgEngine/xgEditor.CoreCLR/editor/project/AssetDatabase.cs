@@ -176,11 +176,19 @@ namespace xgEditor.CoreCLR
 
         private static void MigrateMetas(string projectRoot)
         {
-            AssetMetaMigrationResult result = AssetMetaMigration.Run(Path.Combine(projectRoot, AssetIndex.RootFolder));
+            string root = Path.Combine(projectRoot, AssetIndex.RootFolder);
+            AssetMetaMigrationResult result = AssetMetaMigration.Run(root);
             if (result.Migrated + result.Unreadable > 0)
                 Debug.Log($"[Assets] Migrated {result.Migrated + result.Unreadable} meta file(s) from {AssetMeta.LegacyExtension} to {AssetMeta.Extension}");
             foreach (string problem in result.Problems)
                 Debug.LogWarning($"[Assets] Meta migration: {problem}");
+            foreach ((string asset, string? problem) in AssetMetaMigration.EmbedSidecars(root))
+            {
+                if (problem is null)
+                    Debug.Log($"[Assets] Moved the meta of {Path.GetRelativePath(projectRoot, asset).Replace('\\', '/')} into the file");
+                else
+                    Debug.LogWarning($"[Assets] Could not move the meta of {asset} into the file: {problem}");
+            }
         }
 
         public string ProjectRoot { get; }
@@ -332,11 +340,11 @@ namespace xgEditor.CoreCLR
             path = AssetIndex.Normalize(path);
             if (!_metas.ContainsKey(path))
                 return false;
-            string metaPath = FullPath(AssetMeta.PathFor(path));
+            string metaPath = MetaFileOf(path);
             AssetMeta meta;
             try
             {
-                meta = AssetMeta.Read(metaPath);
+                meta = AssetMetaStore.Read(FullPath(path));
             }
             catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
             {
@@ -346,7 +354,7 @@ namespace xgEditor.CoreCLR
             meta.Tags = NormalizeTags(tags).ToList();
             try
             {
-                meta.Write(metaPath);
+                AssetMetaStore.Write(FullPath(path), meta);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
@@ -369,9 +377,9 @@ namespace xgEditor.CoreCLR
         public bool SetProcessSettings(string path, System.Text.Json.Nodes.JsonObject settings)
         {
             path = AssetIndex.Normalize(path);
-            if (!_metas.ContainsKey(path))
+            if (!_metas.ContainsKey(path) || AssetMetaStore.IsEmbedded(path))
                 return false;
-            string metaPath = FullPath(AssetMeta.PathFor(path));
+            string metaPath = MetaFileOf(path);
             try
             {
                 AssetMeta meta = AssetMeta.Read(metaPath);
@@ -401,15 +409,15 @@ namespace xgEditor.CoreCLR
             path = AssetIndex.Normalize(path);
             if (!_metas.ContainsKey(path))
                 return null;
-            string metaPath = FullPath(AssetMeta.PathFor(path));
+            string metaPath = MetaFileOf(path);
             try
             {
-                AssetMeta meta = AssetMeta.Read(metaPath);
+                AssetMeta meta = AssetMetaStore.Read(FullPath(path));
                 AssetItemUpdate update = AssetItemTable.Update(meta.Items, imported);
                 foreach (string warning in update.Warnings)
                     Debug.LogWarning($"[Assets] {path}: {warning}");
                 meta.Items = update.Items;
-                if (meta.Write(metaPath))
+                if (AssetMetaStore.Write(FullPath(path), meta))
                 {
                     if (_cache.ByPath.TryGetValue(path, out AssetCache.Record? record))
                     {
@@ -554,7 +562,7 @@ namespace xgEditor.CoreCLR
         {
             _syncedIndexVersion = Index.Version;
             List<AssetFileState> assets = Index.Entries.Where(e => !e.IsFolder)
-                .Select(e => new AssetFileState(e.RelPath, e.Size, e.ModifiedTicksUtc)).ToList();
+                .Select(e => new AssetFileState(e.RelPath, e.Size, e.ModifiedTicksUtc, AssetMetaStore.IsEmbedded(e.RelPath))).ToList();
             List<AssetMetaState> metas = new();
             Dictionary<string, MetaInfo> infos = new(StringComparer.OrdinalIgnoreCase);
             HashSet<string> broken = new(StringComparer.OrdinalIgnoreCase);
@@ -589,6 +597,13 @@ namespace xgEditor.CoreCLR
                 infos[assetPath] = info;
                 metas.Add(new AssetMetaState(assetPath, info.Guid));
             }
+            foreach (AssetFileState asset in assets.Where(a => a.Embedded))
+            {
+                if (ReadEmbeddedMeta(asset, broken) is not MetaInfo info)
+                    continue;
+                infos[asset.Path] = info;
+                metas.Add(new AssetMetaState(asset.Path, info.Guid));
+            }
             assets.RemoveAll(a => broken.Contains(a.Path));
 
             Dictionary<string, AssetCacheState> cacheByGuid = new(StringComparer.OrdinalIgnoreCase);
@@ -611,7 +626,7 @@ namespace xgEditor.CoreCLR
                             AssetMeta meta;
                             try
                             {
-                                meta = AssetMeta.Read(metaFull);
+                                meta = AssetMetaStore.Read(FullPath(action.Path));
                             }
                             catch (JsonException)
                             {
@@ -619,7 +634,7 @@ namespace xgEditor.CoreCLR
                             }
                             string old = meta.Guid;
                             meta.Guid = AssetMeta.NewGuid();
-                            meta.Write(metaFull);
+                            AssetMetaStore.Write(FullPath(action.Path), meta);
                             infos[action.Path] = new MetaInfo(meta.Guid, NormalizeTags(meta.Tags).ToList());
                             Debug.LogWarning($"[Assets] {action.Path} had a duplicate or invalid GUID '{old}' (copied with its meta?); it now has {meta.Guid}");
                             break;
@@ -640,7 +655,7 @@ namespace xgEditor.CoreCLR
                         {
                             AssetMeta meta = AssetMeta.Create();
                             Pipeline.WriteDefaultSettings(action.Path, meta);
-                            meta.Write(metaFull);
+                            AssetMetaStore.Write(FullPath(action.Path), meta);
                             infos[action.Path] = new MetaInfo(meta.Guid, Array.Empty<string>());
                             created++;
                             break;
@@ -676,7 +691,7 @@ namespace xgEditor.CoreCLR
                 if (!_metas.TryGetValue(asset.Path, out MetaInfo? info))
                     continue;
                 _cache.ByPath.TryGetValue(asset.Path, out AssetCache.Record? old);
-                string metaFull = FullPath(AssetMeta.PathFor(asset.Path));
+                string metaFull = MetaFileOf(asset.Path);
                 records[asset.Path] = new AssetCache.Record
                 {
                     Path = asset.Path,
@@ -833,7 +848,7 @@ namespace xgEditor.CoreCLR
             AssetMeta meta;
             try
             {
-                meta = AssetMeta.Read(FullPath(AssetMeta.PathFor(path)));
+                meta = AssetMetaStore.Read(FullPath(path));
             }
             catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
             {
@@ -846,7 +861,7 @@ namespace xgEditor.CoreCLR
             RunningBuild running = new() { Guid = info.Guid, Task = task, Cancel = new CancellationTokenSource() };
             _runningBuilds[path] = running;
             task.Start();
-            AssetBuildRequest request = new(info.Guid, FullPath(path), record.Hash, meta.ImportSettings, meta.ProcessSettings, meta.Items,
+            AssetBuildRequest request = new(info.Guid, FullPath(path), AssetMetaStore.IsEmbedded(path) ? null : record.Hash, meta.ImportSettings, meta.ProcessSettings, meta.Items,
                 items =>
                 {
                     List<ImportedAssetItem> imported = items.ToList();
@@ -966,6 +981,36 @@ namespace xgEditor.CoreCLR
         }
 
         private string? HashFile(string relPath) => HashFullPath(FullPath(relPath));
+
+        // The file whose write time stands for the asset's meta: its .xmd, or the asset itself when the meta is embedded.
+        private string MetaFileOf(string path) => AssetMetaStore.IsEmbedded(path) ? FullPath(path) : FullPath(AssetMeta.PathFor(path));
+
+        // The meta embedded in a composition (null with no block yet, which creates one; unreadable files go to broken).
+        private MetaInfo? ReadEmbeddedMeta(AssetFileState asset, HashSet<string> broken)
+        {
+            if (_cache.ByPath.TryGetValue(asset.Path, out AssetCache.Record? record) && record.MetaModified == asset.ModifiedTicks && AssetMeta.IsValidGuid(record.Guid))
+                return new MetaInfo(record.Guid, record.Tags);
+            string full = FullPath(asset.Path);
+            try
+            {
+                System.Text.Json.Nodes.JsonNode? root = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(full),
+                    documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+                if (root is not System.Text.Json.Nodes.JsonObject document)
+                    throw new JsonException("not a JSON object");
+                _reportedBroken.Remove(asset.Path);
+                if (document[AssetMetaStore.EmbeddedKey] is not System.Text.Json.Nodes.JsonObject block)
+                    return null;
+                AssetMeta meta = AssetMeta.FromJSON(block);
+                return new MetaInfo(meta.Guid, NormalizeTags(meta.Tags).ToList());
+            }
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            {
+                broken.Add(asset.Path);
+                if (_reportedBroken.Add(asset.Path))
+                    Debug.LogError($"[Assets] Could not read {asset.Path}: {e.Message}. Fix it; it is left untouched.");
+                return null;
+            }
+        }
 
         private static string? HashFullPath(string fullPath)
         {

@@ -62,6 +62,46 @@ namespace xg.editor
             return new AssetMetaMigrationResult(migrated, unreadable, problems);
         }
 
+        // Moves the ".xmd" of every composition (AssetMetaStore.IsEmbedded) into the file as its "meta" block and deletes
+        // the sidecar; "version" goes to at least 2. The file is written before the sidecar is deleted. Returns each
+        // asset handled, with null or the reason it failed (the sidecar is then kept).
+        public static List<(string Asset, string? Problem)> EmbedSidecars(string root)
+        {
+            List<(string, string?)> results = new();
+            if (!Directory.Exists(root))
+                return results;
+            EnumerationOptions options = new() { RecurseSubdirectories = true, MatchCasing = MatchCasing.CaseInsensitive, IgnoreInaccessible = true };
+            foreach (string sidecar in Directory.GetFiles(root, "*" + AssetMeta.Extension, options))
+            {
+                string asset = AssetMeta.AssetPathOf(sidecar);
+                if (!AssetMetaStore.IsEmbedded(asset) || !File.Exists(asset))
+                    continue;
+                try
+                {
+                    AssetMeta meta = AssetMeta.Read(sidecar);
+                    if (System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(asset)) is not System.Text.Json.Nodes.JsonObject document)
+                        throw new JsonException("not a JSON object");
+                    if (document[AssetMetaStore.EmbeddedKey] is System.Text.Json.Nodes.JsonObject existing && AssetMeta.IsValidGuid(AssetMeta.FromJSON(existing).Guid))
+                    {
+                        File.Delete(sidecar);
+                        results.Add((asset, null));
+                        continue;
+                    }
+                    if (document["version"] is System.Text.Json.Nodes.JsonValue version && version.TryGetValue(out int number) && number < 2)
+                        document["version"] = 2;
+                    System.Text.Json.Nodes.JsonObject updated = AssetMetaStore.WithBlock(document, meta.ToEmbeddedJSON());
+                    JSONFile.WriteText(asset, updated.ToJsonString(JSONFile.Options) + "\r\n");
+                    File.Delete(sidecar);
+                    results.Add((asset, null));
+                }
+                catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+                {
+                    results.Add((asset, e.Message));
+                }
+            }
+            return results;
+        }
+
         private static bool SameGuid(string a, string b)
         {
             try

@@ -25,6 +25,7 @@
     <Compile Include="AssetNames.cs" />
     <Compile Include="assets\JSONFile.cs" />
     <Compile Include="assets\AssetMeta.cs" />
+    <Compile Include="assets\AssetMetaStore.cs" />
     <Compile Include="assets\AssetReconciler.cs" />
     <Compile Include="assets\AssetItems.cs" />
     <Compile Include="assets\AssetMetaMigration.cs" />

@@ -3,10 +3,11 @@
 
 namespace xg.editor
 {
-    // An asset file on disk (project-relative path, size in bytes, last write time in UTC ticks).
-    public readonly record struct AssetFileState(string Path, long Size, long ModifiedTicks);
+    // An asset file on disk (project-relative path, size in bytes, last write time in UTC ticks). Embedded: the asset
+    // carries its meta inside (AssetMetaStore), so an orphan meta file is never moved next to it.
+    public readonly record struct AssetFileState(string Path, long Size, long ModifiedTicks, bool Embedded = false);
 
-    // A meta file on disk, by the path of the asset it belongs to, and its GUID.
+    // A meta on disk (a meta file, or the block embedded in the asset), by the path of its asset, and its GUID.
     public readonly record struct AssetMetaState(string AssetPath, string Guid);
 
     // What the asset cache remembered about an asset at the last scan (the hash is null until computed).
@@ -106,6 +107,8 @@ namespace xg.editor
                 for (int a = 0; a < missing.Count; a++)
                 {
                     AssetFileState asset = missing[a];
+                    if (asset.Embedded)
+                        continue;
                     bool sameName = paths.Equals(FileName(asset.Path), orphanName);
                     bool match = known
                         ? cached.Size == asset.Size && (sameName || (cached.Hash is not null && string.Equals(HashOf(asset.Path), cached.Hash, StringComparison.OrdinalIgnoreCase)))

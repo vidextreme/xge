@@ -44,7 +44,7 @@ namespace xgEditor.CoreCLR
                 return;
             try
             {
-                AssetMeta meta = AssetMeta.Read(assets.FullPath(AssetMeta.PathFor(Path)));
+                AssetMeta meta = AssetMetaStore.Read(assets.FullPath(Path));
                 var process = meta.ProcessSettings;
                 Draft.Draft.WriteTo(process);
                 if (assets.SetProcessSettings(Path, process))
@@ -103,7 +103,7 @@ namespace xgEditor.CoreCLR
                 Height = height;
                 HasAlpha = TextureFormats.HasAlpha(pixels);
                 FileSize = new FileInfo(full).Length;
-                TextureSettings saved = TextureSettings.From(AssetMeta.Read(assets.FullPath(AssetMeta.PathFor(Path))).ProcessSettings);
+                TextureSettings saved = TextureSettings.From(AssetMetaStore.Read(assets.FullPath(Path)).ProcessSettings);
                 Draft = new TextureImportDraft(saved);
                 string? testDraft = Environment.GetEnvironmentVariable("XG_UI_TEST_TEXTURE_DRAFT");
                 if (!string.IsNullOrEmpty(testDraft))
