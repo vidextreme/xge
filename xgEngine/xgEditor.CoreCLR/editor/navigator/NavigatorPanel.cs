@@ -174,9 +174,9 @@ namespace xgEditor.CoreCLR
             string path = target.Path;
             AssetEntry? entry = _index?.Find(path);
             bool canTag = entry is { IsFolder: false };
-            menu.Item("Edit tags...", Icon.Tag, () => OpenEditTags(path), ContextMenu.EntryType.Button, canTag, canTag ? null : "Folders have no tags");
+            menu.Item("Edit Tags...", Icon.Tag, () => OpenEditTags(path), ContextMenu.EntryType.Button, canTag, canTag ? null : "Folders have no tags");
             bool bookmarked = _bookmarks?.IsBookmarked(path) ?? false;
-            menu.Item(bookmarked ? "Remove bookmark" : "Bookmark", Icon.Star, () =>
+            menu.Item(bookmarked ? "Remove Bookmark" : "Bookmark", Icon.Star, () =>
             {
                 if (bookmarked)
                     _bookmarks?.RemoveItem(path);
@@ -927,14 +927,14 @@ namespace xgEditor.CoreCLR
                 draw.Text(new Vector2(8.0f, 4.0f), Style.Color(StyleColor.Text), "Bookmarks");
             y += 26.0f;
             float half = (inner - 4.0f) * 0.5f;
-            if (ToggleButton.Draw(draw, "##add_search", Rect.FromXYWH(4.0f, y, half, SegHeight), Icon.Search, null, "Add search", null,
+            if (ToggleButton.Draw(draw, "##add_search", Rect.FromXYWH(4.0f, y, half, SegHeight), Icon.Search, null, "Add Search", null,
                 query.Length > 0 ? $"Save {NavigatorState.ModeName(_mode)}: {query}" : "Nothing to save", false, query.Length > 0, ToggleDot.None).Clicked())
                 bookmarks.AddSearch(NavigatorState.ModeName(_mode), query);
-            if (ToggleButton.Draw(draw, "##add_selection", Rect.FromXYWH(8.0f + half, y, half, SegHeight), Icon.Plus, null, "Add selection", null,
+            if (ToggleButton.Draw(draw, "##add_selection", Rect.FromXYWH(8.0f + half, y, half, SegHeight), Icon.Plus, null, "Add Selection", null,
                 _selected ?? "Select an asset first", false, _selected is not null, ToggleDot.None).Clicked() && _selected is not null)
                 bookmarks.AddItem(_selected);
             y += SegHeight + 4.0f;
-            if (ToggleButton.Draw(draw, "##close_on_select", Rect.FromXYWH(4.0f, y, inner, SegHeight), Icon.None, null, "Close on selection", null, null,
+            if (ToggleButton.Draw(draw, "##close_on_select", Rect.FromXYWH(4.0f, y, inner, SegHeight), Icon.None, null, "Close on Selection", null, null,
                 bookmarks.CloseOnSelection, true, ToggleDot.Check).Clicked())
                 bookmarks.CloseOnSelection = !bookmarks.CloseOnSelection;
             y += SegHeight + 6.0f;
@@ -1021,7 +1021,7 @@ namespace xgEditor.CoreCLR
             {
                 Rect trash = Rect.FromXYWH(row.max.x - 20.0f, y + 2.0f, 16.0f, 16.0f);
                 Result trashHit = Gui.HitArea(id + "_remove", trash);
-                Gui.Tooltip("Remove bookmark");
+                Gui.Tooltip("Remove Bookmark");
                 draw.Icon(Icon.Trash, trash.Center, 12.0f, Style.Color(trashHit.Hovered() ? StyleColor.Text : StyleColor.TextDim));
                 if (trashHit.Clicked())
                     return 2;
@@ -1612,6 +1612,11 @@ namespace xgEditor.CoreCLR
                     MaterialEditorPanel.Open(entry.RelPath);
                 else if (xg.editor.ObjectAsset.IsObject(entry.RelPath))
                     ObjectEditorPanel.Open(entry.RelPath);
+                else if (xg.editor.SceneAsset.IsScene(entry.RelPath))
+                {
+                    string scenePath = entry.RelPath;
+                    SceneDialogs.Guard(() => SceneManager.Open(scenePath));
+                }
                 else
                     OpenFile(entry.FullPath);
             }

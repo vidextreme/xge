@@ -341,6 +341,18 @@ namespace xg::imui
             Context* _ctx;
         };
 
+        class DisabledScope
+        {
+        public:
+            DisabledScope(Context* ctx, bool disabled) : _ctx(ctx) { XG_ImUIBeginDisabled(_ctx, disabled); }
+            ~DisabledScope() { if (_ctx) XG_ImUIEndDisabled(_ctx); }
+            DisabledScope(const DisabledScope&) = delete;
+            DisabledScope& operator=(const DisabledScope&) = delete;
+            DisabledScope(DisabledScope&& o) noexcept : _ctx(std::exchange(o._ctx, nullptr)) {}
+        private:
+            Context* _ctx;
+        };
+
         class ToolbarScope
         {
         public:
@@ -439,6 +451,8 @@ namespace xg::imui
         void FlexibleSpace() const { XG_ImUIFlexibleSpace(_ctx); }
         void Space(float pixels) const { XG_ImUISpace(_ctx, pixels); }
         [[nodiscard]] FontScope Font(FontStyle style) const { return FontScope(_ctx, style); }
+        [[nodiscard]] DisabledScope Disabled(bool disabled) const { return DisabledScope(_ctx, disabled); }
+        bool TakeRowRightClick() const { return XG_ImUITakeRowRightClick(_ctx); }
         [[nodiscard]] ListScope List(const char* id, ListState& state, const Vec2& size = Vec2(0.0f, 0.0f)) const { return ListScope(_ctx, id, size, state); }
 
     private:

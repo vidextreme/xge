@@ -23,6 +23,8 @@ namespace xg.editor
         public string? Icon { get; set; }
         public string? IconColor { get; set; }
         public ToolItemStyle Style { get; set; }
+        // Stays usable while the selection holds a locked actor (ActorEditorState); otherwise it turns Unusable.
+        public bool AllowLocked { get; set; }
     }
 
     // Registers a tool class (ITool with a parameterless constructor).
@@ -62,6 +64,9 @@ namespace xg.editor
         public string Label { get; }
         public string? Validate { get; set; }
         public bool Default { get; set; }
+        // Name of a static or same-target bool M() giving the on state (re-read on every refresh) instead of the stored
+        // value, for toggles that reflect the selection.
+        public string? State { get; set; }
     }
 
     // Marks ToolUsability M() as a validator a button or toggle can name. Re-run on selection changes and clicks.

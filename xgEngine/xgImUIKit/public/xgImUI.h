@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 23;
+    inline constexpr uint32_t ApiVersion = 25;
 
     struct Context;
     struct PanelEntry;
@@ -104,6 +104,10 @@ namespace xg::imui
         Clock, Stack,
         PlayWindow,
         Settings, Code, Save,
+        // ApiVersion 24.
+        Eye, FolderOpen, Link,
+        // ApiVersion 25.
+        Group, GroupOpen,
         Count
     };
 
@@ -457,6 +461,12 @@ namespace xg
     // Fonts: affects widgets and Painter text until the matching PopFont.
     XG_MODULE_EXPORT void XG_ImUIPushFont(imui::Context* ctx, imui::FontStyle style);
     XG_MODULE_EXPORT void XG_ImUIPopFont(imui::Context* ctx);
+    // Items between Begin/EndDisabled don't react to input and draw dimmed (still readable) while disabled is true
+    // (ApiVersion 24). Property rows still report RightClicked, so a read-only row can offer Copy value.
+    XG_MODULE_EXPORT void XG_ImUIBeginDisabled(imui::Context* ctx, bool disabled);
+    XG_MODULE_EXPORT void XG_ImUIEndDisabled(imui::Context* ctx);
+    // True once after a property row was right-clicked (disabled rows too), then cleared (ApiVersion 24).
+    XG_MODULE_EXPORT bool XG_ImUITakeRowRightClick(imui::Context* ctx);
 
     // Layout. The panel body (and each modal) is a vertical layout; Begin/EndHorizontal make rows and
     // Begin/EndVertical columns, so items are placed without SameLine. A size of 0 on TextField, SearchField,

@@ -37,6 +37,7 @@
     <Compile Include="assets\ShaderAssets.cs" />
     <Compile Include="assets\MaterialAssets.cs" />
     <Compile Include="assets\ObjectAssets.cs" />
+    <Compile Include="assets\SceneAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />
     <Compile Include="tools\ContextMenus.cs" />
@@ -53,6 +54,7 @@
     <Compile Include="tools\ToolUndo.cs" />
     <Compile Include="tools\ToolToggleStore.cs" />
     <Compile Include="tools\Tools.cs" />
+    <Compile Include="tools\ActorEditorState.cs" />
     <Compile Include="tools\SelectTool.cs" />
     <Compile Include="tools\SelectionCommands.cs" />
     <Compile Include="SerializedProperty.cs" />

@@ -192,7 +192,7 @@ namespace xg {
         void WriteMaterial(GpuMaterial& material, const MaterialDesc& desc);
         void RefreshMaterialSets();
         void RecordLitMesh(const GpuMesh& mesh, VkPipelineLayout layout, const float* world, const float* viewProjection);
-        void RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection);
+        void RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, bool skipEditorHidden);
         bool CreateRenderViewTargets(RenderView& view, uint32_t width, uint32_t height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);

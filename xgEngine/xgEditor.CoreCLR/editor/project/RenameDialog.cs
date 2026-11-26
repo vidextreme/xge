@@ -20,9 +20,24 @@ namespace xgEditor.CoreCLR
         public int DelayFrames { get; init; }
     }
 
-    // The editor's Rename dialog for an asset or folder, usable from any panel or tool: RenameDialog.Open(path). The
-    // shell draws it every frame (OnGUI from EditorShell). Title "Rename <kind>", the item's thumbnail, the name without
-    // its extension and the extension read-only; renames through AssetDatabase.Rename (the file and its meta).
+    // What the Rename dialog renames: Title ("Rename Actor"), the dim line under it, the starting name and a read-only
+    // extension, plus delegates for the preview (48 px square), validation (null = fine) and the rename itself (null =
+    // done, otherwise the error to show). Assets get theirs from RenameDialog.Open(path); other callers build one.
+    public sealed class RenameRequest
+    {
+        public string Title { get; init; } = "Rename";
+        public string Context { get; init; } = string.Empty;
+        public string Name { get; init; } = string.Empty;
+        public string Extension { get; init; } = string.Empty;
+        public Action<Painter, Rect>? DrawPreview { get; init; }
+        public Func<string, string?>? Validate { get; init; }
+        public required Func<string, string?> Commit { get; init; }
+    }
+
+    // The editor's Rename dialog, usable from any panel or tool: RenameDialog.Open(path) for an asset or folder (title
+    // "Rename <kind>", its thumbnail, the name without its extension and the extension read-only; renames through
+    // AssetDatabase.Rename, the file and its meta), or RenameDialog.Open(request) for anything else (actors). The shell
+    // draws it every frame (OnGUI from EditorShell).
     public static class RenameDialog
     {
         private const string ModalId = "xg_rename";
@@ -30,22 +45,28 @@ namespace xgEditor.CoreCLR
         private const float ThumbnailSize = 48.0f;
 
         private static readonly TextBuffer _text = new(256);
-        private static string? _pending;
-        private static RenameOptions _pendingOptions = new();
+        private static Func<RenameRequest?>? _pending;
         private static int _delay;
         private static bool _open;
-        private static string? _path;
-        private static RenameOptions _options = new();
+        private static RenameRequest? _request;
         private static string? _error;
         private static bool _setText;
 
-        public static bool IsOpen => _path is not null;
+        public static bool IsOpen => _request is not null;
 
         public static void Open(string relPath, RenameOptions? options = null)
         {
-            _pending = AssetIndex.Normalize(relPath);
-            _pendingOptions = options ?? new RenameOptions();
-            _delay = Math.Max(_pendingOptions.DelayFrames, 0);
+            string path = AssetIndex.Normalize(relPath);
+            RenameOptions settings = options ?? new RenameOptions();
+            Open(() => AssetRequest(path, settings), settings.DelayFrames);
+        }
+
+        public static void Open(RenameRequest request, int delayFrames = 0) => Open(() => request, delayFrames);
+
+        private static void Open(Func<RenameRequest?> request, int delayFrames)
+        {
+            _pending = request;
+            _delay = Math.Max(delayFrames, 0);
         }
 
         public static void OnGUI()
@@ -57,15 +78,13 @@ namespace xgEditor.CoreCLR
                 _open = false;
                 Gui.OpenPopup(ModalId);
             }
-            AssetEntry? entry = _path is null ? null : ProjectService.Assets?.Index.Find(_path);
-            string title = entry is null ? "Rename" : "Rename " + AssetIndex.LabelOf(entry.Kind);
-            using var modal = Gui.Modal(ModalId, title, new Vector2(Width, 0.0f));
+            using var modal = Gui.Modal(ModalId, _request?.Title ?? "Rename", new Vector2(Width, 0.0f));
             if (!modal.IsOpen)
             {
-                _path = null;
+                _request = null;
                 return;
             }
-            if (_path is null || entry is null)
+            if (_request is not RenameRequest request)
             {
                 Gui.ClosePopup();
                 return;
@@ -76,37 +95,67 @@ namespace xgEditor.CoreCLR
                 {
                     Rect rect = Rect.FromXYWH(0.0f, 0.0f, ThumbnailSize, ThumbnailSize);
                     thumb.Draw.RectFilled(rect, Style.Color(StyleColor.SegmentBg), 4.0f);
-                    AssetThumbnails.Draw(thumb.Draw, Rect.FromXYWH(4.0f, 4.0f, ThumbnailSize - 8.0f, ThumbnailSize - 8.0f), entry, 28.0f);
+                    request.DrawPreview?.Invoke(thumb.Draw, Rect.FromXYWH(4.0f, 4.0f, ThumbnailSize - 8.0f, ThumbnailSize - 8.0f));
                     thumb.Draw.Rect(rect, Style.Color(StyleColor.Border), 4.0f);
                 }
                 using (Gui.Vertical())
-                    DrawBody(entry);
+                    DrawBody(request);
             }
         }
 
         private static void Begin()
         {
-            string path = _pending!;
+            Func<RenameRequest?> make = _pending!;
             _pending = null;
-            AssetEntry? entry = ProjectService.Assets?.Index.Find(path);
-            if (entry is null)
-            {
-                Debug.LogWarning($"[Assets] Can't rename '{path}': it isn't in the project");
+            if (make() is not RenameRequest request)
                 return;
-            }
-            _path = path;
-            _options = _pendingOptions;
-            _text.Text = _options.KeepExtension ? entry.DisplayName : entry.Name;
+            _request = request;
+            _text.Text = request.Name;
             _error = null;
             _setText = true;
             _open = true;
         }
 
-        private static void DrawBody(AssetEntry entry)
+        // An asset or folder: kind title, thumbnail, display path, the extension kept (unless options say otherwise).
+        private static RenameRequest? AssetRequest(string path, RenameOptions options)
         {
-            string extension = _options.KeepExtension ? entry.DisplayExtension : string.Empty;
-            using (Gui.Font(FontStyle.Mono))
-                Gui.Label(AssetNames.DisplayPath(entry.RelPath, entry.IsFolder));
+            AssetEntry? entry = ProjectService.Assets?.Index.Find(path);
+            if (entry is null)
+            {
+                Debug.LogWarning($"[Assets] Can't rename '{path}': it isn't in the project");
+                return null;
+            }
+            string extension = options.KeepExtension ? entry.DisplayExtension : string.Empty;
+            return new RenameRequest
+            {
+                Title = "Rename " + AssetIndex.LabelOf(entry.Kind),
+                Context = AssetNames.DisplayPath(entry.RelPath, entry.IsFolder),
+                Name = options.KeepExtension ? entry.DisplayName : entry.Name,
+                Extension = extension,
+                DrawPreview = (draw, rect) => AssetThumbnails.Draw(draw, rect, entry, 28.0f),
+                Validate = name => AssetDatabase.ValidateName(name + extension),
+                Commit = name =>
+                {
+                    if (ProjectService.Assets is not { } assets)
+                        return "No project is open";
+                    string newName = name + extension;
+                    if (assets.Rename(path, newName) is string failed)
+                        return failed;
+                    string newPath = (entry.Parent.Length > 0 ? entry.Parent + "/" : string.Empty) + newName;
+                    Debug.Log($"[Debug] Rename {path} -> {newPath}");
+                    options.Renamed?.Invoke(newPath);
+                    return null;
+                },
+            };
+        }
+
+        private static void DrawBody(RenameRequest request)
+        {
+            if (request.Context.Length > 0)
+            {
+                using (Gui.Font(FontStyle.Mono))
+                    Gui.Label(request.Context);
+            }
             using (Gui.Horizontal(0.0f))
             {
                 if (_setText)
@@ -114,9 +163,9 @@ namespace xgEditor.CoreCLR
                 TextFieldFlags flags = _setText ? TextFieldFlags.SetText : TextFieldFlags.None;
                 _setText = false;
                 if ((Gui.TextField("##rename_name", _text, "New name", 0.0f, flags) & Result.Changed) != 0)
-                    _error = AssetDatabase.ValidateName(_text.Text.Trim() + extension);
-                if (extension.Length > 0)
-                    DrawExtension(extension);
+                    _error = Check(request, _text.Text.Trim());
+                if (request.Extension.Length > 0)
+                    DrawExtension(request.Extension);
             }
             if (_error is not null)
             {
@@ -131,14 +180,17 @@ namespace xgEditor.CoreCLR
                 if (Gui.Button("Cancel") || Gui.KeyPressed(Key.Escape, false))
                 {
                     Gui.ClosePopup();
-                    _path = null;
+                    _request = null;
                     return;
                 }
                 commit |= Gui.Button("Rename");
             }
             if (commit)
-                Commit(entry, extension);
+                Commit(request);
         }
+
+        private static string? Check(RenameRequest request, string name) =>
+            name.Length == 0 ? "Enter a name" : request.Validate?.Invoke(name);
 
         private static void DrawExtension(string extension)
         {
@@ -158,28 +210,21 @@ namespace xgEditor.CoreCLR
             Gui.Tooltip("The extension stays the same");
         }
 
-        private static void Commit(AssetEntry entry, string extension)
+        private static void Commit(RenameRequest request)
         {
-            AssetDatabase? assets = ProjectService.Assets;
-            if (assets is null || _path is null)
-                return;
-            string newName = _text.Text.Trim() + extension;
-            if (AssetDatabase.ValidateName(newName) is string invalid)
+            string name = _text.Text.Trim();
+            if (Check(request, name) is string invalid)
             {
                 _error = invalid;
                 return;
             }
-            string oldPath = _path;
-            if (assets.Rename(oldPath, newName) is string failed)
+            if (request.Commit(name) is string failed)
             {
                 _error = failed;
                 return;
             }
-            string newPath = (entry.Parent.Length > 0 ? entry.Parent + "/" : string.Empty) + newName;
-            Debug.Log($"[Debug] Rename {oldPath} -> {newPath}");
             Gui.ClosePopup();
-            _path = null;
-            _options.Renamed?.Invoke(newPath);
+            _request = null;
         }
     }
 }

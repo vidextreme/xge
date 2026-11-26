@@ -117,6 +117,13 @@ XG_MODULE_EXPORT int32_t XG_MeshRenderStats(xg::ScriptEngine* engine, int32_t* o
     return system ? system->GetDrawCount() : 0;
 }
 
+// Replaces the actors hidden in the editor (their scene draws are skipped by the Scene view).
+XG_MODULE_EXPORT void XG_MeshRenderSetEditorHidden(xg::ScriptEngine* engine, const uint64_t* actors, uint32_t count)
+{
+    if (xg::MeshRenderSystem* system = engine ? engine->GetSubsystem<xg::MeshRenderSystem>() : nullptr)
+        system->SetEditorHidden(actors, actors ? count : 0);
+}
+
 // Draws the object drive system added last frame, and how many object instances were ready.
 XG_MODULE_EXPORT int32_t XG_ObjectDriveStats(xg::ScriptEngine* engine, int32_t* outReady)
 {

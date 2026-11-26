@@ -51,6 +51,7 @@ namespace xg.editor
             public required string Group;
             public required int Order;
             public MethodInfo? Validator;
+            public MethodInfo? StateGetter;
             public ToolUsability Usability = ToolUsability.Usable;
             public bool State;
             public ComponentIcon Icon;
@@ -90,6 +91,7 @@ namespace xg.editor
             public bool State;
             public ComponentIcon Icon;
             public bool HasSeparator = false;
+            public bool AllowLocked;
         }
         private const string DefaultCategory = "Tools";
         private const string DefaultGroup = "General";
@@ -164,6 +166,8 @@ namespace xg.editor
                     ? ToolUsability.Usable
                     : SafeUsability(ctxMenu.Key, () => (ToolUsability)validator.Invoke(validator.IsStatic ? null : ctxMenu.Target, null)!);
 
+                if (ctxMenu.Usability == ToolUsability.Usable && !ctxMenu.AllowLocked && ActorEditorState.AnyLockedInHierarchy(context.Targets))
+                    continue;
                 if(ctxMenu.Usability == ToolUsability.Usable)
                 {
                     if (ctxMenu.HasSeparator)
@@ -454,8 +458,12 @@ namespace xg.editor
             }
         }
 
-        internal ToolUsability SafeMenuUsability(IContextMenuTool tool, ContextMenuContext context) =>
-            SafeUsability(tool.GetType().Name, () => tool.OnContextMenu(context));
+        internal ToolUsability SafeMenuUsability(IContextMenuTool tool, ContextMenuContext context)
+        {
+            ToolUsability usability = SafeUsability(tool.GetType().Name, () => tool.OnContextMenu(context));
+            return usability == ToolUsability.Usable && !tool.AllowLocked && ActorEditorState.AnyLockedInHierarchy(context.Targets)
+                ? ToolUsability.Unusable : usability;
+        }
 
         internal void SafeMenuGUI(IContextMenuTool tool, ContextMenu menu, ContextMenuContext context) =>
             Safe(tool.GetType().Name, () => tool.OnContextMenuGUI(menu, context));
@@ -612,6 +620,14 @@ namespace xg.editor
                     Validator = validator,
                     Icon = ComponentIcons.Resolve(layout.Icon, layout.IconColor, imui.Icon.None),
                 };
+                if (isToggle && toggle!.State is string stateName)
+                {
+                    MethodInfo? getter = type.GetMethod(stateName, flags);
+                    if (getter is null || getter.ReturnType != typeof(bool) || getter.GetParameters().Length != 0 || (!getter.IsStatic && target is null))
+                        Debug.LogError($"[Tools] {where}: State = \"{stateName}\" must name a bool {stateName}() on {type.Name}");
+                    else
+                        entry.StateGetter = getter;
+                }
                 if (isToggle)
                     entry.State = ToggleStore.TryGet(key, out bool stored) ? stored : toggle!.Default;
                 _controls.Add(entry);
@@ -686,6 +702,7 @@ namespace xg.editor
                     Validator = validator,
                     Icon = ComponentIcons.Resolve(layout.Icon, layout.IconColor, imui.Icon.None),
                     HasSeparator = hasSeparator,
+                    AllowLocked = layout.AllowLocked,
                 };
                 _contextMenuEntries.Add(entry);
             }
@@ -786,10 +803,11 @@ namespace xg.editor
 
         private void Refresh()
         {
+            bool locked = ActorEditorState.AnyLockedInHierarchy(_selection);
             foreach (ToolEntry entry in _tools)
             {
                 ITool tool = entry.Tool;
-                entry.Usability = SafeUsability(entry.Attribute.Name, () => tool.OnSelectItems(_selection));
+                entry.Usability = Gate(SafeUsability(entry.Attribute.Name, () => tool.OnSelectItems(_selection)), locked, entry.Attribute.AllowLocked);
             }
             if (_active is ToolEntry current && !IsUsable(current))
             {
@@ -802,11 +820,16 @@ namespace xg.editor
             foreach (ControlEntry control in _controls)
             {
                 MethodInfo? validator = control.Validator;
-                control.Usability = validator is null
+                control.Usability = Gate(validator is null
                     ? ToolUsability.Usable
-                    : SafeUsability(control.Key, () => (ToolUsability)validator.Invoke(validator.IsStatic ? null : control.Target, null)!);
+                    : SafeUsability(control.Key, () => (ToolUsability)validator.Invoke(validator.IsStatic ? null : control.Target, null)!), locked, control.Layout.AllowLocked);
+                if (control.StateGetter is MethodInfo getter)
+                    Safe(control.Key, () => control.State = (bool)getter.Invoke(getter.IsStatic ? null : control.Target, null)!);
             }
         }
+
+        private static ToolUsability Gate(ToolUsability usability, bool locked, bool allowLocked) =>
+            locked && !allowLocked && usability == ToolUsability.Usable ? ToolUsability.Unusable : usability;
 
         private void Invoke(ControlEntry control)
         {

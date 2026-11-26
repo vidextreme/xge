@@ -22,6 +22,8 @@ namespace xg.editor
         // Entries of different groups are separated; lower priorities come first.
         string ContextMenuGroup => GetType().Name;
         int ContextMenuPriority => 0;
+        // Stays usable for locked actor targets (ActorEditorState); otherwise its entries show disabled.
+        bool AllowLocked => false;
 
         ToolUsability ITool.OnSelectItems(object[] selection) => ToolUsability.NotApplicable;
     }

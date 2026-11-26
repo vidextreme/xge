@@ -58,7 +58,8 @@ namespace xg
         virtual ActorID GetCompositionActor(ActorID driver, const char* name) const = 0;
         // The driver actor that owns a Composition Actor (0 when the actor isn't one).
         virtual ActorID GetCompositionOwner(ActorID actor) const = 0;
-        // Takes the oldest spawned Composition Actor whose authored components haven't been added yet: writes its id
+        // Takes the oldest spawned Composition Actor whose authored components haven't been added yet (every spawned
+        // actor is queued; "[]" when it has none): writes its id
         // and returns the byte count of its components JSON array, copying it into json when capacity allows (call
         // again with a larger buffer: the entry stays until it fits). -1 when none is waiting.
         virtual int32_t TakeSpawned(ActorID* outActor, char* json, int32_t capacity) = 0;

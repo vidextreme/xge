@@ -41,12 +41,30 @@ namespace xgEditor.CoreCLR
             ImUI.SetShellBar(ShellBar.StatusBar, DrawStatusBar);
         }
 
+        // "/ <scene>" after the project name, with an amber dot while the active scene has unsaved changes.
+        private static void DrawSceneName()
+        {
+            if (SceneManager.Active is not EditorScene scene)
+                return;
+            Gui.Label("/ " + scene.Name);
+            Gui.Tooltip(scene.Path ?? "Not saved to a file yet (File > Save Scene)");
+            if (scene.IsDirty)
+            {
+                using (var dot = Gui.Canvas("##scene_dirty", new Vector2(8.0f, 18.0f)))
+                    dot.Draw.CircleFilled(new Vector2(4.0f, 9.0f), 3.5f, Style.Color(StyleColor.IconWarning));
+                Gui.Tooltip("Unsaved scene changes");
+            }
+        }
+
         private static void DrawToolbar()
         {
             ProjectInfo? project = ProjectService.Current;
             Gui.Label(project?.Name ?? "No project");
+            DrawSceneName();
             DrawPlayCapsule();
             RenameDialog.OnGUI();
+            SaveAsDialog.OnGUI();
+            SceneDialogs.OnGUI();
             Gui.FlexibleSpace();
 
             float buildWidth = ToggleButton.Measure("Build Scripts", null, false);

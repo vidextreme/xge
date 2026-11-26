@@ -58,6 +58,8 @@ namespace xgEditor.CoreCLR
             public ulong Mesh;
             public ulong Material;
             public fixed float World[16];
+            public uint Flags;
+            public uint Reserved;
         }
 
         // Mirrors xg::MeshDesc: Stride 52 (xg::shaders::SceneLitVertex), Format 0 = 16-bit indices, 1 = 32-bit.
@@ -83,6 +85,7 @@ namespace xgEditor.CoreCLR
 
         public const uint FlagHideTestScene = 1;
         public const uint FlagHideSceneDraws = 2;
+        public const uint FlagHideEditorHidden = 4;
 
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewMaterialDraws")]
         public static partial void SetMaterialDraws(ulong id, MaterialDraw* draws, uint count);

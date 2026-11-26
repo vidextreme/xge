@@ -80,7 +80,7 @@ auto* factory = engine->GetSubsystem<SceneGraphFactory>(module);
 - The subsystem's type id is the FNV-1a hash of the base type name (`SuperTypeID`).
 - `RegisterSubsystemWithAlias(module, subsystem, "name")` / `GetSubsystemWithAlias(module, "name")` register several subsystems of the same type on one module, for example one service per named context.
 - Passing `nullptr` as the module registers on the root.
-- The engine registers these on the root at startup: `Messenger`, `ActorRegistry`, `ComponentDataRegistry`, `TransformSystem`, `JobSystem`, `ResourceSystem`, `EventDispatcher`, `SceneGraphFactory` and `EventQueue`. `game.kernel` registers the actor tree (`SceneGraph`) on the root too. See [SceneGraph and actors](xge-scenegraph.md) and [Native component data](xge-components2.md).
+- The engine registers these on the root at startup: `Messenger`, `ActorRegistry`, `ComponentDataRegistry`, `TransformSystem`, `JobSystem`, `ResourceSystem`, `MeshRenderSystem`, `ObjectDriveSystem`, `EventDispatcher`, `SceneGraphFactory` and `EventQueue`. `game.kernel` registers the actor tree (`SceneGraph`) on the root too. See [SceneGraph and actors](xge-scenegraph.md) and [Native component data](xge-components2.md).
 
 ---
 
@@ -228,11 +228,24 @@ Codec details (native vs dynamic codecs, the `"*"` fallback) are in the [design 
 
 ---
 
+## Engine subsystems
+
+Besides the module tree, the engine registers root subsystems every module shares (each module reaches them through `ScriptEngine::GetSubsystem<T>()`):
+
+- `JobSystem`: worker and main-thread jobs with dependencies.
+- `ResourceSystem`: ref-counted runtime resources with async loads, directory sources and invalidation.
+- `ComponentDataRegistry` and `TransformSystem`: native component pools and transforms ([native component data](xge-components2.md)).
+- `MeshRenderSystem` and `ObjectDriveSystem`: turn the `xg.MeshRenderer` and `xg.ObjectDriver` pools into scene draws each frame, in edit mode too.
+
+See [Data and assets](xge-data.md) for the resource types and the asset pipeline.
+
+---
+
 ## Future design
 
 Not implemented yet:
 
-- **Dispatch groups and thread affinity:** modules assigned to worker, pinned or dedicated domains, with cross-thread queued message delivery. `ThreadDomain` and a `DispatchSystem` exist but aren't wired.
+- **Dispatch groups and thread affinity:** modules assigned to worker, pinned or dedicated domains, with cross-thread queued message delivery. `ThreadDomain` exists but isn't wired; parallel work uses the `JobSystem`.
 - **Headless multi-instance servers:** a server module hosting N isolated game-instance subtrees with no renderer.
 - **Shared world data:** parent modules owning shared state (world state, caches, config, services) that children request through the Messenger.
 - **Hot-reload boundaries:** unloading and reloading a subtree. CoreCLR assemblies currently load into a non-collectible context, and native DLLs aren't unloaded.

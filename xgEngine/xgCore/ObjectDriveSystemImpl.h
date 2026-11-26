@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "xgMeshRenderer.h"
 #include "xgObjectDriver.h"
 #include "xgRenderer.h"
 
@@ -36,7 +37,7 @@ namespace xg
         int32_t TakeSpawned(ActorID* outActor, char* json, int32_t capacity) override;
 
         // Appends the frame's object draws (the engine calls it after the transform update, before the mesh renderers).
-        void Update(Renderer* renderer, std::vector<SceneDraw>& draws);
+        void Update(Renderer* renderer, std::vector<SceneDraw>& draws, const MeshRenderSystem* hidden);
 
     private:
         struct PartState

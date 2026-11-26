@@ -61,6 +61,15 @@ namespace xgEditor.CoreCLR
             return assets.CreateAsset(folder, name + ObjectAsset.Extension, asset.ToJSON());
         }
 
+        // An empty scene. Returns its path.
+        public static string? CreateScene(string folder)
+        {
+            if (ProjectService.Assets is not { } assets)
+                return null;
+            SceneAsset scene = new() { Meta = NewMeta() };
+            return assets.CreateAsset(folder, "New Scene" + SceneAsset.Extension, scene.ToJSON());
+        }
+
         private static System.Text.Json.Nodes.JsonObject NewMeta() =>
             new() { ["guid"] = AssetMeta.NewGuid(), ["tags"] = new System.Text.Json.Nodes.JsonArray() };
 

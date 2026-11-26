@@ -733,7 +733,7 @@ namespace xg {
         _commandList->DrawIndexedInstanced(mesh.IndexCount, 1, 0, 0, 0);
     }
 
-    void RendererDX12::RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, D3D12_GPU_DESCRIPTOR_HANDLE heapStart)
+    void RendererDX12::RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, D3D12_GPU_DESCRIPTOR_HANDLE heapStart, bool skipEditorHidden)
     {
         if (draws.empty() || !_litPipeline)
             return;
@@ -741,6 +741,8 @@ namespace xg {
         _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         for (const SceneDraw& draw : draws)
         {
+            if (skipEditorHidden && (static_cast<uint32_t>(draw.Flags) & static_cast<uint32_t>(SceneDrawFlags::EditorHidden)) != 0)
+                continue;
             GpuMesh* mesh = FindMesh(draw.Mesh);
             if (!mesh)
                 continue;
@@ -998,9 +1000,9 @@ namespace xg {
                     RecordLitMesh(*mesh, draw.World, constants.ViewProjection);
                 }
             }
-            RecordSceneDraws(view.MaterialDraws, constants.ViewProjection, heapStart);
+            RecordSceneDraws(view.MaterialDraws, constants.ViewProjection, heapStart, false);
             if (!HasFlag(view.Flags, RenderViewFlags::HideSceneDraws))
-                RecordSceneDraws(_sceneDraws, constants.ViewProjection, heapStart);
+                RecordSceneDraws(_sceneDraws, constants.ViewProjection, heapStart, HasFlag(view.Flags, RenderViewFlags::HideEditorHidden));
 
             if (testScene)
             {

@@ -546,6 +546,7 @@ namespace xgEditor.CoreCLR
                     body.Expose = xg.editor.ObjectNodeExpose.Actor;
                     body.Components = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject
                     {
+                        ["id"] = "a0a0a0a0a0a0a0a0",
                         ["type"] = "xgEditor.CoreCLR.WeaponSample, xgEditor.CoreCLR",
                         ["fields"] = new System.Text.Json.Nodes.JsonObject { ["Ammo"] = new System.Text.Json.Nodes.JsonObject { ["type"] = "System.Int32", ["value"] = 7 } },
                     });
@@ -602,6 +603,82 @@ namespace xgEditor.CoreCLR
                     string weapon = components.OfType<WeaponSample>().FirstOrDefault() is WeaponSample sample ? $"WeaponSample Ammo {sample.Ammo}" : "no WeaponSample";
                     Debug.Log($"[Objects] test: Composition Actor {_actorName} = {composed.Value} (parent {ActorTree.GetParent(composed)?.Value ?? 0}, owner {ObjectDriverComponent.CompositionOwner(composed).Value}, driver {_actor.ID.Value}), {components.Count} component(s), {weapon}");
                 }
+            }
+        }
+    }
+
+    // Test hook (XG_SCENE_TEST=<scene path>): when the scene file is missing, builds a scene after 30 frames (an empty
+    // actor with a child, and an actor drawing Assets/Models/bear.xco), changes the authored WeaponSample of its
+    // Composition Actor (Ammo 11) once it spawned, saves the scene and logs [Scenes] lines. When the file exists it is
+    // opened (as the last scene, or explicitly) and the members and the reapplied override are logged at frame 200.
+    internal static class SceneSmoke
+    {
+        static int _frames;
+        static bool _creating;
+        static Actor? _gun;
+
+        public static void Update()
+        {
+            string? path = Environment.GetEnvironmentVariable("XG_SCENE_TEST");
+            if (string.IsNullOrEmpty(path) || ProjectService.Assets is not { } assets)
+                return;
+            _frames++;
+            if (_frames == 30)
+            {
+                if (File.Exists(assets.FullPath(path)))
+                {
+                    if (SceneManager.Active?.Path != path)
+                        SceneManager.Open(path);
+                    return;
+                }
+                _creating = true;
+                SceneManager.New();
+                Actor? root = SceneManager.CreateActor("Root");
+                if (root is not null)
+                {
+                    root.Transform!.LocalPosition = new Vector3(0.0f, 0.5f, 2.0f);
+                    SceneManager.CreateActor("Child", root.ID);
+                }
+                _gun = SceneManager.CreateFromObject("Assets/Models/bear.xco");
+                if (_gun is not null)
+                    _gun.Transform!.LocalScale = new Vector3(3.0f, 3.0f, 3.0f);
+                Debug.Log($"[Scenes] test: built a scene with {SceneManager.Active?.Members.Count} member(s)");
+            }
+            if (_creating && _frames == 150 && _gun is not null && SceneManager.Active is { } scene)
+            {
+                ActorID composed = ObjectDriverComponent.GetCompositionActor(_gun.ID, "Bear");
+                List<object> components = new();
+                ActorTree.GetComponents(composed, components);
+                if (components.OfType<WeaponSample>().FirstOrDefault() is WeaponSample weapon)
+                    weapon.Ammo = 11;
+                Debug.Log($"[Scenes] test: Composition Actor Bear = {composed.Value}, WeaponSample {(components.OfType<WeaponSample>().Any() ? "set to Ammo 11" : "missing")}");
+                SceneManager.Touch(scene);
+                SceneManager.Update();
+                SceneManager.SaveAs(scene, path);
+            }
+            if (!_creating && _frames == 200 && SceneManager.Active is { } loaded)
+            {
+                foreach ((ulong id, string sceneId) in loaded.Members)
+                {
+                    ActorID actor = new(id);
+                    List<object> components = new();
+                    ActorTree.GetComponents(actor, components);
+                    string parent = ActorTree.GetParent(actor) is { } p ? ActorTree.GetName(p) : "-";
+                    string position = ActorRegistry.TryGet(actor, out Actor? owned) && owned.Transform is { } t
+                        ? $"({t.LocalPosition.x:0.##}, {t.LocalPosition.y:0.##}, {t.LocalPosition.z:0.##}) scale {t.LocalScale.x:0.##}" : "no transform";
+                    string extra = components.OfType<ObjectDriverComponent>().FirstOrDefault() is ObjectDriverComponent driver
+                        ? $", drives {assets.PathOf(driver.Object.ToString()) ?? driver.Object.ToString()}" : string.Empty;
+                    Debug.Log($"[Scenes] test: member {ActorTree.GetName(actor)} ({sceneId[..8]}), parent {parent}, {position}, {components.Count} component(s){extra}");
+                    if (extra.Length > 0)
+                    {
+                        ActorID composed = ObjectDriverComponent.GetCompositionActor(actor, "Bear");
+                        List<object> composedComponents = new();
+                        ActorTree.GetComponents(composed, composedComponents);
+                        string ammo = composedComponents.OfType<WeaponSample>().FirstOrDefault() is WeaponSample weapon ? weapon.Ammo.ToString() : "none";
+                        Debug.Log($"[Scenes] test: Composition Actor Bear = {composed.Value}, WeaponSample Ammo {ammo}");
+                    }
+                }
+                Debug.Log($"[Scenes] test: {loaded.Name} dirty: {loaded.IsDirty}");
             }
         }
     }
@@ -713,6 +790,8 @@ namespace xgEditor.CoreCLR
             Subsystem.Register<xg.editor.Tools>();
             PlayMode.Initialize();
             ProjectService.Open();
+            SceneCommands.RegisterMenus();
+            SceneManager.Initialize();
 
             // Example: register a managed log callback
             ScriptRuntime.AddLogCallback(OnLog);
@@ -1052,6 +1131,36 @@ namespace xgEditor.CoreCLR
                     }
                 }
             }
+            if (frame == 40 && Environment.GetEnvironmentVariable("XG_UI_TEST_SAVE_AS") is { Length: > 0 } saveAsKind)
+            {
+                if (saveAsKind == "scene" && SceneManager.Active is { } activeScene)
+                    SceneDialogs.OpenSaveAs(activeScene);
+                else if (saveAsKind == "material")
+                    MaterialEditorPanel.Open("Assets/Materials/Bear.xcm");
+                else if (saveAsKind == "object")
+                    ObjectEditorPanel.Open("Assets/Models/bear.xco");
+                if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOLDER_FIELD") is { Length: > 0 } folderHook)
+                    SaveAsDialog.Folder.OpenLater(30, folderHook is "newfolder" or "create", folderHook == "create");
+                Debug.Log($"[Debug] Save as test: {saveAsKind}");
+            }
+            if (frame == 60 && Environment.GetEnvironmentVariable("XG_UI_TEST_SAVE_INTO") is { Length: > 0 } saveInto && ProjectService.Assets is { } saveAssets
+                && SceneManager.Active is { } saveScene)
+            {
+                string folder = saveInto[..saveInto.LastIndexOf('/')];
+                string parent = folder[..folder.LastIndexOf('/')];
+                string? folderError = saveAssets.CreateFolder(parent, folder[(folder.LastIndexOf('/') + 1)..], out string created);
+                SceneManager.CreateActor("Saved Actor");
+                bool saved = SceneManager.SaveAs(saveScene, saveInto);
+                Debug.Log($"[Debug] Save into {saveInto}: folder {(folderError ?? "created " + created)}, saved {saved}, exists {File.Exists(saveAssets.FullPath(saveInto))}, " +
+                    $"listed {saveAssets.Index.IsDirectory(folder)}");
+            }
+            if (frame == 80 && Environment.GetEnvironmentVariable("XG_UI_TEST_SAVE_AS") is { Length: > 0 } saveAsLater)
+            {
+                if (saveAsLater == "material")
+                    xg.imui.ImUI.RegisteredPanels.OfType<MaterialEditorPanel>().FirstOrDefault()?.View.SaveAs();
+                else if (saveAsLater == "object")
+                    xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().FirstOrDefault()?.View.SaveAs();
+            }
             if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
             {
                 BackgroundTask? task = BackgroundTasks.Find(cancelName);
@@ -1087,6 +1196,8 @@ namespace xgEditor.CoreCLR
             ThumbnailSmoke.Update();
             CompositionThumbnails.Update();
             CompositionComponents.Update();
+            SceneManager.Update();
+            SceneSmoke.Update();
             TransformSmoke.Update();
             DataSmoke.Update();
             if (frames == 1 && !_clock.IsRunning)

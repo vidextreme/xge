@@ -78,6 +78,11 @@ namespace xgEditor.CoreCLR
         public ulong Shown;
         public Rect AddTab;
         public bool OpenAdd;
+        // Copy value menu of a read-only (locked) actor's row: opened at panel level the frame after the right-click.
+        public string? CopyLabel;
+        public string? CopyText;
+        public bool OpenCopy;
+        public Vector2 CopyPosition;
         public int OpenAddDelay = -1;
         public string? PendingAddType;
         public bool LockWhenShowing;

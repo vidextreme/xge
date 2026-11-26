@@ -465,6 +465,18 @@ namespace xg.imui
             return new FontScope(ctx);
         }
 
+        // Items inside don't react to input and draw dimmed (still readable) while disabled is true; property rows still
+        // report RightClicked.
+        public static DisabledScope Disabled(bool disabled)
+        {
+            nint ctx = Context;
+            Native.BeginDisabled(ctx, disabled ? (byte)1 : (byte)0);
+            return new DisabledScope(ctx);
+        }
+
+        // True once after a property row was right-clicked (disabled rows too), then cleared.
+        public static bool TakeRowRightClick() => Native.TakeRowRightClick(Context) != 0;
+
         // Toolbars are rows: items go left to right without SameLine.
         public static ToolbarScope Toolbar()
         {
@@ -649,6 +661,19 @@ namespace xg.imui
         {
             if (_ctx != 0)
                 Native.PopFont(_ctx);
+        }
+    }
+
+    public readonly ref struct DisabledScope
+    {
+        private readonly nint _ctx;
+
+        internal DisabledScope(nint ctx) => _ctx = ctx;
+
+        public void Dispose()
+        {
+            if (_ctx != 0)
+                Native.EndDisabled(_ctx);
         }
     }
 

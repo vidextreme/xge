@@ -76,10 +76,22 @@ namespace xg
             return ScriptRuntime._enginePtr == 0 ? 0 : Native.Stats(ScriptRuntime._enginePtr, out materialDraws);
         }
 
+        // Replaces the actors hidden in the editor: their mesh and object draws are skipped by the Scene view only.
+        public static unsafe void SetEditorHidden(ReadOnlySpan<ulong> actors)
+        {
+            if (ScriptRuntime._enginePtr == 0)
+                return;
+            fixed (ulong* p = actors)
+                Native.SetEditorHidden(ScriptRuntime._enginePtr, p, (uint)actors.Length);
+        }
+
         private static partial class Native
         {
             [LibraryImport("xgScriptNative", EntryPoint = "XG_MeshRenderStats")]
             public static partial int Stats(nint engine, out int materialDraws);
+
+            [LibraryImport("xgScriptNative", EntryPoint = "XG_MeshRenderSetEditorHidden")]
+            public static unsafe partial void SetEditorHidden(nint engine, ulong* actors, uint count);
         }
     }
 }

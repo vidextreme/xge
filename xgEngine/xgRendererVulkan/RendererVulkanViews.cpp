@@ -659,13 +659,15 @@ namespace xg {
         vkCmdDrawIndexed(_frameCommands, mesh.IndexCount, 1, 0, 0, 0);
     }
 
-    void RendererVulkan::RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection)
+    void RendererVulkan::RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, bool skipEditorHidden)
     {
         if (draws.empty() || !_litPipeline)
             return;
         VkPipeline bound = VK_NULL_HANDLE;
         for (const SceneDraw& draw : draws)
         {
+            if (skipEditorHidden && (static_cast<uint32_t>(draw.Flags) & static_cast<uint32_t>(SceneDrawFlags::EditorHidden)) != 0)
+                continue;
             GpuMesh* mesh = FindMesh(draw.Mesh);
             if (!mesh)
                 continue;
@@ -1052,9 +1054,9 @@ namespace xg {
                     RecordLitMesh(*mesh, _litPipelineLayout, draw.World, constants.ViewProjection);
                 }
             }
-            RecordSceneDraws(view.MaterialDraws, constants.ViewProjection);
+            RecordSceneDraws(view.MaterialDraws, constants.ViewProjection, false);
             if (!HasFlag(view.Flags, RenderViewFlags::HideSceneDraws))
-                RecordSceneDraws(_sceneDraws, constants.ViewProjection);
+                RecordSceneDraws(_sceneDraws, constants.ViewProjection, HasFlag(view.Flags, RenderViewFlags::HideEditorHidden));
 
             if (testScene)
             {

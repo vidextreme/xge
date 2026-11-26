@@ -29,6 +29,7 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 - **Reflection codegen:** a Tree-sitter tool (`xgReflectGen`) generates type schemas from `XG_SERIALIZABLE` / `XG_FIELD` / `XG_ENUM` markers, used for JSON, message codecs and C# enums.
 - **Config-driven module tree:** `gameconfig.json` (or any file passed with `--config`) describes the engine settings and the whole module tree, so the editor, the Project Hub and a game runtime are just different configs.
 - **Immediate UI kit:** `xgImUIKit` wraps Dear ImGui (docking + multi-viewport) behind a C ABI with C++ and C# wrappers, including Unity-style layout groups. It draws through the engine renderer or an SDL GPU fallback.
+- **Data pipeline:** assets keep stable GUIDs in their metadata, build in the background into a disposable, GUID-addressed `Library/`, and reach the GPU through a shared, ref-counted resource system with async loads and live reload on rebuild. Materials, composition objects and scenes are authored in dedicated editors.
 - **Game projects:** Unity-style project folders whose C# scripts are compiled into a separate solution and loaded into the editor. The Project Hub creates, opens and lists them.
 - **Stable ABI:** cross-DLL interfaces are pure virtual and append-only, and only C types and function pointers cross module boundaries.
 
@@ -49,12 +50,16 @@ A work-in-progress, modular C++20 engine focused on **foundational architecture*
 | Logging | 🟢 Working | Engine-owned logger shared by every module; Unity-style C# `Debug` (`Log`, `LogWarning`, `LogError`, …). |
 | Math + C# interop | 🟢 Working | Vectors, quaternions, matrices, shapes, geometry queries, easing, random, color. Native and managed test suites in `tools/verify/`. |
 | Immediate UI kit (`xgImUIKit`) | 🟢 Working | Panels, menus, widgets, virtualized lists, modals, layout groups (`Gui.Horizontal`/`Vertical`/`FlexibleSpace`), FreeType fonts (Noto), per-monitor DPI. Multi-viewport on DX12 and SDL GPU. |
-| Editor UI | 🟡 Partial | Editor shell (`EditorUI: true`: main menu, toolbar, status bar, dock layout) with real panels: Scene and Game (render views, showing a test cube and grid until actors render), Hierarchy, Inspector (drawn by Unity-style property drawers), Console, Navigator and Tools. Right-click context menus open at the cursor; tools add entries by implementing `IContextMenuTool` (the Navigator's asset and create menus use it). Asset names are shown without their file extensions; Rename is a shared dialog ("Rename Texture", with the item's thumbnail) that keeps the extension. |
+| Editor UI | 🟡 Partial | Editor shell (`EditorUI: true`: main menu, toolbar, status bar, dock layout) with real panels: Scene and Game (render views drawing the scene's meshes and objects), Hierarchy (grouped by scene, with create, rename and delete), Inspector (drawn by Unity-style property drawers), Console, Navigator, Tools, Material Editor and Object Editor. Right-click context menus open at the cursor; tools add entries by implementing `IContextMenuTool` (the Navigator's asset and create menus use it). Asset names are shown without their file extensions; Rename is a shared dialog ("Rename Texture", with the item's thumbnail) that keeps the extension. |
 | Game projects | 🟡 Step 1 | Create and open project folders (`--project`, `--new-project`), auto-build the C# scripts, and load them into the editor as `game.project`. Scripts under `Editor` folders build into a separate editor-only assembly (property drawers). Next: asset import and a NativeAOT player build. |
 | Project Hub | 🟢 Working | Double-click `gameroot\bin\xgHub.lnk` (written by the build) or run `xge.exe --config hub.config`: add, create, open and remove projects, with a preview image per project. Projects open without a console window; each row has an "Open with console" button. |
-| Renderer (DX12) | 🟠 Very rough | Device, swap chains for every UI window, and a UI pass behind the generic `xg::UIRenderTarget` API (no ImGui in the renderer, no DX12 in the UI kit). Offscreen render views draw a test cube and grid for the scene views; no real 3D pipeline yet. |
-| Dispatch groups / threading | 🟡 Partial | Thread domains and a dispatch system exist but are not wired; everything runs on the main thread. |
-| Vulkan | ⚪ Planned | |
+| Renderers (DX12, Vulkan) | 🟡 Working, basic | Both backends have the same features: swap chains for every UI window, the UI pass behind `xg::UIRenderTarget`, offscreen render views, BC/RGBA textures with mips, meshes, project surface shaders, materials and readback (thumbnails). One directional light and an ambient term; no shadows, post-processing or frame graph yet. |
+| Jobs / threading | 🟡 Partial | `JobSystem` runs worker and main-thread jobs with dependencies; asset builds, resource loads and large data updates use it. Module thread affinity (dispatch groups) is still planned. |
+| Resources and assets | 🟢 Working | GUID metas with item tables and name trees, chunk files, a background `Library/` pipeline with manifests, import tags and cancellation, and a shared runtime resource system with async loads and live reload. See [Data and assets](docs/xge-data.md). |
+| Textures, meshes | 🟢 Working | PNG/BMP to BC1/3/4/5 or RGBA8 with mips; FBX static meshes and hierarchy (ufbx). `MeshRenderer` draws a model with a material. |
+| Shaders, materials | 🟢 Working | Project HLSL surface shaders with slot annotations compiled by DXC for both backends; `.xcm` materials with a Material Editor (live preview, colour pickers, texture pickers) and generated thumbnails. |
+| Composition objects | 🟡 Working, early | `.xco` trees of meshes and proxies joined by fixed Jointers, drawn by `ObjectDriverComponent`; Composition Actors with authored components; an Object Editor with a live preview. Animation and physics are planned. |
+| Scenes | 🟢 Working | `.xcs` scenes save the actors set up in the editor (hierarchy, transforms, components and values, composition overrides). File menu, Hierarchy authoring, last scene reopened. Additive loading is prepared in the data model. See [Scenes](docs/xge-scenes.md). |
 | Network replication | ⚪ Planned | |
 | Hot reload | 🟢 Working | Saving a script (or Assets > Build Scripts / the toolbar button) rebuilds the project in the background and swaps the new scripts in without restarting the editor. Actors and their component field values are kept; a failed build leaves the old scripts running. |
 | Play mode | 🟢 Working | Toolbar transport capsule: Play in Editor (becomes Pause), +1 (step one frame while paused), Stop, and Play Standalone (runs the current build in a separate xge process without the editor). Component updates run only while playing (in every module), and the project's scripts are paused outside play. Everything changed during play is temporary: Stop restores the actors and component values from before Play and removes actors spawned during play. Works with or without a project. A green (playing) or amber (paused) outline frames the dock area. |
@@ -294,6 +299,8 @@ XGE/
 - [Actors and components (C#)](docs/xge-components.md) — Actor API, components, Transform, data components and parallel data updates
 - [Native component data](docs/xge-components2.md) — ComponentDataRegistry pools, TransformSystem, cross-module use
 - [Hybrid component sample](docs/xge-component-sample.md)
+- [Data and assets](docs/xge-data.md) — asset GUIDs and metas, the Library pipeline, chunk files, runtime resources, textures, meshes, shaders, materials, composition objects
+- [Scenes](docs/xge-scenes.md) — the `.xcs` format, membership, component ids, composition overrides, editor workflow
 - [Design notes](docs/xge-design-notes.md) — codecs, dispatch groups, rendering and networking plans
 
 Each document describes the current code and lists unbuilt work under "Future design".
@@ -303,17 +310,19 @@ Each document describes the current code and lists unbuilt work under "Future de
 ## Roadmap
 
 **Near term**
-- Game projects: asset import, then a NativeAOT player build
-- Inspector: editing beyond fields (add/remove components, undo, multi-selection), and saving values with the scene
-- Wire up dispatch groups (thread affinity)
+- Player packaging and a NativeAOT player build that loads scenes
+- Additive scenes (load several, pick the active one, move actors between them)
+- Transform gizmos in the Scene view and the Object Editor
+- Inspector: undo and multi-selection
 
 **Mid term**
+- Animation (skinned meshes, Timeline) and physics data in composition objects
+- Wire up dispatch groups (thread affinity)
 - Data updates scheduled by declared access, double-buffered pools, a parallel transform pass
 - FrameGraph and GPU resource abstractions
 - Arrays and nested types in reflection
 
 **Long term**
-- Vulkan backend
 - Network replication and RPC
 - Visual scripting
 

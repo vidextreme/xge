@@ -235,6 +235,29 @@ namespace xg.editor
             return document;
         }
 
+        // Gives every authored component an "id" (16 hex digits, unique within its Object) when it has none. Returns
+        // whether anything changed.
+        public bool EnsureComponentIds()
+        {
+            bool changed = false;
+            foreach (ObjectNodeAsset node in Objects)
+            {
+                HashSet<string> used = new(StringComparer.OrdinalIgnoreCase);
+                foreach (JsonObject entry in node.Components?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+                {
+                    string? id = entry["id"] is JsonValue value && value.TryGetValue(out string? text) ? text : null;
+                    if (string.IsNullOrEmpty(id) || !used.Add(id))
+                    {
+                        id = Guid.NewGuid().ToString("N")[..16];
+                        used.Add(id);
+                        entry["id"] = id;
+                        changed = true;
+                    }
+                }
+            }
+            return changed;
+        }
+
         // The GUIDs this object references (models, materials), for the name tree in its meta.
         public IEnumerable<string> ReferencedGuids()
         {

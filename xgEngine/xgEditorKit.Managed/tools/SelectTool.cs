@@ -13,7 +13,7 @@ namespace xg.editor
     // selection in its ribbon group. Picking in the scene view comes once the scene view is wired to the tool system.
     // Like every tool it keeps no selection of its own: Items is the editor selection.
     [EditorTool("Select", Category = "Scene", Group = "Select", Icon = "Hand", Style = ToolItemStyle.Icon, ActiveByDefault = true,
-        Tooltip = "Select actors and assets")]
+        AllowLocked = true, Tooltip = "Select actors and assets")]
     [ToolGUI(Group = "Select")]
     public sealed class SelectTool : EditorTool, IEditorGUIDraw
     {

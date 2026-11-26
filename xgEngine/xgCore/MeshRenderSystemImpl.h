@@ -1,6 +1,7 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
+#include <unordered_set>
 #include <vector>
 #include "xgMeshRenderer.h"
 #include "xgRenderer.h"
@@ -24,6 +25,8 @@ namespace xg
         int32_t GetDrawCount() const override { return _drawCount; }
         int32_t GetMaterialDrawCount() const override { return _materialDrawCount; }
         uint64_t ResolveMaterial(ResourceHandle material) override;
+        void SetEditorHidden(const ActorID* actors, uint32_t count) override;
+        bool IsEditorHidden(ActorID actor) const override { return !_editorHidden.empty() && _editorHidden.count(actor) != 0; }
 
         // Builds and submits the frame's scene draws, after the given ones (object drivers), once the transforms update.
         void Update(Renderer* renderer, const std::vector<SceneDraw>& before);
@@ -55,6 +58,7 @@ namespace xg
         ResourceTypeID _materialType = 0;
         std::vector<SlotState> _slots;
         std::vector<SceneDraw> _draws;
+        std::unordered_set<ActorID> _editorHidden;
         int32_t _drawCount = 0;
         int32_t _materialDrawCount = 0;
     };

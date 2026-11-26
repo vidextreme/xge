@@ -65,6 +65,49 @@ namespace xg::imui::detail
             dl->AddRectFilled(ImVec2(c.x - h * 0.85f, c.y - h * 0.65f), ImVec2(c.x - h * 0.1f, c.y - h * 0.3f), col, 1.0f);
             dl->AddRectFilled(ImVec2(c.x - h * 0.85f, c.y - h * 0.45f), ImVec2(c.x + h * 0.85f, c.y + h * 0.65f), col, 1.5f);
             break;
+        case Icon::FolderOpen:
+        {
+            dl->AddRectFilled(ImVec2(c.x - h * 0.85f, c.y - h * 0.65f), ImVec2(c.x - h * 0.1f, c.y - h * 0.3f), col, 1.0f);
+            dl->AddRect(ImVec2(c.x - h * 0.85f, c.y - h * 0.45f), ImVec2(c.x + h * 0.7f, c.y + h * 0.65f), col, 1.5f, 0, 1.2f);
+            const ImVec2 front[] = { ImVec2(c.x - h * 0.6f, c.y - h * 0.05f), ImVec2(c.x + h * 1.0f, c.y - h * 0.05f), ImVec2(c.x + h * 0.7f, c.y + h * 0.65f),
+                ImVec2(c.x - h * 0.85f, c.y + h * 0.65f) };
+            dl->AddConvexPolyFilled(front, 4, col);
+            break;
+        }
+        case Icon::Link:
+        {
+            const float r = h * 0.38f;
+            const ImVec2 a(c.x - h * 0.38f, c.y + h * 0.38f);
+            const ImVec2 b(c.x + h * 0.38f, c.y - h * 0.38f);
+            dl->PathArcTo(a, r, IM_PI * 0.25f, IM_PI * 1.25f, 10);
+            dl->PathStroke(col, ImDrawFlags_None, 1.3f);
+            dl->PathArcTo(b, r, IM_PI * 1.25f, IM_PI * 2.25f, 10);
+            dl->PathStroke(col, ImDrawFlags_None, 1.3f);
+            dl->AddLine(ImVec2(a.x - r * 0.707f, a.y - r * 0.707f), ImVec2(b.x - r * 0.707f, b.y - r * 0.707f), col, 1.3f);
+            dl->AddLine(ImVec2(a.x + r * 0.707f, a.y + r * 0.707f), ImVec2(b.x + r * 0.707f, b.y + r * 0.707f), col, 1.3f);
+            break;
+        }
+        case Icon::Group:
+        case Icon::GroupOpen:
+        {
+            const ImVec2 lo(ImFloor(c.x - h * 0.85f) + 0.5f, ImFloor(c.y - h * 0.85f) + 0.5f);
+            const ImVec2 hi(ImFloor(c.x + h * 0.85f) + 0.5f, ImFloor(c.y + h * 0.85f) + 0.5f);
+            const float arm = h * 0.5f;
+            const ImVec2 corners[4][3] = {
+                { ImVec2(lo.x, lo.y + arm), lo, ImVec2(lo.x + arm, lo.y) },
+                { ImVec2(hi.x - arm, lo.y), ImVec2(hi.x, lo.y), ImVec2(hi.x, lo.y + arm) },
+                { ImVec2(hi.x, hi.y - arm), hi, ImVec2(hi.x - arm, hi.y) },
+                { ImVec2(lo.x + arm, hi.y), ImVec2(lo.x, hi.y), ImVec2(lo.x, hi.y - arm) },
+            };
+            for (const auto& corner : corners)
+                dl->AddPolyline(corner, 3, col, ImDrawFlags_None, 1.4f);
+            const float inner = h * 0.42f;
+            if (icon == Icon::Group)
+                dl->AddRectFilled(ImVec2(c.x - inner, c.y - inner), ImVec2(c.x + inner, c.y + inner), col, 1.5f);
+            else
+                dl->AddRect(ImVec2(c.x - inner, c.y - inner), ImVec2(c.x + inner, c.y + inner), col, 1.5f, 0, 1.2f);
+            break;
+        }
         case Icon::Console:
             dl->AddRect(ImVec2(c.x - h * 0.85f, c.y - h * 0.7f), ImVec2(c.x + h * 0.85f, c.y + h * 0.7f), col, 1.5f, 0, 1.2f);
             dl->AddLine(ImVec2(c.x - h * 0.5f, c.y - h * 0.3f), ImVec2(c.x - h * 0.15f, c.y), col, 1.3f);
@@ -241,6 +284,12 @@ namespace xg::imui::detail
             sparkle(ImVec2(c.x + h * 0.6f, c.y - h * 0.55f), h * 0.35f);
             break;
         }
+        case Icon::Eye:
+            dl->PathArcTo(ImVec2(c.x, c.y + h * 0.75f), h * 1.05f, IM_PI * 1.22f, IM_PI * 1.78f, 12);
+            dl->PathArcTo(ImVec2(c.x, c.y - h * 0.75f), h * 1.05f, IM_PI * 0.22f, IM_PI * 0.78f, 12);
+            dl->PathStroke(col, ImDrawFlags_Closed, 1.2f);
+            dl->AddCircleFilled(c, h * 0.3f, col);
+            break;
         case Icon::EyeOff:
             dl->PathArcTo(ImVec2(c.x, c.y + h * 0.75f), h * 1.05f, IM_PI * 1.22f, IM_PI * 1.78f, 12);
             dl->PathArcTo(ImVec2(c.x, c.y - h * 0.75f), h * 1.05f, IM_PI * 0.22f, IM_PI * 0.78f, 12);

@@ -124,6 +124,10 @@ namespace xg
         public ActorID GetCompositionActor(string name) =>
             ScriptRuntime._enginePtr == 0 || string.IsNullOrEmpty(name) ? ActorID.InvalidID : new ActorID(Native.GetActor(ScriptRuntime._enginePtr, ActorID.Value, name));
 
+        // The Composition Actor of any driver actor by Object name (works for drivers of every module).
+        public static ActorID GetCompositionActor(ActorID driver, string name) =>
+            ScriptRuntime._enginePtr == 0 || string.IsNullOrEmpty(name) ? ActorID.InvalidID : new ActorID(Native.GetActor(ScriptRuntime._enginePtr, driver.Value, name));
+
         // The driver actor that owns a Composition Actor (ActorID.InvalidID when the actor isn't one). Composition Actors
         // are added and removed only by their composition, and their transforms follow its Jointers.
         public static ActorID CompositionOwner(ActorID actor) =>

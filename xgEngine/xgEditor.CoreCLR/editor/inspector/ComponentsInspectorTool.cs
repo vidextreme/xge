@@ -79,21 +79,55 @@ namespace xgEditor.CoreCLR
                 view.OpenAdd = true;
 
             bool stripRight = TabStrip.Detect(Gui.PanelPlacement) == PanelSide.Left;
+            bool readOnly = driver is not null && ActorEditorState.IsLockedInHierarchy(driver.Actor);
             using (Gui.Horizontal(0.0f))
             {
                 if (!stripRight)
-                    DrawTabs(view, components, TabEdge.Left, hasActor);
-                DrawContent(context, view, driver);
+                    DrawTabs(view, components, TabEdge.Left, hasActor, readOnly);
+                DrawContent(context, view, driver, readOnly);
                 if (stripRight)
-                    DrawTabs(view, components, TabEdge.Right, hasActor);
+                    DrawTabs(view, components, TabEdge.Right, hasActor, readOnly);
             }
             DrawAddPopup(view, driver, stripRight);
+            DrawCopyPopup(view);
+        }
+
+        // ------------------------------------------------------------
+        // Copy value (read-only actors)
+        // ------------------------------------------------------------
+        private static void RequestCopy(ComponentsViewState view, string label, string text)
+        {
+            view.CopyLabel = label;
+            view.CopyText = text;
+            view.OpenCopy = true;
+        }
+
+        private static void DrawCopyPopup(ComponentsViewState view)
+        {
+            const string id = "inspector_copy_value";
+            if (view.OpenCopy)
+            {
+                view.OpenCopy = false;
+                view.CopyPosition = Gui.MousePosition;
+                Gui.OpenPopup(id);
+            }
+            using var popup = Gui.Popup(id, view.CopyPosition, new Vector2(ContextMenu.Width, 0.0f));
+            if (!popup.IsOpen || view.CopyText is not string text)
+                return;
+            using var canvas = Gui.Canvas("##copy_rows", new Vector2(ContextMenu.Width, ContextMenu.RowHeight + ContextMenu.Padding * 2.0f));
+            Rect row = Rect.FromXYWH(ContextMenu.Padding, ContextMenu.Padding, ContextMenu.Width - ContextMenu.Padding * 2.0f, ContextMenu.RowHeight);
+            if (ToggleButton.Draw(canvas.Draw, "##copy", row, Icon.File, null, "Copy Value", null, $"{view.CopyLabel}: {text}", false, true, ToggleDot.None).Clicked())
+            {
+                Gui.SetClipboard(text);
+                Debug.Log($"[Debug] Inspector copied {view.CopyLabel}: {text}");
+                Gui.ClosePopup();
+            }
         }
 
         // ------------------------------------------------------------
         // Tabs
         // ------------------------------------------------------------
-        private static void DrawTabs(ComponentsViewState view, IReadOnlyList<object> components, TabEdge edge, bool hasActor)
+        private static void DrawTabs(ComponentsViewState view, IReadOnlyList<object> components, TabEdge edge, bool hasActor, bool readOnly)
         {
             using var canvas = Gui.Canvas("##inspector_tabs", new Vector2(StripSize, 0.0f));
             Painter draw = canvas.Draw;
@@ -125,11 +159,12 @@ namespace xgEditor.CoreCLR
             Result hit;
             using (Gui.Id(-1))
                 hit = Gui.HitArea("##add", add);
-            Gui.Tooltip(hasActor ? "Add Component" : "Select an actor to add components");
-            TabStrip.DrawShape(draw, add, edge, false, hasActor && hit.Hovered());
-            Color32 plus = Style.Color(hasActor ? StyleColor.Text : StyleColor.TextDim);
+            bool canAdd = hasActor && !readOnly;
+            Gui.Tooltip(canAdd ? "Add Component" : readOnly ? "The actor is locked" : "Select an actor to add components");
+            TabStrip.DrawShape(draw, add, edge, false, canAdd && hit.Hovered());
+            Color32 plus = Style.Color(canAdd ? StyleColor.Text : StyleColor.TextDim);
             draw.Icon(Icon.Plus, new Vector2(iconX, y + TabSize * 0.5f), 14.0f, plus);
-            if (hasActor && hit.Clicked())
+            if (canAdd && hit.Clicked())
                 view.OpenAdd = true;
         }
 
@@ -148,7 +183,7 @@ namespace xgEditor.CoreCLR
         // ------------------------------------------------------------
         // Cards
         // ------------------------------------------------------------
-        private static void DrawContent(InspectorToolContext context, ComponentsViewState view, ComponentsDriver? driver)
+        private static void DrawContent(InspectorToolContext context, ComponentsViewState view, ComponentsDriver? driver, bool readOnly)
         {
             using var area = Gui.ScrollArea("##inspector_content", default, ScrollAreaFlags.Padded);
             if (!area.IsOpen)
@@ -160,9 +195,13 @@ namespace xgEditor.CoreCLR
             {
                 if (driver is not null)
                 {
+                    if (readOnly)
+                        DrawLockedMark();
                     using (Gui.Font(FontStyle.Bold))
                         Gui.Label(driver.Name);
                     Gui.FlexibleSpace();
+                    if (readOnly)
+                        Gui.Label("read only");
                     Gui.Label($"ID {driver.Actor.Value}");
                 }
                 else
@@ -183,6 +222,7 @@ namespace xgEditor.CoreCLR
                 return;
             }
 
+            EditorGUI.RowContext = readOnly ? (label, text) => RequestCopy(view, label, text) : null;
             for (int i = 0; i < components.Count; i++)
             {
                 if (view.Tab != 0 && view.Tab != i + 1)
@@ -200,25 +240,34 @@ namespace xgEditor.CoreCLR
                         using (var card = Gui.Card("##card", title, icon.Icon, icon.Texture, icon.Color, ref open))
                         {
                             if (card.IsOpen)
-                                DrawBody(view, driver, component);
+                                DrawBody(view, driver, component, readOnly);
                         }
                         view.Open[key] = open;
                     }
                     else
                     {
                         using var card = Gui.Card("##card", title, icon.Icon, icon.Texture, icon.Color);
-                        DrawBody(view, driver, component);
+                        DrawBody(view, driver, component, readOnly);
                     }
                 }
                 Gui.Space(2.0f);
             }
         }
 
-        private static void DrawBody(ComponentsViewState view, ComponentsDriver driver, object component)
+        // The amber lock in front of a locked actor's name.
+        private static void DrawLockedMark()
         {
+            using var canvas = Gui.Canvas("##locked_mark", new Vector2(16.0f, Gui.MeasureText("A").y));
+            canvas.Draw.Icon(Icon.Lock, new Vector2(8.0f, canvas.Size.y * 0.5f), 12.0f, HierarchyStyle.Lock);
+            Gui.Tooltip("Locked in the Hierarchy: the actor can be browsed and copied, not edited");
+        }
+
+        private static void DrawBody(ComponentsViewState view, ComponentsDriver driver, object component, bool readOnly)
+        {
+            using var disabled = Gui.Disabled(readOnly);
             if (component is Transform transform)
             {
-                DrawTransform(view, transform);
+                DrawTransform(view, transform, readOnly);
                 return;
             }
             SerializedObject serialized = driver.Serialized(component);
@@ -259,7 +308,7 @@ namespace xgEditor.CoreCLR
             return true;
         }
 
-        private static void DrawTransform(ComponentsViewState view, Transform transform)
+        private static void DrawTransform(ComponentsViewState view, Transform transform, bool readOnly)
         {
             if (!transform.IsValid)
             {
@@ -281,11 +330,14 @@ namespace xgEditor.CoreCLR
             Vector3 euler = view.Euler;
             Vector3 scale = local.Scale;
             bool changed = false;
+            Gui.TakeRowRightClick();
             if (TransformField("Position", ref position, NumberFieldStyle.Tagged("x,y,z"), 0.1f))
             {
                 local.Position = position;
                 changed = true;
             }
+            if (Gui.TakeRowRightClick() && readOnly)
+                RequestCopy(view, "Position", EditorGUI.ValueText(position));
             if (TransformField("Rotation", ref euler, NumberFieldStyle.Ranged(-180.0f, 180.0f, "x,y,z"), 0.5f))
             {
                 view.Euler = euler;
@@ -293,12 +345,16 @@ namespace xgEditor.CoreCLR
                 local.Rotation = view.EulerSource;
                 changed = true;
             }
+            if (Gui.TakeRowRightClick() && readOnly)
+                RequestCopy(view, "Rotation", EditorGUI.ValueText(euler));
             if (TransformField("Scale", ref scale, NumberFieldStyle.Tagged("x,y,z"), 0.01f))
             {
                 local.Scale = scale;
                 changed = true;
             }
-            if (changed)
+            if (Gui.TakeRowRightClick() && readOnly)
+                RequestCopy(view, "Scale", EditorGUI.ValueText(scale));
+            if (changed && !readOnly)
                 transform.Local = local;
 
             Vector3 world = transform.Position;

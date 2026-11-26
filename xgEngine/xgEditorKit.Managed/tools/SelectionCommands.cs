@@ -10,11 +10,11 @@ namespace xg.editor
 
         public static bool SelectChildrenEnabled => Subsystem.Get<Tools>()?.GetToggle(SelectChildrenKey) ?? false;
 
-        [ToolButton("Clear selection", Category = "Scene", Group = "Select", Icon = "Trash", Priority = 10,
-            Validate = nameof(HasSelection), Tooltip = "Deselect every actor and asset")]
+        [ToolButton("Clear Selection", Category = "Scene", Group = "Select", Icon = "Trash", Priority = 10,
+            Validate = nameof(HasSelection), AllowLocked = true, Tooltip = "Deselect every actor and asset")]
         public static void ClearSelection() => Selection.Clear();
 
-        [ToolToggle("Select children", Category = "Scene", Group = "Select", Icon = "Hierarchy", Priority = 20,
+        [ToolToggle("Select Children", Category = "Scene", Group = "Select", Icon = "Hierarchy", Priority = 20, AllowLocked = true,
             Tooltip = "Selecting an actor in the Hierarchy also selects its children (coming with multi-selection)")]
         public static bool SelectChildren(bool requested) => requested;
 

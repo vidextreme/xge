@@ -28,6 +28,7 @@ namespace xgEditor.CoreCLR
         public override string Title => "Scene";
         public override string? MenuPath => "General/Scene";
         public override Icon PanelIcon => Icon.SceneGrid;
+        protected override uint ViewFlags => ActorEditorState.ShowHidden ? 0u : SceneViews.FlagHideEditorHidden;
 
         public int InstanceIndex { get; set; }
 

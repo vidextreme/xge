@@ -128,6 +128,13 @@ namespace xg
         return _resources && _resources->GetState(material) == ResourceState::Ready ? xg::ResolveMaterial(material) : 0;
     }
 
+    void MeshRenderSystemImpl::SetEditorHidden(const ActorID* actors, uint32_t count)
+    {
+        _editorHidden.clear();
+        for (uint32_t i = 0; actors && i < count; ++i)
+            _editorHidden.insert(actors[i]);
+    }
+
     void MeshRenderSystemImpl::Update(Renderer* renderer, const std::vector<SceneDraw>& before)
     {
         if (!_registry || !_resources)
@@ -173,11 +180,13 @@ namespace xg
             uint64_t material = 0;
             if (state.Material != 0 && _resources->GetState(state.Material) == ResourceState::Ready)
                 material = ResolveMaterial(state.Material);
+            const SceneDrawFlags flags = IsEditorHidden(owners[i]) ? SceneDrawFlags::EditorHidden : SceneDrawFlags::None;
             for (int32_t part = 0; part < model->PartCount; ++part)
             {
                 SceneDraw draw = {};
                 draw.Mesh = model->Parts[part].Mesh;
                 draw.Material = material;
+                draw.Flags = flags;
                 Multiply(model->Parts[part].World, actorWorld, draw.World);
                 _draws.push_back(draw);
                 if (material != 0)

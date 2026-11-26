@@ -115,7 +115,7 @@ Dispatch groups define execution domains:
 - Async
 - Custom
 
-Modules declare dispatch groups via attributes (C#) or macros (C++), and the engine handles scheduling and thread affinity. `ThreadDomain` and a `DispatchSystem` exist, but every module currently runs on the main thread.
+Modules declare dispatch groups via attributes (C#) or macros (C++), and the engine handles scheduling and thread affinity. Not wired yet: every module still updates on the main thread. Parallel work goes through the `JobSystem` (`xgBase/public/xgJobs.h`), which replaced the old dispatch system: worker and main-thread jobs with dependencies, used by asset builds, resource loads and large data updates.
 
 ---
 
@@ -139,30 +139,17 @@ Both runtimes sit behind the same `ScriptModule` interface, so a module can move
 
 ---
 
-## Rendering (very rough / planned)
+## Rendering
 
-### DirectX 12 (very rough)
-The `xgRendererDX12` module creates a device, command queue, swap chain and render targets, handles resize, and clears and presents every frame from `Engine::Run`. It also draws the UI. `xgImUIKit`'s render backend (`backends/UIRenderBackend.cpp`) turns ImGui output into the engine-neutral `UIDrawList` and texture calls on `xg::UIRenderTarget` (`xgBase/public/xgUIDraw.h`). `xg::Renderer` derives from `UIRenderTarget`, and the renderer draws the lists with its own small UI pipeline. No ImGui code lives in the renderer and no DX12 code lives in the UI kit.
-- **Multi-viewport:** floating UI windows get their own swap chain through `CreateUISurface`, and all surfaces are recorded in one command list.
-- **Scene views:** `CreateRenderView` gives offscreen color and depth targets that the UI shows as textures. They currently draw a test cube and grid.
-- **No renderer:** with `RendererModule` empty, xgPlatform's SDL GPU presenter (`UIRenderTargetSDLGPU`) implements the same interface, without 3D views.
+Two backends, `xgRendererDX12` and `xgRendererVulkan` (Vulkan 1.3, dynamic rendering, loaded through volk), implement the same `xg::Renderer` interface and have the same features. They link xgBase only and are picked by `RendererModule` in the config.
 
-Intended to validate:
-- command queue + allocator
-- descriptor heaps
-- swap chain
-- GPU/CPU sync
-- render targets
+- **UI:** `xgImUIKit`'s render backend turns ImGui output into the engine-neutral `UIDrawList` and texture calls on `xg::UIRenderTarget` (`xgBase/public/xgUIDraw.h`). `xg::Renderer` derives from it and draws the lists with its own small UI pipeline. No ImGui code lives in a renderer and no graphics API code lives in the UI kit.
+- **Multi-viewport:** floating UI windows get their own swap chain through `CreateUISurface`.
+- **Render views:** `CreateRenderView` gives offscreen color and depth targets (linear color through an sRGB target) that the UI shows as textures. Scene and Game panels and editor previews use them; `ReadRenderView` reads one back (thumbnails).
+- **Content:** BC1/3/4/5 and RGBA8 textures with mips, meshes with a 52-byte lit vertex, project surface shaders and materials (`CreateShader`, `CreateMaterial`), scene draws shared by every view. One directional light and ambient for now. See [Data and assets](xge-data.md).
+- **No renderer:** with `RendererModule` empty, xgPlatform's SDL GPU presenter implements the UI part of the interface, without 3D views.
 
-### Vulkan (planned)
-Will validate:
-- cross‑platform rendering
-- explicit sync
-- descriptor sets
-- pipeline layout abstraction
-- multi‑queue support
-
-Both backends will share a unified renderer interface, a FrameGraph and resource abstractions.
+Planned: a FrameGraph and GPU resource abstractions, shadows, post-processing, instancing.
 
 ---
 

@@ -161,12 +161,21 @@ namespace xg {
         float Params[MaterialParamFloats];
     };
 
+    enum class SceneDrawFlags : uint32_t
+    {
+        None = 0,
+        // Hidden in the editor: skipped by views with RenderViewFlags::HideEditorHidden (the Scene view).
+        EditorHidden = 1u << 0,
+    };
+
     // One mesh drawn with a material (0 or a destroyed material = the built-in lit look, white). World as RenderViewDraw.
     struct SceneDraw
     {
         uint64_t Mesh;
         uint64_t Material;
         float World[16];
+        SceneDrawFlags Flags;
+        uint32_t Reserved;
     };
 
     enum class RenderViewFlags : uint32_t
@@ -176,6 +185,8 @@ namespace xg {
         HideTestScene = 1u << 0,
         // The global scene draws (SetSceneDraws) aren't drawn in this view.
         HideSceneDraws = 1u << 1,
+        // Scene draws flagged SceneDrawFlags::EditorHidden aren't drawn in this view.
+        HideEditorHidden = 1u << 2,
     };
 
     inline constexpr bool HasFlag(RenderViewFlags flags, RenderViewFlags flag)

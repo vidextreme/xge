@@ -18,6 +18,8 @@ namespace xgEditor.CoreCLR
         private ulong _textureView;
         private SceneViews.Draw[] _draws = Array.Empty<SceneViews.Draw>();
         private ulong _drawsView;
+        private uint _sentFlags = uint.MaxValue;
+        private ulong _flagsView;
 
         public override DockSlot Slot => DockSlot.Center;
         public override PanelFlags Flags => PanelFlags.NoPadding | PanelFlags.NoScrollbar;
@@ -33,6 +35,9 @@ namespace xgEditor.CoreCLR
 
         // Reads View's input and sets the camera properties.
         protected abstract void UpdateView();
+
+        // SceneViews.Flag* bits sent to the view (re-sent when they change).
+        protected virtual uint ViewFlags => 0;
 
         // Meshes drawn in the view after the test cube (empty clears).
         internal void SetDraws(SceneViews.Draw[] draws)
@@ -82,6 +87,12 @@ namespace xgEditor.CoreCLR
             camera.FarZ = CameraFarZ;
             camera.ClearColor = ClearColor;
             SceneViews.SetCamera(_view, &camera);
+            uint flags = ViewFlags;
+            if (flags != _sentFlags || _flagsView != _view)
+            {
+                SceneViews.SetFlags(_view, flags);
+                (_sentFlags, _flagsView) = (flags, _view);
+            }
             if (_textureView != _view)
             {
                 SceneViews.SetTexture(_view, _texture, _textureMode);

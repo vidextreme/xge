@@ -215,6 +215,7 @@ namespace xgEditor.CoreCLR
             if (ProjectService.Assets is not { } assets)
                 return false;
             string full = assets.FullPath(path);
+            Draft.EnsureComponentIds();
             ObjectAsset written = Draft.Clone();
             written.Meta = CurrentMeta(full) ?? written.Meta?.DeepClone().AsObject() ?? new JsonObject();
             if (copy || written.Meta["guid"] is null)

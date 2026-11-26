@@ -473,6 +473,32 @@ namespace xgEditor.CoreCLR
             return null;
         }
 
+        // Creates a folder under a project folder ("Assets/..."). Returns null on success, otherwise the reason.
+        public string? CreateFolder(string parent, string name, out string path)
+        {
+            parent = AssetIndex.Normalize(parent);
+            name = name.Trim();
+            path = parent + "/" + name;
+            if (ValidateName(name) is string invalid)
+                return invalid;
+            if (!Index.IsDirectory(parent))
+                return $"'{parent}' isn't a folder";
+            string full = FullPath(path);
+            if (Directory.Exists(full) || File.Exists(full))
+                return $"'{name}' already exists";
+            try
+            {
+                Directory.CreateDirectory(full);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return e.Message;
+            }
+            Refresh();
+            Debug.Log($"[Assets] Created folder {path}");
+            return null;
+        }
+
         // Renames an asset (with its meta) or a folder in place. Returns null on success, otherwise the reason.
         public string? Rename(string path, string newName)
         {

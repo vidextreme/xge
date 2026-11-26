@@ -131,8 +131,7 @@ namespace xg
             _transforms->SetLocal(id, &node.ActorPose);
             state.Actors.push_back({ id, static_cast<int32_t>(i) });
             _owners[id] = owner;
-            if (!node.Components.empty())
-                _pending.push_back({ id, node.Components });
+            _pending.push_back({ id, node.Components.empty() ? std::string("[]") : node.Components });
         }
     }
 
@@ -326,7 +325,7 @@ namespace xg
         return true;
     }
 
-    void ObjectDriveSystemImpl::Update(Renderer* renderer, std::vector<SceneDraw>& draws)
+    void ObjectDriveSystemImpl::Update(Renderer* renderer, std::vector<SceneDraw>& draws, const MeshRenderSystem* hidden)
     {
         _drawCount = 0;
         _readyCount = 0;
@@ -374,6 +373,7 @@ namespace xg
                 continue;
             float actorWorld[16];
             ActorWorld(owners[i], actorWorld);
+            const SceneDrawFlags flags = hidden && hidden->IsEditorHidden(owners[i]) ? SceneDrawFlags::EditorHidden : SceneDrawFlags::None;
             for (size_t p = 0; p < object->Parts.size() && p < state.Parts.size(); ++p)
             {
                 const ObjectPart& part = object->Parts[p];
@@ -396,6 +396,7 @@ namespace xg
                     SceneDraw draw = {};
                     draw.Mesh = model->Parts[m].Mesh;
                     draw.Material = material;
+                    draw.Flags = flags;
                     Multiply(model->Parts[m].World, nodeWorld, draw.World);
                     draws.push_back(draw);
                 }

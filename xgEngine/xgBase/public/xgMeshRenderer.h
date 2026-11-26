@@ -44,5 +44,10 @@ namespace xg
         // The renderer material of a Ready "material" resource, as the scene draws it (0 until its shader and textures
         // are loaded). Main thread only.
         virtual uint64_t ResolveMaterial(ResourceHandle material) = 0;
+
+        // Replaces the actors hidden in the editor: their scene draws (mesh renderers and object drivers) get
+        // SceneDrawFlags::EditorHidden, which the Scene view skips. Main thread only.
+        virtual void SetEditorHidden(const ActorID* actors, uint32_t count) = 0;
+        virtual bool IsEditorHidden(ActorID actor) const = 0;
     };
 }

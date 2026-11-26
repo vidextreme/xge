@@ -83,6 +83,7 @@ internal static class Program
         Run(nameof(TestMaterialAsset), TestMaterialAsset);
         Run(nameof(TestEmbeddedMeta), TestEmbeddedMeta);
         Run(nameof(TestObjectAsset), TestObjectAsset);
+        Run(nameof(TestSceneAsset), TestSceneAsset);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -1029,6 +1030,81 @@ internal static class Program
         ObjectAsset moved = asset.Clone();
         Check(moved.ReplaceGuid(model, "00000000000000000000000000000abc") && moved.Objects.Where(o => o.Kind == ObjectNodeKind.Mesh).All(o => o.Model == "00000000000000000000000000000abc"),
             "ReplaceGuid repairs model references");
+    }
+
+    private static void TestSceneAsset()
+    {
+        SceneAsset scene = new() { Meta = new System.Text.Json.Nodes.JsonObject { ["guid"] = AssetMeta.NewGuid(), ["tags"] = new System.Text.Json.Nodes.JsonArray() } };
+        SceneActorAsset root = new() { Id = SceneAsset.NewActorId(), Name = "Gun", HasTransform = true, Position = new[] { 1.0f, 2.0f, 3.0f } };
+        SceneActorAsset child = new() { Id = SceneAsset.NewActorId(), Name = "Light", Parent = root.Id };
+        SceneComponentAsset driver = new() { Id = SceneAsset.NewComponentId(), Type = "xg.ObjectDriverComponent, xgSharedKit.Managed" };
+        driver.Data.Add(new System.Text.Json.Nodes.JsonObject
+        {
+            ["Object"] = new System.Text.Json.Nodes.JsonObject { ["type"] = "xg.AssetReference", ["value"] = new System.Text.Json.Nodes.JsonObject
+                { ["Guid"] = new System.Text.Json.Nodes.JsonObject { ["Hi"] = 0x0f2fa22886f649f7UL, ["Lo"] = 0xa94d567ea25e3059UL } } },
+        });
+        root.Components.Add(driver);
+        SceneCompositionAsset slide = new() { Node = AssetMeta.NewGuid(), Name = "Slide" };
+        slide.Components.Add(new SceneComponentAsset { Id = SceneAsset.NewComponentId(), Type = "Game.Recoil, Game",
+            Fields = new System.Text.Json.Nodes.JsonObject { ["Kick"] = new System.Text.Json.Nodes.JsonObject { ["type"] = "System.Single", ["value"] = 0.5 } } });
+        root.Compositions.Add(slide);
+        scene.Actors.Add(child);
+        scene.Actors.Add(root);
+        scene.Extra["settings"] = new System.Text.Json.Nodes.JsonObject { ["ambient"] = 0.2 };
+
+        string json = scene.ToJSON();
+        SceneAsset parsed = SceneAsset.Parse(json);
+        Check(parsed.SameAs(scene) && json.EndsWith("\r\n") && json.Contains("\"meta\""), "JSON round trip with the embedded meta");
+        Check(parsed.Extra["settings"]?["ambient"]?.GetValue<double>() == 0.2, "unknown top-level keys are kept");
+        Check(parsed.Find(root.Id)!.Position[2] == 3.0f && parsed.Find(child.Id)!.HasTransform == false, "transforms are optional per actor");
+        Check(parsed.Find(root.Id)!.Compositions[0].Components[0].Fields["Kick"] is not null, "composition overrides round trip");
+        Check(SceneAsset.NewComponentId().Length == 16 && SceneAsset.NewActorId().Length == 32, "component ids are 16 hex digits, actor ids 32");
+
+        List<string> errors = new();
+        List<SceneActorAsset> ordered = scene.Ordered(errors);
+        Check(errors.Count == 0 && ordered[0].Id == root.Id && ordered[1].Id == child.Id, "Ordered puts parents first");
+        Check(scene.ReferencedGuids().SequenceEqual(new[] { "0f2fa22886f649f7a94d567ea25e3059" }), "references come from captured { Hi, Lo } values");
+        Check(!json.Contains("\"editor\"") && !json.Contains("\"folders\"") && !json.Contains("\"folder\""), "no editor block or folders are written while nothing is set");
+
+        SceneAsset flagged = scene.Clone();
+        flagged.Hidden = true;
+        flagged.Locked = true;
+        SceneFolderAsset props = new() { Id = AssetMeta.NewGuid(), Name = "Props", Locked = true };
+        SceneFolderAsset lamps = new() { Id = AssetMeta.NewGuid(), Name = "Lamps", Parent = props.Id, Hidden = true };
+        flagged.Folders.Add(props);
+        flagged.Folders.Add(lamps);
+        flagged.Find(root.Id)!.Folder = lamps.Id;
+        flagged.Find(root.Id)!.Locked = true;
+        flagged.Find(child.Id)!.Hidden = true;
+        flagged.Find(child.Id)!.Extra["future"] = new System.Text.Json.Nodes.JsonObject { ["x"] = 1 };
+        flagged.Find(root.Id)!.Compositions[0].Hidden = true;
+        string flaggedJSON = flagged.ToJSON();
+        SceneAsset reparsed = SceneAsset.Parse(flaggedJSON);
+        Check(reparsed.SameAs(flagged) && reparsed.Hidden && reparsed.Locked, "the scene's editor flags round trip");
+        Check(reparsed.Folders.Count == 2 && reparsed.Folders[0].Locked && !reparsed.Folders[0].Hidden && reparsed.Folders[1].Parent == props.Id && reparsed.Folders[1].Hidden,
+            "folders round trip with their parent and flags, in order");
+        Check(reparsed.Find(root.Id)!.Folder == lamps.Id && reparsed.Find(root.Id)!.Locked && !reparsed.Find(root.Id)!.Hidden && reparsed.Find(child.Id)!.Hidden,
+            "actor folders and editor flags round trip");
+        Check(reparsed.Find(child.Id)!.Extra["future"]?["x"]?.GetValue<int>() == 1, "unknown actor keys are kept");
+        Check(reparsed.Find(root.Id)!.Compositions[0].Hidden, "a Composition Actor's hidden flag round trips");
+        Check(!flaggedJSON.Contains("\"hidden\": false") && !flaggedJSON.Contains("\"locked\": false"), "only set flags are written");
+
+        SceneAsset broken = scene.Clone();
+        broken.Actors.Add(new SceneActorAsset { Id = root.Id, Name = "Twin" });
+        broken.Actors.Add(new SceneActorAsset { Id = SceneAsset.NewActorId(), Name = "Lost", Parent = SceneAsset.NewActorId() });
+        broken.Find(child.Id)!.Components.Add(new SceneComponentAsset { Id = "aa", Type = "A" });
+        broken.Find(child.Id)!.Components.Add(new SceneComponentAsset { Id = "aa", Type = "B" });
+        List<string> brokenErrors = new();
+        broken.Ordered(brokenErrors);
+        Check(brokenErrors.Count == 3, "duplicate actor ids, missing parents and duplicate component ids are errors");
+
+        SceneAsset cycle = new();
+        string a = SceneAsset.NewActorId(), b = SceneAsset.NewActorId();
+        cycle.Actors.Add(new SceneActorAsset { Id = a, Name = "A", Parent = b });
+        cycle.Actors.Add(new SceneActorAsset { Id = b, Name = "B", Parent = a });
+        List<string> cycleErrors = new();
+        cycle.Ordered(cycleErrors);
+        Check(cycleErrors.Count == 2, "a cycle is an error");
     }
 
     private static void TestEmbeddedMeta()

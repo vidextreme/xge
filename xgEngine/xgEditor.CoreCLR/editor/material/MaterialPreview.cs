@@ -129,9 +129,9 @@ namespace xgEditor.CoreCLR
             if (Row("##solid", Icon.None, "Solid", !Checker, ToggleDot.Radio))
                 Checker = false;
             y += 4.0f;
-            if (Row("##rotate", Icon.Rotate, "Auto-rotate", AutoRotate, ToggleDot.Check))
+            if (Row("##rotate", Icon.Rotate, "Auto-Rotate", AutoRotate, ToggleDot.Check))
                 AutoRotate = !AutoRotate;
-            if (Row("##reset", Icon.Camera, "Reset camera", false, ToggleDot.None))
+            if (Row("##reset", Icon.Camera, "Reset Camera", false, ToggleDot.None))
             {
                 (_yaw, _pitch, _distance) = (0.6f, 0.35f, 3.0f);
                 Gui.ClosePopup();

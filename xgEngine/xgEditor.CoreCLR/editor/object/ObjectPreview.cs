@@ -121,7 +121,7 @@ namespace xgEditor.CoreCLR
             }
 
             Header("Overlay");
-            if (Row("##proxies", Icon.Gizmo, "Proxy axes", ShowProxies, ToggleDot.Check))
+            if (Row("##proxies", Icon.Gizmo, "Proxy Axes", ShowProxies, ToggleDot.Check))
                 ShowProxies = !ShowProxies;
             if (Row("##names", Icon.Tag, "Names", ShowNames, ToggleDot.Check))
                 ShowNames = !ShowNames;
@@ -130,9 +130,9 @@ namespace xgEditor.CoreCLR
                 Checker = true;
             if (Row("##solid", Icon.None, "Solid", !Checker, ToggleDot.Radio))
                 Checker = false;
-            if (Row("##rotate", Icon.Rotate, "Auto-rotate", AutoRotate, ToggleDot.Check))
+            if (Row("##rotate", Icon.Rotate, "Auto-Rotate", AutoRotate, ToggleDot.Check))
                 AutoRotate = !AutoRotate;
-            if (Row("##reset", Icon.Camera, "Reset camera", false, ToggleDot.None))
+            if (Row("##reset", Icon.Camera, "Reset Camera", false, ToggleDot.None))
             {
                 (_yaw, _pitch, _zoom) = (0.6f, 0.35f, 1.0f);
                 Gui.ClosePopup();

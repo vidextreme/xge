@@ -161,7 +161,7 @@ namespace xg {
         GpuMaterial* FindMaterial(uint64_t id);
         bool WriteMaterial(GpuMaterial& material, const MaterialDesc& desc);
         void RecordLitMesh(const GpuMesh& mesh, const float* world, const float* viewProjection);
-        void RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, D3D12_GPU_DESCRIPTOR_HANDLE heapStart);
+        void RecordSceneDraws(const std::vector<SceneDraw>& draws, const float* viewProjection, D3D12_GPU_DESCRIPTOR_HANDLE heapStart, bool skipEditorHidden);
         bool CreateRenderViewTargets(RenderView& view, UINT width, UINT height);
         void RecordRenderViews();
         RenderView* FindRenderView(uint64_t id);

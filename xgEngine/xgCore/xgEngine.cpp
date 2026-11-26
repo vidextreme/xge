@@ -718,7 +718,7 @@ namespace xg
                 transforms->Update();
             _sceneDraws.clear();
             if (_objectDriveSystem)
-                _objectDriveSystem->Update(Renderer.get(), _sceneDraws);
+                _objectDriveSystem->Update(Renderer.get(), _sceneDraws, _meshRenderSystem);
             if (_meshRenderSystem)
                 _meshRenderSystem->Update(Renderer.get(), _sceneDraws);
 

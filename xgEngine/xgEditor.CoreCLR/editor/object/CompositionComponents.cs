@@ -16,6 +16,9 @@ namespace xgEditor.CoreCLR
 
         public static int Added { get; private set; }
 
+        // Raised after a spawned Composition Actor got its authored components (scenes apply instance overrides here).
+        public static event Action<ActorID>? Spawned;
+
         public static void Update()
         {
             for (int guard = 0; guard < 64 && ObjectDriverComponent.TryTakeSpawned(out ActorID actor, out string json); guard++)
@@ -52,11 +55,22 @@ namespace xgEditor.CoreCLR
                 object? component = _components.LastOrDefault(c => c.GetType().FullName == fullName);
                 if (component is null)
                     continue;
+                if (entry?["id"]?.GetValue<string>() is { Length: > 0 } id)
+                    ComponentIds.Set(component, id);
                 foreach (string skipped in ReloadState.ApplyFields(component, entry?["fields"] as JsonObject))
                     Debug.LogWarning($"[Objects] {ActorTree.GetName(actor)}: not applied: {skipped}");
             }
             Added += added;
-            Debug.Log($"[Objects] Added {added} authored component(s) to {ActorTree.GetName(actor)}");
+            if (added > 0)
+                Debug.Log($"[Objects] Added {added} authored component(s) to {ActorTree.GetName(actor)}");
+            try
+            {
+                Spawned?.Invoke(actor);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
         }
     }
 }

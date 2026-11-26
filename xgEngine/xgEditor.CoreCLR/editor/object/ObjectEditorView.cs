@@ -25,7 +25,6 @@ namespace xgEditor.CoreCLR
         private const float TreeArrowOffset = 20.0f;
         private const float TreeIndent = 14.0f;
         private const float TimelineHeight = 30.0f;
-        private const string SaveAsModalId = "object_save_as";
 
         private static readonly string[] _tabNames = { "All", "Naming", "Jointer", "Mesh and material", "Components" };
         private static readonly Icon[] _tabIcons = { Icon.Cards, Icon.Tag, Icon.Transform, Icon.Mesh, Icon.Component };
@@ -36,7 +35,6 @@ namespace xgEditor.CoreCLR
         private readonly HashSet<string> _collapsed = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<(ObjectNodeAsset Node, int Depth, bool HasChildren)> _rows = new();
         private readonly TextBuffer _name = new(128);
-        private readonly TextBuffer _saveAsName = new(128);
         private readonly MaterialEditorView _materialView = new("object_material");
         private readonly Dictionary<string, AuthoredPrototype> _prototypes = new(StringComparer.Ordinal);
         private readonly TextBuffer _componentSearch = new(64);
@@ -47,8 +45,6 @@ namespace xgEditor.CoreCLR
         private float[] _eulerQuaternion = new float[4];
         private Vector3 _euler;
         private string _editMaterial = string.Empty;
-        private string? _saveAsError;
-        private bool _openSaveAs;
         private bool _previewOpen = true;
         private bool _timelineOpen;
 
@@ -141,7 +137,6 @@ namespace xgEditor.CoreCLR
                     DrawTimeline();
                 }
             }
-            DrawSaveAs(driver);
         }
 
         private static void FillBackground()
@@ -209,7 +204,7 @@ namespace xgEditor.CoreCLR
                 bool revert = ToggleButton.Draw(draw, "##revert", Rect.FromXYWH(half + 1.0f, y, half - 2.0f, RowHeight), Icon.None, null, "Revert", null,
                     "Drop the unsaved changes", false, dirty, ToggleDot.None).Clicked();
                 y += step;
-                bool saveAs = ToggleButton.Draw(draw, "##save_as", Rect.FromXYWH(1.0f, y, width - 2.0f, RowHeight), Icon.File, null, "Save as...", null,
+                bool saveAs = ToggleButton.Draw(draw, "##save_as", Rect.FromXYWH(1.0f, y, width - 2.0f, RowHeight), Icon.File, null, "Save As...", null,
                     "Save a copy and edit it", false, driver is not null, ToggleDot.None).Clicked();
                 y += step + 3.0f;
 
@@ -229,9 +224,9 @@ namespace xgEditor.CoreCLR
                 y += step + 3.0f;
 
                 bool addMesh = ToggleButton.Draw(draw, "##add_mesh", Rect.FromXYWH(1.0f, y, half - 2.0f, RowHeight), Icon.Mesh, Style.Color(StyleColor.IconComponent),
-                    "Add mesh", null, "Add a Mesh Object under the selected Object", false, driver is not null, ToggleDot.None).Clicked();
+                    "Add Mesh", null, "Add a Mesh Object under the selected Object", false, driver is not null, ToggleDot.None).Clicked();
                 bool addProxy = ToggleButton.Draw(draw, "##add_proxy", Rect.FromXYWH(half + 1.0f, y, half - 2.0f, RowHeight), Icon.Gizmo, new Color32(230, 160, 208, 255),
-                    "Add proxy", null, "Add a proxy (a named point) under the selected Object", false, driver is not null, ToggleDot.None).Clicked();
+                    "Add Proxy", null, "Add a proxy (a named point) under the selected Object", false, driver is not null, ToggleDot.None).Clicked();
                 y += step;
                 bool remove = ToggleButton.Draw(draw, "##remove", Rect.FromXYWH(1.0f, y, width - 2.0f, RowHeight), Icon.Trash, null, "Remove", null,
                     "Remove the selected Object and its children", false, hasSelection, ToggleDot.None).Clicked();
@@ -244,9 +239,7 @@ namespace xgEditor.CoreCLR
                     driver.Revert();
                 else if (saveAs)
                 {
-                    _saveAsName.Text = driver.Name + " copy";
-                    _saveAsError = null;
-                    _openSaveAs = true;
+                    OpenSaveAs(driver);
                 }
                 else if (addMesh || addProxy)
                 {
@@ -741,7 +734,7 @@ namespace xgEditor.CoreCLR
             {
                 fields = new JsonObject();
             }
-            (node.Components ??= new JsonArray()).Add(new JsonObject { ["type"] = type.Key, ["fields"] = fields });
+            (node.Components ??= new JsonArray()).Add(new JsonObject { ["id"] = SceneAsset.NewComponentId(), ["type"] = type.Key, ["fields"] = fields });
             driver.Changed();
             return true;
         }
@@ -759,40 +752,38 @@ namespace xgEditor.CoreCLR
         // ------------------------------------------------------------
         // Save as
         // ------------------------------------------------------------
-        private void DrawSaveAs(ObjectDriver? driver)
+        // Save as through the shared SaveAsDialog: the copy goes next to the object unless another folder is chosen.
+        // Opens Save as for the edited asset (also the Tools card's Save as... button).
+        public void SaveAs()
         {
-            if (_openSaveAs)
+            if (Driver is { } driver)
+                OpenSaveAs(driver);
+        }
+
+        private void OpenSaveAs(ObjectDriver driver)
+        {
+            string folder = driver.Path.Contains('/') ? driver.Path[..driver.Path.LastIndexOf('/')] : AssetIndex.RootFolder;
+            AssetEntry? entry = ProjectService.Assets?.Index.Find(driver.Path);
+            SaveAsDialog.Open(new SaveAsRequest
             {
-                _openSaveAs = false;
-                Gui.OpenPopup(SaveAsModalId);
-            }
-            using var modal = Gui.Modal(SaveAsModalId, "Save object as", new Vector2(320.0f, 0.0f));
-            if (!modal.IsOpen || driver is null)
-                return;
-            Gui.Field("Name", _saveAsName);
-            if (_saveAsError is not null)
-                Gui.Label(_saveAsError);
-            using (Gui.Horizontal())
-            {
-                Gui.FlexibleSpace();
-                if (Gui.Button("Cancel"))
-                    Gui.CloseModal();
-                if (Gui.Button("Save"))
+                Title = "Save Object As",
+                Context = driver.Path,
+                Name = driver.Name + " copy",
+                Extension = ObjectAsset.Extension,
+                Folder = folder,
+                DrawPreview = (draw, rect) =>
                 {
-                    string name = _saveAsName.Text.Trim();
-                    if (!name.EndsWith(ObjectAsset.Extension, StringComparison.OrdinalIgnoreCase))
-                        name += ObjectAsset.Extension;
-                    string folder = driver.Path[..Math.Max(driver.Path.LastIndexOf('/'), 0)];
-                    string path = folder + "/" + name;
-                    _saveAsError = AssetDatabase.ValidateName(name)
-                        ?? (ProjectService.Assets is { } assets && File.Exists(assets.FullPath(path)) ? "An asset with that name exists" : null);
-                    if (_saveAsError is null && driver.SaveAs(path))
-                    {
-                        Gui.CloseModal();
-                        SavedAs?.Invoke(path);
-                    }
-                }
-            }
+                    if (entry is not null)
+                        AssetThumbnails.Draw(draw, rect, entry, 28.0f);
+                },
+                Commit = path =>
+                {
+                    if (!driver.SaveAs(path))
+                        return "The object couldn't be saved (see the Console)";
+                    SavedAs?.Invoke(path);
+                    return null;
+                },
+            });
         }
 
         public void Dispose()

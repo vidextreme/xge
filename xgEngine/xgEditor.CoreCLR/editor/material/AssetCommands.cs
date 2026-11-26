@@ -12,9 +12,9 @@ namespace xgEditor.CoreCLR
     // The Tools ribbon's Scene > Assets group: create a material in the Navigator's folder, or edit the selected one.
     public static partial class AssetCommands
     {
-        [ToolButton("Create material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 10,
+        [ToolButton("Create Material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 10,
             Validate = nameof(HasProject), Tooltip = "Create a material in the Navigator's folder and open it in the Material Editor")]
-        [ContextMenuButton("Create material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 10,
+        [ContextMenuButton("Create Material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 10,
             Validate = nameof(HasProject), Tooltip = "Create a material in the Navigator's folder and open it in the Material Editor")]
         public static void CreateMaterial()
         {
@@ -29,9 +29,9 @@ namespace xgEditor.CoreCLR
                 });
         }
 
-        [ToolButton("Edit material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 20,
+        [ToolButton("Edit Material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 20,
             Validate = nameof(MaterialSelected), Tooltip = "Open the selected material in the Material Editor")]
-        [ContextMenuButton("Edit material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 20,
+        [ContextMenuButton("Edit Material", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Material), Priority = 20,
             Validate = nameof(MaterialSelected), Tooltip = "Open the selected material in the Material Editor")]
         public static void EditMaterial()
         {
@@ -40,9 +40,9 @@ namespace xgEditor.CoreCLR
         }
 
         [MenuSeparator]
-        [ToolButton("Create shader", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Code), Priority = 10,
+        [ToolButton("Create Shader", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Code), Priority = 10,
             Validate = nameof(HasProject), Tooltip = "Create a new shader.")]
-        [ContextMenuButton("Create shader", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Code), Priority = 10,
+        [ContextMenuButton("Create Shader", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Code), Priority = 10,
             Validate = nameof(HasProject), Tooltip = "Create a new shader.")]
         public static void CreateShader()
         {
@@ -58,9 +58,22 @@ namespace xgEditor.CoreCLR
         }
 
         [MenuSeparator]
-        [ToolButton("Create object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
+        [ToolButton("Create Scene", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Scene), Priority = 28,
+            Validate = nameof(HasProject), Tooltip = "Create an empty scene (.xcs) in the Navigator's folder")]
+        [ContextMenuButton("Create Scene", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Scene), Priority = 28,
+            Validate = nameof(HasProject), Tooltip = "Create an empty scene (.xcs) in the Navigator's folder")]
+        public static void CreateScene()
+        {
+            NavigatorPanel? navigator = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault();
+            string folder = navigator?.Folder ?? AssetIndex.RootFolder;
+            if (AssetTemplates.CreateScene(folder) is not string path)
+                return;
+            navigator?.RenameCreated(path, () => Selection.Set(path));
+        }
+
+        [ToolButton("Create Object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
             Validate = nameof(HasProject), Tooltip = "Create a composition object in the Navigator's folder")]
-        [ContextMenuButton("Create object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
+        [ContextMenuButton("Create Object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
             Validate = nameof(HasProject), Tooltip = "Create a composition object in the Navigator's folder")]
         public static void CreateObject()
         {
@@ -75,9 +88,9 @@ namespace xgEditor.CoreCLR
             });
         }
 
-        [ToolButton("Edit object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
+        [ToolButton("Edit Object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
             Validate = nameof(ObjectSelected), Tooltip = "Open the selected composition object in the Object Editor")]
-        [ContextMenuButton("Edit object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
+        [ContextMenuButton("Edit Object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
             Validate = nameof(ObjectSelected), Tooltip = "Open the selected composition object in the Object Editor")]
         public static void EditObject()
         {
@@ -89,9 +102,9 @@ namespace xgEditor.CoreCLR
         public static ToolUsability ObjectSelected() =>
             Selection.Objects.LastOrDefault() is AssetRef asset && ObjectAsset.IsObject(asset.Path) ? ToolUsability.Usable : ToolUsability.Unusable;
 
-        [ToolButton("Object from model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
+        [ToolButton("Object from Model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
             Validate = nameof(ModelSelected), Tooltip = "Create a composition object from the selected model, one Mesh Object per mesh")]
-        [ContextMenuButton("Object from model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
+        [ContextMenuButton("Object from Model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
             Validate = nameof(ModelSelected), Tooltip = "Create a composition object from the selected model, one Mesh Object per mesh")]
         public static void CreateObjectFromModel()
         {

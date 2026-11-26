@@ -21,16 +21,12 @@ namespace xgEditor.CoreCLR
         private const float MinRightWidth = 300.0f;
         private const float PreviewAspect = 0.9f;
         private const float ActionRowHeight = 22.0f;
-        private const string SaveAsModalId = "material_save_as";
 
         private readonly MaterialPreview _preview;
         private readonly AssetPicker _shaderPicker = new();
         private readonly Dictionary<string, AssetPicker> _texturePickers = new(StringComparer.Ordinal);
         private readonly Dictionary<string, bool> _groupsOpen = new(StringComparer.Ordinal);
         private readonly TagField _tags;
-        private readonly TextBuffer _saveAsName = new(128);
-        private string? _saveAsError;
-        private bool _openSaveAs;
         private float _leftWidth = 800.0f;
         private bool _previewOpen = true;
 
@@ -95,7 +91,6 @@ namespace xgEditor.CoreCLR
                     DrawProperties(driver);
                 }
             }
-            DrawSaveAs(driver);
         }
 
         // The properties and Save / Revert / Save as without the preview, for hosts that mount the material inside
@@ -106,7 +101,6 @@ namespace xgEditor.CoreCLR
             driver?.RefreshAnnotations();
             DrawProperties(driver);
             DrawTools(driver);
-            DrawSaveAs(driver);
         }
 
         private static void FillBackground()
@@ -143,16 +137,14 @@ namespace xgEditor.CoreCLR
                 bool revert = ToggleButton.Draw(draw, "##revert", Rect.FromXYWH(cell + 1.0f, 0.0f, cell - 2.0f, ActionRowHeight), Icon.None, null, "Revert",
                     null, "Drop the unsaved changes", false, dirty, ToggleDot.None).Clicked();
                 bool saveAs = ToggleButton.Draw(draw, "##save_as", Rect.FromXYWH(1.0f, ActionRowHeight + 2.0f, width - 2.0f, ActionRowHeight), Icon.File, null,
-                    "Save as...", null, "Save a copy and edit it", false, driver is not null, ToggleDot.None).Clicked();
+                    "Save As...", null, "Save a copy and edit it", false, driver is not null, ToggleDot.None).Clicked();
                 if (save && dirty)
                     driver!.Apply();
                 else if (revert && dirty)
                     driver!.Revert();
                 else if (saveAs && driver is not null)
                 {
-                    _saveAsName.Text = driver.Name + " copy";
-                    _saveAsError = null;
-                    _openSaveAs = true;
+                    OpenSaveAs(driver);
                 }
             }
         }
@@ -336,40 +328,38 @@ namespace xgEditor.CoreCLR
                 driver.SetTexture(texture.Name, guid);
         }
 
-        private void DrawSaveAs(MaterialDriver? driver)
+        // Save as through the shared SaveAsDialog: the copy goes next to the material unless another folder is chosen.
+        // Opens Save as for the edited asset (also the Tools card's Save as... button).
+        public void SaveAs()
         {
-            if (_openSaveAs)
+            if (Driver is { } driver)
+                OpenSaveAs(driver);
+        }
+
+        private void OpenSaveAs(MaterialDriver driver)
+        {
+            string folder = driver.Path.Contains('/') ? driver.Path[..driver.Path.LastIndexOf('/')] : AssetIndex.RootFolder;
+            AssetEntry? entry = ProjectService.Assets?.Index.Find(driver.Path);
+            SaveAsDialog.Open(new SaveAsRequest
             {
-                _openSaveAs = false;
-                Gui.OpenPopup(SaveAsModalId);
-            }
-            using var modal = Gui.Modal(SaveAsModalId, "Save material as", new Vector2(320.0f, 0.0f));
-            if (!modal.IsOpen || driver is null)
-                return;
-            Gui.Field("Name", _saveAsName);
-            if (_saveAsError is not null)
-                Gui.Label(_saveAsError);
-            using (Gui.Horizontal())
-            {
-                Gui.FlexibleSpace();
-                if (Gui.Button("Cancel"))
-                    Gui.CloseModal();
-                if (Gui.Button("Save"))
+                Title = "Save Material As",
+                Context = driver.Path,
+                Name = driver.Name + " copy",
+                Extension = MaterialAsset.Extension,
+                Folder = folder,
+                DrawPreview = (draw, rect) =>
                 {
-                    string name = _saveAsName.Text.Trim();
-                    if (!name.EndsWith(MaterialAsset.Extension, StringComparison.OrdinalIgnoreCase))
-                        name += MaterialAsset.Extension;
-                    string folder = driver.Path[..Math.Max(driver.Path.LastIndexOf('/'), 0)];
-                    string path = folder + "/" + name;
-                    _saveAsError = AssetDatabase.ValidateName(name)
-                        ?? (ProjectService.Assets is { } assets && File.Exists(assets.FullPath(path)) ? "An asset with that name exists" : null);
-                    if (_saveAsError is null && driver.SaveAs(path))
-                    {
-                        Gui.CloseModal();
-                        SavedAs?.Invoke(path);
-                    }
-                }
-            }
+                    if (entry is not null)
+                        AssetThumbnails.Draw(draw, rect, entry, 28.0f);
+                },
+                Commit = path =>
+                {
+                    if (!driver.SaveAs(path))
+                        return "The material couldn't be saved (see the Console)";
+                    SavedAs?.Invoke(path);
+                    return null;
+                },
+            });
         }
 
         private static void OpenFile(string path)

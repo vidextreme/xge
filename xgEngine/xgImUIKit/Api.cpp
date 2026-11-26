@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace xg::imui
@@ -66,6 +67,7 @@ namespace xg::imui
         int CanvasDepth = 0;
         DrawLayer Layer = DrawLayer::Panel;
         int ToolbarCount = 0;
+        bool RowRightClicked = false;
 
         // Layout groups: rows and columns. Stretch items (FlexibleSpace, fill-size widgets) share the space left
         // after the fixed items, measured on the previous frame and kept in the window's state storage.
@@ -1572,14 +1574,19 @@ namespace xg
             imui::detail::_fieldActive = false;
             InspectorLabel(text);
             const bool changed = body();
-            const imui::Result result = ItemResult(changed);
+            imui::Result result = ItemResult(changed);
             const bool focused = imui::detail::_fieldActive;
             imui::detail::_fieldActive = wasActive;
+            const ImRect row(ImVec2(ImFloor(start.x) - 4.0f, ImFloor(start.y) - 2.0f),
+                ImVec2(ImFloor(window->WorkRect.Max.x) + 4.0f, ImFloor(start.y + ImGui::GetFrameHeight()) + 2.0f));
+            const bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(row.Min, row.Max, false);
+            if (hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+            {
+                result = result | imui::Result::RightClicked;
+                ctx->RowRightClicked = true;
+            }
             if (split)
             {
-                const ImRect row(ImVec2(ImFloor(start.x) - 4.0f, ImFloor(start.y) - 2.0f),
-                    ImVec2(ImFloor(window->WorkRect.Max.x) + 4.0f, ImFloor(start.y + ImGui::GetFrameHeight()) + 2.0f));
-                const bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(row.Min, row.Max, false);
                 dl->ChannelsSetCurrent(0);
                 if (focused)
                 {
@@ -2192,6 +2199,29 @@ namespace xg
     {
         if (ctx)
             ImGui::PopFont();
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIBeginDisabled(imui::Context* ctx, bool disabled)
+    {
+        if (!ctx)
+            return;
+        ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha, 0.7f);
+        ImGui::BeginDisabled(disabled);
+    }
+
+    XG_MODULE_EXPORT void XG_ImUIEndDisabled(imui::Context* ctx)
+    {
+        if (!ctx)
+            return;
+        ImGui::EndDisabled();
+        ImGui::PopStyleVar();
+    }
+
+    XG_MODULE_EXPORT bool XG_ImUITakeRowRightClick(imui::Context* ctx)
+    {
+        if (!ctx)
+            return false;
+        return std::exchange(ctx->RowRightClicked, false);
     }
 
     // ------------------------------------------------------------
