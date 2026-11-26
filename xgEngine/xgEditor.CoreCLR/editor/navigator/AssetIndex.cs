@@ -72,7 +72,7 @@ namespace xgEditor.CoreCLR
             ["mat"] = AssetKind.Material, ["material"] = AssetKind.Material, ["xcm"] = AssetKind.Material,
             ["hlsl"] = AssetKind.Shader, ["hlsli"] = AssetKind.Shader,
             ["xco"] = AssetKind.Object,
-            ["fbx"] = AssetKind.Mesh, ["obj"] = AssetKind.Mesh, ["gltf"] = AssetKind.Mesh, ["glb"] = AssetKind.Mesh,
+            ["fbx"] = AssetKind.Mesh, ["xcp"] = AssetKind.Mesh, ["obj"] = AssetKind.Mesh, ["gltf"] = AssetKind.Mesh, ["glb"] = AssetKind.Mesh,
             ["dae"] = AssetKind.Mesh, ["blend"] = AssetKind.Mesh, ["mesh"] = AssetKind.Mesh, ["mdl"] = AssetKind.Mesh,
             ["wav"] = AssetKind.Audio, ["ogg"] = AssetKind.Audio, ["mp3"] = AssetKind.Audio, ["flac"] = AssetKind.Audio,
             ["scene"] = AssetKind.Scene, ["xgscene"] = AssetKind.Scene, ["xcs"] = AssetKind.Scene,

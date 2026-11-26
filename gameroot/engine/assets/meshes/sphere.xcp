@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "meta": {
+    "guid": "6ecd9a902f4047f2b09ecd1ba9b51dbf",
+    "tags": [],
+    "items": [
+      {
+        "kind": "hierarchy",
+        "path": "",
+        "guid": "b211921458e44141ab45ed2ad90fd756"
+      },
+      {
+        "kind": "submesh",
+        "path": "sphere/default",
+        "guid": "46214142c34647018156fe11e424fb59"
+      }
+    ]
+  },
+  "shape": "sphere",
+  "size": 1,
+  "segments": 48,
+  "rings": 24
+}

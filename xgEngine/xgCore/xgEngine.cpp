@@ -65,6 +65,31 @@ namespace xg
         std::vector<HostEntry> Hosts;
     };
 
+    namespace
+    {
+        // The engine's built-in assets: <gameroot>/engine/data next to the executable's bin folder, shared by every
+        // module, the editor and players.
+        void AddEngineDataSource(ResourceSystem& resources, uint32_t moduleId)
+        {
+            char exe[1024];
+            if (GetExecutablePath(exe, sizeof(exe)) == 0)
+                return;
+            std::string path = exe;
+            for (int up = 0; up < 2; ++up)
+            {
+                const size_t slash = path.find_last_of("/\\");
+                if (slash == std::string::npos)
+                    return;
+                path.resize(slash);
+            }
+            path += "/engine/data";
+            if (resources.AddDirectorySource(moduleId, path.c_str()) != 0)
+                xg::Log(xg::MessageType::Info, "[Resources] Engine data: %s", path.c_str());
+            else
+                xg::Log(xg::MessageType::Warning, "[Resources] Built-in assets are unavailable; build xgEngineData to create %s", path.c_str());
+        }
+    }
+
     Engine::Engine()
     {
         _logger = new LoggerImpl();
@@ -98,6 +123,7 @@ namespace xg
         RegisterSubsystem(_rootModule, jobs);
         auto* resources = new ResourceSystemImpl(jobs);
         RegisterSubsystem(_rootModule, resources);
+        AddEngineDataSource(*resources, _rootModule->GetModuleId());
         _meshRenderSystem = new MeshRenderSystemImpl(componentData, resources, GetSubsystem<TransformSystem>(), _rootModule->GetModuleId());
         RegisterSubsystem(_rootModule, _meshRenderSystem);
         _objectDriveSystem = new ObjectDriveSystemImpl(this, componentData, resources, GetSubsystem<TransformSystem>(), _rootModule->GetModuleId());

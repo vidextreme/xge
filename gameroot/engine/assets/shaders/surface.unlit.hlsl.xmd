@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "guid": "389b08c5dee04ca29a50b11832169547",
+  "tags": [],
+  "importer": {
+    "import": {},
+    "process": {}
+  },
+  "items": [
+    {
+      "kind": "shader",
+      "path": "surface.unlit",
+      "guid": "774c31a98fb344abb80caddf5d42f10e"
+    }
+  ]
+}

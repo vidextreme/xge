@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "meta": {
+    "guid": "f61966b0fd4a4a4793f8781f42a56114",
+    "tags": [],
+    "items": [
+      {
+        "kind": "material",
+        "path": "",
+        "guid": "93221068312c47278445736632ee4194"
+      }
+    ]
+  },
+  "shader": "ad5de5836aa3442da5d20220421c781c",
+  "params": {},
+  "textures": {}
+}

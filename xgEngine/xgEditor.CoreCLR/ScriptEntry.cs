@@ -1,4 +1,4 @@
-// Copyright (c) 2026 John David Uy
+﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -789,6 +789,40 @@ namespace xgEditor.CoreCLR
         // XG_UI_TEST_PLAY=play,frames,stop) and logs the main camera's settings at 90 and 240.
         private static ActorID _cameraTestActor;
 
+        // XG_ENGINE_ASSETS_TEST=1: logs the built-in assets at frame 60 and creates "Built-in Sphere" (sphere, no material:
+        // drawn with the default material), "Built-in Cube" (cube + unlit material) and "Broken Material" (quad + a
+        // material GUID nothing has, drawn with the error material); logs the draw counts at 180 (all three count as
+        // material draws).
+        private static void EngineAssetsTest(int frame)
+        {
+            if (frame == 60)
+            {
+                IReadOnlyList<xg.editor.EngineAsset> all = xg.editor.EngineAssets.All;
+                Debug.Log($"[EngineAssets] {all.Count} built-in asset(s): {string.Join(", ", all.Select(a => a.Path))}");
+                Debug.Log($"[EngineAssets] default material {xg.editor.EngineAssets.DefaultMaterial}, error material {xg.editor.EngineAssets.ErrorMaterial}, sphere {xg.editor.EngineAssets.Sphere}");
+                Spawn("Built-in Sphere", xg.editor.EngineAssets.Sphere, string.Empty, new Vector3(-1.5f, 0.5f, 0.0f));
+                Spawn("Built-in Cube", xg.editor.EngineAssets.Cube, xg.editor.EngineAssets.UnlitMaterial, new Vector3(1.5f, 0.5f, 0.0f));
+                Spawn("Broken Material", xg.editor.EngineAssets.Quad, "0123456789abcdef0123456789abcdef", new Vector3(0.0f, 1.5f, 1.5f));
+            }
+            else if (frame == 180)
+            {
+                int draws = MeshRenderer.DrawCount(out int materialDraws);
+                Debug.Log($"[EngineAssets] mesh draws {draws}, with a material {materialDraws}");
+            }
+
+            static void Spawn(string name, string model, string material, Vector3 position)
+            {
+                Actor? actor = SceneManager.CreateActor(name);
+                if (actor is null)
+                    return;
+                actor.AddTransform().LocalPosition = position;
+                MeshRenderer renderer = actor.AddComponent<MeshRenderer>();
+                renderer.Model = AssetReference.FromText(model);
+                if (material.Length > 0)
+                    renderer.Material = AssetReference.FromText(material);
+            }
+        }
+
         private static void LogMainCamera(string when)
         {
             ActorID main = Camera.Main;
@@ -1171,15 +1205,15 @@ namespace xgEditor.CoreCLR
             if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_MATERIAL_EDIT") is { Length: > 0 } materialEdit)
             {
                 string[] parts = materialEdit.Split(':', 2);
-                MaterialEditorPanel panel = MaterialEditorPanel.Open(parts[0]);
-                if (parts.Length > 1 && panel.Driver is { } driver && parts[1].Split('=') is { Length: 2 } pair)
+                MaterialEditorPanel? panel = MaterialEditorPanel.Open(parts[0]);
+                if (parts.Length > 1 && panel?.Driver is { } driver && parts[1].Split('=') is { Length: 2 } pair)
                 {
                     float[] value = pair[1].Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).Concat(new float[4]).Take(4).ToArray();
                     driver.SetParam(pair[0], value);
                     Debug.Log($"[Debug] Material draft {parts[0]}: {pair[0]} = {pair[1]} (pending: {driver.HasPendingChanges})");
                 }
                 if (Environment.GetEnvironmentVariable("XG_UI_TEST_MATERIAL_PREVIEW_MENU") == "1")
-                    panel.View.Preview.OpenMenu(30);
+                    panel?.View.Preview.OpenMenu(30);
             }
             if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_OBJECT_EDIT") is { Length: > 0 } objectEdit)
             {
@@ -1249,6 +1283,8 @@ namespace xgEditor.CoreCLR
             }
             if (Environment.GetEnvironmentVariable("XG_CAMERA_TEST") is { Length: > 0 } cameraTest)
                 CameraTest(frame, cameraTest);
+            if (Environment.GetEnvironmentVariable("XG_ENGINE_ASSETS_TEST") == "1")
+                EngineAssetsTest(frame);
             if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
             {
                 BackgroundTask? task = BackgroundTasks.Find(cancelName);

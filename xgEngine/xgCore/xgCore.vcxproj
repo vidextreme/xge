@@ -115,6 +115,7 @@
     <ClInclude Include="TextureResources.h" />
     <ClInclude Include="ModelResources.h" />
     <ClInclude Include="ShaderResources.h" />
+    <ClInclude Include="EngineAssets.h" />
     <ClInclude Include="MaterialResources.h" />
     <ClInclude Include="MeshRenderSystemImpl.h" />
     <ClInclude Include="ObjectDriveSystemImpl.h" />

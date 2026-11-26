@@ -1,4 +1,4 @@
-// Copyright (c) 2026 John David Uy
+﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
 // xgMathVerify.Managed - managed math tests.
@@ -79,6 +79,7 @@ internal static class Program
         Run(nameof(TestResourceID), TestResourceID);
         Run(nameof(TestToolSelection), TestToolSelection);
         Run(nameof(TestMeshAssets), TestMeshAssets);
+        Run(nameof(TestPrimitiveAssets), TestPrimitiveAssets);
         Run(nameof(TestShaderAnnotations), TestShaderAnnotations);
         Run(nameof(TestMaterialAsset), TestMaterialAsset);
         Run(nameof(TestEmbeddedMeta), TestEmbeddedMeta);
@@ -697,6 +698,59 @@ internal static class Program
                 new MeshAssets.RawNode { Name = "Rock", Parent = 1, Mesh = 1, Local = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1] },
             ];
             return MeshAssets.ToRawFiles([quad, large], nodes);
+        }
+    }
+
+    private static void TestPrimitiveAssets()
+    {
+        MeshAssets.RawPart cube = PrimitiveMeshes.Build(PrimitiveShape.Cube, 1.0f);
+        Check(cube.VertexCount == 24 && cube.Indices.Length == 36, "the cube has 24 vertices and 12 triangles");
+        Check(cube.Positions.All(v => MathF.Abs(MathF.Abs(v) - 0.5f) < 1e-5f), "the cube's corners are at +-size/2");
+        MeshAssets.RawPart sphere = PrimitiveMeshes.Build(PrimitiveShape.Sphere, 2.0f, 16, 8);
+        Check(sphere.VertexCount == 17 * 9 && sphere.Indices.Length == 16 * 8 * 6, "the sphere has (segments+1)*(rings+1) vertices and two triangles per cell");
+        bool onSurface = true;
+        for (int i = 0; i < sphere.VertexCount; i++)
+        {
+            float x = sphere.Positions[i * 3], y = sphere.Positions[i * 3 + 1], z = sphere.Positions[i * 3 + 2];
+            float nx = sphere.Normals![i * 3], ny = sphere.Normals[i * 3 + 1], nz = sphere.Normals[i * 3 + 2];
+            onSurface &= MathF.Abs(MathF.Sqrt(x * x + y * y + z * z) - 1.0f) < 1e-4f && MathF.Abs(nx * nx + ny * ny + nz * nz - 1.0f) < 1e-4f;
+        }
+        Check(onSurface, "sphere vertices lie at the radius with unit normals");
+        MeshAssets.RawPart plane = PrimitiveMeshes.Build(PrimitiveShape.Plane, 10.0f);
+        Check(plane.VertexCount == 4 && plane.Indices.Length == 6 && plane.Positions.Where((_, i) => i % 3 == 1).All(y => y == 0.0f) && plane.Positions.Max() == 5.0f,
+            "the plane lies on y = 0 with side = size");
+        Check(cube.Indices.All(i => i < cube.VertexCount) && sphere.Indices.All(i => i < sphere.VertexCount), "indices are in range");
+
+        string root = Path.Combine(Path.GetTempPath(), "xge-primitive-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            const string guid = "abcdef00000000000000000000000009";
+            string source = Path.Combine(root, "ball.xcp");
+            File.WriteAllText(source, "{ \"shape\": \"sphere\", \"size\": 1, \"segments\": 8, \"rings\": 4 }");
+            AssetMeta meta = new() { Guid = guid };
+            AssetPipeline pipeline = new(Path.Combine(root, "data")) { LowerCaseFolders = true };
+            PrimitiveAssets.Register(pipeline);
+            MeshAssets.Register(pipeline);
+            AssetBuildRequest request = new(guid, source, null, meta.ImportSettings, meta.ProcessSettings, meta.Items, items =>
+            {
+                AssetItemUpdate update = AssetItemTable.Update(meta.Items, items);
+                meta.Items = update.Items;
+                return update;
+            });
+            Check(pipeline.Build(request).Status == AssetBuildStatus.Imported, "a .xcp primitive builds");
+            string? xdv = pipeline.FindFile(guid, ".xdv");
+            Check(xdv is not null && Path.GetFileName(Path.GetDirectoryName(xdv)) == "models", "the model data goes in the lower-case models folder");
+            Check(xdv is not null && Resources.ValidateChunkFile(File.ReadAllBytes(xdv)) == ChunkFileStatus.Valid, "the primitive's model data is valid for the native reader");
+            Check(meta.Items.Count == 2 && meta.Items.Any(i => i.Kind == MeshAssets.SubmeshKind && i.Path == "sphere/default"), "one submesh item plus the hierarchy");
+
+            File.WriteAllText(source, "{ \"shape\": \"teapot\" }");
+            AssetBuildResult bad = pipeline.Build(request with { });
+            Check(bad.Status == AssetBuildStatus.Failed && bad.Error!.Contains("teapot"), "an unknown shape fails with its name");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
         }
     }
 

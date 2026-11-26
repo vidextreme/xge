@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Builds the engine's built-in assets (gameroot/engine/assets) into runtime data (gameroot/engine/data) with the
+       same asset pipeline as projects. Runs after its own build; skipped when no input changed. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+    <XgeGameRoot>$(MSBuildThisFileDirectory)..\..\..\gameroot\</XgeGameRoot>
+    <XgeEngineAssets>$(XgeGameRoot)engine\assets\</XgeEngineAssets>
+    <XgeEngineData>$(XgeGameRoot)engine\data\</XgeEngineData>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\xgSharedKit.Managed\xgSharedKit.Managed.csproj" />
+  </ItemGroup>
+
+  <!-- The asset pipeline from xgEditorKit.Managed, linked so the tool runs without the UI kit. -->
+  <ItemGroup>
+    <Compile Include="..\..\xgEditorKit.Managed\assets\JSONFile.cs" Link="assets\JSONFile.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\AssetMeta.cs" Link="assets\AssetMeta.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\AssetMetaStore.cs" Link="assets\AssetMetaStore.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\AssetItems.cs" Link="assets\AssetItems.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\ChunkFile.cs" Link="assets\ChunkFile.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\AssetPipeline.cs" Link="assets\AssetPipeline.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\TextureFormats.cs" Link="assets\TextureFormats.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\TextureAssets.cs" Link="assets\TextureAssets.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\MeshAssets.cs" Link="assets\MeshAssets.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\PrimitiveAssets.cs" Link="assets\PrimitiveAssets.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\ShaderAssets.cs" Link="assets\ShaderAssets.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\MaterialAssets.cs" Link="assets\MaterialAssets.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\ObjectAssets.cs" Link="assets\ObjectAssets.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <XgeEngineDataInput Include="$(XgeEngineAssets)**\*" />
+    <XgeEngineDataInput Include="$(MSBuildThisFileDirectory)..\..\xgShaders\include\*.hlsli" />
+  </ItemGroup>
+
+  <Target Name="XgeBuildEngineData" AfterTargets="Build" Inputs="@(XgeEngineDataInput);$(TargetPath)" Outputs="$(XgeEngineData)build.stamp"
+          Condition="Exists('$(XgeEngineAssets)')">
+    <Exec Command="dotnet &quot;$(TargetPath)&quot; --gameroot &quot;$(XgeGameRoot.TrimEnd('\'))&quot;" />
+    <Touch Files="$(XgeEngineData)build.stamp" AlwaysCreate="true" />
+  </Target>
+
+</Project>

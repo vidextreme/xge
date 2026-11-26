@@ -387,6 +387,10 @@ namespace xg
                 uint64_t material = 0;
                 if (handles.Material != 0 && _resources->GetState(handles.Material) == ResourceState::Ready)
                     material = ResolveMaterial(handles.Material);
+                if (material == 0 && xg::IsMaterialBroken(handles.Material))
+                    material = xg::ResolveErrorMaterial();
+                else if (handles.Material == 0 && IsZero(part.Material))
+                    material = xg::ResolveDefaultMaterial();
                 float nodeWorld[16];
                 Multiply(object->Nodes[static_cast<size_t>(part.Node)].Baked, actorWorld, nodeWorld);
                 for (int32_t m = 0; m < model->PartCount; ++m)

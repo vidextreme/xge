@@ -1,4 +1,4 @@
-// Copyright (c) 2026 John David Uy
+﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
 using System.Security.Cryptography;
@@ -140,6 +140,12 @@ namespace xg.editor
 
         public string Root { get; }
 
+        // Writes the type folders in lower case ("textures"), as the engine's own data under gameroot does.
+        public bool LowerCaseFolders { get; init; }
+
+        private string FolderOf(IAssetImporter importer) =>
+            Path.Combine(Root, LowerCaseFolders ? importer.DataFolder.ToLowerInvariant() : importer.DataFolder);
+
         public void Register(IAssetImporter importer) => _importers.Add(importer);
         public void Register(IAssetProcessor processor) => _processors.Add(processor);
 
@@ -166,7 +172,7 @@ namespace xg.editor
         public Dictionary<string, IReadOnlyList<string>> ReadAllTags()
         {
             Dictionary<string, IReadOnlyList<string>> result = new(StringComparer.OrdinalIgnoreCase);
-            foreach (string folder in _importers.Select(i => Path.Combine(Root, i.DataFolder)).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (string folder in _importers.Select(FolderOf).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if (!Directory.Exists(folder))
                     continue;
@@ -202,7 +208,7 @@ namespace xg.editor
                 return new AssetBuildResult(AssetBuildStatus.NotImportable);
 
             string guid = request.Guid.ToLowerInvariant();
-            string folder = Path.Combine(Root, importer.DataFolder);
+            string folder = FolderOf(importer);
             string manifestPath = Path.Combine(folder, guid + importer.DataExtension + ManifestSuffix);
             string sourceName = Path.GetFileName(request.SourcePath);
             AssetBuildManifest? old = LoadManifest(manifestPath);
@@ -375,7 +381,7 @@ namespace xg.editor
         private (string Folder, AssetBuildManifest Manifest)? FindManifest(string guid)
         {
             string pattern = guid.ToLowerInvariant() + ".*" + ManifestSuffix;
-            foreach (string folder in _importers.Select(i => Path.Combine(Root, i.DataFolder)).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (string folder in _importers.Select(FolderOf).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if (!Directory.Exists(folder))
                     continue;

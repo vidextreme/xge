@@ -93,12 +93,13 @@ namespace xgEditor.CoreCLR
             }
         }
 
-        // The properties and Save / Revert / Save as without the preview, for hosts that mount the material inside
+        // The preview, properties and Save / Revert / Save as in one column, for hosts that mount the material inside
         // their own layout (the Composition Object Editor's Mesh and material card).
         public void OnEmbeddedGUI()
         {
             MaterialDriver? driver = Driver;
             driver?.RefreshAnnotations();
+            DrawPreview(driver);
             DrawProperties(driver);
             DrawTools(driver);
         }

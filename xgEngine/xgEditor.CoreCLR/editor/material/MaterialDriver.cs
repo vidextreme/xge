@@ -149,6 +149,11 @@ namespace xgEditor.CoreCLR
         {
             if (ProjectService.Assets is not { } assets)
                 return false;
+            if (EngineAssets.IsEnginePath(path))
+            {
+                Debug.LogWarning($"[Materials] {path} is a built-in asset and can't be changed; use Save As to copy it into Assets");
+                return false;
+            }
             string full = assets.FullPath(path);
             MaterialAsset written = Draft.Clone();
             written.Meta = CurrentMeta(full) ?? written.Meta?.DeepClone().AsObject() ?? new JsonObject();

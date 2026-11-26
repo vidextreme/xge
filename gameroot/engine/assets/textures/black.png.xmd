@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "guid": "403db9dcf59e4c7bafc616dc7ad25fb9",
+  "tags": [],
+  "importer": {
+    "import": {},
+    "process": {
+      "texture": {
+        "format": "uncompressed",
+        "type": "color",
+        "alpha": "auto",
+        "quality": "normal",
+        "mipFilter": "box",
+        "scale": "none",
+        "flipGreen": false
+      }
+    }
+  },
+  "items": [
+    {
+      "kind": "texture",
+      "path": "",
+      "guid": "ef025f0b8b7548258bfa8c15a0d37e1c"
+    }
+  ]
+}

@@ -72,3 +72,5 @@ Testing/
 gameroot/sdk/
 # Project Hub shortcut written by the xgHub.CoreCLR build (absolute paths)
 gameroot/bin/*.lnk
+# Built-in asset data written by the engine build (tools/xgEngineData) from gameroot/engine/assets
+gameroot/engine/data/

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "meta": {
+    "guid": "1f05c589d0774461aa70f0661c2a3163",
+    "tags": [],
+    "items": [
+      {
+        "kind": "hierarchy",
+        "path": "",
+        "guid": "92bf4277853c45bd82050d3ceb8cefa5"
+      },
+      {
+        "kind": "submesh",
+        "path": "quad/default",
+        "guid": "ede87291840d4a17a22ad024b62ee998"
+      }
+    ]
+  },
+  "shape": "quad",
+  "size": 1
+}

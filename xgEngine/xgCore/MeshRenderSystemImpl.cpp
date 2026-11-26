@@ -125,7 +125,10 @@ namespace xg
 
     uint64_t MeshRenderSystemImpl::ResolveMaterial(ResourceHandle material)
     {
-        return _resources && _resources->GetState(material) == ResourceState::Ready ? xg::ResolveMaterial(material) : 0;
+        if (!_resources)
+            return 0;
+        const uint64_t resolved = _resources->GetState(material) == ResourceState::Ready ? xg::ResolveMaterial(material) : 0;
+        return resolved == 0 && xg::IsMaterialBroken(material) ? xg::ResolveErrorMaterial() : resolved;
     }
 
     void MeshRenderSystemImpl::SetEditorHidden(const ActorID* actors, uint32_t count)
@@ -178,8 +181,10 @@ namespace xg
             if (_transforms && _transforms->Has(owners[i]))
                 _transforms->GetWorldMatrix(owners[i], actorWorld);
             uint64_t material = 0;
-            if (state.Material != 0 && _resources->GetState(state.Material) == ResourceState::Ready)
+            if (state.Material != 0)
                 material = ResolveMaterial(state.Material);
+            else if (IsZero(data.Material))
+                material = xg::ResolveDefaultMaterial();
             const SceneDrawFlags flags = IsEditorHidden(owners[i]) ? SceneDrawFlags::EditorHidden : SceneDrawFlags::None;
             for (int32_t part = 0; part < model->PartCount; ++part)
             {

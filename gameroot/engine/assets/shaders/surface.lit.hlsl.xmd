@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "guid": "b247ee7c85a641b5a903f4ec306e3e14",
+  "tags": [],
+  "importer": {
+    "import": {},
+    "process": {}
+  },
+  "items": [
+    {
+      "kind": "shader",
+      "path": "surface.lit",
+      "guid": "8c86ea54d3804900b0605b3fc20c9d3d"
+    }
+  ]
+}

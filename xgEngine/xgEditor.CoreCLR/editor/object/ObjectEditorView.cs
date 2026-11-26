@@ -36,6 +36,7 @@ namespace xgEditor.CoreCLR
         private readonly List<(ObjectNodeAsset Node, int Depth, bool HasChildren)> _rows = new();
         private readonly TextBuffer _name = new(128);
         private readonly MaterialEditorView _materialView = new("object_material");
+        private readonly TagField _tags = new("##object_tags", TagFieldMode.Asset);
         private readonly Dictionary<string, AuthoredPrototype> _prototypes = new(StringComparer.Ordinal);
         private readonly TextBuffer _componentSearch = new(64);
         private ListState _list;
@@ -105,6 +106,7 @@ namespace xgEditor.CoreCLR
                         FillBackground();
                         DrawTools(driver);
                         DrawTree(driver);
+                        DrawTags(driver);
                     }
                 }
                 using (var center = Gui.ScrollArea("##object_center", new Vector2(0.0f, bodyHeight), ScrollAreaFlags.Padded))
@@ -328,6 +330,16 @@ namespace xgEditor.CoreCLR
         // ------------------------------------------------------------
         // Preview
         // ------------------------------------------------------------
+        // The object's own tags (kept in its embedded meta), edited like any asset's.
+        private void DrawTags(ObjectDriver? driver)
+        {
+            if (driver is null || ProjectService.Assets is not { } assets)
+                return;
+            Gui.Space(EditorStyle.BarGap);
+            using (Gui.Card("##object_tags", "Tags", Icon.Tag, null, Style.Color(StyleColor.Icon)))
+                _tags.OnAssetGUI(assets.Tags, assets.Index, driver.Path);
+        }
+
         private void DrawPreview(ObjectDriver? driver, float height)
         {
             using var card = Gui.Card("##object_preview", "Preview", Icon.Sphere, null, Style.Color(StyleColor.Icon), ref _previewOpen);
@@ -542,7 +554,7 @@ namespace xgEditor.CoreCLR
                     string label = item.Path.Contains('/') ? item.Path[(item.Path.LastIndexOf('/') + 1)..] : item.Path;
                     if (picker.Field("material", label, "material", ref material))
                         driver.SetPartMaterial(node, item.Guid, material);
-                    if (AssetMeta.IsValidGuid(material) && !editable.Contains(material))
+                    if (AssetMeta.IsValidGuid(material) && !editable.Contains(material) && !EngineAssets.IsInternal(material))
                         editable.Add(material);
                 }
             }

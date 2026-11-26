@@ -35,6 +35,8 @@
     <Compile Include="assets\TextureFormats.cs" />
     <Compile Include="assets\TextureAssets.cs" />
     <Compile Include="assets\MeshAssets.cs" />
+    <Compile Include="assets\PrimitiveAssets.cs" />
+    <Compile Include="assets\EngineAssets.cs" />
     <Compile Include="assets\ShaderAssets.cs" />
     <Compile Include="assets\MaterialAssets.cs" />
     <Compile Include="assets\ObjectAssets.cs" />

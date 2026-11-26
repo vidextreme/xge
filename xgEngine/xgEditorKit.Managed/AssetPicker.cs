@@ -25,6 +25,8 @@ namespace xg.editor
         Color32 IconColorOf(string kind) => Style.Color(StyleColor.Icon);
         // A thumbnail of the asset, or null (the field shows the kind icon).
         Texture? ThumbnailOf(string guid) => null;
+        // Built-in engine assets of a kind, listed in their own section after None.
+        IReadOnlyList<AssetChoice> ListBuiltIn(string kind) => EngineAssets.List(kind);
     }
 
     public static class AssetBrowser
@@ -35,7 +37,7 @@ namespace xg.editor
         {
             if (string.IsNullOrEmpty(guid))
                 return "None";
-            string? path = Current?.PathOf(guid);
+            string? path = Current?.PathOf(guid) ?? EngineAssets.PathOf(guid);
             return path is null ? $"Missing ({guid[..Math.Min(8, guid.Length)]})" : AssetNames.DisplayName(path);
         }
     }
@@ -49,9 +51,12 @@ namespace xg.editor
         private const float ListMaxHeight = 220.0f;
 
         private readonly TextBuffer _search = new(64);
-        private readonly List<AssetChoice> _filtered = new();
+        private readonly List<(AssetChoice Choice, string? Header)> _filtered = new();
         private Vector2 _popupPosition;
         private bool _open;
+        private static readonly string? _testOpen = Environment.GetEnvironmentVariable("XG_UI_TEST_ASSET_PICKER");
+        private static long _testFirstDrawn;
+        private static bool _testOpened;
 
         // guid: 32 hex digits, or empty for none. Returns true when the user picked another asset.
         // chip: optional dim text inside the field (a texture slot's usage).
@@ -67,9 +72,14 @@ namespace xg.editor
                 Color32 iconColor = browser?.IconColorOf(kind) ?? Style.Color(StyleColor.Icon);
                 Texture? thumbnail = empty ? null : browser?.ThumbnailOf(guid);
                 Result row = Gui.PickerField(label, AssetBrowser.NameOf(guid), icon, iconColor, thumbnail, chip, _open);
-                string? path = string.IsNullOrEmpty(guid) ? null : AssetBrowser.Current?.PathOf(guid);
+                string? path = string.IsNullOrEmpty(guid) ? null : AssetBrowser.Current?.PathOf(guid) ?? EngineAssets.PathOf(guid);
                 Gui.Tooltip(path ?? (string.IsNullOrEmpty(guid) ? $"Click to pick a {kind}" : $"No asset has the GUID {guid}"));
-                if ((row & Result.Clicked) != 0)
+                bool testField = !string.IsNullOrEmpty(_testOpen) && !_testOpened && (_testOpen == "1" || _testOpen == kind);
+                if (testField && _testFirstDrawn == 0)
+                    _testFirstDrawn = Environment.TickCount64;
+                bool testOpen = testField && Environment.TickCount64 - _testFirstDrawn > 1500;
+                _testOpened |= testOpen;
+                if ((row & Result.Clicked) != 0 || testOpen)
                 {
                     Rect item = Gui.ItemRect;
                     _popupPosition = new Vector2(MathF.Max(item.max.x - PopupWidth, item.min.x), item.max.y + 2.0f);
@@ -106,13 +116,11 @@ namespace xg.editor
 
             string filter = _search.Text.Trim();
             _filtered.Clear();
-            _filtered.Add(new AssetChoice(string.Empty, string.Empty, "None"));
+            _filtered.Add((new AssetChoice(string.Empty, string.Empty, "None"), null));
+            IReadOnlyList<AssetChoice> builtIn = browser?.ListBuiltIn(kind) ?? EngineAssets.List(kind);
+            AddSection("Built-in", builtIn, filter);
             if (browser is not null)
-            {
-                foreach (AssetChoice choice in browser.List(kind))
-                    if (filter.Length == 0 || choice.Path.Contains(filter, StringComparison.OrdinalIgnoreCase))
-                        _filtered.Add(choice);
-            }
+                AddSection("Project", browser.List(kind), filter);
 
             float listHeight = _filtered.Count * (RowHeight + 2.0f) + 4.0f;
             using var list = Gui.ScrollArea("##asset_list", new Vector2(PopupWidth, MathF.Min(listHeight, ListMaxHeight)));
@@ -124,8 +132,14 @@ namespace xg.editor
             Icon icon = browser?.IconOf(kind) ?? Icon.File;
             for (int i = 0; i < _filtered.Count; i++)
             {
-                AssetChoice choice = _filtered[i];
+                (AssetChoice choice, string? header) = _filtered[i];
                 Rect row = Rect.FromXYWH(4.0f, 2.0f + i * (RowHeight + 2.0f), width - 8.0f, RowHeight);
+                if (header is not null)
+                {
+                    using (Gui.Font(FontStyle.Bold))
+                        draw.Text(new Vector2(row.min.x + 4.0f, MathF.Round(row.min.y + row.Height - Gui.MeasureText(header).y - 2.0f)), Style.Color(StyleColor.TextDim), header);
+                    continue;
+                }
                 Result hit;
                 using (Gui.Id(i))
                     hit = Gui.HitArea("##asset_item", row);
@@ -147,6 +161,21 @@ namespace xg.editor
                 }
             }
             return changed;
+        }
+
+        // A section header and the choices matching the filter; nothing when none match.
+        private void AddSection(string header, IReadOnlyList<AssetChoice> choices, string filter)
+        {
+            bool first = true;
+            foreach (AssetChoice choice in choices)
+            {
+                if (filter.Length > 0 && !choice.Path.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (first)
+                    _filtered.Add((default, header));
+                first = false;
+                _filtered.Add((choice, null));
+            }
         }
     }
 

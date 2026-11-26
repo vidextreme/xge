@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "meta": {
+    "guid": "9060820164184503952b088bf330dba4",
+    "tags": [],
+    "items": [
+      {
+        "kind": "hierarchy",
+        "path": "",
+        "guid": "f3a853d696e34080b2ceb9d864affad8"
+      },
+      {
+        "kind": "submesh",
+        "path": "cube/default",
+        "guid": "cf70168b8860491d9b4da901637b05d3"
+      }
+    ]
+  },
+  "shape": "cube",
+  "size": 1
+}

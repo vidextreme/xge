@@ -34,8 +34,13 @@ namespace xgEditor.CoreCLR
 
         // Opens a material asset ("Assets/....xcm") in the Material Editor panel and focuses it. A panel that wasn't open
         // docks into the Center slot (next to Scene and Game), even when it was last left floating.
-        public static MaterialEditorPanel Open(string path)
+        public static MaterialEditorPanel? Open(string path)
         {
+            if (EngineAssets.IsInternal(path))
+            {
+                Debug.LogWarning($"[Materials] {path} is an engine material and can't be edited");
+                return null;
+            }
             bool wasOpen = ImUI.RegisteredPanels.OfType<MaterialEditorPanel>().Any(p => p.IsOpen);
             MaterialEditorPanel panel = Open<MaterialEditorPanel>();
             if (!wasOpen)

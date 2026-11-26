@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "meta": {
+    "guid": "68af8e69df214755a615683604cae430",
+    "tags": [],
+    "items": [
+      {
+        "kind": "hierarchy",
+        "path": "",
+        "guid": "e0015eea07c0407a88fc9cec9dee5f69"
+      },
+      {
+        "kind": "submesh",
+        "path": "plane/default",
+        "guid": "994b182ff62d478ab6914d3a838faf97"
+      }
+    ]
+  },
+  "shape": "plane",
+  "size": 10
+}

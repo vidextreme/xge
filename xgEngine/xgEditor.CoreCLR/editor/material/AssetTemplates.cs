@@ -19,7 +19,7 @@ namespace xgEditor.CoreCLR
             "    float4 albedo = Texture0.Sample(Sampler0, input.uv) * input.col * Params[0];\r\n" +
             "    return float4(albedo.rgb * XGLighting(input.normal), albedo.a);\r\n}\r\n";
 
-        // A material using the project's first shader (none when the project has no shader). Returns its path.
+        // A material using the project's first shader, or the built-in lit shader when the project has none. Returns its path.
         public static string? CreateMaterial(string folder)
         {
             if (ProjectService.Assets is not { } assets)
@@ -27,6 +27,8 @@ namespace xgEditor.CoreCLR
             MaterialAsset material = new() { Meta = new System.Text.Json.Nodes.JsonObject { ["guid"] = AssetMeta.NewGuid(), ["tags"] = new System.Text.Json.Nodes.JsonArray() } };
             if (AssetBrowser.Current?.List("shader").FirstOrDefault(c => ShaderAssets.IsShaderSource(c.Path)) is { Guid.Length: > 0 } shader)
                 material.Shader = shader.Guid;
+            else if (EngineAssets.LitShader.Length > 0)
+                material.Shader = EngineAssets.LitShader;
             return assets.CreateAsset(folder, "New Material.xcm", material.ToJSON());
         }
 

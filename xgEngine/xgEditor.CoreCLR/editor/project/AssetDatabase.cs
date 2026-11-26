@@ -163,6 +163,7 @@ namespace xgEditor.CoreCLR
             Pipeline = new AssetPipeline(Path.Combine(projectRoot, "Library", "Data"));
             TextureAssets.Register(Pipeline, DecodeImage);
             MeshAssets.Register(Pipeline);
+            PrimitiveAssets.Register(Pipeline);
             ShaderAssets.Register(Pipeline, new DxcShaderCompiler(ProjectFiles.SdkDirectory));
             MaterialAssets.Register(Pipeline);
             ObjectAssets.Register(Pipeline);
@@ -171,7 +172,7 @@ namespace xgEditor.CoreCLR
             Tags = new AssetTags(this);
             Bookmarks = Bookmarks.Load(projectRoot, this);
             Tags.Migrate();
-            AssetRef.GuidResolver = GuidOf;
+            AssetRef.GuidResolver = path => GuidOf(path) ?? EngineAssets.GuidOf(path);
             SaveCache();
         }
 
@@ -208,7 +209,8 @@ namespace xgEditor.CoreCLR
         public string? GuidOf(string path) =>
             _metas.TryGetValue(AssetIndex.Normalize(path), out MetaInfo? info) ? info.Guid : null;
 
-        public string? PathOf(string guid) => _paths.TryGetValue(guid, out string? path) ? path : null;
+        // The project path of an asset GUID, or a built-in asset's "engine/..." path (EngineAssets).
+        public string? PathOf(string guid) => _paths.TryGetValue(guid, out string? path) ? path : EngineAssets.PathOf(guid);
 
         public IReadOnlyList<string> TagsOf(string path) =>
             _metas.TryGetValue(AssetIndex.Normalize(path), out MetaInfo? info) ? info.Tags : Array.Empty<string>();
@@ -231,7 +233,10 @@ namespace xgEditor.CoreCLR
 
         private Dictionary<string, IReadOnlyList<string>> ImportTagTable => _importTags ??= Pipeline.ReadAllTags();
 
-        public string FullPath(string relPath) => Path.Combine(ProjectRoot, relPath.Replace('/', Path.DirectorySeparatorChar));
+        // The file of a project path, or of a built-in asset's "engine/..." path.
+        public string FullPath(string relPath) => EngineAssets.IsEnginePath(relPath)
+            ? Path.Combine(EngineAssets.Directory, relPath[EngineAssets.Prefix.Length..].Replace('/', Path.DirectorySeparatorChar))
+            : Path.Combine(ProjectRoot, relPath.Replace('/', Path.DirectorySeparatorChar));
 
         public void Update()
         {

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 #include "pch.h"
 #include "MaterialResources.h"
+#include "EngineAssets.h"
 #include <cstring>
 #include <vector>
 #include "xgChunkFile.h"
@@ -18,6 +19,13 @@ namespace xg
         constexpr uint64_t ParamRecordSize = 48;
         constexpr uint64_t TextureRecordSize = 64;
 
+        struct BuiltinMaterial
+        {
+            ResourceGUID Guid;
+            ResourceHandle Handle = 0;
+            bool Requested = false;
+        };
+
         struct MaterialContext
         {
             ResourceSystem* Resources = nullptr;
@@ -25,6 +33,9 @@ namespace xg
             uint32_t Module = 0;
             ResourceTypeID ShaderType = 0;
             ResourceTypeID TextureType = 0;
+            ResourceTypeID MaterialType = 0;
+            BuiltinMaterial Error{ ErrorMaterialGuid };
+            BuiltinMaterial Default{ DefaultMaterialGuid };
         };
 
         struct ParamValue
@@ -207,8 +218,63 @@ namespace xg
         _context.Module = moduleId;
         _context.ShaderType = shaderType;
         _context.TextureType = textureType;
+        _context.Error = BuiltinMaterial{ ErrorMaterialGuid };
+        _context.Default = BuiltinMaterial{ DefaultMaterialGuid };
         const ResourceTypeDesc desc{ MaterialResourceType, &LoadMaterial, &UnloadMaterial, &_context, &FinalizeMaterial, ResourceTypeFlags::Async };
-        return resources.RegisterType(moduleId, &desc);
+        _context.MaterialType = resources.RegisterType(moduleId, &desc);
+        return _context.MaterialType;
+    }
+
+    bool IsMaterialBroken(ResourceHandle handle)
+    {
+        MaterialContext& context = _context;
+        if (!context.Resources || handle == 0)
+            return false;
+        const ResourceState state = context.Resources->GetState(handle);
+        if (state == ResourceState::Failed)
+            return true;
+        if (state != ResourceState::Ready)
+            return false;
+        const auto* material = static_cast<const MaterialData*>(context.Resources->GetData(handle));
+        if (!material || IsZero(material->Shader))
+            return false;
+        return material->ShaderHandle == 0 || context.Resources->GetState(material->ShaderHandle) == ResourceState::Failed;
+    }
+
+    namespace
+    {
+        uint64_t ResolveBuiltin(BuiltinMaterial& builtin)
+        {
+            MaterialContext& context = _context;
+            if (!context.Resources || context.MaterialType == 0)
+                return 0;
+            if (builtin.Handle != 0 && context.Resources->IsStale(builtin.Handle))
+            {
+                context.Resources->Release(context.Module, builtin.Handle);
+                builtin.Handle = 0;
+                builtin.Requested = false;
+            }
+            if (!builtin.Requested)
+            {
+                builtin.Requested = true;
+                const ResourceID id{ builtin.Guid, {} };
+                builtin.Handle = context.Resources->Acquire(context.Module, context.MaterialType, &id);
+            }
+            if (builtin.Handle == 0 || context.Resources->GetState(builtin.Handle) != ResourceState::Ready)
+                return 0;
+            const uint64_t material = ResolveMaterial(builtin.Handle);
+            return IsMaterialBroken(builtin.Handle) ? 0 : material;
+        }
+    }
+
+    uint64_t ResolveErrorMaterial()
+    {
+        return ResolveBuiltin(_context.Error);
+    }
+
+    uint64_t ResolveDefaultMaterial()
+    {
+        return ResolveBuiltin(_context.Default);
     }
 
     uint64_t ResolveMaterial(ResourceHandle handle)
