@@ -131,7 +131,7 @@ namespace xgEditor.CoreCLR
                     RenameFolder(scene, created);
             }, enabled: !locked, tooltip: why);
             menu.Item("Rename...", Icon.File, () => RenameFolder(scene, folder), enabled: !locked, tooltip: why);
-            menu.Item("Delete Group (Keep Contents)", Icon.Trash, () => SceneManager.DeleteFolder(scene, folder), enabled: !locked, tooltip: why);
+            menu.Item("Remove Group", Icon.Trash, () => SceneCommands.ConfirmRemoveGroup(scene, folder), enabled: !locked, tooltip: why ?? "Its actors and groups move up");
             menu.Separator();
             menu.Item(folder.Locked ? "Unlock" : "Lock", folder.Locked ? Icon.Unlock : Icon.Lock, () => SceneManager.SetFolderLocked(scene, folder, !folder.Locked));
             menu.Item(folder.Hidden ? "Show" : "Hide", folder.Hidden ? Icon.Eye : Icon.EyeOff, () => SceneManager.SetFolderHidden(scene, folder, !folder.Hidden));

@@ -42,6 +42,26 @@ namespace xgEditor.CoreCLR
 
         public bool AddComponent(Type type) => Exists && ActorTree.AddComponent(Actor, type);
 
+        // Removes a listed component through the shared kit copy of the module (load context) that owns it.
+        public bool RemoveComponent(object component)
+        {
+            if (!Exists || !Remove(component))
+                return false;
+            _serialized.Remove(component);
+            return true;
+        }
+
+        public static bool Remove(object component)
+        {
+            if (component is Transform)
+                return ActorRegistry.RemoveComponent(component);
+            System.Runtime.Loader.AssemblyLoadContext? context = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(component.GetType().Assembly);
+            string kitName = typeof(ActorRegistry).Assembly.GetName().Name!;
+            System.Reflection.Assembly? kit = context?.Assemblies.FirstOrDefault(a => a.GetName().Name == kitName);
+            System.Reflection.MethodInfo? remove = kit?.GetType(typeof(ActorRegistry).FullName!)?.GetMethod(nameof(ActorRegistry.RemoveComponent), new[] { typeof(object) });
+            return remove?.Invoke(null, new[] { component }) is true;
+        }
+
         // Adds the type with this full name from any loaded module, listed in the component catalog or not (test hook).
         public bool AddComponent(string fullName)
         {
@@ -87,6 +107,8 @@ namespace xgEditor.CoreCLR
         public string? PendingAddType;
         public bool LockWhenShowing;
         public readonly Dictionary<string, bool> Open = new();
+        public readonly ContextMenuHost Menu = new("inspector_component_menu");
+        public int MenuHookFrames;
         public readonly List<ComponentType> Filtered = new();
         public readonly xg.imui.TextBuffer Search = new(64);
         // Rotation shown as Euler angles, kept while the transform's rotation stays the one they produced.

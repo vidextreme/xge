@@ -68,6 +68,7 @@ namespace xg::imui
         DrawLayer Layer = DrawLayer::Panel;
         int ToolbarCount = 0;
         bool RowRightClicked = false;
+        bool CardRightClicked = false;
 
         // Layout groups: rows and columns. Stretch items (FlexibleSpace, fill-size widgets) share the space left
         // after the fixed items, measured on the previous frame and kept in the window's state storage.
@@ -2224,6 +2225,13 @@ namespace xg
         return std::exchange(ctx->RowRightClicked, false);
     }
 
+    XG_MODULE_EXPORT bool XG_ImUITakeCardRightClick(imui::Context* ctx)
+    {
+        if (!ctx)
+            return false;
+        return std::exchange(ctx->CardRightClicked, false);
+    }
+
     // ------------------------------------------------------------
     // Layout
     // ------------------------------------------------------------
@@ -2605,6 +2613,7 @@ namespace xg
         const float headerWidth = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
         ImGui::InvisibleButton("##card_header", ImVec2(headerWidth, HeaderHeight));
         const bool hovered = open && ImGui::IsItemHovered();
+        ctx->CardRightClicked = ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right);
         if (open && ImGui::IsItemClicked(ImGuiMouseButton_Left))
             *open = !*open;
         const bool bodyOpen = !open || *open;

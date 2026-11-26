@@ -477,6 +477,9 @@ namespace xg.imui
         // True once after a property row was right-clicked (disabled rows too), then cleared.
         public static bool TakeRowRightClick() => Native.TakeRowRightClick(Context) != 0;
 
+        // True once after the header of the last begun card was right-clicked, then cleared.
+        public static bool TakeCardRightClick() => Native.TakeCardRightClick(Context) != 0;
+
         // Toolbars are rows: items go left to right without SameLine.
         public static ToolbarScope Toolbar()
         {

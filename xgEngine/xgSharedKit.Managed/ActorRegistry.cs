@@ -32,6 +32,14 @@ namespace xg
             return _owners.TryGetValue(component, out Actor? owner) ? owner : null;
         }
 
+        // Removes a component from its owner actor in this module (load context). False when this module doesn't own it.
+        public static bool RemoveComponent(object component)
+        {
+            if (component is Transform transform)
+                return TryGet(transform.ActorID, out Actor? actor) ? actor.RemoveTransform() : Transform.Remove(transform.ActorID);
+            return GetOwner(component) is Actor owner && owner.RemoveComponent(component);
+        }
+
         internal static void Register(Actor actor) => _actors[actor.ID] = actor;
         internal static void Unregister(Actor actor) => _actors.Remove(actor.ID);
         internal static void SetOwner(object component, Actor owner) => _owners.AddOrUpdate(component, owner);

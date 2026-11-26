@@ -195,15 +195,17 @@ namespace xgEditor.CoreCLR
 
         private void SyncFolderTarget()
         {
+            SceneFolder? previous = SceneManager.FolderTarget?.Folder;
             SceneManager.FolderTarget = null;
-            if (_selectedFolder is null)
-                return;
-            foreach (EditorScene scene in SceneManager.Scenes)
-                if (scene.FindFolder(_selectedFolder) is { } folder)
-                {
-                    SceneManager.FolderTarget = (scene, folder);
-                    return;
-                }
+            if (_selectedFolder is not null)
+                foreach (EditorScene scene in SceneManager.Scenes)
+                    if (scene.FindFolder(_selectedFolder) is { } folder)
+                    {
+                        SceneManager.FolderTarget = (scene, folder);
+                        break;
+                    }
+            if (SceneManager.FolderTarget?.Folder != previous)
+                Subsystem.Get<Tools>()?.Invalidate();
         }
 
         private void NewFolder()
@@ -242,7 +244,8 @@ namespace xgEditor.CoreCLR
         }
 
         // Test hook (XG_UI_TEST_HIERARCHY_STATE=hide:<actor>,lock:<actor>,select:<actor>,showhidden,folder:<folder>=<actor>,
-        // hidefolder:<folder>,lockfolder:<folder>,selectfolder:<folder>,lockscene,hidescene,save), applied in order 120 frames
+        // hidefolder:<folder>,lockfolder:<folder>,selectfolder:<folder>,lockscene,hidescene,create:<name>,removeactor:<actor>,
+        // removegroup:<folder>,removecomponent:<actor>=<type name>,save), applied in order 120 frames
         // after start (SceneManager.Update); save writes the active scene, so restore it.
         public static void StateHook(string spec)
         {
@@ -296,6 +299,20 @@ namespace xgEditor.CoreCLR
                     case "save" when active is not null:
                         SceneManager.Save(active);
                         break;
+                    case "removeactor" when FindActor(arg) is { } removed:
+                        SceneCommands.ConfirmRemoveActors(SceneCommands.RemovableActors(new[] { removed }));
+                        break;
+                    case "removegroup" when FindFolder(arg) is { } group:
+                        SceneCommands.ConfirmRemoveGroup(group.Scene, group.Folder);
+                        break;
+                    case "removecomponent" when arg.Split('=') is [var ownerName, var typeName] && FindActor(ownerName) is { } owner:
+                    {
+                        List<object> components = new();
+                        ActorTree.GetComponents(owner, components);
+                        if (components.FirstOrDefault(c => c.GetType().Name == typeName) is { } component)
+                            ComponentContextMenu.ConfirmRemove(owner, component);
+                        break;
+                    }
                     case "create" when arg.Length > 0:
                     {
                         Actor? created = _pendingFolder is not null && active?.FindFolder(_pendingFolder) is { } into

@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 25;
+    inline constexpr uint32_t ApiVersion = 26;
 
     struct Context;
     struct PanelEntry;
@@ -467,6 +467,8 @@ namespace xg
     XG_MODULE_EXPORT void XG_ImUIEndDisabled(imui::Context* ctx);
     // True once after a property row was right-clicked (disabled rows too), then cleared (ApiVersion 24).
     XG_MODULE_EXPORT bool XG_ImUITakeRowRightClick(imui::Context* ctx);
+    // True once after the header of the last begun card was right-clicked, then cleared (ApiVersion 26).
+    XG_MODULE_EXPORT bool XG_ImUITakeCardRightClick(imui::Context* ctx);
 
     // Layout. The panel body (and each modal) is a vertical layout; Begin/EndHorizontal make rows and
     // Begin/EndVertical columns, so items are placed without SameLine. A size of 0 on TextField, SearchField,

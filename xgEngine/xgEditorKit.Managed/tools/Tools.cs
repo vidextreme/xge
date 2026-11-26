@@ -92,6 +92,7 @@ namespace xg.editor
             public ComponentIcon Icon;
             public bool HasSeparator = false;
             public bool AllowLocked;
+            public string[]? Sources;
         }
         private const string DefaultCategory = "Tools";
         private const string DefaultGroup = "General";
@@ -161,6 +162,8 @@ namespace xg.editor
         {            
             foreach (ContextMenuEntry ctxMenu in _contextMenuEntries.OrderBy(ctx => ctx.Order))
             {
+                if (ctxMenu.Sources is { } sources && !sources.Any(s => context.Source == s || context.Source.StartsWith(s + ".", StringComparison.Ordinal)))
+                    continue;
                 MethodInfo? validator = ctxMenu.Validator;
                 ctxMenu.Usability = validator is null
                     ? ToolUsability.Usable
@@ -703,6 +706,7 @@ namespace xg.editor
                     Icon = ComponentIcons.Resolve(layout.Icon, layout.IconColor, imui.Icon.None),
                     HasSeparator = hasSeparator,
                     AllowLocked = layout.AllowLocked,
+                    Sources = button.Sources?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 };
                 _contextMenuEntries.Add(entry);
             }

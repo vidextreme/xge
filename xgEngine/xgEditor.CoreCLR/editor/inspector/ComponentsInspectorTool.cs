@@ -83,14 +83,24 @@ namespace xgEditor.CoreCLR
             using (Gui.Horizontal(0.0f))
             {
                 if (!stripRight)
-                    DrawTabs(view, components, TabEdge.Left, hasActor, readOnly);
+                    DrawTabs(view, driver, components, TabEdge.Left, hasActor, readOnly);
                 DrawContent(context, view, driver, readOnly);
                 if (stripRight)
-                    DrawTabs(view, components, TabEdge.Right, hasActor, readOnly);
+                    DrawTabs(view, driver, components, TabEdge.Right, hasActor, readOnly);
             }
             DrawAddPopup(view, driver, stripRight);
             DrawCopyPopup(view);
+            if (driver is not null && view.MenuHookFrames >= 0 && ++view.MenuHookFrames == 240
+                && int.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_COMPONENT_MENU"), out int hookIndex) && hookIndex >= 0 && hookIndex < components.Count)
+            {
+                view.MenuHookFrames = -1;
+                view.Menu.Open(new ContextMenuContext(ComponentContextMenu.Source, new object[] { driver.Actor, components[hookIndex] }, driver), new Vector2(view.AddTab.max.x + 40.0f, view.AddTab.min.y - 80.0f));
+            }
+            view.Menu.OnGUI();
         }
+
+        private static void OpenComponentMenu(ComponentsViewState view, ComponentsDriver driver, object component) =>
+            view.Menu.Open(new ContextMenuContext(ComponentContextMenu.Source, new object[] { driver.Actor, component }, driver));
 
         // ------------------------------------------------------------
         // Copy value (read-only actors)
@@ -127,7 +137,7 @@ namespace xgEditor.CoreCLR
         // ------------------------------------------------------------
         // Tabs
         // ------------------------------------------------------------
-        private static void DrawTabs(ComponentsViewState view, IReadOnlyList<object> components, TabEdge edge, bool hasActor, bool readOnly)
+        private static void DrawTabs(ComponentsViewState view, ComponentsDriver? driver, IReadOnlyList<object> components, TabEdge edge, bool hasActor, bool readOnly)
         {
             using var canvas = Gui.Canvas("##inspector_tabs", new Vector2(StripSize, 0.0f));
             Painter draw = canvas.Draw;
@@ -138,7 +148,7 @@ namespace xgEditor.CoreCLR
 
             float y = TabGap + 2.0f;
             DrawTab(view, draw, 0, Rect.FromXYWH(0.0f, y, StripSize, TabSize), edge, "All components", icon => icon.Draw(draw, new Vector2(iconX, y + TabSize * 0.5f), 15.0f),
-                new ComponentIcon(Icon.Cards, null, Style.Color(StyleColor.Icon)));
+                new ComponentIcon(Icon.Cards, null, Style.Color(StyleColor.Icon)), null);
             y += TabSize + TabGap + 2.0f;
             draw.Line(new Vector2(6.0f, y), new Vector2(StripSize - 6.0f, y), Style.Color(StyleColor.Border));
             y += 3.0f;
@@ -148,8 +158,10 @@ namespace xgEditor.CoreCLR
                 Type type = TypeBridge.ToEditor(components[i].GetType());
                 ComponentIcon icon = ComponentIcons.Get(type);
                 float top = y;
+                object component = components[i];
                 DrawTab(view, draw, i + 1, Rect.FromXYWH(0.0f, top, StripSize, TabSize), edge, SerializedProperty.Nicify(type.Name),
-                    resolved => resolved.Draw(draw, new Vector2(iconX, top + TabSize * 0.5f), 15.0f), icon);
+                    resolved => resolved.Draw(draw, new Vector2(iconX, top + TabSize * 0.5f), 15.0f), icon,
+                    driver is null ? null : () => OpenComponentMenu(view, driver, component));
                 y += TabSize + TabGap;
             }
 
@@ -168,7 +180,8 @@ namespace xgEditor.CoreCLR
                 view.OpenAdd = true;
         }
 
-        private static void DrawTab(ComponentsViewState view, Painter draw, int index, Rect tab, TabEdge edge, string tooltip, Action<ComponentIcon> drawIcon, ComponentIcon icon)
+        private static void DrawTab(ComponentsViewState view, Painter draw, int index, Rect tab, TabEdge edge, string tooltip, Action<ComponentIcon> drawIcon, ComponentIcon icon,
+            Action? rightClicked)
         {
             Result hit;
             using (Gui.Id(index))
@@ -176,6 +189,8 @@ namespace xgEditor.CoreCLR
             Gui.Tooltip(tooltip);
             if (hit.Clicked())
                 view.Tab = index;
+            if ((hit & Result.RightClicked) != 0)
+                rightClicked?.Invoke();
             TabStrip.DrawShape(draw, tab, edge, index == view.Tab, hit.Hovered());
             drawIcon(icon);
         }
@@ -239,6 +254,8 @@ namespace xgEditor.CoreCLR
                         bool open = !view.Open.TryGetValue(key, out bool stored) || stored;
                         using (var card = Gui.Card("##card", title, icon.Icon, icon.Texture, icon.Color, ref open))
                         {
+                            if (Gui.TakeCardRightClick())
+                                OpenComponentMenu(view, driver, component);
                             if (card.IsOpen)
                                 DrawBody(view, driver, component, readOnly);
                         }
@@ -247,6 +264,8 @@ namespace xgEditor.CoreCLR
                     else
                     {
                         using var card = Gui.Card("##card", title, icon.Icon, icon.Texture, icon.Color);
+                        if (Gui.TakeCardRightClick())
+                            OpenComponentMenu(view, driver, component);
                         DrawBody(view, driver, component, readOnly);
                     }
                 }

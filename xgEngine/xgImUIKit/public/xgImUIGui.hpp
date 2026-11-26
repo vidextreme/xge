@@ -453,6 +453,7 @@ namespace xg::imui
         [[nodiscard]] FontScope Font(FontStyle style) const { return FontScope(_ctx, style); }
         [[nodiscard]] DisabledScope Disabled(bool disabled) const { return DisabledScope(_ctx, disabled); }
         bool TakeRowRightClick() const { return XG_ImUITakeRowRightClick(_ctx); }
+        bool TakeCardRightClick() const { return XG_ImUITakeCardRightClick(_ctx); }
         [[nodiscard]] ListScope List(const char* id, ListState& state, const Vec2& size = Vec2(0.0f, 0.0f)) const { return ListScope(_ctx, id, size, state); }
 
     private:

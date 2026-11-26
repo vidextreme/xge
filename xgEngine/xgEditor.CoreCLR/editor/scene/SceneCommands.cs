@@ -30,7 +30,7 @@ namespace xgEditor.CoreCLR
         }
 
         [ToolButton("Create Empty Actor", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Object), Priority = 10,
-            Tooltip = "Add an actor with a transform to the active scene (under the selected scene actor)")]
+            Tooltip = "Add an empty actor to the active scene (under the selected scene actor, or in the selected group)")]
         public static void CreateEmpty()
         {
             ActorID selected = Selection.ActiveActor;
@@ -45,6 +45,88 @@ namespace xgEditor.CoreCLR
         {
             if (SelectedObject() is string path && SceneManager.CreateFromObject(path) is { } actor)
                 Selection.Set(actor.ID);
+        }
+
+        [ToolButton("Remove Actor", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Trash), Priority = 30,
+            Validate = nameof(ActorsRemovable), Tooltip = "Remove the selected scene actors and their children (asks first)")]
+        public static void RemoveSelectedActors() => ConfirmRemoveActors(RemovableActors(Selection.Actors));
+
+        [ToolButton("Remove Group", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Trash), Priority = 40,
+            Validate = nameof(GroupRemovable), Tooltip = "Remove the group selected in the Hierarchy; its actors and groups move up (asks first)")]
+        public static void RemoveSelectedGroup()
+        {
+            if (SceneManager.FolderTarget is { } target)
+                ConfirmRemoveGroup(target.Scene, target.Folder);
+        }
+
+        [ToolValidator]
+        public static ToolUsability ActorsRemovable() => RemovableActors(Selection.Actors).Count > 0 ? ToolUsability.Usable : ToolUsability.Unusable;
+
+        [ToolValidator]
+        public static ToolUsability GroupRemovable() =>
+            SceneManager.FolderTarget is { } target && !SceneManager.IsFolderLocked(target.Scene, target.Folder.Id) ? ToolUsability.Usable : ToolUsability.Unusable;
+
+        // Scene members that can be removed (no Composition Actors, nothing locked), without those under another one.
+        public static List<ActorID> RemovableActors(IEnumerable<ActorID> actors)
+        {
+            HashSet<ulong> candidates = actors.Where(a => a.Value != 0 && SceneManager.IsMember(a) && !ObjectDriverComponent.IsCompositionActor(a)
+                && !ActorEditorState.IsLockedInSubtree(a)).Select(a => (ulong)a.Value).ToHashSet();
+            List<ActorID> result = new();
+            foreach (ulong id in candidates)
+            {
+                bool nested = false;
+                for (ActorID? parent = ActorTree.GetParent(new ActorID(id)); parent is { } p && p.Value != 0 && !nested; parent = ActorTree.GetParent(p))
+                    nested = candidates.Contains(p.Value);
+                if (!nested)
+                    result.Add(new ActorID(id));
+            }
+            return result;
+        }
+
+        public static void ConfirmRemoveActors(IReadOnlyList<ActorID> actors)
+        {
+            if (actors.Count == 0)
+                return;
+            string first = ActorTree.GetName(actors[0]);
+            bool children = actors.Any(a => ActorTree.ChildCount(a) > 0);
+            ConfirmDialog.Open(new ConfirmRequest
+            {
+                Title = actors.Count == 1 ? "Remove Actor" : "Remove Actors",
+                Message = actors.Count == 1 ? $"Remove {first}?" : $"Remove {actors.Count} actors?",
+                Detail = children ? "Their children are removed too." : "Its components and values are lost.",
+                DrawPreview = (draw, rect) => draw.Icon(Icon.Object, rect.Center, 28.0f, Style.Color(StyleColor.IconObject)),
+                Confirm = () =>
+                {
+                    int removed = 0;
+                    foreach (ActorID actor in actors.ToArray())
+                        if (SceneManager.Destroy(actor))
+                            ++removed;
+                    if (removed > 0)
+                        Selection.Clear();
+                    Debug.Log($"[Debug] Removed {removed} actor(s)");
+                },
+            });
+        }
+
+        public static void ConfirmRemoveGroup(EditorScene scene, SceneFolder folder)
+        {
+            SceneFolder? parent = scene.FindFolder(folder.Parent);
+            ConfirmDialog.Open(new ConfirmRequest
+            {
+                Title = "Remove Group",
+                Message = $"Remove the group {folder.Name}?",
+                Detail = $"Its actors and groups move up to {parent?.Name ?? scene.Name}.",
+                DrawPreview = (draw, rect) => draw.Icon(Icon.Group, rect.Center, 28.0f, HierarchyStyle.FolderIcon),
+                Confirm = () =>
+                {
+                    if (SceneManager.DeleteFolder(scene, folder))
+                    {
+                        if (SceneManager.FolderTarget is { } target && target.Folder == folder)
+                            SceneManager.FolderTarget = null;
+                        Debug.Log($"[Debug] Removed group {folder.Name}");
+                    }
+                },
+            });
         }
 
         [ToolValidator]
@@ -112,11 +194,9 @@ namespace xgEditor.CoreCLR
             string why = composed ? "Composition Actors belong to their object" : "Only scene actors can be changed here";
             menu.Separator();
             menu.Item("Rename...", Icon.File, () => RenameActor(chosen), enabled: member && !composed, tooltip: member && !composed ? null : why);
-            menu.Item("Delete", Icon.Trash, () =>
-            {
-                if (SceneManager.Destroy(chosen))
-                    Selection.Clear();
-            }, enabled: member && !composed, tooltip: member && !composed ? null : why);
+            List<ActorID> removable = SceneCommands.RemovableActors(Selection.Contains(chosen) ? Selection.Actors.Append(chosen) : new[] { chosen });
+            menu.Item(removable.Count > 1 ? $"Remove {removable.Count} Actors" : "Remove Actor", Icon.Trash, () => SceneCommands.ConfirmRemoveActors(removable),
+                enabled: member && !composed && removable.Count > 0, tooltip: member && !composed ? removable.Count > 0 ? null : "The actor or one under it is locked" : why);
         }
     }
 }

@@ -43,6 +43,8 @@ namespace xg.editor
         // Name of a [ToolValidator] method on the same type.
         public string? Validate { get; set; }
         public bool HasSeparator = false;
+        // Comma-separated context menu sources (or source prefixes, "navigator" = "navigator.*") it shows in; null = every menu.
+        public string? Sources { get; set; }
     }
 
     // A ribbon button running the method: static void M(), or an instance method of a tool class. Category and Group

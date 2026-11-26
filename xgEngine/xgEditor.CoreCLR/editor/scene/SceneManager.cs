@@ -385,7 +385,6 @@ namespace xgEditor.CoreCLR
                 return null;
             }
             Actor actor = Actor.Create(name);
-            actor.AddTransform();
             if (hasParent)
                 ActorTree.SetParent(actor.ID, parent!.Value, false);
             scene.Members[actor.ID.Value] = SceneAsset.NewActorId();
@@ -407,6 +406,7 @@ namespace xgEditor.CoreCLR
             Actor? actor = CreateActor(AssetNames.DisplayName(objectPath), parent);
             if (actor is null)
                 return null;
+            actor.AddTransform();
             ObjectDriverComponent driver = actor.AddComponent<ObjectDriverComponent>();
             driver.Object = AssetReference.FromText(guid);
             Touch(SceneOf(actor.ID));

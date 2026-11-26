@@ -64,6 +64,7 @@ namespace xgEditor.CoreCLR
             DrawPlayCapsule();
             RenameDialog.OnGUI();
             SaveAsDialog.OnGUI();
+            ConfirmDialog.OnGUI();
             SceneDialogs.OnGUI();
             Gui.FlexibleSpace();
 
