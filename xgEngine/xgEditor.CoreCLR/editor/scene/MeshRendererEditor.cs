@@ -7,7 +7,7 @@ using xg.imui;
 
 namespace xgEditor.CoreCLR
 {
-    // The Mesh Renderer card: Visible, then Mesh and Material with the same table as the Composition Object Editor (a
+    // The Mesh Renderer card: Visible, then Mesh and Material with the same table as the Archetype Editor (a
     // draw check and a material per submesh, stored in MeshRendererData's submesh entries) and Edit Here. With Auto
     // Apply on, the actor draws the edited material's unsaved draft in every view (an editor-only override) until Save
     // or Revert. One table per actor, dropped a few seconds after the actor stops being shown.

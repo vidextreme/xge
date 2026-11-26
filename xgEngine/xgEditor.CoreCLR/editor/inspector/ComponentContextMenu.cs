@@ -25,7 +25,7 @@ namespace xgEditor.CoreCLR
         {
             ActorID actor = (ActorID)context.Targets[0];
             object component = context.Targets[1];
-            bool composed = ObjectDriverComponent.IsCompositionActor(actor);
+            bool composed = ArchetypeDriver.IsCompositionActor(actor);
             menu.Item("Remove Component", Icon.Trash, () => ConfirmRemove(actor, component), enabled: !composed,
                 tooltip: composed ? "Composition Actors keep their object's components; edit the object (.xco)" : null);
         }

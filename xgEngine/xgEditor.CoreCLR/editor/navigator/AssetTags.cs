@@ -223,6 +223,11 @@ namespace xgEditor.CoreCLR
 
         public static bool TryParseType(string value, out AssetKind kind)
         {
+            if (string.Equals(value, "object", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = AssetKind.Archetype;
+                return true;
+            }
             foreach (AssetKind candidate in Enum.GetValues<AssetKind>())
             {
                 if (candidate != AssetKind.Folder && string.Equals(TypeName(candidate), value, StringComparison.OrdinalIgnoreCase))

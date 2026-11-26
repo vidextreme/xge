@@ -160,13 +160,26 @@ namespace xgEditor.CoreCLR
             MigrateMetas(projectRoot);
             Index = new AssetIndex(projectRoot);
             _cache = AssetCache.Load(Path.Combine(projectRoot, "Library", "AssetCache.json"));
+            string legacyArchetypes = Path.Combine(projectRoot, "Library", "Data", "Objects");
+            if (Directory.Exists(legacyArchetypes))
+            {
+                try
+                {
+                    Directory.Delete(legacyArchetypes, true);
+                    Debug.Log("[Assets] Removed Library/Data/Objects (archetype data now builds into Library/Data/Archetypes)");
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    Debug.LogWarning($"[Assets] Could not remove Library/Data/Objects: {e.Message}");
+                }
+            }
             Pipeline = new AssetPipeline(Path.Combine(projectRoot, "Library", "Data"));
             TextureAssets.Register(Pipeline, DecodeImage);
             MeshAssets.Register(Pipeline);
             PrimitiveAssets.Register(Pipeline);
             ShaderAssets.Register(Pipeline, new DxcShaderCompiler(ProjectFiles.SdkDirectory));
             MaterialAssets.Register(Pipeline);
-            ObjectAssets.Register(Pipeline);
+            ArchetypeAssets.Register(Pipeline);
             Sync();
             _startupScanned = true;
             Tags = new AssetTags(this);
@@ -794,7 +807,7 @@ namespace xgEditor.CoreCLR
                     AssetKind.Mesh => Icon.Mesh,
                     AssetKind.Material => Icon.Material,
                     AssetKind.Shader => Icon.Code,
-                    AssetKind.Object => Icon.Object,
+                    AssetKind.Archetype => Icon.Blocks,
                     _ => Icon.File,
                 };
                 _buildTasks[path] = BackgroundTasks.Add("Import " + AssetNames.DisplayName(path), icon, () => CancelBuild(path));

@@ -21,7 +21,7 @@ namespace xg.editor
         private static List<EngineAsset>? _assets;
         private static Dictionary<string, EngineAsset> _byGuid = new(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, EngineAsset> _byPath = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly string[] _kindNames = { "shader", "material", "mesh", "image", "object" };
+        private static readonly string[] _kindNames = { "shader", "material", "mesh", "image", "archetype" };
         private const string InternalFolder = Prefix + "materials/";
         private const string ErrorShaderPath = Prefix + "shaders/surface.error.hlsl";
 
@@ -99,7 +99,7 @@ namespace xg.editor
             "xcm" => "material",
             "xcp" or "fbx" => "mesh",
             "png" or "bmp" => "image",
-            "xco" => "object",
+            "xco" => "archetype",
             _ => "other",
         };
 

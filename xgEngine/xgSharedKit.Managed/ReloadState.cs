@@ -243,6 +243,9 @@ namespace xg
             if (saved is null)
                 return;
             Dictionary<string, FieldInfo> fields = VisibleFields(type).ToDictionary(f => f.Name);
+            foreach (FieldInfo renamed in fields.Values.ToList())
+                foreach (FormerlyNamedAttribute former in renamed.GetCustomAttributes<FormerlyNamedAttribute>(false))
+                    fields.TryAdd(former.FullName, renamed);
             foreach ((string name, JsonNode? entry) in saved)
             {
                 if (!fields.TryGetValue(name, out FieldInfo? field))
@@ -250,7 +253,8 @@ namespace xg
                     skipped.Add($"{type.Name}.{name} (field removed or renamed)");
                     continue;
                 }
-                if (entry?["type"]?.GetValue<string>() != field.FieldType.FullName)
+                string? savedType = entry?["type"]?.GetValue<string>();
+                if (savedType != field.FieldType.FullName && !field.FieldType.GetCustomAttributes<FormerlyNamedAttribute>(false).Any(a => a.FullName == savedType))
                 {
                     skipped.Add($"{type.Name}.{name} (type changed)");
                     continue;

@@ -26,7 +26,7 @@ namespace xg
     struct Subsystem;
     class LoggerImpl;
     class MeshRenderSystemImpl;
-    class ObjectDriveSystemImpl;
+    class ArchetypeDriveSystemImpl;
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -113,9 +113,9 @@ namespace xg
         uint32_t _modelType = 0;
         uint32_t _shaderType = 0;
         uint32_t _materialType = 0;
-        uint32_t _objectType = 0;
+        uint32_t _archetypeType = 0;
         MeshRenderSystemImpl* _meshRenderSystem = nullptr;
-        ObjectDriveSystemImpl* _objectDriveSystem = nullptr;
+        ArchetypeDriveSystemImpl* _archetypeDriveSystem = nullptr;
         std::vector<SceneDraw> _sceneDraws;
 
         int _startupSteps = 0;

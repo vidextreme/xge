@@ -52,7 +52,7 @@ internal static class Program
         PrimitiveAssets.Register(pipeline);
         ShaderAssets.Register(pipeline, new DxcShaderCompiler(Path.Combine(gameroot, "sdk")));
         MaterialAssets.Register(pipeline);
-        ObjectAssets.Register(pipeline);
+        ArchetypeAssets.Register(pipeline);
 
         if (newAssets.Count > 0)
             return CreateMetas(pipeline, assets, newAssets);

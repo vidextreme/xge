@@ -84,7 +84,7 @@ namespace xgEditor.CoreCLR
 
         private static readonly AssetKind[] _filterKinds =
         {
-            AssetKind.Script, AssetKind.Image, AssetKind.Material, AssetKind.Shader, AssetKind.Mesh, AssetKind.Object, AssetKind.Audio, AssetKind.Scene, AssetKind.Text, AssetKind.Other,
+            AssetKind.Script, AssetKind.Image, AssetKind.Material, AssetKind.Shader, AssetKind.Mesh, AssetKind.Archetype, AssetKind.Audio, AssetKind.Scene, AssetKind.Text, AssetKind.Other,
         };
 
         private readonly NavigatorHistory _history = new();
@@ -615,7 +615,7 @@ namespace xgEditor.CoreCLR
                 case "scripts": case "cs": kind = AssetKind.Script; return true;
                 case "meshes": case "model": case "models": kind = AssetKind.Mesh; return true;
                 case "mat": case "materials": case "xcm": kind = AssetKind.Material; return true;
-                case "objects": case "xco": kind = AssetKind.Object; return true;
+                case "archetype": case "archetypes": case "objects": case "xco": kind = AssetKind.Archetype; return true;
                 case "shaders": case "hlsl": kind = AssetKind.Shader; return true;
                 case "sound": case "sounds": kind = AssetKind.Audio; return true;
                 case "scenes": kind = AssetKind.Scene; return true;
@@ -1610,8 +1610,8 @@ namespace xgEditor.CoreCLR
                     Navigate(entry.RelPath);
                 else if (xg.editor.MaterialAsset.IsMaterial(entry.RelPath))
                     MaterialEditorPanel.Open(entry.RelPath);
-                else if (xg.editor.ObjectAsset.IsObject(entry.RelPath))
-                    ObjectEditorPanel.Open(entry.RelPath);
+                else if (xg.editor.ArchetypeAsset.IsArchetype(entry.RelPath))
+                    ArchetypeEditorPanel.Open(entry.RelPath);
                 else if (xg.editor.SceneAsset.IsScene(entry.RelPath))
                 {
                     string scenePath = entry.RelPath;

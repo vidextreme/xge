@@ -6,7 +6,7 @@
 #include "xgRenderer.h"
 #include "xgResources.h"
 #include "xgMeshRenderer.h"
-#include "xgObjectDriver.h"
+#include "xgArchetypeDriver.h"
 #include <cstring>
 #include "xgScriptEngine.h"
 
@@ -131,40 +131,40 @@ XG_MODULE_EXPORT void XG_MeshRenderSetEditorOverride(xg::ScriptEngine* engine, u
         system->SetEditorMaterialOverride(actor, material, rendererMaterial);
 }
 
-// Draws the object drive system added last frame, and how many object instances were ready.
-XG_MODULE_EXPORT int32_t XG_ObjectDriveStats(xg::ScriptEngine* engine, int32_t* outReady)
+// Draws the archetype drive system added last frame, and how many object instances were ready.
+XG_MODULE_EXPORT int32_t XG_ArchetypeDriveStats(xg::ScriptEngine* engine, int32_t* outReady)
 {
-    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    xg::ArchetypeDriveSystem* system = engine ? engine->GetSubsystem<xg::ArchetypeDriveSystem>() : nullptr;
     if (outReady)
         *outReady = system ? system->GetReadyCount() : 0;
     return system ? system->GetDrawCount() : 0;
 }
 
 // World matrix (16 floats) of the named node of an actor's object (exposed proxies first).
-XG_MODULE_EXPORT bool XG_ObjectDriverGetNodeWorld(xg::ScriptEngine* engine, uint64_t actor, const char* name, float* outWorld)
+XG_MODULE_EXPORT bool XG_ArchetypeDriverGetNodeWorld(xg::ScriptEngine* engine, uint64_t actor, const char* name, float* outWorld)
 {
-    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    xg::ArchetypeDriveSystem* system = engine ? engine->GetSubsystem<xg::ArchetypeDriveSystem>() : nullptr;
     return system && system->GetNodeWorld(static_cast<xg::ActorID>(actor), name, outWorld);
 }
 
 // The Composition Actor of a driver actor by Object name (0 when none).
-XG_MODULE_EXPORT uint64_t XG_ObjectDriverGetActor(xg::ScriptEngine* engine, uint64_t driver, const char* name)
+XG_MODULE_EXPORT uint64_t XG_ArchetypeDriverGetActor(xg::ScriptEngine* engine, uint64_t driver, const char* name)
 {
-    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    xg::ArchetypeDriveSystem* system = engine ? engine->GetSubsystem<xg::ArchetypeDriveSystem>() : nullptr;
     return system ? system->GetCompositionActor(static_cast<xg::ActorID>(driver), name) : 0;
 }
 
 // The driver actor owning a Composition Actor (0 when the actor isn't one).
-XG_MODULE_EXPORT uint64_t XG_ObjectDriverGetOwner(xg::ScriptEngine* engine, uint64_t actor)
+XG_MODULE_EXPORT uint64_t XG_ArchetypeDriverGetOwner(xg::ScriptEngine* engine, uint64_t actor)
 {
-    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    xg::ArchetypeDriveSystem* system = engine ? engine->GetSubsystem<xg::ArchetypeDriveSystem>() : nullptr;
     return system ? system->GetCompositionOwner(static_cast<xg::ActorID>(actor)) : 0;
 }
 
-// Takes the next spawned Composition Actor waiting for its authored components (see ObjectDriveSystem::TakeSpawned).
-XG_MODULE_EXPORT int32_t XG_ObjectDriverTakeSpawned(xg::ScriptEngine* engine, uint64_t* outActor, char* json, int32_t capacity)
+// Takes the next spawned Composition Actor waiting for its authored components (see ArchetypeDriveSystem::TakeSpawned).
+XG_MODULE_EXPORT int32_t XG_ArchetypeDriverTakeSpawned(xg::ScriptEngine* engine, uint64_t* outActor, char* json, int32_t capacity)
 {
-    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    xg::ArchetypeDriveSystem* system = engine ? engine->GetSubsystem<xg::ArchetypeDriveSystem>() : nullptr;
     xg::ActorID actor = 0;
     const int32_t length = system ? system->TakeSpawned(&actor, json, capacity) : -1;
     if (outActor)
@@ -175,7 +175,7 @@ XG_MODULE_EXPORT int32_t XG_ObjectDriverTakeSpawned(xg::ScriptEngine* engine, ui
 // The submesh item GUID of a part of a Ready "model" resource.
 XG_MODULE_EXPORT bool XG_ResourceGetModelPartItem(xg::ScriptEngine* engine, uint64_t handle, int32_t index, xg::ResourceGUID* outItem)
 {
-    xg::ObjectDriveSystem* system = engine ? engine->GetSubsystem<xg::ObjectDriveSystem>() : nullptr;
+    xg::ArchetypeDriveSystem* system = engine ? engine->GetSubsystem<xg::ArchetypeDriveSystem>() : nullptr;
     return system && system->GetModelPartItem(static_cast<xg::ResourceHandle>(handle), index, outItem);
 }
 

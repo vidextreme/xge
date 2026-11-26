@@ -81,7 +81,7 @@ namespace xgEditor.CoreCLR
             IReadOnlyList<ActorID> targets = Targets(actor);
             bool locked = ActorEditorState.IsLocked(actor);
             bool hidden = ActorEditorState.IsHidden(actor);
-            bool composed = ObjectDriverComponent.IsCompositionActor(actor);
+            bool composed = ArchetypeDriver.IsCompositionActor(actor);
             menu.Item(locked ? "Unlock" : "Lock", locked ? Icon.Unlock : Icon.Lock, () => ActorEditorState.SetLocked(targets, !locked),
                 enabled: !composed, tooltip: composed ? "Composition Actors are driven by their object" : null);
             menu.Item(hidden ? "Show" : "Hide", hidden ? Icon.Eye : Icon.EyeOff, () => ActorEditorState.SetHidden(targets, !hidden));

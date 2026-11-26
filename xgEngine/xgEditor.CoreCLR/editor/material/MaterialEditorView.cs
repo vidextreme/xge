@@ -100,7 +100,7 @@ namespace xgEditor.CoreCLR
         }
 
         // The preview, properties and Save / Revert / Save as in one column, for hosts that mount the material inside
-        // their own layout (the Composition Object Editor's Mesh and material card).
+        // their own layout (the Archetype Editor's Mesh and material card).
         public void OnEmbeddedGUI()
         {
             MaterialDriver? driver = Driver;

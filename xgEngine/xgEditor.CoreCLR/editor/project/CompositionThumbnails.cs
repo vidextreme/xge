@@ -8,7 +8,7 @@ using xg.math;
 namespace xgEditor.CoreCLR
 {
     // Rendered thumbnails of compositions, stored as Library/Data/<data folder>/<guid>.thumb.png next to the data they
-    // come from: materials as a sphere drawn with the built material, objects (.xco) as their saved tree (ObjectDrawList)
+    // come from: materials as a sphere drawn with the built material, objects (.xco) as their saved tree (ArchetypeDrawList)
     // framed by its bounds. The pipeline's orphan sweep deletes them with their asset, and they're never in a build
     // manifest, so players don't ship them. A thumbnail is stale when it's missing or older than the composition's data
     // or the data it uses (shaders, textures, models, materials); stale ones are queued and rendered one at a time in a
@@ -26,8 +26,8 @@ namespace xgEditor.CoreCLR
             public ResourceHandle Handle;
             public int Frames;
             public int DrawnAt = -1;
-            public ObjectAsset? Object;
-            public ObjectDrawList? Draws;
+            public ArchetypeAsset? Archetype;
+            public ArchetypeDrawList? Draws;
         }
 
         private static readonly Queue<string> _queue = new();
@@ -40,14 +40,14 @@ namespace xgEditor.CoreCLR
         public static event Action<string, string>? Written;
 
         public static bool Supports(AssetEntry entry) =>
-            (entry.Kind == AssetKind.Material && MaterialAsset.IsMaterial(entry.RelPath)) || (entry.Kind == AssetKind.Object && ObjectAsset.IsObject(entry.RelPath));
+            (entry.Kind == AssetKind.Material && MaterialAsset.IsMaterial(entry.RelPath)) || (entry.Kind == AssetKind.Archetype && ArchetypeAsset.IsArchetype(entry.RelPath));
 
         // The thumbnail file of a composition, or null without a project.
         public static string? PathFor(string guid)
         {
             if (ProjectService.Assets is not { } assets)
                 return null;
-            string folder = assets.PathOf(guid) is string path && ObjectAsset.IsObject(path) ? "Objects" : "Materials";
+            string folder = assets.PathOf(guid) is string path && ArchetypeAsset.IsArchetype(path) ? "Archetypes" : "Materials";
             return Path.Combine(assets.Pipeline.Root, folder, guid.ToLowerInvariant() + Suffix);
         }
 
@@ -87,11 +87,11 @@ namespace xgEditor.CoreCLR
                 if (!_queue.TryDequeue(out string? guid))
                     return;
                 _queued.Remove(guid);
-                if (ProjectService.Assets.PathOf(guid) is string objectPath && ObjectAsset.IsObject(objectPath))
+                if (ProjectService.Assets.PathOf(guid) is string objectPath && ArchetypeAsset.IsArchetype(objectPath))
                 {
                     try
                     {
-                        _job = new Job { Guid = guid, Object = ObjectAsset.Read(ProjectService.Assets.FullPath(objectPath)), Draws = new ObjectDrawList() };
+                        _job = new Job { Guid = guid, Archetype = ArchetypeAsset.Read(ProjectService.Assets.FullPath(objectPath)), Draws = new ArchetypeDrawList() };
                     }
                     catch (Exception e) when (e is IOException or System.Text.Json.JsonException or InvalidDataException)
                     {
@@ -107,7 +107,7 @@ namespace xgEditor.CoreCLR
 
             Job job = _job;
             job.Frames++;
-            if (job.Object is not null && job.Draws is not null)
+            if (job.Archetype is not null && job.Draws is not null)
             {
                 UpdateObject(job);
                 return;
@@ -145,7 +145,7 @@ namespace xgEditor.CoreCLR
         {
             if (job.DrawnAt < 0)
             {
-                job.Draws!.Build(job.Object!, false);
+                job.Draws!.Build(job.Archetype!, false);
                 if (!job.Draws.Complete && job.Frames <= TimeoutFrames)
                     return;
                 if (job.Draws.Draws.Count == 0 || !EnsureView())
@@ -169,7 +169,7 @@ namespace xgEditor.CoreCLR
 
         private static bool Stale(AssetEntry entry, string guid, DateTime version)
         {
-            if (ObjectAsset.IsObject(entry.RelPath))
+            if (ArchetypeAsset.IsArchetype(entry.RelPath))
                 return StaleObject(entry, guid, version);
             AssetPipeline pipeline = ProjectService.Assets!.Pipeline;
             if (pipeline.FindFile(guid, MaterialAssets.ProcessedExtension) is not string data)
@@ -197,14 +197,14 @@ namespace xgEditor.CoreCLR
         private static bool StaleObject(AssetEntry entry, string guid, DateTime version)
         {
             AssetPipeline pipeline = ProjectService.Assets!.Pipeline;
-            if (pipeline.FindFile(guid, ObjectAssets.ProcessedExtension) is not string data)
+            if (pipeline.FindFile(guid, ArchetypeAssets.ProcessedExtension) is not string data)
                 return false;
             if (version == DateTime.MinValue)
                 return true;
             DateTime newest = File.GetLastWriteTimeUtc(data);
             try
             {
-                foreach (string reference in ObjectAsset.Read(entry.FullPath).ReferencedGuids())
+                foreach (string reference in ArchetypeAsset.Read(entry.FullPath).ReferencedGuids())
                 {
                     string? file = pipeline.FindFile(reference, MeshAssets.ProcessedExtension) ?? pipeline.FindFile(reference, MaterialAssets.ProcessedExtension);
                     if (file is not null && File.GetLastWriteTimeUtc(file) > newest)

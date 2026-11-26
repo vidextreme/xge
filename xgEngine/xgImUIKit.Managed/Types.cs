@@ -79,6 +79,7 @@ namespace xg.imui
         Settings, Code, Save,
         Eye, FolderOpen, Link,
         Group, GroupOpen,
+        Blocks,
     }
 
     // Mirrors xg::imui::Key. Order is part of the ABI: append only.

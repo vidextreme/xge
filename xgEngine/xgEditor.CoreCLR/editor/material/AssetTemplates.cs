@@ -37,30 +37,30 @@ namespace xgEditor.CoreCLR
         {
             if (ProjectService.Assets is not { } assets)
                 return null;
-            ObjectAsset asset = new() { Meta = NewMeta() };
-            asset.Objects.Add(new ObjectNodeAsset { Id = AssetMeta.NewGuid(), Name = "Root", Kind = ObjectNodeKind.Proxy });
-            return assets.CreateAsset(folder, "New Object.xco", asset.ToJSON());
+            ArchetypeAsset asset = new() { Meta = NewMeta() };
+            asset.Objects.Add(new ArchetypeNodeAsset { Id = AssetMeta.NewGuid(), Name = "Root", Kind = ArchetypeNodeKind.Proxy });
+            return assets.CreateAsset(folder, "New Archetype.xco", asset.ToJSON());
         }
 
         // An object next to an imported model: a root proxy and one Mesh Object per mesh of the model, drawing its
         // submeshes (from the model's item table). Returns its path, or null when the model has no submesh items yet.
-        public static string? CreateObjectFromModel(string modelPath)
+        public static string? CreateArchetypeFromModel(string modelPath)
         {
             if (ProjectService.Assets is not { } assets || assets.GuidOf(modelPath) is not string modelGuid)
                 return null;
             if (!AssetMetaStore.TryRead(assets.FullPath(modelPath), out AssetMeta? meta) || meta is null)
                 return null;
             string name = AssetNames.DisplayName(modelPath);
-            ObjectAsset asset = ObjectAsset.FromModel(name, modelGuid, meta.Items);
+            ArchetypeAsset asset = ArchetypeAsset.FromModel(name, modelGuid, meta.Items);
             if (asset.Objects.Count < 2)
             {
-                xg.Debug.LogWarning($"[Objects] {modelPath} has no submeshes yet (build it first)");
+                xg.Debug.LogWarning($"[Archetypes] {modelPath} has no submeshes yet (build it first)");
                 return null;
             }
             asset.Meta = NewMeta();
             asset.Meta["names"] = new System.Text.Json.Nodes.JsonObject { [modelGuid] = modelPath };
             string folder = modelPath.Contains('/') ? modelPath[..modelPath.LastIndexOf('/')] : AssetIndex.RootFolder;
-            return assets.CreateAsset(folder, name + ObjectAsset.Extension, asset.ToJSON());
+            return assets.CreateAsset(folder, name + ArchetypeAsset.Extension, asset.ToJSON());
         }
 
         // An empty scene. Returns its path.

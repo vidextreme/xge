@@ -171,7 +171,7 @@ namespace xg
             AssemblyLoadContext context = AssemblyLoadContext.GetLoadContext(shared) ?? AssemblyLoadContext.Default;
             foreach (Assembly assembly in context.Assemblies)
                 if (assembly.GetName().Name == assemblyName)
-                    return assembly.GetType(fullName, false);
+                    return assembly.GetType(fullName, false) ?? ComponentTypeKeys.Renamed(assembly, fullName);
             return null;
         }
 

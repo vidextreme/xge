@@ -23,8 +23,8 @@
 #include "ComponentDataRegistryImpl.h"
 #include "TransformSystemImpl.h"
 #include "MeshRenderSystemImpl.h"
-#include "ObjectDriveSystemImpl.h"
-#include "ObjectResources.h"
+#include "ArchetypeDriveSystemImpl.h"
+#include "ArchetypeResources.h"
 #include "JobSystemImpl.h"
 #include "TextureResources.h"
 #include "ModelResources.h"
@@ -126,8 +126,8 @@ namespace xg
         AddEngineDataSource(*resources, _rootModule->GetModuleId());
         _meshRenderSystem = new MeshRenderSystemImpl(componentData, resources, GetSubsystem<TransformSystem>(), _rootModule->GetModuleId());
         RegisterSubsystem(_rootModule, _meshRenderSystem);
-        _objectDriveSystem = new ObjectDriveSystemImpl(this, componentData, resources, GetSubsystem<TransformSystem>(), _rootModule->GetModuleId());
-        RegisterSubsystem(_rootModule, _objectDriveSystem);
+        _archetypeDriveSystem = new ArchetypeDriveSystemImpl(this, componentData, resources, GetSubsystem<TransformSystem>(), _rootModule->GetModuleId());
+        RegisterSubsystem(_rootModule, _archetypeDriveSystem);
         
         auto eventDispatcher = new EventDispatcherImpl();
         RegisterSubsystem(_rootModule, eventDispatcher);
@@ -213,9 +213,9 @@ namespace xg
     bool Engine::SetRendererModule(const char* path)
     {
         ResourceSystem* resources = GetSubsystem<ResourceSystem>();
-        if (resources && _objectType != 0)
-            resources->UnregisterType(_rootModule->GetModuleId(), _objectType);
-        _objectType = 0;
+        if (resources && _archetypeType != 0)
+            resources->UnregisterType(_rootModule->GetModuleId(), _archetypeType);
+        _archetypeType = 0;
         if (resources && _materialType != 0)
             resources->UnregisterType(_rootModule->GetModuleId(), _materialType);
         if (resources && _shaderType != 0)
@@ -242,7 +242,7 @@ namespace xg
             _modelType = RegisterModelResources(*resources, _rootModule->GetModuleId(), Renderer.get());
             _shaderType = RegisterShaderResources(*resources, _rootModule->GetModuleId(), Renderer.get());
             _materialType = RegisterMaterialResources(*resources, _rootModule->GetModuleId(), Renderer.get(), _shaderType, _textureType);
-            _objectType = RegisterObjectResources(*resources, _rootModule->GetModuleId());
+            _archetypeType = RegisterArchetypeResources(*resources, _rootModule->GetModuleId());
         }
         return true;
     }
@@ -743,8 +743,8 @@ namespace xg
             if (TransformSystem* transforms = GetSubsystem<TransformSystem>())
                 transforms->Update();
             _sceneDraws.clear();
-            if (_objectDriveSystem)
-                _objectDriveSystem->Update(Renderer.get(), _sceneDraws, _meshRenderSystem);
+            if (_archetypeDriveSystem)
+                _archetypeDriveSystem->Update(Renderer.get(), _sceneDraws, _meshRenderSystem);
             if (_meshRenderSystem)
                 _meshRenderSystem->Update(Renderer.get(), _sceneDraws);
 
@@ -799,10 +799,10 @@ namespace xg
     void Engine::Shutdown()
     {
         auto* storage = static_cast<ModuleStorage*>(_moduleStorage);
-        if (_objectDriveSystem)
+        if (_archetypeDriveSystem)
         {
-            _objectDriveSystem->Detach();
-            _objectDriveSystem = nullptr;
+            _archetypeDriveSystem->Detach();
+            _archetypeDriveSystem = nullptr;
         }
         if (_meshRenderSystem)
         {

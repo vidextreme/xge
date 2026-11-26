@@ -690,7 +690,7 @@ namespace xgEditor.CoreCLR
                 hidden = row.ParentHidden || ActorEditorState.IsHidden(actor);
                 locked = row.ParentLocked || ActorEditorState.IsLocked(actor);
                 name = ActorTree.GetName(actor);
-                composed = ObjectDriverComponent.IsCompositionActor(actor);
+                composed = ArchetypeDriver.IsCompositionActor(actor);
                 icon = Icon.Object;
                 iconColor = composed ? HierarchyStyle.Composed : Style.Color(StyleColor.IconObject);
             }
@@ -760,11 +760,11 @@ namespace xgEditor.CoreCLR
             {
                 case RowKind.Actor:
                     ActorID actor = new(row.Id);
-                    if (column.IsLock && ObjectDriverComponent.IsCompositionActor(actor))
+                    if (column.IsLock && ArchetypeDriver.IsCompositionActor(actor))
                     {
                         draw.Icon(Icon.Link, cell.Center, 12.0f, HierarchyStyle.Composed);
                         if (Gui.HitArea("##cell", cell).Hovered())
-                            Gui.Tooltip("Driven by its composition object; it can't be locked");
+                            Gui.Tooltip("Driven by its archetype; it can't be locked");
                         return;
                     }
                     own = column.IsLock ? ActorEditorState.IsLocked(actor) : ActorEditorState.IsHidden(actor);

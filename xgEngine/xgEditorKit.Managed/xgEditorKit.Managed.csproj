@@ -39,7 +39,7 @@
     <Compile Include="assets\EngineAssets.cs" />
     <Compile Include="assets\ShaderAssets.cs" />
     <Compile Include="assets\MaterialAssets.cs" />
-    <Compile Include="assets\ObjectAssets.cs" />
+    <Compile Include="assets\ArchetypeAssets.cs" />
     <Compile Include="assets\SceneAssets.cs" />
     <Compile Include="tools\ToolUsability.cs" />
     <Compile Include="tools\ITool.cs" />

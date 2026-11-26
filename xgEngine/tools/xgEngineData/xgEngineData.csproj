@@ -32,7 +32,7 @@
     <Compile Include="..\..\xgEditorKit.Managed\assets\PrimitiveAssets.cs" Link="assets\PrimitiveAssets.cs" />
     <Compile Include="..\..\xgEditorKit.Managed\assets\ShaderAssets.cs" Link="assets\ShaderAssets.cs" />
     <Compile Include="..\..\xgEditorKit.Managed\assets\MaterialAssets.cs" Link="assets\MaterialAssets.cs" />
-    <Compile Include="..\..\xgEditorKit.Managed\assets\ObjectAssets.cs" Link="assets\ObjectAssets.cs" />
+    <Compile Include="..\..\xgEditorKit.Managed\assets\ArchetypeAssets.cs" Link="assets\ArchetypeAssets.cs" />
   </ItemGroup>
 
   <ItemGroup>

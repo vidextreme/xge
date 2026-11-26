@@ -1,6 +1,8 @@
 ﻿// Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 
+using System.Reflection;
+
 namespace xg
 {
     // Optional for anything attached to an actor: Actor.AddComponent calls OnAttached, removal calls OnDetached.
@@ -49,6 +51,54 @@ namespace xg
     {
         public Type Type { get; }
         public RequireComponentAttribute(Type type) => Type = type;
+    }
+
+    // Earlier names, so data saved before a rename still loads: a component type's earlier full names
+    // ("xg.ObjectDriverComponent"; ComponentTypeKeys.Current maps old type keys), a field's earlier name ("Object") or an
+    // enum or struct's earlier full name (ReloadState.ApplyFields accepts values saved under them).
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Enum | AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
+    public sealed class FormerlyNamedAttribute : Attribute
+    {
+        public string FullName { get; }
+        public FormerlyNamedAttribute(string fullName) => FullName = fullName;
+    }
+
+    // Component type keys ("Full.Name, Assembly") across renames.
+    public static class ComponentTypeKeys
+    {
+        // The key itself when its type exists, else the key of a type in that assembly marked [FormerlyNamed] with its
+        // full name; the key unchanged when neither is found.
+        public static string Current(string key)
+        {
+            int comma = key.LastIndexOf(',');
+            if (comma <= 0)
+                return key;
+            string fullName = key[..comma].Trim();
+            string assemblyName = key[(comma + 1)..].Trim();
+            foreach (Assembly assembly in System.Runtime.Loader.AssemblyLoadContext.All.SelectMany(c => c.Assemblies))
+            {
+                if (assembly.GetName().Name != assemblyName)
+                    continue;
+                if (assembly.GetType(fullName, false) is not null)
+                    return key;
+                if (Renamed(assembly, fullName) is Type renamed)
+                    return $"{renamed.FullName}, {assemblyName}";
+            }
+            return key;
+        }
+
+        // The type of this assembly that was called fullName before, or null.
+        public static Type? Renamed(Assembly assembly, string fullName)
+        {
+            try
+            {
+                return assembly.GetTypes().FirstOrDefault(t => t.GetCustomAttributes<FormerlyNamedAttribute>(false).Any(a => a.FullName == fullName));
+            }
+            catch (ReflectionTypeLoadException)
+            {
+                return null;
+            }
+        }
     }
 
     public interface IComponentUpdate : IComponent

@@ -26,7 +26,7 @@ namespace xg
 
 namespace xg::imui
 {
-    inline constexpr uint32_t ApiVersion = 26;
+    inline constexpr uint32_t ApiVersion = 27;
 
     struct Context;
     struct PanelEntry;
@@ -108,6 +108,8 @@ namespace xg::imui
         Eye, FolderOpen, Link,
         // ApiVersion 25.
         Group, GroupOpen,
+        // ApiVersion 27.
+        Blocks,
         Count
     };
 

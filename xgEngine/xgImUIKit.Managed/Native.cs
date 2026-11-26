@@ -31,7 +31,7 @@ namespace xg.imui
     internal static unsafe partial class Native
     {
         private const string DLL = "xgImUIKit";
-        public const uint ApiVersion = 26;
+        public const uint ApiVersion = 27;
 
         [LibraryImport(DLL, EntryPoint = "XG_ImUIGetApiVersion")]
         public static partial uint GetApiVersion();

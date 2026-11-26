@@ -492,14 +492,14 @@ namespace xgEditor.CoreCLR
         }
     }
 
-    // Test hook (XG_RESOURCE_TEST_OBJECT=<model path>[:<material path>]): creates <model>.xco next to the model when it's
+    // Test hook (XG_RESOURCE_TEST_ARCHETYPE=<model path>[:<material path>]): creates <model>.xco next to the model when it's
     // missing (one Mesh Object per mesh, the material on every part, plus a "Muzzle" proxy one unit above the root),
-    // builds it, creates "ObjectDriver Test" (Transform + ObjectDriverComponent) at the origin, two units tall, and logs
-    // [Objects] lines: the build, the draw counts and the Muzzle proxy's world position.
-    internal static unsafe class ObjectSmoke
+    // builds it, creates "ArchetypeDriver Test" (Transform + ArchetypeDriver) at the origin, two units tall, and logs
+    // [Archetypes] lines: the build, the draw counts and the Muzzle proxy's world position.
+    internal static unsafe class ArchetypeSmoke
     {
         static Actor? _actor;
-        static ObjectDriverComponent? _driver;
+        static ArchetypeDriver? _driver;
         static ResourceHandle _model;
         static bool _placed;
         static int _frames;
@@ -507,43 +507,43 @@ namespace xgEditor.CoreCLR
 
         public static void Init()
         {
-            string? spec = Environment.GetEnvironmentVariable("XG_RESOURCE_TEST_OBJECT");
+            string? spec = Environment.GetEnvironmentVariable("XG_RESOURCE_TEST_ARCHETYPE");
             if (string.IsNullOrEmpty(spec) || ProjectService.Assets is not { } assets)
                 return;
             string[] parts = spec.Split(':');
             string modelPath = parts[0];
             assets.BuildAll();
-            string objectPath = modelPath[..^Path.GetExtension(modelPath).Length] + xg.editor.ObjectAsset.Extension;
+            string objectPath = modelPath[..^Path.GetExtension(modelPath).Length] + xg.editor.ArchetypeAsset.Extension;
             if (assets.GuidOf(objectPath) is null)
             {
-                if (AssetTemplates.CreateObjectFromModel(modelPath) is not string created)
+                if (AssetTemplates.CreateArchetypeFromModel(modelPath) is not string created)
                 {
-                    Debug.LogError($"[Objects] test: could not create an object from {modelPath}");
+                    Debug.LogError($"[Archetypes] test: could not create an object from {modelPath}");
                     return;
                 }
                 objectPath = created;
-                xg.editor.ObjectAsset asset = xg.editor.ObjectAsset.Read(assets.FullPath(objectPath));
+                xg.editor.ArchetypeAsset asset = xg.editor.ArchetypeAsset.Read(assets.FullPath(objectPath));
                 string? material = parts.Length > 1 && parts[1] != "actors" ? assets.GuidOf(parts[1]) : null;
-                foreach (xg.editor.ObjectNodeAsset node in asset.Objects)
-                    foreach (xg.editor.ObjectPartAsset part in node.Parts)
+                foreach (xg.editor.ArchetypeNodeAsset node in asset.Objects)
+                    foreach (xg.editor.ArchetypePartAsset part in node.Parts)
                         part.Material = material ?? string.Empty;
-                xg.editor.ObjectNodeAsset root = asset.Objects[0];
-                asset.Objects.Add(new xg.editor.ObjectNodeAsset
+                xg.editor.ArchetypeNodeAsset root = asset.Objects[0];
+                asset.Objects.Add(new xg.editor.ArchetypeNodeAsset
                 {
-                    Id = xg.editor.AssetMeta.NewGuid(), Name = "Muzzle", Kind = xg.editor.ObjectNodeKind.Proxy,
-                    Expose = xg.editor.ObjectNodeExpose.Proxy, Parent = root.Id, Position = new[] { 0.0f, 1.0f, 0.0f },
+                    Id = xg.editor.AssetMeta.NewGuid(), Name = "Muzzle", Kind = xg.editor.ArchetypeNodeKind.Proxy,
+                    Expose = xg.editor.ArchetypeNodeExpose.Proxy, Parent = root.Id, Position = new[] { 0.0f, 1.0f, 0.0f },
                 });
                 asset.Write(assets.FullPath(objectPath));
                 assets.Refresh();
-                Debug.Log($"[Objects] test: created {objectPath} with {asset.Objects.Count} Objects");
+                Debug.Log($"[Archetypes] test: created {objectPath} with {asset.Objects.Count} Objects");
             }
             if (parts.Contains("actors"))
             {
-                xg.editor.ObjectAsset asset = xg.editor.ObjectAsset.Read(assets.FullPath(objectPath));
-                xg.editor.ObjectNodeAsset? body = asset.Objects.FirstOrDefault(o => o.Kind == xg.editor.ObjectNodeKind.Mesh);
+                xg.editor.ArchetypeAsset asset = xg.editor.ArchetypeAsset.Read(assets.FullPath(objectPath));
+                xg.editor.ArchetypeNodeAsset? body = asset.Objects.FirstOrDefault(o => o.Kind == xg.editor.ArchetypeNodeKind.Mesh);
                 if (body is not null)
                 {
-                    body.Expose = xg.editor.ObjectNodeExpose.Actor;
+                    body.Expose = xg.editor.ArchetypeNodeExpose.Actor;
                     body.Components = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject
                     {
                         ["id"] = "a0a0a0a0a0a0a0a0",
@@ -552,23 +552,23 @@ namespace xgEditor.CoreCLR
                     });
                     asset.Write(assets.FullPath(objectPath));
                     _actorName = body.Name;
-                    Debug.Log($"[Objects] test: exposed {body.Name} as an actor with an authored WeaponSample (Ammo 7)");
+                    Debug.Log($"[Archetypes] test: exposed {body.Name} as an actor with an authored WeaponSample (Ammo 7)");
                 }
             }
             assets.RequestBuild(objectPath);
             assets.BuildAll();
             string? guid = assets.GuidOf(objectPath);
             xg.editor.AssetBuildManifest? manifest = guid is null ? null : assets.Pipeline.ManifestOf(guid);
-            Debug.Log($"[Objects] test: {objectPath}: {(guid is null ? "no asset" : manifest?.Error ?? string.Join(" ", manifest?.Tags ?? new List<string>()))}");
-            _actor = Actor.Create("ObjectDriver Test");
+            Debug.Log($"[Archetypes] test: {objectPath}: {(guid is null ? "no asset" : manifest?.Error ?? string.Join(" ", manifest?.Tags ?? new List<string>()))}");
+            _actor = Actor.Create("ArchetypeDriver Test");
             _actor.AddTransform();
-            _driver = _actor.AddComponent<ObjectDriverComponent>();
-            _driver.Object = AssetReference.FromText(guid);
+            _driver = _actor.AddComponent<ArchetypeDriver>();
+            _driver.Archetype = AssetReference.FromText(guid);
             uint modelType = Resources.FindType(Resources.ModelType);
             string? modelGuid = assets.GuidOf(modelPath);
             if (modelType != 0 && ResourceID.TryParse(modelGuid, out ResourceID modelId))
                 _model = Resources.Acquire(modelType, modelId);
-            Debug.Log($"[Objects] test: created {_actor.Name} driving {_driver.Object}");
+            Debug.Log($"[Archetypes] test: created {_actor.Name} driving {_driver.Archetype}");
         }
 
         public static void Update()
@@ -589,11 +589,11 @@ namespace xgEditor.CoreCLR
             }
             if (_frames == 60 || _frames == 300)
             {
-                int draws = ObjectDriverComponent.DrawCount(out int ready);
+                int draws = ArchetypeDriver.DrawCount(out int ready);
                 string proxy = _driver.TryGetProxy("Muzzle", out TransformData muzzle)
                     ? $"Muzzle at ({muzzle.PositionX:0.###}, {muzzle.PositionY:0.###}, {muzzle.PositionZ:0.###})"
                     : "no Muzzle";
-                Debug.Log($"[Objects] test: frame {_frames}: {draws} draw(s), {ready} ready object(s), {proxy}");
+                Debug.Log($"[Archetypes] test: frame {_frames}: {draws} draw(s), {ready} ready archetype(s), {proxy}");
                 if (_actorName is not null)
                 {
                     ActorID composed = _driver.GetCompositionActor(_actorName);
@@ -601,7 +601,7 @@ namespace xgEditor.CoreCLR
                     if (composed.Value != 0)
                         ActorTree.GetComponents(composed, components);
                     string weapon = components.OfType<WeaponSample>().FirstOrDefault() is WeaponSample sample ? $"WeaponSample Ammo {sample.Ammo}" : "no WeaponSample";
-                    Debug.Log($"[Objects] test: Composition Actor {_actorName} = {composed.Value} (parent {ActorTree.GetParent(composed)?.Value ?? 0}, owner {ObjectDriverComponent.CompositionOwner(composed).Value}, driver {_actor.ID.Value}), {components.Count} component(s), {weapon}");
+                    Debug.Log($"[Archetypes] test: Composition Actor {_actorName} = {composed.Value} (parent {ActorTree.GetParent(composed)?.Value ?? 0}, owner {ArchetypeDriver.CompositionOwner(composed).Value}, driver {_actor.ID.Value}), {components.Count} component(s), {weapon}");
                 }
             }
         }
@@ -639,14 +639,14 @@ namespace xgEditor.CoreCLR
                     root.Transform!.LocalPosition = new Vector3(0.0f, 0.5f, 2.0f);
                     SceneManager.CreateActor("Child", root.ID);
                 }
-                _gun = SceneManager.CreateFromObject("Assets/Models/bear.xco");
+                _gun = SceneManager.CreateFromArchetype("Assets/Models/bear.xco");
                 if (_gun is not null)
                     _gun.Transform!.LocalScale = new Vector3(3.0f, 3.0f, 3.0f);
                 Debug.Log($"[Scenes] test: built a scene with {SceneManager.Active?.Members.Count} member(s)");
             }
             if (_creating && _frames == 150 && _gun is not null && SceneManager.Active is { } scene)
             {
-                ActorID composed = ObjectDriverComponent.GetCompositionActor(_gun.ID, "Bear");
+                ActorID composed = ArchetypeDriver.GetCompositionActor(_gun.ID, "Bear");
                 List<object> components = new();
                 ActorTree.GetComponents(composed, components);
                 if (components.OfType<WeaponSample>().FirstOrDefault() is WeaponSample weapon)
@@ -666,12 +666,12 @@ namespace xgEditor.CoreCLR
                     string parent = ActorTree.GetParent(actor) is { } p ? ActorTree.GetName(p) : "-";
                     string position = ActorRegistry.TryGet(actor, out Actor? owned) && owned.Transform is { } t
                         ? $"({t.LocalPosition.x:0.##}, {t.LocalPosition.y:0.##}, {t.LocalPosition.z:0.##}) scale {t.LocalScale.x:0.##}" : "no transform";
-                    string extra = components.OfType<ObjectDriverComponent>().FirstOrDefault() is ObjectDriverComponent driver
-                        ? $", drives {assets.PathOf(driver.Object.ToString()) ?? driver.Object.ToString()}" : string.Empty;
+                    string extra = components.OfType<ArchetypeDriver>().FirstOrDefault() is ArchetypeDriver driver
+                        ? $", drives {assets.PathOf(driver.Archetype.ToString()) ?? driver.Archetype.ToString()}" : string.Empty;
                     Debug.Log($"[Scenes] test: member {ActorTree.GetName(actor)} ({sceneId[..8]}), parent {parent}, {position}, {components.Count} component(s){extra}");
                     if (extra.Length > 0)
                     {
-                        ActorID composed = ObjectDriverComponent.GetCompositionActor(actor, "Bear");
+                        ActorID composed = ArchetypeDriver.GetCompositionActor(actor, "Bear");
                         List<object> composedComponents = new();
                         ActorTree.GetComponents(composed, composedComponents);
                         string ammo = composedComponents.OfType<WeaponSample>().FirstOrDefault() is WeaponSample weapon ? weapon.Ammo.ToString() : "none";
@@ -979,6 +979,7 @@ namespace xgEditor.CoreCLR
             xg.editor.ComponentEditors.Register(new CameraDataEditor());
             xg.editor.ComponentEditors.Register(new CameraPreview());
             xg.editor.ComponentEditors.Register(_meshRendererEditor);
+            xg.editor.ComponentEditors.Register(new ArchetypeDriverDataEditor());
             PlayMode.Initialize();
             ProjectService.Open();
             SceneCommands.RegisterMenus();
@@ -1224,7 +1225,7 @@ namespace xgEditor.CoreCLR
             TextureSmoke.Init();
             ModelSmoke.Init();
             MaterialSmoke.Init();
-            ObjectSmoke.Init();
+            ArchetypeSmoke.Init();
             TransformSmoke.Init();
             DataSmoke.Init();
             return 1;
@@ -1286,15 +1287,15 @@ namespace xgEditor.CoreCLR
                 if (Environment.GetEnvironmentVariable("XG_UI_TEST_MATERIAL_PREVIEW_MENU") == "1")
                     panel?.View.Preview.OpenMenu(30);
             }
-            if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_OBJECT_EDIT") is { Length: > 0 } objectEdit)
+            if (frame == 20 && Environment.GetEnvironmentVariable("XG_UI_TEST_ARCHETYPE_EDIT") is { Length: > 0 } objectEdit)
             {
                 string[] parts = objectEdit.Split(':');
-                ObjectEditorPanel panel = ObjectEditorPanel.Open(parts[0]);
+                ArchetypeEditorPanel panel = ArchetypeEditorPanel.Open(parts[0]);
                 foreach (string option in parts.Skip(1))
                 {
                     string[] pair = option.Split('=', 2);
                     if (pair[0] == "select" && pair.Length > 1)
-                        Debug.Log($"[Debug] Object editor select {pair[1]}: {panel.View.SelectByName(pair[1])}");
+                        Debug.Log($"[Debug] Archetype editor select {pair[1]}: {panel.View.SelectByName(pair[1])}");
                     else if (pair[0] == "tab" && pair.Length > 1 && int.TryParse(pair[1], out int tab))
                         panel.View.Tab = tab;
                     else if (pair[0] == "menu")
@@ -1307,7 +1308,7 @@ namespace xgEditor.CoreCLR
                     else if (pair[0] == "addcomponent" && pair.Length > 1 && panel.Driver is { } author && panel.View.Selected is string authorId
                         && author.Find(authorId) is { } authorNode && xg.editor.ComponentCatalog.Types.FirstOrDefault(t => t.Type.Name == pair[1]) is { } componentType)
                     {
-                        authorNode.Expose = xg.editor.ObjectNodeExpose.Actor;
+                        authorNode.Expose = xg.editor.ArchetypeNodeExpose.Actor;
                         panel.View.AddAuthored(author, authorNode, componentType);
                         Debug.Log($"[Debug] Object authored {componentType.Key} on {authorNode.Name}");
                     }
@@ -1324,26 +1325,26 @@ namespace xgEditor.CoreCLR
                     }
                 }
             }
-            if (frame == 120 && Environment.GetEnvironmentVariable("XG_UI_TEST_OBJECT_EDIT") is { Length: > 0 } objectParam
+            if (frame == 120 && Environment.GetEnvironmentVariable("XG_UI_TEST_ARCHETYPE_EDIT") is { Length: > 0 } objectParam
                 && objectParam.Split(':').FirstOrDefault(o => o.StartsWith("materialparam=")) is string paramOption
                 && paramOption["materialparam=".Length..].Split('=') is { Length: 2 } param
-                && xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().FirstOrDefault()?.View.MaterialView is { Driver: { } edited } materialView)
+                && xg.imui.ImUI.RegisteredPanels.OfType<ArchetypeEditorPanel>().FirstOrDefault()?.View.MaterialView is { Driver: { } edited } materialView)
             {
                 float[] value = param[1].Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).Concat(new float[4]).Take(4).ToArray();
                 edited.SetParam(param[0], value);
                 Debug.Log($"[Debug] Object material draft {edited.Path}: {param[0]} = {param[1]} (auto apply {materialView.AutoApply}, pending {edited.HasPendingChanges})");
             }
-            if (frame == 200 && Environment.GetEnvironmentVariable("XG_UI_TEST_OBJECT_EDIT") is { Length: > 0 } objectCheck && objectCheck.Contains("materialparam=")
-                && xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().FirstOrDefault()?.View.MaterialView.Driver is { } applied)
-                Debug.Log($"[Debug] Object material {applied.Path} still unsaved: {applied.HasPendingChanges}, draft material {xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().First().View.MaterialView.DraftMaterial}");
+            if (frame == 200 && Environment.GetEnvironmentVariable("XG_UI_TEST_ARCHETYPE_EDIT") is { Length: > 0 } objectCheck && objectCheck.Contains("materialparam=")
+                && xg.imui.ImUI.RegisteredPanels.OfType<ArchetypeEditorPanel>().FirstOrDefault()?.View.MaterialView.Driver is { } applied)
+                Debug.Log($"[Debug] Object material {applied.Path} still unsaved: {applied.HasPendingChanges}, draft material {xg.imui.ImUI.RegisteredPanels.OfType<ArchetypeEditorPanel>().First().View.MaterialView.DraftMaterial}");
             if (frame == 40 && Environment.GetEnvironmentVariable("XG_UI_TEST_SAVE_AS") is { Length: > 0 } saveAsKind)
             {
                 if (saveAsKind == "scene" && SceneManager.Active is { } activeScene)
                     SceneDialogs.OpenSaveAs(activeScene);
                 else if (saveAsKind == "material")
                     MaterialEditorPanel.Open("Assets/Materials/Bear.xcm");
-                else if (saveAsKind == "object")
-                    ObjectEditorPanel.Open("Assets/Models/bear.xco");
+                else if (saveAsKind == "archetype")
+                    ArchetypeEditorPanel.Open("Assets/Models/bear.xco");
                 if (Environment.GetEnvironmentVariable("XG_UI_TEST_FOLDER_FIELD") is { Length: > 0 } folderHook)
                     SaveAsDialog.Folder.OpenLater(30, folderHook is "newfolder" or "create", folderHook == "create");
                 Debug.Log($"[Debug] Save as test: {saveAsKind}");
@@ -1363,8 +1364,8 @@ namespace xgEditor.CoreCLR
             {
                 if (saveAsLater == "material")
                     xg.imui.ImUI.RegisteredPanels.OfType<MaterialEditorPanel>().FirstOrDefault()?.View.SaveAs();
-                else if (saveAsLater == "object")
-                    xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().FirstOrDefault()?.View.SaveAs();
+                else if (saveAsLater == "archetype")
+                    xg.imui.ImUI.RegisteredPanels.OfType<ArchetypeEditorPanel>().FirstOrDefault()?.View.SaveAs();
             }
             if (Environment.GetEnvironmentVariable("XG_CAMERA_TEST") is { Length: > 0 } cameraTest)
                 CameraTest(frame, cameraTest);
@@ -1403,7 +1404,7 @@ namespace xgEditor.CoreCLR
             TextureSmoke.Update();
             ModelSmoke.Update();
             MaterialSmoke.Update();
-            ObjectSmoke.Update();
+            ArchetypeSmoke.Update();
             ThumbnailSmoke.Update();
             CompositionThumbnails.Update();
             CompositionComponents.Update();

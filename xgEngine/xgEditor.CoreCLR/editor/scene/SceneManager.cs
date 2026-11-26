@@ -226,6 +226,8 @@ namespace xgEditor.CoreCLR
                     transform.Local = local;
                 }
                 foreach (SceneComponentAsset component in saved.Components)
+                    component.Type = ComponentTypeKeys.Current(component.Type);
+                foreach (SceneComponentAsset component in saved.Components)
                     if (AddComponent(actor.ID, component) is not null)
                         components++;
                 scene.ComponentOrder[actor.ID.Value] = saved.Components.Select(c => (c.Type, c.Id)).ToList();
@@ -398,8 +400,8 @@ namespace xgEditor.CoreCLR
             return actor;
         }
 
-        // An actor drawing a composition object: Transform + ObjectDriverComponent, named after the object.
-        public static Actor? CreateFromObject(string objectPath, ActorID? parent = null)
+        // An actor drawing an archetype: Transform + ArchetypeDriver, named after the object.
+        public static Actor? CreateFromArchetype(string objectPath, ActorID? parent = null)
         {
             if (ProjectService.Assets?.GuidOf(objectPath) is not string guid)
                 return null;
@@ -407,8 +409,8 @@ namespace xgEditor.CoreCLR
             if (actor is null)
                 return null;
             actor.AddTransform();
-            ObjectDriverComponent driver = actor.AddComponent<ObjectDriverComponent>();
-            driver.Object = AssetReference.FromText(guid);
+            ArchetypeDriver driver = actor.AddComponent<ArchetypeDriver>();
+            driver.Archetype = AssetReference.FromText(guid);
             Touch(SceneOf(actor.ID));
             return actor;
         }
@@ -430,7 +432,7 @@ namespace xgEditor.CoreCLR
             if (Blocked("delete scene actors"))
                 return false;
             EditorScene? scene = SceneOf(actor);
-            if (scene is null || ObjectDriverComponent.IsCompositionActor(actor))
+            if (scene is null || ArchetypeDriver.IsCompositionActor(actor))
             {
                 Debug.LogWarning($"[Scenes] {ActorTree.GetName(actor)} isn't a scene actor, so it can't be deleted here");
                 return false;
@@ -666,7 +668,7 @@ namespace xgEditor.CoreCLR
         private static void CaptureTree(EditorScene scene, SceneAsset asset, ActorID actor, string parentId)
         {
             string childParent = parentId;
-            if (scene.IdOf(actor) is string id && !ObjectDriverComponent.IsCompositionActor(actor))
+            if (scene.IdOf(actor) is string id && !ArchetypeDriver.IsCompositionActor(actor))
             {
                 asset.Actors.Add(CaptureActor(scene, actor, id, parentId));
                 childParent = id;
@@ -701,7 +703,7 @@ namespace xgEditor.CoreCLR
             for (int i = 0; i < components.Count; i++)
             {
                 saved.Components.Add(CaptureComponent(components[i], ids[i]));
-                if (components[i].GetType().FullName == "xg.ObjectDriverComponent")
+                if (components[i].GetType().FullName == "xg.ArchetypeDriver")
                     CaptureCompositions(actor, components[i], saved);
             }
             scene.ComponentOrder[actor.Value] = saved.Components.Select(c => (c.Type, c.Id)).ToList();
@@ -728,21 +730,21 @@ namespace xgEditor.CoreCLR
         // A driver's Composition Actors: components that differ from the .xco's authored defaults (by component id).
         private static void CaptureCompositions(ActorID driver, object component, SceneActorAsset saved)
         {
-            if (component.GetType().GetProperty("Object")?.GetValue(component)?.ToString() is not { Length: > 0 } guid
+            if (component.GetType().GetProperty("Archetype")?.GetValue(component)?.ToString() is not { Length: > 0 } guid
                 || ProjectService.Assets is not { } assets || assets.PathOf(guid) is not string path)
                 return;
-            ObjectAsset objectAsset;
+            ArchetypeAsset objectAsset;
             try
             {
-                objectAsset = ObjectAsset.Read(assets.FullPath(path));
+                objectAsset = ArchetypeAsset.Read(assets.FullPath(path));
             }
             catch (Exception e) when (e is IOException or JsonException or InvalidDataException)
             {
                 return;
             }
-            foreach (ObjectNodeAsset node in objectAsset.Objects.Where(o => o.Expose == ObjectNodeExpose.Actor))
+            foreach (ArchetypeNodeAsset node in objectAsset.Objects.Where(o => o.Expose == ArchetypeNodeExpose.Actor))
             {
-                ActorID composed = ObjectDriverComponent.GetCompositionActor(driver, node.Name);
+                ActorID composed = ArchetypeDriver.GetCompositionActor(driver, node.Name);
                 if (composed.Value == 0)
                 {
                     if (_pendingOverrides.TryGetValue((driver.Value, node.Name), out SceneCompositionAsset? waiting))
@@ -833,7 +835,7 @@ namespace xgEditor.CoreCLR
 
         private static void OnCompositionSpawned(ActorID actor)
         {
-            ActorID owner = ObjectDriverComponent.CompositionOwner(actor);
+            ActorID owner = ArchetypeDriver.CompositionOwner(actor);
             if (!_pendingOverrides.Remove((owner.Value, ActorTree.GetName(actor)), out SceneCompositionAsset? overrides))
                 return;
             if (overrides.Hidden)

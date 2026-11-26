@@ -475,6 +475,15 @@ namespace xg::imui::detail
             dl->AddLine(c, ImVec2(c.x, c.y - h * 0.55f), col, 1.3f);
             dl->AddLine(c, ImVec2(c.x + h * 0.4f, c.y + h * 0.2f), col, 1.3f);
             break;
+        case Icon::Blocks:
+        {
+            const float w = h * 0.86f;
+            const float r = h * 0.13f;
+            dl->AddRectFilled(ImVec2(c.x - h * 0.92f, c.y + h * 0.09f), ImVec2(c.x - h * 0.92f + w, c.y + h * 0.89f), col, r);
+            dl->AddRectFilled(ImVec2(c.x + h * 0.06f, c.y + h * 0.09f), ImVec2(c.x + h * 0.06f + w, c.y + h * 0.89f), col, r);
+            dl->AddRectFilled(ImVec2(c.x - w * 0.5f, c.y - h * 0.83f), ImVec2(c.x + w * 0.5f, c.y - h * 0.03f), col, r);
+            break;
+        }
         case Icon::Stack:
         {
             const ImVec2 top[] = { ImVec2(c.x, c.y - h * 0.85f), ImVec2(c.x + h * 0.9f, c.y - h * 0.4f), ImVec2(c.x, c.y + h * 0.05f), ImVec2(c.x - h * 0.9f, c.y - h * 0.4f) };

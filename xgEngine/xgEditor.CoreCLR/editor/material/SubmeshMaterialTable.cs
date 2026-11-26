@@ -8,7 +8,7 @@ using xg.math;
 namespace xgEditor.CoreCLR
 {
     // The submesh item table of a model asset's meta (kind "submesh"), cached by the meta's write time. Shared by the
-    // Composition Object Editor and the Mesh Renderer card.
+    // Archetype Editor and the Mesh Renderer card.
     public static class ModelSubmeshes
     {
         private static readonly Dictionary<string, (long Time, List<AssetItem> Items)> _cache = new(StringComparer.OrdinalIgnoreCase);

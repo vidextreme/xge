@@ -49,11 +49,11 @@ namespace xgEditor.CoreCLR
                 Selection.Set(actor.ID);
         }
 
-        [ToolButton("Add Selected Object", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Object), Priority = 20,
-            Validate = nameof(ObjectSelected), Tooltip = "Add an actor that draws the selected composition object (.xco)")]
+        [ToolButton("Add Selected Archetype", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Blocks), Priority = 20,
+            Validate = nameof(ArchetypeSelected), Tooltip = "Add an actor that draws the selected archetype (.xco)")]
         public static void AddSelectedObject()
         {
-            if (SelectedObject() is string path && SceneManager.CreateFromObject(path) is { } actor)
+            if (SelectedArchetype() is string path && SceneManager.CreateFromArchetype(path) is { } actor)
                 Selection.Set(actor.ID);
         }
 
@@ -79,7 +79,7 @@ namespace xgEditor.CoreCLR
         // Scene members that can be removed (no Composition Actors, nothing locked), without those under another one.
         public static List<ActorID> RemovableActors(IEnumerable<ActorID> actors)
         {
-            HashSet<ulong> candidates = actors.Where(a => a.Value != 0 && SceneManager.IsMember(a) && !ObjectDriverComponent.IsCompositionActor(a)
+            HashSet<ulong> candidates = actors.Where(a => a.Value != 0 && SceneManager.IsMember(a) && !ArchetypeDriver.IsCompositionActor(a)
                 && !ActorEditorState.IsLockedInSubtree(a)).Select(a => (ulong)a.Value).ToHashSet();
             List<ActorID> result = new();
             foreach (ulong id in candidates)
@@ -140,10 +140,10 @@ namespace xgEditor.CoreCLR
         }
 
         [ToolValidator]
-        public static ToolUsability ObjectSelected() => SelectedObject() is not null ? ToolUsability.Usable : ToolUsability.Unusable;
+        public static ToolUsability ArchetypeSelected() => SelectedArchetype() is not null ? ToolUsability.Usable : ToolUsability.Unusable;
 
-        internal static string? SelectedObject() =>
-            Selection.Objects.OfType<AssetRef>().Where(a => !string.IsNullOrEmpty(a.Path) && ObjectAsset.IsObject(a.Path)).Select(a => a.Path).LastOrDefault();
+        internal static string? SelectedArchetype() =>
+            Selection.Objects.OfType<AssetRef>().Where(a => !string.IsNullOrEmpty(a.Path) && ArchetypeAsset.IsArchetype(a.Path)).Select(a => a.Path).LastOrDefault();
     }
 
     // The Hierarchy's right-click menu: create actors in the scene (as children of a clicked scene actor), add the
@@ -197,15 +197,15 @@ namespace xgEditor.CoreCLR
                 if (Create(() => SceneManager.CreateCamera(parent)) is { } created)
                     Selection.Set(created.ID);
             });
-            string? objectPath = SceneCommands.SelectedObject();
-            menu.Item(objectPath is null ? "Add Selected Object" : $"Add {AssetNames.DisplayName(objectPath)}", Icon.Object, () =>
+            string? objectPath = SceneCommands.SelectedArchetype();
+            menu.Item(objectPath is null ? "Add Selected Archetype" : $"Add {AssetNames.DisplayName(objectPath)}", Icon.Blocks, () =>
             {
-                if (objectPath is not null && Create(() => SceneManager.CreateFromObject(objectPath, parent)) is { } created)
+                if (objectPath is not null && Create(() => SceneManager.CreateFromArchetype(objectPath, parent)) is { } created)
                     Selection.Set(created.ID);
-            }, enabled: objectPath is not null, tooltip: objectPath is null ? "Select a composition object (.xco) in the Navigator first" : null);
+            }, enabled: objectPath is not null, tooltip: objectPath is null ? "Select an archetype (.xco) in the Navigator first" : null);
             if (target is not { } chosen)
                 return;
-            bool composed = ObjectDriverComponent.IsCompositionActor(chosen);
+            bool composed = ArchetypeDriver.IsCompositionActor(chosen);
             string why = composed ? "Composition Actors belong to their object" : "Only scene actors can be changed here";
             menu.Separator();
             menu.Item("Rename...", Icon.File, () => RenameActor(chosen), enabled: member && !composed, tooltip: member && !composed ? null : why);

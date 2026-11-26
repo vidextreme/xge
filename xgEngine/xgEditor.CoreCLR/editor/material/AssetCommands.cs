@@ -71,10 +71,10 @@ namespace xgEditor.CoreCLR
             navigator?.RenameCreated(path, () => Selection.Set(path));
         }
 
-        [ToolButton("Create Object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
-            Validate = nameof(HasProject), Tooltip = "Create a composition object in the Navigator's folder")]
-        [ContextMenuButton("Create Object", Sources = "navigator", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 30,
-            Validate = nameof(HasProject), Tooltip = "Create a composition object in the Navigator's folder")]
+        [ToolButton("Create Archetype", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Blocks), Priority = 30,
+            Validate = nameof(HasProject), Tooltip = "Create an archetype in the Navigator's folder")]
+        [ContextMenuButton("Create Archetype", Sources = "navigator", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Blocks), Priority = 30,
+            Validate = nameof(HasProject), Tooltip = "Create an archetype in the Navigator's folder")]
         public static void CreateObject()
         {
             NavigatorPanel? navigator = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault();
@@ -84,38 +84,38 @@ namespace xgEditor.CoreCLR
             navigator?.RenameCreated(path, () =>
             {
                 Selection.Set(path);
-                ObjectEditorPanel.Open(path);
+                ArchetypeEditorPanel.Open(path);
             });
         }
 
-        [ToolButton("Edit Object", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
-            Validate = nameof(ObjectSelected), Tooltip = "Open the selected composition object in the Object Editor")]
-        [ContextMenuButton("Edit Object", Sources = "navigator", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 35,
-            Validate = nameof(ObjectSelected), Tooltip = "Open the selected composition object in the Object Editor")]
+        [ToolButton("Edit Archetype", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Blocks), Priority = 35,
+            Validate = nameof(ArchetypeSelected), Tooltip = "Open the selected archetype in the Archetype Editor")]
+        [ContextMenuButton("Edit Archetype", Sources = "navigator", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Blocks), Priority = 35,
+            Validate = nameof(ArchetypeSelected), Tooltip = "Open the selected archetype in the Archetype Editor")]
         public static void EditObject()
         {
-            if (Selection.Objects.LastOrDefault() is AssetRef asset && ObjectAsset.IsObject(asset.Path))
-                ObjectEditorPanel.Open(asset.Path);
+            if (Selection.Objects.LastOrDefault() is AssetRef asset && ArchetypeAsset.IsArchetype(asset.Path))
+                ArchetypeEditorPanel.Open(asset.Path);
         }
 
         [ToolValidator]
-        public static ToolUsability ObjectSelected() =>
-            Selection.Objects.LastOrDefault() is AssetRef asset && ObjectAsset.IsObject(asset.Path) ? ToolUsability.Usable : ToolUsability.Unusable;
+        public static ToolUsability ArchetypeSelected() =>
+            Selection.Objects.LastOrDefault() is AssetRef asset && ArchetypeAsset.IsArchetype(asset.Path) ? ToolUsability.Usable : ToolUsability.Unusable;
 
-        [ToolButton("Object from Model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
-            Validate = nameof(ModelSelected), Tooltip = "Create a composition object from the selected model, one Mesh Object per mesh")]
-        [ContextMenuButton("Object from Model", Sources = "navigator", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Object), Priority = 40,
-            Validate = nameof(ModelSelected), Tooltip = "Create a composition object from the selected model, one Mesh Object per mesh")]
-        public static void CreateObjectFromModel()
+        [ToolButton("Archetype from Model", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Blocks), Priority = 40,
+            Validate = nameof(ModelSelected), Tooltip = "Create an archetype from the selected model, one Mesh Object per mesh")]
+        [ContextMenuButton("Archetype from Model", Sources = "navigator", Category = "Scene", Group = "Assets", Icon = nameof(Icon.Blocks), Priority = 40,
+            Validate = nameof(ModelSelected), Tooltip = "Create an archetype from the selected model, one Mesh Object per mesh")]
+        public static void CreateArchetypeFromModel()
         {
-            if (SelectedModel() is not string model || AssetTemplates.CreateObjectFromModel(model) is not string path)
+            if (SelectedModel() is not string model || AssetTemplates.CreateArchetypeFromModel(model) is not string path)
                 return;
             NavigatorPanel? navigator = ImUI.RegisteredPanels.OfType<NavigatorPanel>().FirstOrDefault();
-            Debug.Log($"[Objects] Created {path} from {model}");
+            Debug.Log($"[Archetypes] Created {path} from {model}");
             void Opened()
             {
                 Selection.Set(path);
-                ObjectEditorPanel.Open(path);
+                ArchetypeEditorPanel.Open(path);
             }
             if (navigator is not null)
                 navigator.RenameCreated(path, Opened);

@@ -118,8 +118,8 @@
     <ClInclude Include="EngineAssets.h" />
     <ClInclude Include="MaterialResources.h" />
     <ClInclude Include="MeshRenderSystemImpl.h" />
-    <ClInclude Include="ObjectDriveSystemImpl.h" />
-    <ClInclude Include="ObjectResources.h" />
+    <ClInclude Include="ArchetypeDriveSystemImpl.h" />
+    <ClInclude Include="ArchetypeResources.h" />
     <ClInclude Include="DynamicObjectImpl.h" />
     <ClInclude Include="EventDispatcherImpl.h" />
     <ClInclude Include="EventQueueImpl.h" />
@@ -158,8 +158,8 @@
     <ClCompile Include="ShaderResources.cpp" />
     <ClCompile Include="MaterialResources.cpp" />
     <ClCompile Include="MeshRenderSystemImpl.cpp" />
-    <ClCompile Include="ObjectDriveSystemImpl.cpp" />
-    <ClCompile Include="ObjectResources.cpp" />
+    <ClCompile Include="ArchetypeDriveSystemImpl.cpp" />
+    <ClCompile Include="ArchetypeResources.cpp" />
     <ClCompile Include="LoggerImpl.cpp" />
     <ClCompile Include="MessengerImpl.cpp" />
     <ClCompile Include="SceneGraphFactoryImpl.cpp" />
