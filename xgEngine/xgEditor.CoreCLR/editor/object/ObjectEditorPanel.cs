@@ -157,7 +157,7 @@ namespace xgEditor.CoreCLR
             {
                 Gui.PropertyLabel("Objects", objects.Count.ToString());
                 Gui.PropertyLabel("Meshes", objects.Count(o => o.Kind == ObjectNodeKind.Mesh).ToString());
-                Gui.PropertyLabel("Parts", objects.Sum(o => o.Parts.Count).ToString());
+                Gui.PropertyLabel("Parts", objects.Sum(o => o.Parts.Count(p => !p.Hidden)).ToString());
                 Gui.PropertyLabel("Actors", objects.Count(o => o.Expose == ObjectNodeExpose.Actor).ToString());
                 Gui.PropertyLabel("Proxies", objects.Count(o => o.Expose == ObjectNodeExpose.Proxy).ToString());
             }

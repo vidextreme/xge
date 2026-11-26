@@ -26,8 +26,10 @@ namespace xg.editor
     {
         public string Submesh { get; set; } = string.Empty;
         public string Material { get; set; } = string.Empty;
+        // Not drawn (unticked in the editor); the part keeps its material. Saved only when set.
+        public bool Hidden { get; set; }
 
-        public ObjectPartAsset Clone() => new() { Submesh = Submesh, Material = Material };
+        public ObjectPartAsset Clone() => new() { Submesh = Submesh, Material = Material, Hidden = Hidden };
     }
 
     // One Object of a composition: a node GUID, a name, a kind, a fixed Jointer (parent + local pose), what it exposes
@@ -172,7 +174,12 @@ namespace xg.editor
                 if (mesh["parts"] is JsonArray parts)
                     foreach (JsonNode? item in parts)
                         if (item is JsonObject part)
-                            node.Parts.Add(new ObjectPartAsset { Submesh = Text(part["submesh"]), Material = Text(part["material"]) });
+                            node.Parts.Add(new ObjectPartAsset
+                            {
+                                Submesh = Text(part["submesh"]),
+                                Material = Text(part["material"]),
+                                Hidden = part["hidden"] is JsonValue hidden && hidden.TryGetValue(out bool isHidden) && isHidden,
+                            });
             }
             return node;
         }
@@ -219,7 +226,12 @@ namespace xg.editor
                 {
                     JsonArray parts = new();
                     foreach (ObjectPartAsset part in node.Parts)
-                        parts.Add(new JsonObject { ["submesh"] = part.Submesh, ["material"] = part.Material });
+                    {
+                        JsonObject entry = new() { ["submesh"] = part.Submesh, ["material"] = part.Material };
+                        if (part.Hidden)
+                            entry["hidden"] = true;
+                        parts.Add(entry);
+                    }
                     json["mesh"] = new JsonObject { ["model"] = node.Model, ["parts"] = parts };
                 }
                 if (node.Components is not null)
@@ -531,7 +543,7 @@ namespace xg.editor
             List<(int Node, string Model, ObjectPartAsset Part)> parts = new();
             for (int i = 0; i < ordered.Count; i++)
                 if (ordered[i].Kind == ObjectNodeKind.Mesh && AssetMeta.IsValidGuid(ordered[i].Model))
-                    foreach (ObjectPartAsset part in ordered[i].Parts)
+                    foreach (ObjectPartAsset part in ordered[i].Parts.Where(p => !p.Hidden))
                         parts.Add((i, ordered[i].Model, part));
             byte[] partBytes = new byte[parts.Count * PartRecordSize];
             for (int i = 0; i < parts.Count; i++)

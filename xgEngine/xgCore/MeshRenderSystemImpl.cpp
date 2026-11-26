@@ -3,13 +3,14 @@
 #include "pch.h"
 #include "MeshRenderSystemImpl.h"
 #include "MaterialResources.h"
+#include "ModelResources.h"
 #include "xgTransforms.h"
 
 namespace xg
 {
     namespace
     {
-        constexpr uint64_t MeshRendererLayoutHash = 0x6d72'0001'0028ull;
+        constexpr uint64_t MeshRendererLayoutHash = 0x6d72'0002'01a8ull;
 
         bool SameGuid(const ResourceGUID& a, const ResourceGUID& b)
         {
@@ -64,8 +65,9 @@ namespace xg
         {
             if (state.Model != 0)
                 _resources->Release(_ownerModuleId, state.Model);
-            if (state.Material != 0)
-                _resources->Release(_ownerModuleId, state.Material);
+            for (ResourceHandle material : state.Materials)
+                if (material != 0)
+                    _resources->Release(_ownerModuleId, material);
         }
         state = SlotState();
     }
@@ -109,18 +111,47 @@ namespace xg
                 state.Model = _resources->Acquire(_ownerModuleId, _modelType, &id);
             }
         }
-        if (!SameGuid(state.MaterialGuid, data.Material) || (state.Material != 0 && _resources->IsStale(state.Material)))
+        TrackMaterial(state, 0, data.Material);
+        const uint32_t submeshes = (std::min)(data.SubmeshCount, MeshRendererMaxSubmeshes);
+        for (uint32_t i = 0; i < MeshRendererMaxSubmeshes; ++i)
+            TrackMaterial(state, i + 1, i < submeshes ? data.Submeshes[i].Material : ResourceGUID{});
+    }
+
+    void MeshRenderSystemImpl::TrackMaterial(SlotState& state, uint32_t index, const ResourceGUID& guid)
+    {
+        ResourceHandle& handle = state.Materials[index];
+        if (SameGuid(state.MaterialGuids[index], guid) && (handle == 0 || !_resources->IsStale(handle)))
+            return;
+        if (handle != 0)
+            _resources->Release(_ownerModuleId, handle);
+        handle = 0;
+        state.MaterialGuids[index] = guid;
+        if (!IsZero(guid) && _materialType != 0)
         {
-            if (state.Material != 0)
-                _resources->Release(_ownerModuleId, state.Material);
-            state.Material = 0;
-            state.MaterialGuid = data.Material;
-            if (!IsZero(data.Material) && _materialType != 0)
-            {
-                const ResourceID id{ data.Material, {} };
-                state.Material = _resources->Acquire(_ownerModuleId, _materialType, &id);
-            }
+            const ResourceID id{ guid, {} };
+            handle = _resources->Acquire(_ownerModuleId, _materialType, &id);
         }
+    }
+
+    uint64_t MeshRenderSystemImpl::DrawMaterial(const SlotState& state, uint32_t index, const ResourceGUID& guid, ActorID owner)
+    {
+        if (!_overrides.empty() && !IsZero(guid))
+        {
+            auto found = _overrides.find(owner);
+            if (found != _overrides.end() && SameGuid(found->second.Material, guid))
+                return found->second.RendererMaterial;
+        }
+        if (state.Materials[index] != 0)
+            return ResolveMaterial(state.Materials[index]);
+        return IsZero(guid) ? xg::ResolveDefaultMaterial() : 0;
+    }
+
+    void MeshRenderSystemImpl::SetEditorMaterialOverride(ActorID actor, const ResourceGUID* material, uint64_t rendererMaterial)
+    {
+        if (!material || IsZero(*material) || rendererMaterial == 0)
+            _overrides.erase(actor);
+        else
+            _overrides[actor] = { *material, rendererMaterial };
     }
 
     uint64_t MeshRenderSystemImpl::ResolveMaterial(ResourceHandle material)
@@ -180,14 +211,26 @@ namespace xg
             float actorWorld[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
             if (_transforms && _transforms->Has(owners[i]))
                 _transforms->GetWorldMatrix(owners[i], actorWorld);
-            uint64_t material = 0;
-            if (state.Material != 0)
-                material = ResolveMaterial(state.Material);
-            else if (IsZero(data.Material))
-                material = xg::ResolveDefaultMaterial();
+            const uint32_t submeshes = (std::min)(data.SubmeshCount, MeshRendererMaxSubmeshes);
+            const ResourceGUID* items = submeshes != 0 ? GetModelPartItems(model) : nullptr;
+            const uint64_t fallback = DrawMaterial(state, 0, data.Material, owners[i]);
             const SceneDrawFlags flags = IsEditorHidden(owners[i]) ? SceneDrawFlags::EditorHidden : SceneDrawFlags::None;
             for (int32_t part = 0; part < model->PartCount; ++part)
             {
+                uint64_t material = fallback;
+                for (uint32_t s = 0; items && s < submeshes; ++s)
+                {
+                    const MeshRendererSubmesh& entry = data.Submeshes[s];
+                    if (!SameGuid(entry.Submesh, items[part]))
+                        continue;
+                    if ((static_cast<uint32_t>(entry.Flags) & static_cast<uint32_t>(MeshRendererSubmeshFlags::Hidden)) != 0)
+                        material = UINT64_MAX;
+                    else
+                        material = DrawMaterial(state, s + 1, entry.Material, owners[i]);
+                    break;
+                }
+                if (material == UINT64_MAX)
+                    continue;
                 SceneDraw draw = {};
                 draw.Mesh = model->Parts[part].Mesh;
                 draw.Material = material;

@@ -13,16 +13,38 @@ namespace xg
         Hidden = 1u << 0,
     };
 
-    // A mesh drawer: an imported model asset drawn with a material asset (zero GUIDs = nothing / the built-in look).
+    enum class MeshRendererSubmeshFlags : uint32_t
+    {
+        None = 0,
+        // The submesh isn't drawn.
+        Hidden = 1u << 0,
+    };
+
+    // One submesh's setting, keyed by the submesh item GUID of the model's meta: its material (zero = the default
+    // material) and whether it is drawn.
+    struct MeshRendererSubmesh
+    {
+        ResourceGUID Submesh;
+        ResourceGUID Material;
+        MeshRendererSubmeshFlags Flags;
+        uint32_t Reserved[3];
+    };
+    static_assert(sizeof(MeshRendererSubmesh) == 48, "MeshRendererSubmesh is mirrored in managed code");
+
+    inline constexpr uint32_t MeshRendererMaxSubmeshes = 8;
+
+    // A mesh drawer: an imported model asset drawn with materials (zero GUIDs = nothing / the default material).
+    // Submeshes[0..SubmeshCount) set a material per submesh or hide it; a submesh without an entry draws with Material.
     // Lives in the "xg.MeshRenderer" pool, so components of any module (CoreCLR, NativeAOT, native) can draw.
     struct MeshRendererData
     {
         ResourceGUID Model;
         ResourceGUID Material;
         MeshRendererFlags Flags;
-        uint32_t Reserved;
+        uint32_t SubmeshCount;
+        MeshRendererSubmesh Submeshes[MeshRendererMaxSubmeshes];
     };
-    static_assert(sizeof(MeshRendererData) == 40, "MeshRendererData is mirrored in managed code");
+    static_assert(sizeof(MeshRendererData) == 424, "MeshRendererData is mirrored in managed code");
 
     inline constexpr const char* MeshRendererDataKey = "xg.MeshRenderer";
 
@@ -49,5 +71,9 @@ namespace xg
         // SceneDrawFlags::EditorHidden, which the Scene view skips. Main thread only.
         virtual void SetEditorHidden(const ActorID* actors, uint32_t count) = 0;
         virtual bool IsEditorHidden(ActorID actor) const = 0;
+
+        // Editor preview of an unsaved material: the actor's parts that draw this material GUID draw rendererMaterial
+        // instead. A zero rendererMaterial (or null material) removes the actor's override. Main thread only.
+        virtual void SetEditorMaterialOverride(ActorID actor, const ResourceGUID* material, uint64_t rendererMaterial) = 0;
     };
 }

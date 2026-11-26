@@ -96,7 +96,7 @@ Readers reject a bad magic, a newer version, truncated data, zero or repeated it
   - raw `.xrv` (separate channel chunks) and `.xrh` (nodes)
   - processed `.xdv`: a 52-byte interleaved vertex (position, normal, tangent, uv0, color) with 16- or 32-bit indices
   - processed `.xdh`: the node table with world matrices
-- **Runtime:** the `model` resource type creates one GPU mesh per part and places the parts by their nodes. `MeshRenderer` (a data component) draws one model with a material in every render view, edit mode included.
+- **Runtime:** the `model` resource type creates one GPU mesh per part and places the parts by their nodes. `MeshRenderer` (a data component) draws one model in every render view, edit mode included, with a material per submesh: up to 8 submesh entries (submesh item GUID, material, hidden) and a fallback `Material` for the rest. None draws the default material; a hidden submesh isn't drawn.
 
 ## Shaders and materials
 
@@ -146,7 +146,7 @@ A composition object is an authored tree of **Objects** joined by **Jointers**, 
   - Each Object has a fixed Jointer pose relative to its parent and can be exposed as a **Composition Actor** (a real actor with components) or a **Composition Proxy** (a named point scripts query with `TryGetProxy`).
 - **Build:** `.xco` builds to `.xdo`:
   - nodes parents first, with poses baked relative to the root and to the nearest exposed actor
-  - parts (model, submesh, material)
+  - parts (model, submesh, material, and `hidden` when unticked: the part keeps its material but isn't built or drawn)
   - names, with hashes for fast proxy lookups
   - authored components
 - **Runtime:** the native `ObjectDriveSystem` draws every instance: a part's world is model placement × baked node pose × actor world, recomputed per frame. Instances share the loaded object.

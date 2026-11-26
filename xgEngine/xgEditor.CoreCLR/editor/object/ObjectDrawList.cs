@@ -95,7 +95,7 @@ namespace xgEditor.CoreCLR
                         (corner & 4) != 0 ? info.BoundsMax[2] : info.BoundsMin[2]);
                     Grow(p.X, p.Y, p.Z);
                 }
-                foreach (ObjectPartAsset part in node.Parts)
+                foreach (ObjectPartAsset part in node.Parts.Where(p => !p.Hidden))
                 {
                     ulong material = AssetMeta.IsValidGuid(part.Material) ? MaterialOverride?.Invoke(part.Material) ?? 0 : 0;
                     if (material == 0 && AssetMeta.IsValidGuid(part.Material))

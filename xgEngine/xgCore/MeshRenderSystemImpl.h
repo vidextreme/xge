@@ -1,6 +1,7 @@
 // Copyright (c) 2026 John David Uy
 // Licensed under the MIT License. See LICENSE for details.
 #pragma once
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include "xgMeshRenderer.h"
@@ -27,17 +28,27 @@ namespace xg
         uint64_t ResolveMaterial(ResourceHandle material) override;
         void SetEditorHidden(const ActorID* actors, uint32_t count) override;
         bool IsEditorHidden(ActorID actor) const override { return !_editorHidden.empty() && _editorHidden.count(actor) != 0; }
+        void SetEditorMaterialOverride(ActorID actor, const ResourceGUID* material, uint64_t rendererMaterial) override;
 
         // Builds and submits the frame's scene draws, after the given ones (object drivers), once the transforms update.
         void Update(Renderer* renderer, const std::vector<SceneDraw>& before);
 
     private:
+        // Index 0 is the renderer's Material, 1.. its submesh entries.
+        static constexpr uint32_t MaterialCount = MeshRendererMaxSubmeshes + 1;
+
         struct SlotState
         {
             ResourceGUID ModelGuid = {};
-            ResourceGUID MaterialGuid = {};
             ResourceHandle Model = 0;
-            ResourceHandle Material = 0;
+            ResourceGUID MaterialGuids[MaterialCount] = {};
+            ResourceHandle Materials[MaterialCount] = {};
+        };
+
+        struct MaterialOverride
+        {
+            ResourceGUID Material;
+            uint64_t RendererMaterial;
         };
 
         static void OnRemoved(void* user, ActorID actor, uint32_t slot);
@@ -45,6 +56,8 @@ namespace xg
 
         void ReleaseState(SlotState& state);
         void Track(SlotState& state, const MeshRendererData& data);
+        void TrackMaterial(SlotState& state, uint32_t index, const ResourceGUID& guid);
+        uint64_t DrawMaterial(const SlotState& state, uint32_t index, const ResourceGUID& guid, ActorID owner);
         void ResetAll();
 
         ComponentDataRegistry* _registry = nullptr;
@@ -59,6 +72,7 @@ namespace xg
         std::vector<SlotState> _slots;
         std::vector<SceneDraw> _draws;
         std::unordered_set<ActorID> _editorHidden;
+        std::unordered_map<ActorID, MaterialOverride> _overrides;
         int32_t _drawCount = 0;
         int32_t _materialDrawCount = 0;
     };

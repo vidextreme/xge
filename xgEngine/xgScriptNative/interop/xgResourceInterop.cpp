@@ -124,6 +124,13 @@ XG_MODULE_EXPORT void XG_MeshRenderSetEditorHidden(xg::ScriptEngine* engine, con
         system->SetEditorHidden(actors, actors ? count : 0);
 }
 
+// Editor preview of an unsaved material on one actor's mesh renderer (null material or 0 removes it).
+XG_MODULE_EXPORT void XG_MeshRenderSetEditorOverride(xg::ScriptEngine* engine, uint64_t actor, const xg::ResourceGUID* material, uint64_t rendererMaterial)
+{
+    if (xg::MeshRenderSystem* system = engine ? engine->GetSubsystem<xg::MeshRenderSystem>() : nullptr)
+        system->SetEditorMaterialOverride(actor, material, rendererMaterial);
+}
+
 // Draws the object drive system added last frame, and how many object instances were ready.
 XG_MODULE_EXPORT int32_t XG_ObjectDriveStats(xg::ScriptEngine* engine, int32_t* outReady)
 {

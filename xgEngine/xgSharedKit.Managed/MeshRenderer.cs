@@ -31,18 +31,90 @@ namespace xg
         Hidden = 1u << 0,
     }
 
-    // Mirror of the native xg::MeshRendererData (40 bytes) in the engine's "xg.MeshRenderer" pool.
+    [Flags]
+    public enum MeshRendererSubmeshFlags : uint
+    {
+        None = 0,
+        // The submesh isn't drawn.
+        Hidden = 1u << 0,
+    }
+
+    // Mirror of the native xg::MeshRendererSubmesh (48 bytes): one submesh's material (None = the default material) and
+    // visibility, keyed by the submesh item GUID of the model's meta.
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MeshRendererSubmesh
+    {
+        public ResourceGUID Submesh;
+        public AssetReference Material;
+        public MeshRendererSubmeshFlags Flags;
+        public uint Reserved0;
+        public uint Reserved1;
+        public uint Reserved2;
+
+        public readonly bool Hidden => (Flags & MeshRendererSubmeshFlags.Hidden) != 0;
+    }
+
+    // Mirror of the native xg::MeshRendererData (424 bytes) in the engine's "xg.MeshRenderer" pool. Submesh0..7
+    // (the first SubmeshCount are used) set a material per submesh or hide it; other submeshes draw with Material.
     [StructLayout(LayoutKind.Sequential)]
     [ComponentDataKey("xg.MeshRenderer")]
     public struct MeshRendererData : IComponentData
     {
+        public const int MaxSubmeshes = 8;
+
         [AssetType("mesh")]
         public AssetReference Model;
         [AssetType("material")]
         public AssetReference Material;
         public MeshRendererFlags Flags;
-        [HideInInspector]
-        public uint Reserved;
+        public uint SubmeshCount;
+        public MeshRendererSubmesh Submesh0;
+        public MeshRendererSubmesh Submesh1;
+        public MeshRendererSubmesh Submesh2;
+        public MeshRendererSubmesh Submesh3;
+        public MeshRendererSubmesh Submesh4;
+        public MeshRendererSubmesh Submesh5;
+        public MeshRendererSubmesh Submesh6;
+        public MeshRendererSubmesh Submesh7;
+
+        public MeshRendererSubmesh GetSubmesh(int index) => Entry(ref this, index);
+
+        public void SetSubmesh(int index, MeshRendererSubmesh value) => Entry(ref this, index) = value;
+
+        // The entry index of a submesh item GUID among the first SubmeshCount, or -1.
+        public readonly int FindSubmesh(ResourceGUID submesh)
+        {
+            MeshRendererData copy = this;
+            for (int i = 0; i < Math.Min((int)SubmeshCount, MaxSubmeshes); i++)
+                if (Entry(ref copy, i).Submesh.Equals(submesh))
+                    return i;
+            return -1;
+        }
+
+        // The submesh's entry, adding one (drawn, with Material) when it has none; -1 when all entries are used.
+        public int EnsureSubmesh(ResourceGUID submesh)
+        {
+            int index = FindSubmesh(submesh);
+            if (index >= 0 || SubmeshCount >= MaxSubmeshes)
+                return index;
+            index = (int)SubmeshCount++;
+            Entry(ref this, index) = new MeshRendererSubmesh { Submesh = submesh, Material = Material };
+            return index;
+        }
+
+        public void ClearSubmeshes()
+        {
+            for (int i = 0; i < MaxSubmeshes; i++)
+                Entry(ref this, i) = default;
+            SubmeshCount = 0;
+        }
+
+        private static ref MeshRendererSubmesh Entry(ref MeshRendererData data, int index)
+        {
+            if ((uint)index >= MaxSubmeshes)
+                throw new ArgumentOutOfRangeException(nameof(index));
+            return ref System.Runtime.CompilerServices.Unsafe.Add(ref data.Submesh0, index);
+        }
     }
 
     // Draws an imported model with a material in every render view (edit mode too). The engine's mesh render system
@@ -61,6 +133,35 @@ namespace xg
         {
             get => Data1.Material;
             set => Data1.Material = value;
+        }
+
+        // A submesh's material (None = the default material) and visibility; submeshes without an entry use Material.
+        public AssetReference SubmeshMaterial(ResourceGUID submesh)
+        {
+            int index = Data1.FindSubmesh(submesh);
+            return index >= 0 ? Data1.GetSubmesh(index).Material : Data1.Material;
+        }
+
+        public bool SetSubmeshMaterial(ResourceGUID submesh, AssetReference material)
+        {
+            int index = Data1.EnsureSubmesh(submesh);
+            if (index < 0)
+                return false;
+            MeshRendererSubmesh entry = Data1.GetSubmesh(index);
+            entry.Material = material;
+            Data1.SetSubmesh(index, entry);
+            return true;
+        }
+
+        public bool SetSubmeshVisible(ResourceGUID submesh, bool visible)
+        {
+            int index = Data1.EnsureSubmesh(submesh);
+            if (index < 0)
+                return false;
+            MeshRendererSubmesh entry = Data1.GetSubmesh(index);
+            entry.Flags = visible ? entry.Flags & ~MeshRendererSubmeshFlags.Hidden : entry.Flags | MeshRendererSubmeshFlags.Hidden;
+            Data1.SetSubmesh(index, entry);
+            return true;
         }
 
         public bool Hidden
@@ -85,8 +186,19 @@ namespace xg
                 Native.SetEditorHidden(ScriptRuntime._enginePtr, p, (uint)actors.Length);
         }
 
+        // Editor preview of an unsaved material: the actor's parts drawing this material draw rendererMaterial instead
+        // (0 removes the override).
+        public static unsafe void SetEditorMaterialOverride(ActorID actor, ResourceGUID material, ulong rendererMaterial)
+        {
+            if (ScriptRuntime._enginePtr != 0)
+                Native.SetEditorOverride(ScriptRuntime._enginePtr, actor, &material, rendererMaterial);
+        }
+
         private static partial class Native
         {
+            [LibraryImport("xgScriptNative", EntryPoint = "XG_MeshRenderSetEditorOverride")]
+            public static unsafe partial void SetEditorOverride(nint engine, ulong actor, ResourceGUID* material, ulong rendererMaterial);
+
             [LibraryImport("xgScriptNative", EntryPoint = "XG_MeshRenderStats")]
             public static partial int Stats(nint engine, out int materialDraws);
 

@@ -823,6 +823,76 @@ namespace xgEditor.CoreCLR
             }
         }
 
+        // XG_UI_TEST_MESH_RENDERER=<model path>[:material=<path>][:hide=<submesh index>][:autoapply=<param>=x,y,z,w]:
+        // creates "Mesh Test" (Transform + MeshRenderer on the model) at frame 60, gives submesh 0 the material, hides a
+        // submesh and selects it; with autoapply, mounts the material at 120 with Auto Apply on and edits the param at
+        // 160 (unsaved); logs the draws, entries and the draft override at 220.
+        private static readonly MeshRendererDataEditor _meshRendererEditor = new();
+        private static ActorID _meshTestActor;
+
+        private static void MeshRendererTest(int frame, string spec)
+        {
+            string[] parts = spec.Split(':');
+            string? Option(string name) => parts.Skip(1).FirstOrDefault(o => o.StartsWith(name + "="))?[(name.Length + 1)..];
+            AssetDatabase? assets = ProjectService.Assets;
+            string? materialGuid = Option("material") is string materialPath ? assets?.GuidOf(materialPath) : null;
+            if (frame == 60)
+            {
+                if (assets?.GuidOf(parts[0]) is not string model || SceneManager.CreateActor("Mesh Test") is not { } actor)
+                {
+                    Debug.LogWarning($"[MeshRenderer] Can't create the test renderer for {parts[0]}");
+                    return;
+                }
+                actor.AddTransform().LocalPosition = new Vector3(0.0f, 0.0f, 0.0f);
+                MeshRenderer renderer = actor.AddComponent<MeshRenderer>();
+                renderer.Model = AssetReference.FromText(model);
+                IReadOnlyList<xg.editor.AssetItem> submeshes = ModelSubmeshes.Of(model);
+                if (materialGuid is not null && submeshes.Count > 0 && ResourceID.TryParse(submeshes[0].Guid, out ResourceID first))
+                    renderer.SetSubmeshMaterial(first.File, AssetReference.FromText(materialGuid));
+                if (int.TryParse(Option("hide"), out int hide) && hide < submeshes.Count && ResourceID.TryParse(submeshes[hide].Guid, out ResourceID hidden))
+                    renderer.SetSubmeshVisible(hidden.File, false);
+                _meshTestActor = actor.ID;
+                xg.editor.Selection.Set(actor.ID);
+                Debug.Log($"[MeshRenderer] Created Mesh Test with {submeshes.Count} submesh(es)");
+            }
+            else if (frame == 90 && int.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_TAB"), out int meshTab))
+            {
+                foreach (InspectorPanel inspector in xg.imui.ImUI.RegisteredPanels.OfType<InspectorPanel>())
+                    inspector.SelectedTab = meshTab;
+            }
+            else if (frame == 100 && _meshTestActor.Value != 0 && assets?.GuidOf(parts[0]) is string fitModel && ResourceID.TryParse(fitModel, out ResourceID fitId))
+            {
+                using ResourceHandle handle = Resources.Acquire(Resources.FindType(Resources.ModelType), fitId);
+                Resources.Wait(handle);
+                if (Resources.GetModel(handle, out ModelInfo info))
+                {
+                    float extent = Math.Max(info.BoundsMax[1] - info.BoundsMin[1], Math.Max(info.BoundsMax[0] - info.BoundsMin[0], info.BoundsMax[2] - info.BoundsMin[2]));
+                    float scale = extent > 0.0f ? 2.0f / extent : 1.0f;
+                    Transform transform = Transform.Of(_meshTestActor);
+                    transform.LocalScale = new Vector3(scale, scale, scale);
+                    transform.LocalPosition = new Vector3(-2.0f - (info.BoundsMin[0] + info.BoundsMax[0]) * 0.5f * scale, -info.BoundsMin[1] * scale, -(info.BoundsMin[2] + info.BoundsMax[2]) * 0.5f * scale);
+                }
+            }
+            else if (frame == 120 && Option("autoapply") is not null && materialGuid is not null && _meshRendererEditor.TableFor(_meshTestActor) is { } table)
+            {
+                table.EditMaterial = materialGuid;
+                table.MaterialView.AutoApply = true;
+            }
+            else if (frame == 160 && Option("autoapply") is string edit && edit.Split('=') is { Length: 2 } pair
+                && _meshRendererEditor.TableFor(_meshTestActor)?.MaterialView.Driver is { } driver)
+            {
+                driver.SetParam(pair[0], pair[1].Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).Concat(new float[4]).Take(4).ToArray());
+            }
+            else if (frame == 220 && _meshTestActor.Value != 0 && ComponentData.TryGet(_meshTestActor, out MeshRendererData data))
+            {
+                int draws = MeshRenderer.DrawCount(out int materialDraws);
+                SubmeshMaterialTable? shown = _meshRendererEditor.TableFor(_meshTestActor);
+                string entries = string.Join(", ", Enumerable.Range(0, (int)data.SubmeshCount).Select(i => data.GetSubmesh(i)).Select(e => $"{e.Submesh.ToString()[..8]}:{(e.Hidden ? "hidden" : xg.editor.AssetBrowser.NameOf(e.Material.ToString()))}"));
+                Debug.Log($"[MeshRenderer] draws {draws} ({materialDraws} with a material), entries [{entries}], card {(shown is null ? "not drawn" : "drawn")}, " +
+                    $"draft {(shown?.MaterialView.Driver is { } d ? $"{d.Path} unsaved {d.HasPendingChanges}, material {shown.MaterialView.DraftMaterial}" : "none")}");
+            }
+        }
+
         private static void LogMainCamera(string when)
         {
             ActorID main = Camera.Main;
@@ -908,6 +978,7 @@ namespace xgEditor.CoreCLR
             Subsystem.Register<xg.editor.Tools>();
             xg.editor.ComponentEditors.Register(new CameraDataEditor());
             xg.editor.ComponentEditors.Register(new CameraPreview());
+            xg.editor.ComponentEditors.Register(_meshRendererEditor);
             PlayMode.Initialize();
             ProjectService.Open();
             SceneCommands.RegisterMenus();
@@ -1299,6 +1370,8 @@ namespace xgEditor.CoreCLR
                 CameraTest(frame, cameraTest);
             if (Environment.GetEnvironmentVariable("XG_ENGINE_ASSETS_TEST") == "1")
                 EngineAssetsTest(frame);
+            if (Environment.GetEnvironmentVariable("XG_UI_TEST_MESH_RENDERER") is { Length: > 0 } meshTest)
+                MeshRendererTest(frame, meshTest);
             if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
             {
                 BackgroundTask? task = BackgroundTasks.Find(cancelName);

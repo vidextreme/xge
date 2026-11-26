@@ -13,7 +13,7 @@ namespace xgEditor.CoreCLR
     // The Composition Object Editor as a mountable control (no panel base class, like MaterialEditorView): a host owns
     // one, sets Driver and calls OnGUI from a panel with NoPadding | NoScrollbar. Header on top; then the left column
     // (Tools card, Objects tree), the preview and the Inspector-style properties (a tab strip with All, Naming, Jointer,
-    // Mesh and material, Components); the Timeline strip (a future feature) spans the bottom.
+    // Mesh and Material, Components); the Timeline strip (a future feature) spans the bottom.
     public sealed class ObjectEditorView : IDisposable
     {
         private const float LeftWidth = 220.0f;
@@ -26,20 +26,18 @@ namespace xgEditor.CoreCLR
         private const float TreeIndent = 14.0f;
         private const float TimelineHeight = 30.0f;
 
-        private static readonly string[] _tabNames = { "All", "Naming", "Jointer", "Mesh and material", "Components" };
+        private static readonly string[] _tabNames = { "All", "Naming", "Jointer", "Mesh and Material", "Components" };
         private static readonly Icon[] _tabIcons = { Icon.Cards, Icon.Info, Icon.Transform, Icon.Mesh, Icon.Component };
 
         private readonly ObjectPreview _preview;
-        private readonly AssetPicker _modelPicker = new();
-        private readonly Dictionary<string, AssetPicker> _materialPickers = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _collapsed = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<(ObjectNodeAsset Node, int Depth, bool HasChildren)> _rows = new();
         private readonly TextBuffer _name = new(128);
-        private readonly MaterialEditorView _materialView = new("object_material");
+        private readonly SubmeshMaterialTable _meshTable = new("object");
         private readonly TagField _tags = new("##object_tags", TagFieldMode.Asset);
 
-        // The Material Editor view mounted by "Edit here".
-        public MaterialEditorView MaterialView => _materialView;
+        // The Material Editor view mounted by Edit Here.
+        public MaterialEditorView MaterialView => _meshTable.MaterialView;
         private readonly Dictionary<string, AuthoredPrototype> _prototypes = new(StringComparer.Ordinal);
         private readonly TextBuffer _componentSearch = new(64);
         private ListState _list;
@@ -48,7 +46,6 @@ namespace xgEditor.CoreCLR
         private string? _eulerFor;
         private float[] _eulerQuaternion = new float[4];
         private Vector3 _euler;
-        private string _editMaterial = string.Empty;
         private bool _previewOpen = true;
         private bool _timelineOpen;
 
@@ -59,18 +56,16 @@ namespace xgEditor.CoreCLR
         }
 
         // Auto Apply: the material being edited here draws its unsaved draft in the object preview.
-        private ulong DraftMaterialFor(string guid) =>
-            _materialView.AutoApply && _materialView.Driver is not null && string.Equals(guid, _editMaterial, StringComparison.OrdinalIgnoreCase)
-                ? _materialView.DraftMaterial : 0;
+        private ulong DraftMaterialFor(string guid) => _meshTable.DraftMaterialFor(guid);
 
         public ObjectDriver? Driver { get; set; }
         public ObjectPreview Preview => _preview;
         public int Tab { get; set; }
-        // The material mounted under the Mesh and material card (asset GUID, empty for none).
+        // The material mounted under the Mesh and Material card (asset GUID, empty for none).
         public string EditMaterial
         {
-            get => _editMaterial;
-            set => _editMaterial = value;
+            get => _meshTable.EditMaterial;
+            set => _meshTable.EditMaterial = value;
         }
         public string? Selected
         {
@@ -517,103 +512,32 @@ namespace xgEditor.CoreCLR
 
         private void DrawMesh(ObjectDriver driver, ObjectNodeAsset node)
         {
-            using var card = Gui.Card("##object_mesh", "Mesh and material", Icon.Mesh, null, Style.Color(StyleColor.IconComponent));
+            using var card = Gui.Card("##object_mesh", "Mesh and Material", Icon.Mesh, null, Style.Color(StyleColor.IconComponent));
             if (node.Kind != ObjectNodeKind.Mesh)
             {
                 Gui.Label("A proxy draws nothing.");
                 return;
             }
-            string model = node.Model;
-            if (_modelPicker.Field("model", "Model", "mesh", ref model))
-                driver.SetModel(node, model);
-            IReadOnlyList<AssetItem> submeshes = AssetMeta.IsValidGuid(node.Model) ? driver.SubmeshesOf(node.Model) : Array.Empty<AssetItem>();
-            if (submeshes.Count == 0)
-            {
-                Gui.Label(AssetMeta.IsValidGuid(node.Model) ? "The model has no submeshes yet (build it)." : "Pick a model.");
-                return;
-            }
-            float width = MathF.Max(Gui.AvailableSize.x, 160.0f);
-            using (var header = Gui.Canvas("##table_header", new Vector2(width, 20.0f)))
-            {
-                header.Draw.RectFilled(Rect.FromXYWH(0.0f, 0.0f, width, 20.0f), Style.Color(StyleColor.PanelHeaderBg), 2.0f);
-                Color32 dim = Style.Color(StyleColor.TextDim);
-                float textY = MathF.Round(10.0f - Gui.MeasureText("A").y * 0.5f);
-                header.Draw.Text(new Vector2(26.0f, textY), dim, "Submesh");
-                header.Draw.Text(new Vector2(MathF.Round(width * 0.4f) + 4.0f, textY), dim, "Material");
-            }
-            List<string> editable = new();
-            foreach (AssetItem item in submeshes)
-            {
-                ObjectPartAsset? part = node.Parts.FirstOrDefault(p => string.Equals(p.Submesh, item.Guid, StringComparison.OrdinalIgnoreCase));
-                bool included = part is not null;
-                using (Gui.Id(item.Guid))
-                using (Gui.Horizontal(2.0f))
-                {
-                    using (var check = Gui.Canvas("##include", new Vector2(22.0f, RowHeight)))
-                    {
-                        Result hit = Gui.HitArea("##include_hit", Rect.FromXYWH(2.0f, 2.0f, 18.0f, 18.0f));
-                        Gui.Tooltip(included ? "Drawn (click to leave it out)" : "Not drawn (click to draw it)");
-                        DrawCheck(check.Draw, Rect.FromXYWH(4.0f, 4.0f, 14.0f, 14.0f), included, hit.Hovered());
-                        if (hit.Clicked())
-                            driver.SetPartIncluded(node, item.Guid, !included);
-                    }
-                    if (!_materialPickers.TryGetValue(item.Guid, out AssetPicker? picker))
-                    {
-                        picker = new AssetPicker();
-                        _materialPickers[item.Guid] = picker;
-                    }
-                    string material = part?.Material ?? string.Empty;
-                    string label = item.Path.Contains('/') ? item.Path[(item.Path.LastIndexOf('/') + 1)..] : item.Path;
-                    if (picker.Field("material", label, "material", ref material))
-                        driver.SetPartMaterial(node, item.Guid, material);
-                    if (AssetMeta.IsValidGuid(material) && !editable.Contains(material) && !EngineAssets.IsInternal(material))
-                        editable.Add(material);
-                }
-            }
-            DrawMaterialEditor(editable);
+            _meshTable.OnGUI(new ObjectParts(driver, node));
         }
 
-        private static void DrawCheck(Painter draw, Rect box, bool on, bool hovered)
+        // An Object's parts as table rows: a part per drawn submesh, with its material.
+        private readonly struct ObjectParts : ISubmeshMaterials
         {
-            if (on)
-            {
-                draw.RectFilled(box, Style.Color(StyleColor.Accent), 2.0f);
-                Color32 mark = Style.Color(StyleColor.TextOnAccent);
-                draw.Line(new Vector2(box.min.x + 3.0f, box.min.y + 7.5f), new Vector2(box.min.x + 6.0f, box.min.y + 10.5f), mark, 1.8f);
-                draw.Line(new Vector2(box.min.x + 6.0f, box.min.y + 10.5f), new Vector2(box.min.x + 11.0f, box.min.y + 4.0f), mark, 1.8f);
-                return;
-            }
-            draw.RectFilled(box, new Color32(26, 27, 30, 255), 2.0f);
-            draw.Rect(box, Style.Color(hovered ? StyleColor.Accent : StyleColor.Border), 2.0f);
-        }
+            private readonly ObjectDriver _driver;
+            private readonly ObjectNodeAsset _node;
 
-        // The Material Editor view mounted under the table, for one of the parts' materials.
-        private void DrawMaterialEditor(List<string> materials)
-        {
-            if (materials.Count == 0 || ProjectService.Assets is not { } assets)
-                return;
-            List<string> names = new() { "None" };
-            names.AddRange(materials.Select(AssetBrowser.NameOf));
-            int index = materials.IndexOf(_editMaterial) + 1;
-            if (Gui.Combo("Edit here", ref index, names))
-                _editMaterial = index <= 0 ? string.Empty : materials[index - 1];
-            Gui.Tooltip("Edit one of these materials without leaving the object (saves the .xcm)");
-            if (!materials.Contains(_editMaterial) || assets.PathOf(_editMaterial) is not string path)
-            {
-                if (_materialView.Driver is not null)
-                {
-                    _materialView.Driver.Dispose();
-                    _materialView.Driver = null;
-                }
-                return;
-            }
-            if (_materialView.Driver is null || !string.Equals(_materialView.Driver.Path, path, StringComparison.OrdinalIgnoreCase))
-            {
-                _materialView.Driver?.Dispose();
-                _materialView.Driver = new MaterialDriver(path);
-            }
-            Gui.Space(EditorStyle.BarGap);
-            _materialView.OnEmbeddedGUI();
+            public ObjectParts(ObjectDriver driver, ObjectNodeAsset node) => (_driver, _node) = (driver, node);
+
+            public string Model => _node.Model;
+            public void SetModel(string modelGuid) => _driver.SetModel(_node, modelGuid);
+            public bool IsDrawn(string submesh) => Part(submesh) is { Hidden: false };
+            public void SetDrawn(string submesh, bool drawn) => _driver.SetPartIncluded(_node, submesh, drawn);
+            public string MaterialOf(string submesh) => Part(submesh)?.Material ?? string.Empty;
+            public void SetMaterial(string submesh, string material) => _driver.SetPartMaterial(_node, submesh, material);
+
+            private ObjectPartAsset? Part(string submesh) =>
+                _node.Parts.FirstOrDefault(p => string.Equals(p.Submesh, submesh, StringComparison.OrdinalIgnoreCase));
         }
 
         // Authored defaults: one card per component, its fields drawn on a prototype instance (made from the stored
@@ -813,8 +737,7 @@ namespace xgEditor.CoreCLR
         public void Dispose()
         {
             _preview.Dispose();
-            _materialView.Driver?.Dispose();
-            _materialView.Dispose();
+            _meshTable.Dispose();
         }
     }
 }

@@ -190,6 +190,17 @@ ActorID main = Camera.Main;                         // from any module
 
 ---
 
+## Mesh Renderer
+
+`xg.MeshRenderer` (`ComponentDataSet<MeshRendererData>`, the engine pool `"xg.MeshRenderer"`, needs a `Transform`) draws a model asset in every view, edit mode included.
+
+- `Model`, a fallback `Material`, `Flags` (`Hidden`) and up to 8 submesh entries (`Submesh0..7`, the first `SubmeshCount` used): each holds a submesh item GUID from the model's meta, its material and `MeshRendererSubmeshFlags.Hidden`.
+- Per model part: an entry for its submesh sets the material (None = the default material) or hides it; a submesh without an entry draws with `Material` (None = the default material).
+- `SubmeshMaterial`, `SetSubmeshMaterial` and `SetSubmeshVisible` edit entries from code.
+- **Inspector:** Visible, then Mesh and Material: the Model picker, a Submesh | Material table (a draw check and a material per submesh) and Edit Here, which mounts the material editor (preview, properties, Auto Apply, Save, Revert, Save As). With Auto Apply on, the actor draws the edited material's unsaved draft in every view until Save or Revert (`MeshRenderer.SetEditorMaterialOverride`, editor only). The Composition Object Editor's Mesh and Material card uses the same control.
+
+---
+
 ## Data updates (ECS-style, parallel)
 
 A data component can update **every element** of one of its struct types in a dense loop by implementing `IComponentDataUpdate<TSelf, TWrite, ...>`. `TSelf` is the component's own type (as in `IComponentUpdate<T>`; this keeps registration free of reflection for NativeAOT), `TWrite` is the struct it updates, and up to three more type arguments are read-only inputs:

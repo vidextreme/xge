@@ -13,7 +13,6 @@ namespace xgEditor.CoreCLR
     // batch tools can drive it too.
     public sealed class ObjectDriver : IToolDriver
     {
-        private readonly Dictionary<string, (long Time, List<AssetItem> Items)> _modelItems = new(StringComparer.OrdinalIgnoreCase);
 
         public ObjectDriver(string path)
         {
@@ -128,21 +127,7 @@ namespace xgEditor.CoreCLR
         public float[] WorldOf(ObjectNodeAsset node) => ObjectDrawList.WorldOf(Draft, node);
 
         // The submesh items of a model asset (from its meta, cached by the meta's write time).
-        public IReadOnlyList<AssetItem> SubmeshesOf(string modelGuid)
-        {
-            if (ProjectService.Assets is not { } assets || assets.PathOf(modelGuid) is not string path)
-                return Array.Empty<AssetItem>();
-            string full = assets.FullPath(path);
-            string meta = AssetMetaStore.IsEmbedded(full) ? full : full + ".xmd";
-            long time = File.Exists(meta) ? File.GetLastWriteTimeUtc(meta).Ticks : 0;
-            if (_modelItems.TryGetValue(modelGuid, out var cached) && cached.Time == time)
-                return cached.Items;
-            List<AssetItem> items = AssetMetaStore.TryRead(full, out AssetMeta? read) && read is not null
-                ? read.Items.Where(i => i.Kind == MeshAssets.SubmeshKind && !i.Missing).ToList()
-                : new List<AssetItem>();
-            _modelItems[modelGuid] = (time, items);
-            return items;
-        }
+        public IReadOnlyList<AssetItem> SubmeshesOf(string modelGuid) => ModelSubmeshes.Of(modelGuid);
 
         // Points a Mesh Object at a model, keeping the parts whose submesh the model still has; a new model starts with
         // all of its submeshes.
@@ -157,15 +142,24 @@ namespace xgEditor.CoreCLR
             Changed();
         }
 
+        // Ticks or unticks a submesh; an unticked part stays in the list (hidden) so it keeps its material.
         public void SetPartIncluded(ObjectNodeAsset node, string submesh, bool included)
         {
             ObjectPartAsset? part = node.Parts.FirstOrDefault(p => p.Submesh == submesh);
-            if (included && part is null)
+            if (part is null)
+            {
+                if (!included)
+                    return;
                 node.Parts.Add(new ObjectPartAsset { Submesh = submesh });
-            else if (!included && part is not null)
-                node.Parts.Remove(part);
-            else
+            }
+            else if (part.Hidden == !included)
+            {
                 return;
+            }
+            else
+            {
+                part.Hidden = !included;
+            }
             Changed();
         }
 

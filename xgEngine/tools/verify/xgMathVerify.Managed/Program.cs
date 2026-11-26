@@ -1044,6 +1044,13 @@ internal static class Program
         var (nodes, parts) = ObjectAssets.Unpack(ObjectAssets.Pack(asset));
         Check(nodes.Count == 4 && parts.Count == 3, "pack: every node, one part per submesh");
         Check(parts.Count(p => p.Material == material) == 1 && parts.All(p => p.Model == model), "parts keep the model and material GUIDs");
+        ObjectAsset hiddenPart = asset.Clone();
+        hiddenPart.Objects.First(o => o.Id == body.Id).Parts[0].Hidden = true;
+        ObjectAsset hiddenParsed = ObjectAsset.Parse(hiddenPart.ToJSON());
+        ObjectPartAsset kept = hiddenParsed.Objects.First(o => o.Id == body.Id).Parts[0];
+        Check(kept.Hidden && kept.Material == material && !hiddenParsed.SameAs(asset) && !asset.ToJSON().Contains("\"hidden\""),
+            "an unticked part keeps its material and saves \"hidden\" only when set");
+        Check(ObjectAssets.Unpack(ObjectAssets.Pack(hiddenPart)).Parts.Count == 2, "pack leaves hidden parts out");
         ObjectAssets.PackedNode packedMuzzle = nodes.First(n => n.Name == "Muzzle");
         Check(packedMuzzle.Expose == ObjectNodeExpose.Proxy && packedMuzzle.NameHash == ObjectAssets.HashName("Muzzle") && nodes[packedMuzzle.Parent].Name == "Body",
             "nodes keep their name, hash, exposure and parent index");
