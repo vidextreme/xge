@@ -27,7 +27,15 @@ namespace xg.editor
 
         public static T? Deserialize<T>(string text) => JsonSerializer.Deserialize<T>(text, Options);
 
-        public static T? Read<T>(string path) => Deserialize<T>(File.ReadAllText(path));
+        // Reads without blocking writers: another thread may replace or delete the file meanwhile (build manifests).
+        public static T? Read<T>(string path) => Deserialize<T>(ReadShared(path));
+
+        public static string ReadShared(string path)
+        {
+            using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using StreamReader reader = new(stream);
+            return reader.ReadToEnd();
+        }
 
         // Returns true when the file was written.
         public static bool Write<T>(string path, T value) => WriteText(path, Serialize(value));

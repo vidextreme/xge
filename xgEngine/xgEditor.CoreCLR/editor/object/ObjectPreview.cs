@@ -20,6 +20,13 @@ namespace xgEditor.CoreCLR
 
         private readonly string _id;
         private readonly ObjectDrawList _drawList = new();
+
+        // See ObjectDrawList.MaterialOverride.
+        public Func<string, ulong>? MaterialOverride
+        {
+            get => _drawList.MaterialOverride;
+            set => _drawList.MaterialOverride = value;
+        }
         private readonly List<(string Name, float[] World, bool Proxy, bool Selected)> _markers = new();
         private SceneViewState _state;
         private ulong _view;

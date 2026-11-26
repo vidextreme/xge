@@ -36,6 +36,16 @@ namespace xgEditor.CoreCLR
 
         public MaterialPreview(string id) => _id = id;
 
+        // The renderer material built from the driver's draft (0 until one was built).
+        public ulong DraftMaterial => _material;
+
+        // Rebuilds the draft material without drawing (hosts that show the draft elsewhere while the preview is folded).
+        public void RefreshDraft(MaterialDriver? driver)
+        {
+            if (SceneViews.HasRenderer() != 0)
+                UpdateMaterial(driver);
+        }
+
         public PreviewShape Shape { get; set; } = PreviewShape.Sphere;
         public bool Checker { get; set; } = true;
         public bool AutoRotate { get; set; }

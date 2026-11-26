@@ -116,7 +116,7 @@ The engine ships its own assets, which work exactly like project assets: same im
 
 | Folder (`gameroot/engine/assets/`) | Assets |
 |---|---|
-| `shaders/` | `surface.lit.hlsl` (Color, Albedo, Smoothness), `surface.unlit.hlsl` (Color, Albedo), `surface.error.hlsl` (magenta checker) |
+| `shaders/` | `surface.lit.hlsl` (Color, Albedo, Smoothness), `surface.unlit.hlsl` (Color, Albedo), `surface.error.hlsl` (magenta checker, internal) |
 | `materials/` | `default.xcm` (lit, white), `unlit.xcm`, `error.xcm`: internal (see below) |
 | `meshes/` | `cube.xcp`, `sphere.xcp` (size 1), `plane.xcp` (10 x 10), `quad.xcp` (1 x 1) |
 | `textures/` | `white.png`, `black.png`, `normal.png` (flat), uncompressed |
@@ -125,7 +125,7 @@ The engine ships its own assets, which work exactly like project assets: same im
 - **Build:** `tools/xgEngineData` runs the asset pipeline over `gameroot/engine/assets` into `gameroot/engine/data` (lower-case type folders, untracked) as part of the solution build. It is skipped when nothing changed.
 - **GUIDs are permanent:** the metas are committed, and projects keep pointing at those GUIDs. The build fails on an asset without a meta instead of making one up. Add a new built-in once with `dotnet tools/xgEngineData/bin/Debug/net10.0/xgEngineData.dll --new <path under assets>` and commit its meta.
 - **Runtime:** the engine adds `gameroot/engine/data` as a resource source when it starts, so the editor, the hub, standalone runs and players all find built-ins.
-- **Engine materials are internal:** `default`, `unlit` and `error` are never listed in pickers, assigned or opened in an editor. The engine draws them itself:
+- **Engine materials are internal:** `default`, `unlit` and `error`, and the error shader, are never listed in pickers, assigned or opened in an editor. The engine draws them itself:
   - a mesh or object part with no material (None) draws with `materials/default.xcm`;
   - a material whose data or shader fails to load draws with `materials/error.xcm`.
 
@@ -134,7 +134,7 @@ The engine ships its own assets, which work exactly like project assets: same im
   - Asset pickers list built-ins in a Built-in section between None and the project's assets.
   - `xg.editor.EngineAssets` lists them (`DefaultMaterial`, `LitShader`, `Sphere`, ...), and the asset database resolves their `engine/...` paths.
   - New materials use the built-in lit shader when the project has none.
-  - Built-ins are read-only: the Material Editor won't open the engine materials or save over a built-in.
+  - Built-ins are read-only: the Material Editor won't open the engine materials or save over a built-in, and its Edit Code button is disabled for built-in shaders.
 
 ## Composition objects (`.xco`)
 

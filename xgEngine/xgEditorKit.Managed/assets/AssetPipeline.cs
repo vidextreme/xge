@@ -451,9 +451,9 @@ namespace xg.editor
             foreach ((string name, byte[] bytes) in output)
                 File.WriteAllBytes(Path.Combine(folder, name + TempSuffix), bytes);
 
-            File.Delete(manifestPath);
+            Retry(() => File.Delete(manifestPath));
             foreach (string name in output.Keys)
-                File.Move(Path.Combine(folder, name + TempSuffix), Path.Combine(folder, name), true);
+                Retry(() => File.Move(Path.Combine(folder, name + TempSuffix), Path.Combine(folder, name), true));
 
             HashSet<string> kept = new(keep, StringComparer.OrdinalIgnoreCase);
             foreach (string file in Directory.GetFiles(folder, guid + ".*"))
@@ -479,7 +479,24 @@ namespace xg.editor
             }
         }
 
-        private static void SaveManifest(string path, AssetBuildManifest manifest) => JSONFile.Write(path, manifest);
+        private static void SaveManifest(string path, AssetBuildManifest manifest) => Retry(() => JSONFile.Write(path, manifest));
+
+        // Editor threads read manifests and data while a build replaces them; a file still open for a moment is retried.
+        private static void Retry(Action action)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    action();
+                    return;
+                }
+                catch (IOException) when (attempt < 5)
+                {
+                    Thread.Sleep(10 * (attempt + 1));
+                }
+            }
+        }
 
         private static string Key(params string[] parts)
         {

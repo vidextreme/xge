@@ -50,6 +50,9 @@ namespace xgEditor.CoreCLR
         }
 
         // includeProxies: proxies widen the bounds too (the editor preview); thumbnails frame only what's drawn.
+        // A renderer material to draw in place of a material GUID (the Object Editor's Auto Apply draft), or 0.
+        public Func<string, ulong>? MaterialOverride { get; set; }
+
         public void Build(ObjectAsset asset, bool includeProxies = true)
         {
             _draws.Clear();
@@ -94,8 +97,8 @@ namespace xgEditor.CoreCLR
                 }
                 foreach (ObjectPartAsset part in node.Parts)
                 {
-                    ulong material = 0;
-                    if (AssetMeta.IsValidGuid(part.Material))
+                    ulong material = AssetMeta.IsValidGuid(part.Material) ? MaterialOverride?.Invoke(part.Material) ?? 0 : 0;
+                    if (material == 0 && AssetMeta.IsValidGuid(part.Material))
                     {
                         ResourceHandle handle = Acquire(_materials, Resources.MaterialType, part.Material);
                         if (handle.Value != 0 && handle.State == ResourceState.Ready)

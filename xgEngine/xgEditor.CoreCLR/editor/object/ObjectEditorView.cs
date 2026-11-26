@@ -27,7 +27,7 @@ namespace xgEditor.CoreCLR
         private const float TimelineHeight = 30.0f;
 
         private static readonly string[] _tabNames = { "All", "Naming", "Jointer", "Mesh and material", "Components" };
-        private static readonly Icon[] _tabIcons = { Icon.Cards, Icon.Tag, Icon.Transform, Icon.Mesh, Icon.Component };
+        private static readonly Icon[] _tabIcons = { Icon.Cards, Icon.Info, Icon.Transform, Icon.Mesh, Icon.Component };
 
         private readonly ObjectPreview _preview;
         private readonly AssetPicker _modelPicker = new();
@@ -37,6 +37,9 @@ namespace xgEditor.CoreCLR
         private readonly TextBuffer _name = new(128);
         private readonly MaterialEditorView _materialView = new("object_material");
         private readonly TagField _tags = new("##object_tags", TagFieldMode.Asset);
+
+        // The Material Editor view mounted by "Edit here".
+        public MaterialEditorView MaterialView => _materialView;
         private readonly Dictionary<string, AuthoredPrototype> _prototypes = new(StringComparer.Ordinal);
         private readonly TextBuffer _componentSearch = new(64);
         private ListState _list;
@@ -49,7 +52,16 @@ namespace xgEditor.CoreCLR
         private bool _previewOpen = true;
         private bool _timelineOpen;
 
-        public ObjectEditorView(string id) => _preview = new ObjectPreview("##" + id + "_preview");
+        public ObjectEditorView(string id)
+        {
+            _preview = new ObjectPreview("##" + id + "_preview");
+            _preview.MaterialOverride = DraftMaterialFor;
+        }
+
+        // Auto Apply: the material being edited here draws its unsaved draft in the object preview.
+        private ulong DraftMaterialFor(string guid) =>
+            _materialView.AutoApply && _materialView.Driver is not null && string.Equals(guid, _editMaterial, StringComparison.OrdinalIgnoreCase)
+                ? _materialView.DraftMaterial : 0;
 
         public ObjectDriver? Driver { get; set; }
         public ObjectPreview Preview => _preview;
@@ -420,7 +432,7 @@ namespace xgEditor.CoreCLR
 
         private void DrawNaming(ObjectDriver driver, ObjectNodeAsset node)
         {
-            using var card = Gui.Card("##object_naming", "Naming", Icon.Tag, null, Style.Color(StyleColor.Icon));
+            using var card = Gui.Card("##object_naming", "Naming", Icon.Info, null, Style.Color(StyleColor.Icon));
             if (_nameFor != node.Id)
             {
                 _nameFor = node.Id;

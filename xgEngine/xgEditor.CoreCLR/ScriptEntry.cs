@@ -1228,6 +1228,8 @@ namespace xgEditor.CoreCLR
                         panel.View.Tab = tab;
                     else if (pair[0] == "menu")
                         panel.View.Preview.OpenMenu(30);
+                    else if (pair[0] == "autoapply")
+                        panel.View.MaterialView.AutoApply = true;
                     else if (pair[0] == "editmaterial" && panel.Driver is { } owner && panel.View.Selected is string selectedId
                         && owner.Find(selectedId)?.Parts.FirstOrDefault(p => p.Material.Length > 0) is { } part)
                         panel.View.EditMaterial = part.Material;
@@ -1251,6 +1253,18 @@ namespace xgEditor.CoreCLR
                     }
                 }
             }
+            if (frame == 120 && Environment.GetEnvironmentVariable("XG_UI_TEST_OBJECT_EDIT") is { Length: > 0 } objectParam
+                && objectParam.Split(':').FirstOrDefault(o => o.StartsWith("materialparam=")) is string paramOption
+                && paramOption["materialparam=".Length..].Split('=') is { Length: 2 } param
+                && xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().FirstOrDefault()?.View.MaterialView is { Driver: { } edited } materialView)
+            {
+                float[] value = param[1].Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).Concat(new float[4]).Take(4).ToArray();
+                edited.SetParam(param[0], value);
+                Debug.Log($"[Debug] Object material draft {edited.Path}: {param[0]} = {param[1]} (auto apply {materialView.AutoApply}, pending {edited.HasPendingChanges})");
+            }
+            if (frame == 200 && Environment.GetEnvironmentVariable("XG_UI_TEST_OBJECT_EDIT") is { Length: > 0 } objectCheck && objectCheck.Contains("materialparam=")
+                && xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().FirstOrDefault()?.View.MaterialView.Driver is { } applied)
+                Debug.Log($"[Debug] Object material {applied.Path} still unsaved: {applied.HasPendingChanges}, draft material {xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().First().View.MaterialView.DraftMaterial}");
             if (frame == 40 && Environment.GetEnvironmentVariable("XG_UI_TEST_SAVE_AS") is { Length: > 0 } saveAsKind)
             {
                 if (saveAsKind == "scene" && SceneManager.Active is { } activeScene)

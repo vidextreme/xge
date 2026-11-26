@@ -23,6 +23,7 @@ namespace xg.editor
         private static Dictionary<string, EngineAsset> _byPath = new(StringComparer.OrdinalIgnoreCase);
         private static readonly string[] _kindNames = { "shader", "material", "mesh", "image", "object" };
         private const string InternalFolder = Prefix + "materials/";
+        private const string ErrorShaderPath = Prefix + "shaders/surface.error.hlsl";
 
         // gameroot/engine/assets, next to the gameroot/bin folder the editor runs from.
         public static string Directory
@@ -55,10 +56,12 @@ namespace xg.editor
 
         public static bool IsEnginePath(string? path) => path is not null && path.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase);
 
-        // The engine's own materials (default, unlit, error): drawn by the engine itself (None draws the default material,
-        // a broken material the error one), never listed, assigned or edited.
-        public static bool IsInternal(string? guidOrPath) =>
-            Find(guidOrPath) is { } asset && asset.Path.StartsWith(InternalFolder, StringComparison.OrdinalIgnoreCase);
+        // The engine's own materials (default, unlit, error) and the error shader: drawn by the engine itself (None draws
+        // the default material, a broken material the error one), never listed, assigned or edited.
+        public static bool IsInternal(string? guidOrPath) => Find(guidOrPath) is { } asset && IsInternalPath(asset.Path);
+
+        private static bool IsInternalPath(string path) =>
+            path.StartsWith(InternalFolder, StringComparison.OrdinalIgnoreCase) || path.Equals(ErrorShaderPath, StringComparison.OrdinalIgnoreCase);
 
         public static string? PathOf(string? guid)
         {
@@ -81,11 +84,11 @@ namespace xg.editor
         }
 
         // Built-in assets of a Navigator kind name ("material", "mesh", "shader", "image"; anything else lists all), sorted
-        // by path, without the internal materials.
+        // by path, without the internal assets.
         public static IReadOnlyList<AssetChoice> List(string kind)
         {
             bool any = _kindNames.All(k => !k.Equals(kind, StringComparison.OrdinalIgnoreCase));
-            return Load().Where(a => !a.Path.StartsWith(InternalFolder, StringComparison.OrdinalIgnoreCase) && (any || a.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase)))
+            return Load().Where(a => !IsInternalPath(a.Path) && (any || a.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase)))
                 .Select(a => new AssetChoice(a.Guid, a.Path, a.Name)).ToList();
         }
 

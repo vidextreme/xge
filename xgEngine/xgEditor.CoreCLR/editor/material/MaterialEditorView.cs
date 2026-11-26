@@ -29,6 +29,7 @@ namespace xgEditor.CoreCLR
         private readonly TagField _tags;
         private float _leftWidth = 800.0f;
         private bool _previewOpen = true;
+        private bool _embedded;
 
         public MaterialEditorView(string id)
         {
@@ -41,6 +42,11 @@ namespace xgEditor.CoreCLR
             _leftWidth = leftWidth;
         }
         public MaterialDriver? Driver { get; set; }
+        // Embedded only: the host shows the draft (DraftMaterial) in place of the saved material, so edits show up before
+        // they are saved. Nothing is written until Save.
+        public bool AutoApply { get; set; }
+        // The renderer material built from the draft (0 until the preview built one).
+        public ulong DraftMaterial => _preview.DraftMaterial;
         public MaterialPreview Preview => _preview;
         // Raised after Save as, with the new path (hosts follow it).
         public event Action<string>? SavedAs;
@@ -99,6 +105,9 @@ namespace xgEditor.CoreCLR
         {
             MaterialDriver? driver = Driver;
             driver?.RefreshAnnotations();
+            _embedded = true;
+            if (AutoApply)
+                _preview.RefreshDraft(driver);
             DrawPreview(driver);
             DrawProperties(driver);
             DrawTools(driver);
@@ -131,13 +140,22 @@ namespace xgEditor.CoreCLR
                 bool dirty = driver?.HasPendingChanges == true;
                 float width = MathF.Max(Gui.AvailableSize.x, 90.0f);
                 float cell = width * 0.5f;
-                using var canvas = Gui.Canvas("##material_tool_buttons", new Vector2(width, ActionRowHeight * 2.0f + 2.0f));
+                int rows = _embedded ? 3 : 2;
+                using var canvas = Gui.Canvas("##material_tool_buttons", new Vector2(width, ActionRowHeight * rows + 2.0f * (rows - 1)));
                 Painter draw = canvas.Draw;
-                bool save = ToggleButton.Draw(draw, "##save", Rect.FromXYWH(1.0f, 0.0f, cell - 2.0f, ActionRowHeight), Icon.Save, null, "Save",
+                float top = 0.0f;
+                if (_embedded)
+                {
+                    if (ToggleButton.Draw(draw, "##auto_apply", Rect.FromXYWH(1.0f, 0.0f, width - 2.0f, ActionRowHeight), Icon.Object, null, "Auto Apply", null,
+                            "Show the unsaved edits on the object right away (Save writes them)", AutoApply, driver is not null, ToggleDot.Check).Clicked())
+                        AutoApply = !AutoApply;
+                    top = ActionRowHeight + 2.0f;
+                }
+                bool save = ToggleButton.Draw(draw, "##save", Rect.FromXYWH(1.0f, top, cell - 2.0f, ActionRowHeight), Icon.Save, null, "Save",
                     null, dirty ? "Write the material and rebuild it" : "No unsaved changes", false, dirty, dirty ? ToggleDot.Accent : ToggleDot.None).Clicked();
-                bool revert = ToggleButton.Draw(draw, "##revert", Rect.FromXYWH(cell + 1.0f, 0.0f, cell - 2.0f, ActionRowHeight), Icon.None, null, "Revert",
+                bool revert = ToggleButton.Draw(draw, "##revert", Rect.FromXYWH(cell + 1.0f, top, cell - 2.0f, ActionRowHeight), Icon.None, null, "Revert",
                     null, "Drop the unsaved changes", false, dirty, ToggleDot.None).Clicked();
-                bool saveAs = ToggleButton.Draw(draw, "##save_as", Rect.FromXYWH(1.0f, ActionRowHeight + 2.0f, width - 2.0f, ActionRowHeight), Icon.File, null,
+                bool saveAs = ToggleButton.Draw(draw, "##save_as", Rect.FromXYWH(1.0f, top + ActionRowHeight + 2.0f, width - 2.0f, ActionRowHeight), Icon.File, null,
                     "Save As...", null, "Save a copy and edit it", false, driver is not null, ToggleDot.None).Clicked();
                 if (save && dirty)
                     driver!.Apply();
@@ -262,9 +280,16 @@ namespace xgEditor.CoreCLR
                         ? (driver.ShaderPath is null ? "No shader" : "Can't read the shader")
                         : $"{annotations.Params.Count} param(s), {annotations.Textures.Count} texture(s)");
                     Gui.FlexibleSpace();
-                    if (driver.ShaderPath is not null && Gui.Button("Edit code") && ProjectService.Assets is { } assets)
-                        OpenFile(assets.FullPath(driver.ShaderPath));
-                    Gui.Tooltip("Open the shader in its default editor");
+                    bool builtIn = EngineAssets.IsEnginePath(driver.ShaderPath);
+                    if (driver.ShaderPath is not null)
+                    {
+                        using (Gui.Disabled(builtIn))
+                        {
+                            if (Gui.Button("Edit Code") && !builtIn && ProjectService.Assets is { } assets)
+                                OpenFile(assets.FullPath(driver.ShaderPath));
+                        }
+                        Gui.Tooltip(builtIn ? "Built-in shaders can't be edited; copy it into Assets to change it" : "Open the shader in its default editor");
+                    }
                 }
             }
         }
