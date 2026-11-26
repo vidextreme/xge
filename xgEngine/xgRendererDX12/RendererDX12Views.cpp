@@ -30,13 +30,16 @@ namespace xg {
             return Color32(r, g, b, a);
         }
 
-        void ViewProjectionLH(const RenderViewCamera& camera, float aspect, float out[16])
+        void ViewProjectionLH(const RenderViewCamera& camera, float aspect, float orthographicSize, float out[16])
         {
             const float nearZ = camera.NearZ > 0.0f ? camera.NearZ : 0.1f;
             const float farZ = camera.FarZ > nearZ ? camera.FarZ : 100.0f;
             const float fovY = camera.FovY > 0.0f ? camera.FovY : 1.0471976f;
-            const Mat4x4 viewProjection = Mat4x4::LookAtLH(camera.Eye, camera.Target, camera.Up)
-                * Mat4x4::PerspectiveFovLH(fovY, aspect > 0.0f ? aspect : 1.0f, nearZ, farZ);
+            const float ratio = aspect > 0.0f ? aspect : 1.0f;
+            const Mat4x4 projection = orthographicSize > 0.0f
+                ? Mat4x4::OrthographicLH(orthographicSize * 2.0f * ratio, orthographicSize * 2.0f, nearZ, farZ)
+                : Mat4x4::PerspectiveFovLH(fovY, ratio, nearZ, farZ);
+            const Mat4x4 viewProjection = Mat4x4::LookAtLH(camera.Eye, camera.Target, camera.Up) * projection;
             std::memcpy(out, &viewProjection, sizeof(float) * 16);
         }
 
@@ -660,6 +663,12 @@ namespace xg {
             view->Flags = flags;
     }
 
+    void RendererDX12::SetRenderViewProjection(uint64_t viewId, float orthographicSize)
+    {
+        if (RenderView* view = FindRenderView(viewId))
+            view->OrthographicSize = orthographicSize > 0.0f ? orthographicSize : 0.0f;
+    }
+
     bool RendererDX12::ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity)
     {
         RenderView* view = FindRenderView(viewId);
@@ -956,7 +965,8 @@ namespace xg {
             dsv.ptr += static_cast<SIZE_T>(view.TargetIndex) * _dsvDescriptorSize;
             _commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
             const float clearColor[4] = { ToLinear(view.Camera.ClearColor.r), ToLinear(view.Camera.ClearColor.g), ToLinear(view.Camera.ClearColor.b), view.Camera.ClearColor.a };
-            _commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+            if (!HasFlag(view.Flags, RenderViewFlags::NoClear))
+                _commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
             _commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
             const D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(view.Width), static_cast<float>(view.Height), 0.0f, 1.0f };
@@ -965,7 +975,7 @@ namespace xg {
             _commandList->RSSetScissorRects(1, &scissor);
 
             SceneTexturedConstants constants = {};
-            ViewProjectionLH(view.Camera, static_cast<float>(view.Width) / static_cast<float>(view.Height), constants.ViewProjection);
+            ViewProjectionLH(view.Camera, static_cast<float>(view.Width) / static_cast<float>(view.Height), view.OrthographicSize, constants.ViewProjection);
             constants.Mode = static_cast<uint32_t>(view.Mode);
 
             const uint64_t texture = view.Texture != 0 && FindTexture(view.Texture) ? view.Texture : _whiteTexture;

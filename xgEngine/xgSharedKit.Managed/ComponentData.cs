@@ -7,7 +7,8 @@ using System.Text;
 
 namespace xg
 {
-    // Binds a data struct to an existing native data type instead of registering its own (e.g. "xg.Transform").
+    // Gives a data struct a fixed pool name: binds it to the native data type with that key (e.g. "xg.Transform"), or
+    // registers a shared type under that key when none exists yet (e.g. "xg.Camera"), so every module finds the same pool.
     [AttributeUsage(AttributeTargets.Struct)]
     public sealed class ComponentDataKeyAttribute : Attribute
     {
@@ -41,26 +42,23 @@ namespace xg
             if (engine == 0)
                 return 0;
             string? fixedKey = typeof(T).GetCustomAttribute<ComponentDataKeyAttribute>()?.Key;
-            uint id;
-            if (fixedKey is not null)
+            uint id = fixedKey is not null ? ComponentData.Native.FindType(engine, fixedKey) : 0;
+            if (id != 0)
             {
-                id = ComponentData.Native.FindType(engine, fixedKey);
-                uint size = 0;
-                if (id != 0 && (!ComponentData.Native.GetTypeInfo(engine, id, out _, out size, out _, out uint flags) || size != (uint)sizeof(T)))
+                if (!ComponentData.Native.GetTypeInfo(engine, id, out _, out uint size, out _, out uint flags) || size != (uint)sizeof(T))
                 {
                     Debug.LogError($"[ComponentData] {typeof(T).Name} is {sizeof(T)} bytes but '{fixedKey}' is {size}.");
                     id = 0;
                 }
-                else if (id != 0)
+                else
                 {
-                    ComponentData.Native.GetTypeInfo(engine, id, out _, out _, out _, out uint f);
-                    _flags = (ComponentDataFlags)f;
+                    _flags = (ComponentDataFlags)flags;
                 }
             }
             else
             {
                 ComponentDataLayout layout = ComponentDataLayout.Describe(typeof(T), sizeof(T));
-                id = ComponentData.Native.RegisterType(engine, ScriptRuntime.ModuleID, ComponentData.KeyOf(typeof(T)), (uint)sizeof(T),
+                id = ComponentData.Native.RegisterType(engine, ScriptRuntime.ModuleID, fixedKey ?? ComponentData.KeyOf(typeof(T)), (uint)sizeof(T),
                     layout.Align, layout.Hash, (uint)ComponentDataFlags.Shared, layout.Text);
                 _flags = ComponentDataFlags.Shared;
                 if (id == 0)

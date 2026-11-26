@@ -26,6 +26,8 @@ XG_MODULE_EXPORT void XG_EditorSetSceneViewDraws(uint64_t id, const void* draws,
 XG_MODULE_EXPORT void XG_EditorSetSceneViewMaterialDraws(uint64_t id, const void* draws, uint32_t count);
 // xg::RenderViewFlags (1 hides the test cube and grid, 2 hides the scene's draws).
 XG_MODULE_EXPORT void XG_EditorSetSceneViewFlags(uint64_t id, uint32_t flags);
+// Orthographic size (half-height in world units; 0 = perspective).
+XG_MODULE_EXPORT void XG_EditorSetSceneViewProjection(uint64_t id, float orthographicSize);
 // Editor-owned renderer meshes (xg::MeshDesc) and materials (xg::MaterialDesc), e.g. a material preview's shape and
 // the unsaved draft it shows. 0 = failed.
 XG_MODULE_EXPORT uint64_t XG_EditorCreateMesh(const void* desc);

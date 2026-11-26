@@ -260,6 +260,8 @@ namespace xgEditor.CoreCLR
                                 DrawBody(view, driver, component, readOnly);
                         }
                         view.Open[key] = open;
+                        if (open)
+                            DrawPreview(type, component);
                     }
                     else
                     {
@@ -268,9 +270,22 @@ namespace xgEditor.CoreCLR
                             OpenComponentMenu(view, driver, component);
                         DrawBody(view, driver, component, readOnly);
                     }
+                    if (view.Tab != 0)
+                        DrawPreview(type, component);
                 }
                 Gui.Space(2.0f);
             }
+        }
+
+        // The optional preview card under a component's card (ComponentEditors.Preview).
+        private static void DrawPreview(Type type, object component)
+        {
+            IComponentPreview? preview = ComponentEditors.Preview(type);
+            if (preview is null || component is not Component owned || !owned.IsAttached)
+                return;
+            Gui.Space(2.0f);
+            using var card = Gui.Card("##preview", preview.Title, preview.Icon, null, Style.Color(StyleColor.TextDim));
+            preview.OnGUI(owned.ActorID, component);
         }
 
         // The amber lock in front of a locked actor's name.
@@ -294,17 +309,27 @@ namespace xgEditor.CoreCLR
             {
                 if (serialized.Properties.Count > 0)
                     EditorGUI.ObjectFields(serialized);
-                DrawData(set);
+                DrawData(set, readOnly);
                 return;
             }
             DrawFields(serialized);
         }
 
-        private static void DrawData(ComponentDataSet set)
+        private static void DrawData(ComponentDataSet set, bool readOnly)
         {
             for (int i = 0; i < set.DataCount; i++)
             {
                 object? boxed = set.GetData(i);
+                IComponentDataEditor? editor = ComponentEditors.DataEditor(set.DataType(i));
+                if (editor is not null && boxed is not null)
+                {
+                    object result;
+                    using (Gui.Id(1000 + i))
+                        result = editor.OnGUI(set.ActorID, boxed);
+                    if (!readOnly && !ReferenceEquals(result, boxed))
+                        set.SetData(i, result);
+                    continue;
+                }
                 using (Gui.Font(FontStyle.Bold))
                     Gui.Label(SerializedProperty.Nicify(set.DataType(i).Name));
                 if (boxed is null)

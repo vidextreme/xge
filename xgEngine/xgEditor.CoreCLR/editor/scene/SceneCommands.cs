@@ -39,6 +39,16 @@ namespace xgEditor.CoreCLR
                 Selection.Set(actor.ID);
         }
 
+        [ToolButton("Create Camera", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Camera), Priority = 15,
+            Tooltip = "Add a camera actor to the active scene (under the selected scene actor, or in the selected group)")]
+        public static void CreateCamera()
+        {
+            ActorID selected = Selection.ActiveActor;
+            ActorID? parent = selected.Value != 0 && SceneManager.IsMember(selected) ? selected : null;
+            if (SceneManager.CreateCamera(parent) is { } actor)
+                Selection.Set(actor.ID);
+        }
+
         [ToolButton("Add Selected Object", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Object), Priority = 20,
             Validate = nameof(ObjectSelected), Tooltip = "Add an actor that draws the selected composition object (.xco)")]
         public static void AddSelectedObject()
@@ -180,6 +190,11 @@ namespace xgEditor.CoreCLR
             menu.Item(label, Icon.Object, () =>
             {
                 if (Create(() => SceneManager.CreateActor("Actor", parent)) is { } created)
+                    Selection.Set(created.ID);
+            });
+            menu.Item("Create Camera", Icon.Camera, () =>
+            {
+                if (Create(() => SceneManager.CreateCamera(parent)) is { } created)
                     Selection.Set(created.ID);
             });
             string? objectPath = SceneCommands.SelectedObject();

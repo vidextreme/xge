@@ -413,6 +413,18 @@ namespace xgEditor.CoreCLR
             return actor;
         }
 
+        // A camera actor: Transform + Camera (main, perspective), named "Camera".
+        public static Actor? CreateCamera(ActorID? parent = null)
+        {
+            Actor? actor = CreateActor("Camera", parent);
+            if (actor is null)
+                return null;
+            actor.AddTransform();
+            actor.AddComponent<Camera>();
+            Touch(SceneOf(actor.ID));
+            return actor;
+        }
+
         public static bool Destroy(ActorID actor)
         {
             if (Blocked("delete scene actors"))

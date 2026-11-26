@@ -86,12 +86,17 @@ namespace xgEditor.CoreCLR
         public const uint FlagHideTestScene = 1;
         public const uint FlagHideSceneDraws = 2;
         public const uint FlagHideEditorHidden = 4;
+        public const uint FlagNoClear = 8;
 
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewMaterialDraws")]
         public static partial void SetMaterialDraws(ulong id, MaterialDraw* draws, uint count);
 
         [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewFlags")]
         public static partial void SetFlags(ulong id, uint flags);
+
+        // Orthographic size (half-height in world units); 0 = perspective.
+        [LibraryImport(DLL, EntryPoint = "XG_EditorSetSceneViewProjection")]
+        public static partial void SetProjection(ulong id, float orthographicSize);
 
         [LibraryImport(DLL, EntryPoint = "XG_EditorCreateMesh")]
         public static partial ulong CreateMesh(MeshDesc* desc);

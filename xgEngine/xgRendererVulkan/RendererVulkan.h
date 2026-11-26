@@ -46,6 +46,7 @@ namespace xg {
         void SetSceneDraws(const SceneDraw* draws, uint32_t count) override;
         void SetRenderViewMaterialDraws(uint64_t viewId, const SceneDraw* draws, uint32_t count) override;
         void SetRenderViewFlags(uint64_t viewId, RenderViewFlags flags) override;
+        void SetRenderViewProjection(uint64_t viewId, float orthographicSize) override;
         bool ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity) override;
 
         bool SupportsSurfaces() const override { return !_failed; }
@@ -122,6 +123,7 @@ namespace xg {
             std::vector<RenderViewDraw> Draws;
             std::vector<SceneDraw> MaterialDraws;
             RenderViewFlags Flags = RenderViewFlags::None;
+            float OrthographicSize = 0.0f;
         };
 
         struct GpuShader

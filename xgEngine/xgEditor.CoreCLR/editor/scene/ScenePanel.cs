@@ -56,6 +56,8 @@ namespace xgEditor.CoreCLR
             }
         }
 
+        protected override void DrawOverlay(Rect rect) => CameraGizmos.Draw(rect, CameraEye, CameraTarget, CameraUp, CameraFovY);
+
         private void ApplyCameraDrag(in SceneViewState view)
         {
             _yaw += view.DragRight.x * 0.01f;

@@ -65,6 +65,12 @@ XG_MODULE_EXPORT void XG_EditorSetSceneViewFlags(uint64_t id, uint32_t flags)
         _sceneRenderer->SetRenderViewFlags(id, static_cast<xg::RenderViewFlags>(flags));
 }
 
+XG_MODULE_EXPORT void XG_EditorSetSceneViewProjection(uint64_t id, float orthographicSize)
+{
+    if (_sceneRenderer)
+        _sceneRenderer->SetRenderViewProjection(id, orthographicSize);
+}
+
 XG_MODULE_EXPORT uint64_t XG_EditorCreateMesh(const void* desc)
 {
     return _sceneRenderer && desc ? _sceneRenderer->CreateMesh(static_cast<const xg::MeshDesc*>(desc)) : 0;

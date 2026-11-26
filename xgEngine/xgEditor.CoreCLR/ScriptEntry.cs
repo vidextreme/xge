@@ -782,12 +782,98 @@ namespace xgEditor.CoreCLR
 
     public static unsafe class ScriptEntry
     {
+        // XG_CAMERA_TEST=1[,ortho][,viewport][,clearnone][,save=<Assets/...xcs>]: creates "Main Camera" at frame 60 (0, 1.5,
+        // -5, pitched 10 degrees down) and selects it, logs Camera.Main at 90, re-applies XG_UI_TEST_INSPECT_TAB at 150,
+        // applies the options at 180, logs the settings and saves the active scene at 200 with save=.
+        // XG_CAMERA_TEST=check: creates nothing; sets the main camera's field of view to 30 at 90 (during play with
+        // XG_UI_TEST_PLAY=play,frames,stop) and logs the main camera's settings at 90 and 240.
+        private static ActorID _cameraTestActor;
+
+        private static void LogMainCamera(string when)
+        {
+            ActorID main = Camera.Main;
+            if (main.Value == 0 || !ComponentData.TryGet(main, out CameraData data))
+            {
+                Debug.Log($"[Camera] {when}: no main camera");
+                return;
+            }
+            Transform transform = Transform.Of(main);
+            Vector3 position = transform.World.Position;
+            Debug.Log($"[Camera] {when}: {ActorTree.GetName(main)} at {position.x},{position.y},{position.z}, {data.Projection}, fov {data.FieldOfView}, " +
+                $"ortho {data.OrthographicSize}, far {data.Far}, viewport {data.Viewport.x},{data.Viewport.y},{data.Viewport.z},{data.Viewport.w}");
+        }
+
+        private static void CameraTest(int frame, string options)
+        {
+            if (options == "check")
+            {
+                if (frame == 90)
+                {
+                    LogMainCamera($"before edit ({PlayMode.State})");
+                    ActorID edited = Camera.Main;
+                    if (edited.Value != 0 && ComponentData.Has<CameraData>(edited))
+                        ComponentData.Get<CameraData>(edited).FieldOfView = 30.0f;
+                    LogMainCamera("edited");
+                }
+                else if (frame == 240)
+                {
+                    LogMainCamera($"after ({PlayMode.State})");
+                }
+                return;
+            }
+            if (frame == 60)
+            {
+                Actor? actor = SceneManager.CreateCamera();
+                if (actor is null)
+                {
+                    Debug.LogWarning("[Camera] Could not create the test camera");
+                    return;
+                }
+                SceneManager.Rename(actor.ID, "Main Camera");
+                actor.Transform!.LocalPosition = new Vector3(0.0f, 1.5f, -5.0f);
+                actor.Transform.LocalEulerAngles = new Vector3(10.0f, 0.0f, 0.0f);
+                _cameraTestActor = actor.ID;
+                xg.editor.Selection.Set(actor.ID);
+            }
+            else if (frame == 150 && int.TryParse(Environment.GetEnvironmentVariable("XG_UI_TEST_INSPECT_TAB"), out int tab))
+            {
+                foreach (InspectorPanel inspector in xg.imui.ImUI.RegisteredPanels.OfType<InspectorPanel>())
+                    inspector.SelectedTab = tab;
+            }
+            else if (frame == 90)
+            {
+                ActorID main = Camera.Main;
+                Debug.Log($"[Camera] main {(main.Value == 0 ? "none" : ActorTree.GetName(main))} (test camera {(main.Value == _cameraTestActor.Value ? "is" : "isn't")} main)");
+            }
+            else if (frame == 180 && _cameraTestActor.Value != 0 && ComponentData.TryGet(_cameraTestActor, out CameraData data))
+            {
+                if (options.Contains("ortho"))
+                {
+                    data.Projection = CameraProjection.Orthographic;
+                    data.OrthographicSize = 2.0f;
+                }
+                if (options.Contains("viewport"))
+                    data.Viewport = new Vector4(0.1f, 0.1f, 0.6f, 0.8f);
+                if (options.Contains("clearnone"))
+                    data.Clear = CameraClear.None;
+                ComponentData.Get<CameraData>(_cameraTestActor) = data;
+                Debug.Log($"[Camera] settings {data.Projection}, fov {data.FieldOfView}, ortho {data.OrthographicSize}, near {data.Near}, far {data.Far}, clear {data.Clear}, " +
+                    $"viewport {data.Viewport.x},{data.Viewport.y},{data.Viewport.z},{data.Viewport.w}");
+            }
+            else if (frame == 200 && options.Split(',').FirstOrDefault(o => o.StartsWith("save=")) is string save && SceneManager.Active is { } scene)
+            {
+                Debug.Log($"[Camera] saved {save[5..]}: {SceneManager.SaveAs(scene, save[5..])}");
+            }
+        }
+
         [UnmanagedCallersOnly]
         public static int Init(nint enginePtr, uint moduleID)
         {
             ScriptRuntime.Initialize(enginePtr, moduleID);
             EditorLog.Attach();
             Subsystem.Register<xg.editor.Tools>();
+            xg.editor.ComponentEditors.Register(new CameraDataEditor());
+            xg.editor.ComponentEditors.Register(new CameraPreview());
             PlayMode.Initialize();
             ProjectService.Open();
             SceneCommands.RegisterMenus();
@@ -1161,6 +1247,8 @@ namespace xgEditor.CoreCLR
                 else if (saveAsLater == "object")
                     xg.imui.ImUI.RegisteredPanels.OfType<ObjectEditorPanel>().FirstOrDefault()?.View.SaveAs();
             }
+            if (Environment.GetEnvironmentVariable("XG_CAMERA_TEST") is { Length: > 0 } cameraTest)
+                CameraTest(frame, cameraTest);
             if (frame == 30 && Environment.GetEnvironmentVariable("XG_UI_TEST_TASKS_CANCEL") is { Length: > 0 } cancelName)
             {
                 BackgroundTask? task = BackgroundTasks.Find(cancelName);

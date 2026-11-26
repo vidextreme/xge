@@ -30,13 +30,16 @@ namespace xg {
             return Color32(r, g, b, a);
         }
 
-        void ViewProjectionLH(const RenderViewCamera& camera, float aspect, float out[16])
+        void ViewProjectionLH(const RenderViewCamera& camera, float aspect, float orthographicSize, float out[16])
         {
             const float nearZ = camera.NearZ > 0.0f ? camera.NearZ : 0.1f;
             const float farZ = camera.FarZ > nearZ ? camera.FarZ : 100.0f;
             const float fovY = camera.FovY > 0.0f ? camera.FovY : 1.0471976f;
-            const Mat4x4 viewProjection = Mat4x4::LookAtLH(camera.Eye, camera.Target, camera.Up)
-                * Mat4x4::PerspectiveFovLH(fovY, aspect > 0.0f ? aspect : 1.0f, nearZ, farZ);
+            const float ratio = aspect > 0.0f ? aspect : 1.0f;
+            const Mat4x4 projection = orthographicSize > 0.0f
+                ? Mat4x4::OrthographicLH(orthographicSize * 2.0f * ratio, orthographicSize * 2.0f, nearZ, farZ)
+                : Mat4x4::PerspectiveFovLH(fovY, ratio, nearZ, farZ);
+            const Mat4x4 viewProjection = Mat4x4::LookAtLH(camera.Eye, camera.Target, camera.Up) * projection;
             std::memcpy(out, &viewProjection, sizeof(float) * 16);
         }
 
@@ -609,6 +612,12 @@ namespace xg {
             view->Flags = flags;
     }
 
+    void RendererVulkan::SetRenderViewProjection(uint64_t viewId, float orthographicSize)
+    {
+        if (RenderView* view = FindRenderView(viewId))
+            view->OrthographicSize = orthographicSize > 0.0f ? orthographicSize : 0.0f;
+    }
+
     bool RendererVulkan::ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity)
     {
         RenderView* view = FindRenderView(viewId);
@@ -997,7 +1006,7 @@ namespace xg {
             VkRenderingAttachmentInfo colorAttachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
             colorAttachment.imageView = color.TargetView;
             colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.loadOp = HasFlag(view.Flags, RenderViewFlags::NoClear) ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorAttachment.clearValue.color = { { ToLinear(view.Camera.ClearColor.r), ToLinear(view.Camera.ClearColor.g), ToLinear(view.Camera.ClearColor.b), view.Camera.ClearColor.a } };
 
@@ -1023,7 +1032,7 @@ namespace xg {
             vkCmdSetScissor(_frameCommands, 0, 1, &scissor);
 
             SceneTexturedConstants constants = {};
-            ViewProjectionLH(view.Camera, static_cast<float>(view.Width) / static_cast<float>(view.Height), constants.ViewProjection);
+            ViewProjectionLH(view.Camera, static_cast<float>(view.Width) / static_cast<float>(view.Height), view.OrthographicSize, constants.ViewProjection);
             constants.Mode = static_cast<uint32_t>(view.Mode);
             const uint64_t texture = view.Texture != 0 && FindTexture(view.Texture) ? view.Texture : _whiteTexture;
             const VkDeviceSize offset = 0;

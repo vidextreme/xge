@@ -152,11 +152,41 @@ public class NPCComponent : ComponentDataSet<NPCData>
 
 - `ComponentDataSet<T1>` up to `<T1, T2, T3, T4>` derive from `Component`. Attaching adds one reference to the actor's element of each declared type (created zero-filled); detaching releases it. Two components declaring the same struct share the element.
 - `Data1` … `Data4` return `ref Ti` straight into the pool. Elements move when others are removed, so don't keep pointers or `ref` locals across frames; reading `DataN` again is cheap.
-- Structs are `unmanaged` and implement `IComponentData`. The type registers itself on first use in each module (key `"Full.Name, Assembly"`, with its field layout).
+- Structs are `unmanaged` and implement `IComponentData`. The type registers itself on first use in each module (key `"Full.Name, Assembly"`, with its field layout). `[ComponentDataKey("xg.Name")]` gives it a fixed pool name instead: it binds to the engine's pool of that name (`TransformData` is `"xg.Transform"`) or registers a shared pool under it, so every module reads the same pool (`CameraData` is `"xg.Camera"`).
 - Raw API without a component: `ComponentData.Get<T>(actor)` (ref), `Has`, `TryGet`, `Add` (one reference), `Release`, `Remove` (whatever the count) and `All<T>(out owners)` (the whole pool as a span).
-- The Inspector draws each data struct under the component's own fields and writes edits back.
+- The Inspector draws each data struct under the component's own fields and writes edits back. An editor can replace that list for one struct with an `IComponentDataEditor`, or add a card under a component with an `IComponentPreview` (`xg.editor.ComponentEditors.Register`; see Camera below).
 - **Hot reload:** pools are shared, so data survives. If a struct's layout changes, the registry migrates the pool in place: fields matched by name, type and size are kept, the others start at zero, and a warning lists dropped fields.
 - **Play mode:** every script data pool is captured at Play and restored at Stop; elements created during play are removed.
+
+---
+
+## Camera
+
+`xg.Camera` is a built-in data component (`ComponentDataSet<CameraData>`, pool `"xg.Camera"`) that needs a `Transform`. The camera sits at its actor's world position and looks down the actor's +Z with +Y up.
+
+| `CameraData` field | Meaning |
+|---|---|
+| `Flags` | `Main` (a candidate for the main camera), `ShowFrustum` (draw the frustum in the Scene view) |
+| `Priority` | The Main camera with the highest priority wins |
+| `Projection` | `Perspective` or `Orthographic` |
+| `FieldOfView`, `FovAxis` | Degrees (1..179) along the vertical or horizontal axis |
+| `OrthographicSize` | Half the view's height in world units |
+| `Near`, `Far` | Clipping planes |
+| `Clear`, `Background` | `Color` (clear to `Background`), `None` (keep the previous contents); `Skybox` is reserved until the engine has a sky |
+| `Viewport` | The part of the target it draws into, 0..1 (x, y from the top-left, width, height) |
+| `Target` | `GameView` (render textures come later) |
+
+```csharp
+Actor actor = Actor.Create("Camera");
+actor.AddTransform().LocalPosition = new Vector3(0, 1.5f, -5);
+Camera camera = actor.AddComponent<Camera>();      // defaults: Main, perspective 60°, 0.1..1000
+camera.FieldOfView = 45;
+ActorID main = Camera.Main;                         // from any module
+```
+
+- **Game view:** renders through `Camera.Main`; without one it shows a fixed view and says "No main camera". A partial viewport is letterboxed inside the panel. Orthographic projection goes through `Renderer::SetRenderViewProjection`, and `Clear = None` through the render view flag `NoClear`, on DX12 and Vulkan.
+- **Editor:** Scene > Actors > Create Camera (also in the Hierarchy's menu). The Inspector card is drawn by `CameraDataEditor` (icon radio buttons for Mode and Clear, a `deg` field of view, near/far clipping planes, the background colour picker, the viewport rect) with a 16:9 Camera Preview card under it. Cameras with Show frustum, and the selected camera, draw their frustum over the Scene view, cut 10 units past the near plane.
+- Scenes save the camera like any data component, and play mode restores it at Stop.
 
 ---
 

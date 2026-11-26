@@ -187,6 +187,8 @@ namespace xg {
         HideSceneDraws = 1u << 1,
         // Scene draws flagged SceneDrawFlags::EditorHidden aren't drawn in this view.
         HideEditorHidden = 1u << 2,
+        // The color target keeps its previous contents instead of being cleared (depth is still cleared).
+        NoClear = 1u << 3,
     };
 
     inline constexpr bool HasFlag(RenderViewFlags flags, RenderViewFlags flag)
@@ -285,6 +287,10 @@ namespace xg {
         // cleared and drawn). capacity must be at least width * height * 4. Runs its own copy and waits for the GPU, so
         // call it between frames (main thread). Returns false for an unknown view or a short buffer.
         virtual bool ReadRenderView(uint64_t viewId, void* rgba, uint64_t capacity) = 0;
+
+        // The view's projection: orthographicSize > 0 is an orthographic projection that many units from the center to
+        // the top edge (the camera's FovY is ignored); 0 is perspective (the default).
+        virtual void SetRenderViewProjection(uint64_t viewId, float orthographicSize) = 0;
     };
 
     XG_DECLARE_MODULE_FUNCTION(XG_CreateRenderer, Renderer*, Window&);
