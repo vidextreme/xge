@@ -80,7 +80,7 @@ auto* factory = engine->GetSubsystem<SceneGraphFactory>(module);
 - The subsystem's type id is the FNV-1a hash of the base type name (`SuperTypeID`).
 - `RegisterSubsystemWithAlias(module, subsystem, "name")` / `GetSubsystemWithAlias(module, "name")` register several subsystems of the same type on one module, for example one service per named context.
 - Passing `nullptr` as the module registers on the root.
-- The engine registers these on the root at startup: `Messenger`, `ActorRegistry`, `ComponentDataRegistry`, `TransformSystem`, `JobSystem`, `ResourceSystem`, `MeshRenderSystem`, `ObjectDriveSystem`, `EventDispatcher`, `SceneGraphFactory` and `EventQueue`. `game.kernel` registers the actor tree (`SceneGraph`) on the root too. See [SceneGraph and actors](xge-scenegraph.md) and [Native component data](xge-components2.md).
+- The engine registers these on the root at startup: `Messenger`, `ActorRegistry`, `ComponentDataRegistry`, `TransformSystem`, `JobSystem`, `ResourceSystem`, `MeshRenderSystem`, `ArchetypeDriveSystem`, `EventDispatcher`, `SceneGraphFactory` and `EventQueue`. `game.kernel` registers the actor tree (`SceneGraph`) on the root too. See [SceneGraph and actors](xge-scenegraph.md) and [Native component data](xge-components2.md).
 
 ---
 
@@ -235,7 +235,7 @@ Besides the module tree, the engine registers root subsystems every module share
 - `JobSystem`: worker and main-thread jobs with dependencies.
 - `ResourceSystem`: ref-counted runtime resources with async loads, directory sources and invalidation.
 - `ComponentDataRegistry` and `TransformSystem`: native component pools and transforms ([native component data](xge-components2.md)).
-- `MeshRenderSystem` and `ObjectDriveSystem`: turn the `xg.MeshRenderer` and `xg.ObjectDriver` pools into scene draws each frame, in edit mode too.
+- `MeshRenderSystem` and `ArchetypeDriveSystem`: turn the `xg.MeshRenderer` and `xg.ArchetypeDriver` pools into scene draws each frame, in edit mode too.
 
 See [Data and assets](xge-data.md) for the resource types and the asset pipeline.
 

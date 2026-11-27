@@ -25,6 +25,9 @@ namespace xgEditor.CoreCLR
         private const float CellWidth = 22.0f;
         private const float HeaderHeight = 20.0f;
         private const float ScrollBarHeight = 12.0f;
+        // Tree lines start at this depth (scene headers and their direct rows draw none).
+        private const int FirstLineDepth = 2;
+        private const int MaxLineDepth = 63;
 
         private const string RuntimeGroup = "runtime";
 
@@ -50,6 +53,9 @@ namespace xgEditor.CoreCLR
             public bool ParentLocked;
             // Index of the last visible row under this one (itself when it has none shown).
             public int LastDescendant;
+            // No later sibling (its parent's tree line ends at this row), and the levels whose lines pass through it.
+            public bool LastSibling;
+            public ulong Guides;
         }
 
         // A state column on the right of every row: drawn into its cell, which also owns the click.
@@ -68,6 +74,8 @@ namespace xgEditor.CoreCLR
         private readonly HashSet<string> _collapsedGroups = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _collapsedFolders = new(StringComparer.OrdinalIgnoreCase);
         private readonly ContextMenuHost _contextMenu = new("hierarchy_context");
+        private readonly IconPicker _iconPicker = new("hierarchy_icons");
+        private readonly int[] _chain = new int[MaxLineDepth + 2];
         private readonly TextBuffer _search = new(128);
         private readonly Column[] _columns =
         {
@@ -159,7 +167,45 @@ namespace xgEditor.CoreCLR
                 _search.Text = searchHook;
             if (_contextHookFrames == 150 && Environment.GetEnvironmentVariable("XG_UI_TEST_HIERARCHY_CONTEXT") is { Length: > 0 } hook)
                 OpenContextHook(hook);
+            if (_contextHookFrames == 170 && IconPicker.ParseHook() is { Target: "hierarchy" } iconHook)
+                OpenIconHook(iconHook.Search, iconHook.Pick);
             _contextMenu.OnGUI();
+            _iconPicker.OnGUI();
+        }
+
+        // Opens the icon picker for an actor (the whole selection when the actor is part of it) at the mouse cursor, or
+        // at position (the panel's draw space).
+        public void OpenIconPicker(ActorID actor, Vector2? position = null)
+        {
+            if (!EditorIcons.CanEdit(actor))
+                return;
+            ActorID[] targets = Selection.Contains(actor) ? Selection.Actors.ToArray() : new[] { actor };
+            _iconPicker.Open(ActorEditorState.GetIcon(actor), Icon.Actor, icon => EditorIcons.SetActors(targets, icon), position);
+        }
+
+        public void OpenIconPicker(EditorScene scene, SceneFolder folder, Vector2? position = null)
+        {
+            if (SceneManager.IsFolderLocked(scene, folder.Id))
+                return;
+            _iconPicker.Open(folder.Icon, Icon.Group, icon => EditorIcons.SetFolder(scene, folder, icon), position);
+        }
+
+        // Test hook (XG_UI_TEST_ICON_PICKER=hierarchy[:search=<text>][:pick=<name>]): opens the picker for the selected
+        // actor, else the selected group, at a fixed spot.
+        private void OpenIconHook(string? search, string? pick)
+        {
+            Vector2 position = new(60.0f, 120.0f);
+            if (Selection.ActiveActor is { } actor && actor.Value != 0)
+                OpenIconPicker(actor, position);
+            else if (SceneManager.FolderTarget is { } target)
+                OpenIconPicker(target.Scene, target.Folder, position);
+            else
+            {
+                Debug.LogWarning("[Debug] Icon picker hook: nothing selected in the Hierarchy");
+                return;
+            }
+            _iconPicker.Hook(search, pick);
+            Debug.Log("[Debug] Icon picker opened from the Hierarchy");
         }
 
         private void DrawToolbar()
@@ -245,7 +291,7 @@ namespace xgEditor.CoreCLR
 
         // Test hook (XG_UI_TEST_HIERARCHY_STATE=hide:<actor>,lock:<actor>,select:<actor>,showhidden,folder:<folder>=<actor>,
         // hidefolder:<folder>,lockfolder:<folder>,selectfolder:<folder>,lockscene,hidescene,create:<name>,removeactor:<actor>,
-        // removegroup:<folder>,removecomponent:<actor>=<type name>,save), applied in order 120 frames
+        // removegroup:<folder>,removecomponent:<actor>=<type name>,icon:<actor>=<icon name or path>,save), applied in order 120 frames
         // after start (SceneManager.Update); save writes the active scene, so restore it.
         public static void StateHook(string spec)
         {
@@ -295,6 +341,9 @@ namespace xgEditor.CoreCLR
                         break;
                     case "hidescene" when active is not null:
                         SceneManager.SetSceneHidden(active, true);
+                        break;
+                    case "icon" when arg.Split('=') is [var iconActor, var iconName] && FindActor(iconActor) is { } iconTarget:
+                        EditorIcons.SetActors(new[] { iconTarget }, iconName.Length > 0 ? new EditorIcon(iconName, null) : null);
                         break;
                     case "save" when active is not null:
                         SceneManager.Save(active);
@@ -415,12 +464,43 @@ namespace xgEditor.CoreCLR
                     CloseRow(index);
                 }
             }
+            if (search.Length == 0)
+                ComputeTreeLines();
             _expandAll = false;
             _selectName = null;
             if (_selected != 0 && !_selectedSeen)
                 Select(ActorID.InvalidID);
             if (_selectedFolder is not null && !SceneManager.Scenes.Any(s => s.FindFolder(_selectedFolder) is not null))
                 _selectedFolder = null;
+        }
+
+        // Last-sibling flags (backward pass) and the levels whose lines continue through each row (forward pass).
+        private void ComputeTreeLines()
+        {
+            Span<bool> laterSibling = stackalloc bool[MaxLineDepth + 2];
+            for (int i = _rows.Count - 1; i >= 0; i--)
+            {
+                Row row = _rows[i];
+                int depth = Math.Min(row.Depth, MaxLineDepth);
+                for (int d = depth + 1; d < laterSibling.Length; d++)
+                    laterSibling[d] = false;
+                row.LastSibling = !laterSibling[depth];
+                laterSibling[depth] = true;
+                _rows[i] = row;
+            }
+            ulong mask = 0;
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                Row row = _rows[i];
+                int depth = Math.Min(row.Depth, MaxLineDepth);
+                mask &= (1UL << depth) - 1;
+                row.Guides = mask;
+                if (row.LastSibling)
+                    mask &= ~(1UL << depth);
+                else
+                    mask |= 1UL << depth;
+                _rows[i] = row;
+            }
         }
 
         private int AddRow(Row row)
@@ -554,6 +634,8 @@ namespace xgEditor.CoreCLR
             int hovered = -1;
             float maxExtent = 0.0f;
             float textY = (RowHeight - Gui.MeasureText("A").y) * 0.5f;
+            int[] chain = _chain;
+            FillSelectedChain(chain, selectedFolderRow);
 
             for (int i = _list.First; i < _list.Last && i < _rows.Count; ++i)
             {
@@ -596,9 +678,11 @@ namespace xgEditor.CoreCLR
                 }
                 if (selected)
                     EditorStyle.SelectionBar(draw, left, RowHeight);
+                if (_search.Text.Length == 0)
+                    DrawTreeLines(draw, row, i, expanded, chain);
 
                 draw.PushClip(Rect.FromXYWH(0.0f, 0.0f, MathF.Max(_nameWidth + left, 0.0f), RowHeight));
-                float extent = row.Kind == RowKind.Group ? DrawGroup(draw, row, textY, rowHovered) : DrawName(draw, row, textY, selected, rowHovered);
+                float extent = row.Kind == RowKind.Group ? DrawGroup(draw, row, textY, rowHovered) : DrawName(draw, row, i, textY, selected, rowHovered);
                 draw.PopClip();
                 maxExtent = MathF.Max(maxExtent, -left + extent);
 
@@ -615,6 +699,52 @@ namespace xgEditor.CoreCLR
             }
             _hoveredRow = hovered;
             _maxExtent = maxExtent;
+        }
+
+        // The rows on the path from the selected row up to its depth-0 header, by depth (-1 = none).
+        private void FillSelectedChain(int[] chain, int selectedFolderRow)
+        {
+            Array.Fill(chain, -1);
+            int selectedRow = selectedFolderRow;
+            if (selectedRow < 0 && _selected != 0)
+                selectedRow = _rows.FindIndex(r => r.Kind == RowKind.Actor && r.Id == _selected);
+            if (selectedRow < 0 || _search.Text.Length > 0)
+                return;
+            int depth = Math.Min(_rows[selectedRow].Depth, MaxLineDepth);
+            chain[depth] = selectedRow;
+            for (int i = selectedRow - 1; i >= 0 && depth > 0; i--)
+                if (_rows[i].Depth < depth)
+                {
+                    depth = Math.Min(_rows[i].Depth, MaxLineDepth);
+                    chain[depth] = i;
+                }
+        }
+
+        // Elbow tree lines in row space (origin after the row's arrow; arrows don't scroll sideways, names do): the
+        // row's own level line and elbow, the levels passing through, and a stub under an expanded row's arrow. The
+        // selected row's path is drawn brighter.
+        private void DrawTreeLines(Painter draw, Row row, int index, bool expanded, int[] chain)
+        {
+            int depth = Math.Min(row.Depth, MaxLineDepth);
+            float cy = MathF.Floor(RowHeight * 0.5f) + 0.5f;
+            bool OnPath(int level, int i) => level >= 1 && chain[level] >= 0 && chain[level - 1] >= 0 && i > chain[level - 1] && i <= chain[level];
+            float LevelX(int level) => -(depth - level + 1) * TreeIndent - 8.0f + 0.5f;
+
+            if (row.HasChildren && expanded && depth + 1 >= FirstLineDepth && index + 1 < _rows.Count && _rows[index + 1].Depth == row.Depth + 1)
+            {
+                bool path = chain[depth] == index && depth + 1 < chain.Length && chain[depth + 1] >= 0;
+                draw.Line(new Vector2(-7.5f, cy + 4.0f), new Vector2(-7.5f, RowHeight), path ? HierarchyStyle.TreeLineBranch : HierarchyStyle.TreeLine);
+            }
+            if (depth < FirstLineDepth)
+                return;
+            for (int level = FirstLineDepth; level < depth; level++)
+                if ((row.Guides & (1UL << level)) != 0)
+                    draw.Line(new Vector2(LevelX(level), 0.0f), new Vector2(LevelX(level), RowHeight), OnPath(level, index) ? HierarchyStyle.TreeLineBranch : HierarchyStyle.TreeLine);
+            Color32 own = OnPath(depth, index) ? HierarchyStyle.TreeLineBranch : HierarchyStyle.TreeLine;
+            float x = LevelX(depth);
+            draw.Line(new Vector2(x, 0.0f), new Vector2(x, row.LastSibling ? cy + 0.5f : RowHeight), own);
+            float end = row.HasChildren ? (expanded ? -13.0f : -12.0f) : MathF.Max(-_scrollX - 0.5f, x + 1.0f);
+            draw.Line(new Vector2(x, cy), new Vector2(end, cy), own);
         }
 
         private void HandleRowInput(TreeRowScope scope, Row row)
@@ -664,16 +794,16 @@ namespace xgEditor.CoreCLR
             }
         }
 
-        // An actor or folder: icon and name (dim when effectively hidden, bold when effectively locked). Returns the
-        // drawn width from the row origin.
-        private float DrawName(Painter draw, Row row, float textY, bool selected, bool rowHovered)
+        // An actor or folder: icon and name (dim when effectively hidden, bold when effectively locked). Clicking the icon
+        // opens the icon picker. Returns the drawn width from the row origin.
+        private float DrawName(Painter draw, Row row, int index, float textY, bool selected, bool rowHovered)
         {
             float x = -_scrollX;
             bool hidden;
             bool locked;
             string name;
-            Icon icon;
-            Color32 iconColor;
+            ComponentIcon icon;
+            bool editable;
             bool composed = false;
             if (row.Kind == RowKind.Folder)
             {
@@ -681,8 +811,8 @@ namespace xgEditor.CoreCLR
                 hidden = row.ParentHidden || folder.Hidden;
                 locked = row.ParentLocked || folder.Locked;
                 name = folder.Name;
-                icon = row.HasChildren && !_collapsedFolders.Contains(folder.Id) ? Icon.GroupOpen : Icon.Group;
-                iconColor = HierarchyStyle.FolderIcon;
+                icon = EditorIcons.OfFolder(folder, row.HasChildren && !_collapsedFolders.Contains(folder.Id));
+                editable = !locked;
             }
             else
             {
@@ -691,12 +821,12 @@ namespace xgEditor.CoreCLR
                 locked = row.ParentLocked || ActorEditorState.IsLocked(actor);
                 name = ActorTree.GetName(actor);
                 composed = ArchetypeDriver.IsCompositionActor(actor);
-                icon = Icon.Object;
-                iconColor = composed ? HierarchyStyle.Composed : Style.Color(StyleColor.IconObject);
+                icon = composed ? new ComponentIcon(Icon.Actor, null, HierarchyStyle.Composed) : EditorIcons.OfActor(actor);
+                editable = !composed && !locked;
             }
             if (hidden)
-                iconColor = new Color32(iconColor.r, iconColor.g, iconColor.b, 115);
-            draw.Icon(icon, new Vector2(x + 7.0f, RowHeight * 0.5f), 13.0f, iconColor);
+                icon = EditorIcons.WithAlpha(icon, 115);
+            icon.Draw(draw, new Vector2(x + 7.0f, RowHeight * 0.5f), 13.0f);
             Color32 text = hidden ? Style.Color(StyleColor.TextDim) : Style.Color(selected ? StyleColor.TextSelected : StyleColor.Text);
             float width;
             using (Gui.Font(locked ? FontStyle.Bold : FontStyle.Default))
@@ -721,6 +851,25 @@ namespace xgEditor.CoreCLR
                     Gui.Tooltip("A Composition Actor: added and removed by its object (.xco); its transform follows the composition");
                 else if (row.Kind == RowKind.Folder)
                     Gui.Tooltip("A group: holds root actors in the editor only (no actor, nothing at runtime)");
+            }
+            if (editable)
+            {
+                Rect cell = Rect.FromXYWH(x - 2.0f, 1.0f, 18.0f, RowHeight - 2.0f);
+                Result hit;
+                using (Gui.Id(index))
+                    hit = Gui.HitArea("##icon", cell);
+                if (hit.Hovered())
+                {
+                    draw.Rect(cell, Style.Color(StyleColor.Accent), 2.0f);
+                    Gui.Tooltip("Click to change the icon");
+                }
+                if (hit.Clicked())
+                {
+                    if (row.Kind == RowKind.Folder)
+                        OpenIconPicker(row.Scene!, row.Folder!);
+                    else
+                        OpenIconPicker(new ActorID(row.Id));
+                }
             }
             return extent;
         }
@@ -764,7 +913,7 @@ namespace xgEditor.CoreCLR
                     {
                         draw.Icon(Icon.Link, cell.Center, 12.0f, HierarchyStyle.Composed);
                         if (Gui.HitArea("##cell", cell).Hovered())
-                            Gui.Tooltip("Driven by its archetype; it can't be locked");
+                            Gui.Tooltip("Joined to its archetype by a Jointer; it can't be locked");
                         return;
                     }
                     own = column.IsLock ? ActorEditorState.IsLocked(actor) : ActorEditorState.IsHidden(actor);

@@ -66,9 +66,9 @@ namespace xgEditor.CoreCLR
         {
             EditorScene? scene = context.Targets.OfType<EditorScene>().FirstOrDefault();
             if (context.Source == FolderSource && context.Targets.OfType<SceneFolder>().FirstOrDefault() is { } folder && scene is not null)
-                FolderEntries(menu, scene, folder);
+                FolderEntries(menu, scene, folder, context.Owner as HierarchyPanel);
             else if (context.Source == SceneContextMenu.ItemSource && context.Targets.FirstOrDefault() is ActorID actor)
-                ActorEntries(menu, actor);
+                ActorEntries(menu, actor, context.Owner as HierarchyPanel);
             else if (context.Source == SceneContextMenu.BackgroundSource)
                 SceneEntries(menu, scene ?? SceneManager.Active);
         }
@@ -76,7 +76,7 @@ namespace xgEditor.CoreCLR
         // Lock and visibility apply to the selection when the clicked actor is part of it.
         private static IReadOnlyList<ActorID> Targets(ActorID actor) => Selection.Contains(actor) ? Selection.Actors : new[] { actor };
 
-        private static void ActorEntries(ContextMenu menu, ActorID actor)
+        private static void ActorEntries(ContextMenu menu, ActorID actor, HierarchyPanel? hierarchy)
         {
             IReadOnlyList<ActorID> targets = Targets(actor);
             bool locked = ActorEditorState.IsLocked(actor);
@@ -85,6 +85,9 @@ namespace xgEditor.CoreCLR
             menu.Item(locked ? "Unlock" : "Lock", locked ? Icon.Unlock : Icon.Lock, () => ActorEditorState.SetLocked(targets, !locked),
                 enabled: !composed, tooltip: composed ? "Composition Actors are driven by their object" : null);
             menu.Item(hidden ? "Show" : "Hide", hidden ? Icon.Eye : Icon.EyeOff, () => ActorEditorState.SetHidden(targets, !hidden));
+            if (hierarchy is not null)
+                menu.Item("Change Icon...", Icon.Image, () => hierarchy.OpenIconPicker(actor), enabled: EditorIcons.CanEdit(actor),
+                    tooltip: composed ? "Composition Actors keep their archetype icon" : ActorEditorState.IsLockedInHierarchy(actor) ? "The actor is locked" : null);
 
             if (SceneManager.SceneOf(actor) is not { } scene || !IsRoot(actor))
                 return;
@@ -121,7 +124,7 @@ namespace xgEditor.CoreCLR
 
         private static bool IsRoot(ActorID actor) => ActorTree.GetParent(actor) is not { } parent || parent.Value == 0;
 
-        private static void FolderEntries(ContextMenu menu, EditorScene scene, SceneFolder folder)
+        private static void FolderEntries(ContextMenu menu, EditorScene scene, SceneFolder folder, HierarchyPanel? hierarchy)
         {
             bool locked = SceneManager.IsFolderLocked(scene, folder.Id);
             string? why = locked ? "The group, a parent group or the scene is locked" : null;
@@ -131,6 +134,8 @@ namespace xgEditor.CoreCLR
                     RenameFolder(scene, created);
             }, enabled: !locked, tooltip: why);
             menu.Item("Rename...", Icon.File, () => RenameFolder(scene, folder), enabled: !locked, tooltip: why);
+            if (hierarchy is not null)
+                menu.Item("Change Icon...", Icon.Image, () => hierarchy.OpenIconPicker(scene, folder), enabled: !locked, tooltip: why);
             menu.Item("Remove Group", Icon.Trash, () => SceneCommands.ConfirmRemoveGroup(scene, folder), enabled: !locked, tooltip: why ?? "Its actors and groups move up");
             menu.Separator();
             menu.Item(folder.Locked ? "Unlock" : "Lock", folder.Locked ? Icon.Unlock : Icon.Lock, () => SceneManager.SetFolderLocked(scene, folder, !folder.Locked));

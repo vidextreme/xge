@@ -76,15 +76,24 @@ namespace xg::imui::detail
         }
         case Icon::Link:
         {
-            const float r = h * 0.38f;
-            const ImVec2 a(c.x - h * 0.38f, c.y + h * 0.38f);
-            const ImVec2 b(c.x + h * 0.38f, c.y - h * 0.38f);
-            dl->PathArcTo(a, r, IM_PI * 0.25f, IM_PI * 1.25f, 10);
-            dl->PathStroke(col, ImDrawFlags_None, 1.3f);
-            dl->PathArcTo(b, r, IM_PI * 1.25f, IM_PI * 2.25f, 10);
-            dl->PathStroke(col, ImDrawFlags_None, 1.3f);
-            dl->AddLine(ImVec2(a.x - r * 0.707f, a.y - r * 0.707f), ImVec2(b.x - r * 0.707f, b.y - r * 0.707f), col, 1.3f);
-            dl->AddLine(ImVec2(a.x + r * 0.707f, a.y + r * 0.707f), ImVec2(b.x + r * 0.707f, b.y + r * 0.707f), col, 1.3f);
+            const ImVec2 u(0.7071f, -0.7071f);
+            const float stroke = (std::max)(1.3f, h * 0.18f);
+            const float r = h * 0.34f;
+            const float half = h * 0.09f;
+            auto along = [&](float t) { return ImVec2(c.x + u.x * h * t, c.y + u.y * h * t); };
+            for (float side : { -1.0f, 1.0f })
+            {
+                const ImVec2 p = along(side * 0.45f);
+                dl->PathArcTo(ImVec2(p.x + u.x * half, p.y + u.y * half), r, IM_PI * 0.25f, -IM_PI * 0.75f, 10);
+                dl->PathArcTo(ImVec2(p.x - u.x * half, p.y - u.y * half), r, IM_PI * 1.25f, IM_PI * 0.25f, 10);
+                dl->PathStroke(col, ImDrawFlags_Closed, stroke);
+            }
+            const ImVec4 base = ImGui::ColorConvertU32ToFloat4(col);
+            const ImU32 bar = ImGui::ColorConvertFloat4ToU32(ImVec4(base.x * 0.82f, base.y * 0.82f, base.z * 0.82f, base.w));
+            const ImVec2 from = along(-0.34f), to = along(0.34f);
+            dl->AddLine(from, to, bar, stroke);
+            dl->AddCircleFilled(from, stroke * 0.5f, bar, 8);
+            dl->AddCircleFilled(to, stroke * 0.5f, bar, 8);
             break;
         }
         case Icon::Group:
@@ -325,6 +334,18 @@ namespace xg::imui::detail
         case Icon::Object:
             dl->AddRectFilled(ImVec2(c.x - h * 0.6f, c.y - h * 0.6f), ImVec2(c.x + h * 0.6f, c.y + h * 0.6f), col, 2.0f);
             break;
+        case Icon::Actor:
+        {
+            const ImVec4 base = ImGui::ColorConvertU32ToFloat4(col);
+            const ImU32 light = ImGui::ColorConvertFloat4ToU32(ImVec4(base.x + (1.0f - base.x) * 0.35f, base.y + (1.0f - base.y) * 0.35f, base.z + (1.0f - base.z) * 0.35f, base.w));
+            const ImU32 dark = ImGui::ColorConvertFloat4ToU32(ImVec4(base.x * 0.68f, base.y * 0.68f, base.z * 0.68f, base.w));
+            const ImVec2 top(c.x, c.y - h * 0.9f), l(c.x - h * 0.8f, c.y - h * 0.45f), r(c.x + h * 0.8f, c.y - h * 0.45f);
+            const ImVec2 m(c.x, c.y), bl(c.x - h * 0.8f, c.y + h * 0.45f), br(c.x + h * 0.8f, c.y + h * 0.45f), b(c.x, c.y + h * 0.9f);
+            dl->AddQuadFilled(top, r, m, l, light);
+            dl->AddQuadFilled(l, m, b, bl, col);
+            dl->AddQuadFilled(m, r, br, b, dark);
+            break;
+        }
         case Icon::Component:
             dl->AddLine(ImVec2(c.x - h * 0.7f, c.y + h * 0.7f), ImVec2(c.x + h * 0.3f, c.y - h * 0.3f), col, 3.0f);
             dl->AddCircle(ImVec2(c.x + h * 0.4f, c.y - h * 0.4f), h * 0.4f, col, 10, 2.0f);

@@ -180,7 +180,7 @@ namespace xgEditor.CoreCLR
                     Debug.LogWarning($"[Scenes] {path}: group \"{saved.Name}\" has no valid id; dropped");
                     continue;
                 }
-                scene.Folders.Add(new SceneFolder { Id = saved.Id, Name = saved.Name, Parent = saved.Parent, Hidden = saved.Hidden, Locked = saved.Locked });
+                scene.Folders.Add(new SceneFolder { Id = saved.Id, Name = saved.Name, Parent = saved.Parent, Hidden = saved.Hidden, Locked = saved.Locked, Icon = IconOf(saved.Icon, saved.IconColor) });
             }
             foreach (SceneFolder folder in scene.Folders)
                 if (folder.Parent.Length > 0 && (scene.FindFolder(folder.Parent) is null || scene.IsInFolder(folder.Parent, folder.Id)))
@@ -200,6 +200,7 @@ namespace xgEditor.CoreCLR
                 created[saved.Id] = actor.ID;
                 scene.Members[actor.ID.Value] = saved.Id;
                 ActorEditorState.Restore(actor.ID, saved.Hidden, saved.Locked);
+                ActorEditorState.RestoreIcon(actor.ID, IconOf(saved.Icon, saved.IconColor));
                 if (saved.Extra.Count > 0)
                     scene.ActorExtra[actor.ID.Value] = saved.Extra.DeepClone().AsObject();
                 if (saved.Parent.Length == 0 && saved.Folder.Length > 0)
@@ -566,6 +567,17 @@ namespace xgEditor.CoreCLR
             ContainerEdited(scene);
         }
 
+        public static void SetFolderIcon(EditorScene scene, SceneFolder folder, EditorIcon? icon)
+        {
+            if (folder.Icon == icon)
+                return;
+            folder.Icon = icon;
+            Touch(scene);
+        }
+
+        private static EditorIcon? IconOf(string name, string color) =>
+            name.Length > 0 ? new EditorIcon(name, color.Length > 0 ? color : null) : null;
+
         // Locked by itself, a parent folder or the scene: no rename, delete or moves in or out.
         public static bool IsFolderLocked(EditorScene scene, string? folderId) => scene.FolderState(folderId).Locked;
 
@@ -657,7 +669,11 @@ namespace xgEditor.CoreCLR
             Prune(scene);
             SceneAsset asset = new() { Meta = scene.Meta, Extra = scene.Extra.DeepClone().AsObject(), Hidden = scene.Hidden, Locked = scene.Locked };
             foreach (SceneFolder folder in scene.Folders)
-                asset.Folders.Add(new SceneFolderAsset { Id = folder.Id, Name = folder.Name, Parent = folder.Parent, Hidden = folder.Hidden, Locked = folder.Locked });
+                asset.Folders.Add(new SceneFolderAsset
+                {
+                    Id = folder.Id, Name = folder.Name, Parent = folder.Parent, Hidden = folder.Hidden, Locked = folder.Locked,
+                    Icon = folder.Icon?.Name ?? string.Empty, IconColor = folder.Icon?.Color ?? string.Empty,
+                });
             List<ActorID> roots = new();
             ActorTree.GetRoots(roots);
             foreach (ActorID root in roots)
@@ -686,6 +702,7 @@ namespace xgEditor.CoreCLR
                 Id = id, Name = ActorTree.GetName(actor), Parent = parentId,
                 Folder = parentId.Length == 0 ? scene.FolderIdOf(actor) ?? string.Empty : string.Empty,
                 Hidden = ActorEditorState.IsHidden(actor), Locked = ActorEditorState.IsLocked(actor),
+                Icon = ActorEditorState.GetIcon(actor)?.Name ?? string.Empty, IconColor = ActorEditorState.GetIcon(actor)?.Color ?? string.Empty,
             };
             if (scene.ActorExtra.TryGetValue(actor.Value, out JsonObject? extra))
                 saved.Extra = extra.DeepClone().AsObject();

@@ -23,6 +23,8 @@ namespace xgEditor.CoreCLR
         private const float AddRowHeight = 22.0f;
         private const float AddListMaxHeight = 300.0f;
         private const string AddPopupId = "inspector_add";
+        private const float ActorIconBox = 40.0f;
+        private const float ActorIconSize = 28.0f;
 
         private static readonly IReadOnlyList<object> _none = Array.Empty<object>();
 
@@ -97,6 +99,53 @@ namespace xgEditor.CoreCLR
                 view.Menu.Open(new ContextMenuContext(ComponentContextMenu.Source, new object[] { driver.Actor, components[hookIndex] }, driver), new Vector2(view.AddTab.max.x + 40.0f, view.AddTab.min.y - 80.0f));
             }
             view.Menu.OnGUI();
+            if (driver is not null && view.IconHookFrames >= 0 && ++view.IconHookFrames == 170 && IconPicker.ParseHook() is { Target: "inspector" } iconHook)
+            {
+                view.IconHookFrames = -1;
+                OpenIconPicker(view, driver.Actor, new Vector2(40.0f, 60.0f));
+                view.IconPicker.Hook(iconHook.Search, iconHook.Pick);
+                Debug.Log("[Debug] Icon picker opened from the Inspector");
+            }
+            view.IconPicker.OnGUI();
+        }
+
+        // The actor's icon left of its name: a button that opens the icon picker (not for locked or Composition Actors).
+        private static void DrawActorIcon(ComponentsViewState view, ActorID actor)
+        {
+            bool composed = ArchetypeDriver.IsCompositionActor(actor);
+            bool editable = EditorIcons.CanEdit(actor);
+            using var canvas = Gui.Canvas("##actor_icon", new Vector2(ActorIconBox, ActorIconBox));
+            Painter draw = canvas.Draw;
+            Rect box = Rect.FromXYWH(0.0f, 0.0f, ActorIconBox, ActorIconBox);
+            Result hit = Gui.HitArea("##actor_icon_hit", box);
+            bool hovered = editable && hit.Hovered();
+            if (hovered)
+            {
+                draw.RectFilled(box, Style.Color(StyleColor.ButtonHover), 3.0f);
+                draw.Rect(box, Style.Color(StyleColor.Accent), 3.0f);
+            }
+            ComponentIcon icon = composed ? new ComponentIcon(Icon.Actor, null, HierarchyStyle.Composed) : EditorIcons.OfActor(actor);
+            icon.Draw(draw, box.Center, ActorIconSize);
+            Gui.Tooltip(composed ? "Composition Actors keep their archetype icon" : editable ? "Click to change the actor's icon" : "The actor is locked");
+            if (editable && hit.Clicked())
+                OpenIconPicker(view, actor, null);
+        }
+
+        // The actor's id in dim text under its name.
+        private static void DrawActorId(ActorID actor)
+        {
+            string text = $"ID {actor.Value}";
+            Vector2 size = Gui.MeasureText(text);
+            using var canvas = Gui.Canvas("##actor_id", new Vector2(size.x, size.y));
+            canvas.Draw.Text(new Vector2(0.0f, 0.0f), Style.Color(StyleColor.TextDim), text);
+        }
+
+        private static void OpenIconPicker(ComponentsViewState view, ActorID actor, Vector2? position)
+        {
+            if (!EditorIcons.CanEdit(actor))
+                return;
+            ActorID[] targets = Selection.Contains(actor) ? Selection.Actors.ToArray() : new[] { actor };
+            view.IconPicker.Open(ActorEditorState.GetIcon(actor), Icon.Actor, icon => EditorIcons.SetActors(targets, icon), position);
         }
 
         private static void OpenComponentMenu(ComponentsViewState view, ComponentsDriver driver, object component) =>
@@ -210,14 +259,21 @@ namespace xgEditor.CoreCLR
             {
                 if (driver is not null)
                 {
-                    if (readOnly)
-                        DrawLockedMark();
-                    using (Gui.Font(FontStyle.Bold))
-                        Gui.Label(driver.Name);
+                    DrawActorIcon(view, driver.Actor);
+                    using (Gui.Vertical())
+                    {
+                        using (Gui.Horizontal())
+                        {
+                            if (readOnly)
+                                DrawLockedMark();
+                            using (Gui.Font(FontStyle.Bold))
+                                Gui.Label(driver.Name);
+                        }
+                        DrawActorId(driver.Actor);
+                    }
                     Gui.FlexibleSpace();
                     if (readOnly)
                         Gui.Label("read only");
-                    Gui.Label($"ID {driver.Actor.Value}");
                 }
                 else
                 {
@@ -360,7 +416,14 @@ namespace xgEditor.CoreCLR
                 return;
             }
             if (ArchetypeDriver.IsCompositionActor(transform.ActorID))
-                Gui.Label($"Driven by {ActorTree.GetName(ArchetypeDriver.CompositionOwner(transform.ActorID))}'s archetype (edits snap back)");
+            {
+                using (Gui.Horizontal(4.0f))
+                {
+                    using (var mark = Gui.Canvas("##jointer_mark", new Vector2(16.0f, Gui.MeasureText("A").y)))
+                        mark.Draw.Icon(Icon.Link, new Vector2(8.0f, mark.Size.y * 0.5f), 12.0f, HierarchyStyle.Composed);
+                    Gui.Label($"Driven by {ActorTree.GetName(ArchetypeDriver.CompositionOwner(transform.ActorID))}'s archetype Jointer (edits snap back)");
+                }
+            }
             TransformData local = transform.Local;
             Quaternion rotation = local.Rotation;
             if (view.EulerActor != transform.ActorID.Value || !SameRotation(view.EulerSource, rotation))

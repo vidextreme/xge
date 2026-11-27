@@ -17,6 +17,7 @@
   <!-- Pure asset meta logic from xgEditorKit.Managed, linked so it runs without the UI kit. -->
   <ItemGroup>
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\JSONFile.cs" Link="assets\JSONFile.cs" />
+    <Compile Include="..\..\..\xgEditorKit.Managed\IconImage.cs" Link="IconImage.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetMeta.cs" Link="assets\AssetMeta.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetMetaStore.cs" Link="assets\AssetMetaStore.cs" />
     <Compile Include="..\..\..\xgEditorKit.Managed\assets\AssetReconciler.cs" Link="assets\AssetReconciler.cs" />

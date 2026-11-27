@@ -2,7 +2,7 @@
 
 > Status: current implementation (2026-11). Future design is listed at the end. See the [README](../README.md) for the overall status table.
 
-This document covers how content gets from a project's `Assets/` folder to the GPU: asset identity and metadata, the `Library/` build pipeline, the chunk file format, runtime resources, and each asset family built so far (textures, meshes, shaders, materials, composition objects, scenes). An **asset** is a source file the editor works with (`dog.fbx`, `Bear.xcm`); a **resource** is the runtime object built from it (a GPU texture, a model, a renderer material).
+This document covers how content gets from a project's `Assets/` folder to the GPU: asset identity and metadata, the `Library/` build pipeline, the chunk file format, runtime resources, and each asset family built so far (textures, meshes, shaders, materials, archetypes, scenes). An **asset** is a source file the editor works with (`dog.fbx`, `Bear.xcm`); a **resource** is the runtime object built from it (a GPU texture, a model, a renderer material).
 
 | Piece | State |
 |---|---|
@@ -13,7 +13,7 @@ This document covers how content gets from a project's `Assets/` folder to the G
 | Textures (PNG/BMP → BC1/3/4/5 or RGBA8, mips) | Working on DX12 and Vulkan |
 | Meshes (FBX via ufbx, static meshes and hierarchy) | Working |
 | Shaders (project HLSL with annotations) and materials (`.xcm`) | Working, with a Material Editor |
-| Composition objects (`.xco`) | Working, with an Object Editor and Composition Actors |
+| Archetypes (`.xco`) | Working, with an Archetype Editor and Composition Actors |
 | Scenes (`.xcs`) | Working; see [Scenes](xge-scenes.md) |
 | Animation, flipbooks, atlases, player packaging | Planned |
 
@@ -136,9 +136,9 @@ The engine ships its own assets, which work exactly like project assets: same im
   - New materials use the built-in lit shader when the project has none.
   - Built-ins are read-only: the Material Editor won't open the engine materials or save over a built-in, and its Edit Code button is disabled for built-in shaders.
 
-## Composition objects (`.xco`)
+## Archetypes (`.xco`)
 
-A composition object is an authored tree of **Objects** joined by **Jointers**, drawn by one `ObjectDriverComponent` on one actor.
+An archetype is an authored tree of **Objects** joined by **Jointers**, drawn by one `ArchetypeDriver` on one actor.
 
 - **Objects:**
   - **Mesh Objects** draw chosen submeshes of a model, each with its own material slot.
@@ -149,15 +149,15 @@ A composition object is an authored tree of **Objects** joined by **Jointers**, 
   - parts (model, submesh, material, and `hidden` when unticked: the part keeps its material but isn't built or drawn)
   - names, with hashes for fast proxy lookups
   - authored components
-- **Runtime:** the native `ObjectDriveSystem` draws every instance: a part's world is model placement × baked node pose × actor world, recomputed per frame. Instances share the loaded object.
+- **Runtime:** the native `ArchetypeDriveSystem` draws every instance: a part's world is model placement × baked node pose × actor world, recomputed per frame. Instances share the loaded object.
 - **Composition Actors** are spawned under the driver with transforms held at the composition's pose, and get their authored components. The Hierarchy marks them with a lock.
-- **The Object Editor** has:
+- **The Archetype Editor** has:
   - tools, the Objects tree, and a live preview of the unsaved draft with proxy markers
   - Inspector-style tabs (Naming, Jointer, Mesh and material, Components)
   - a submesh/material table, and the Material Editor mounted for a part's material
   - authored components with their fields
-  - "Object from model" fills a tree from an imported model.
-- **Thumbnails** frame the drawn meshes, in `Library/Data/Objects/<guid>.thumb.png`.
+  - "Archetype from model" fills a tree from an imported model.
+- **Thumbnails** frame the drawn meshes, in `Library/Data/Archetypes/<guid>.thumb.png`.
 
 ## Scenes (`.xcs`)
 
@@ -167,7 +167,7 @@ Scenes save the actors set up in the editor, with components, field values and p
 
 - **Navigator:** browses `Assets/` by folder, tags or search, with thumbnails, kind filters, bookmarks, Details view, rename and context menus. Meta files never show.
 - **Inspectors** for textures (import settings), materials and objects (summaries with an Open button).
-- **Scene > Assets** ribbon group and context menus: create material, shader, object, scene; "Object from model"; edit the selected material or object.
+- **Scene > Assets** ribbon group and context menus: create material, shader, object, scene; "Archetype from model"; edit the selected material or object.
 - **Background task panel** in the status bar: import progress with cancel.
 
 ## Code map
@@ -176,13 +176,13 @@ Scenes save the actors set up in the editor, with components, field values and p
 |---|---|
 | Metas, items, reconciliation, migration | `xgEditorKit.Managed/assets/` (`AssetMeta`, `AssetMetaStore`, `AssetItems`, `AssetReconciler`, `AssetMetaMigration`) |
 | Pipeline, chunk writer | `xgEditorKit.Managed/assets/AssetPipeline.cs`, `ChunkFile.cs` |
-| Importers | `TextureAssets.cs`, `MeshAssets.cs`, `PrimitiveAssets.cs`, `ShaderAssets.cs`, `MaterialAssets.cs`, `ObjectAssets.cs`, `SceneAssets.cs` (format only) |
+| Importers | `TextureAssets.cs`, `MeshAssets.cs`, `PrimitiveAssets.cs`, `ShaderAssets.cs`, `MaterialAssets.cs`, `ArchetypeAssets.cs`, `SceneAssets.cs` (format only) |
 | Built-in assets | `gameroot/engine/assets/`, `tools/xgEngineData/`, `xgEditorKit.Managed/assets/EngineAssets.cs`, `xgCore/EngineAssets.h` |
 | Asset database (editor) | `xgEditor.CoreCLR/editor/project/AssetDatabase.cs` |
 | Resource system, jobs | `xgBase/public/xgResources.h`, `xgJobs.h`; `xgCore/ResourceSystemImpl.*`, `JobSystemImpl.*` |
-| Resource types | `xgCore/TextureResources.*`, `ModelResources.*`, `ShaderResources.*`, `MaterialResources.*`, `ObjectResources.*` |
-| Drawing | `xgCore/MeshRenderSystemImpl.*`, `ObjectDriveSystemImpl.*` |
-| Editors | `xgEditor.CoreCLR/editor/material/`, `editor/object/`, `editor/scene/` |
+| Resource types | `xgCore/TextureResources.*`, `ModelResources.*`, `ShaderResources.*`, `MaterialResources.*`, `ArchetypeResources.*` |
+| Drawing | `xgCore/MeshRenderSystemImpl.*`, `ArchetypeDriveSystemImpl.*` |
+| Editors | `xgEditor.CoreCLR/editor/material/`, `editor/archetype/`, `editor/scene/` |
 
 ---
 
@@ -190,11 +190,11 @@ Scenes save the actors set up in the editor, with components, field values and p
 
 Not implemented yet:
 
-- **Animation:** `.xda` data, skinned meshes, bone attachment and animated Jointers, a Timeline in the Object Editor.
+- **Animation:** `.xda` data, skinned meshes, bone attachment and animated Jointers, a Timeline in the Archetype Editor.
 - **More compositions:** `.xcf` texture flipbooks and `.xca` texture atlases.
-- **Physics** data in composition objects (the format reserves a key).
+- **Physics** data in archetypes (the format reserves a key).
 - **Player packaging:** packing processed data and compositions by GUID, never shipping raw data, with a GUID → path manifest, copying only the built-in assets a project references.
 - **Built-in assets:** a sky shader for `CameraClear.Skybox`, thumbnails of built-in materials in pickers, and moving the renderers' test cube and grid to built-in assets.
 - **Eviction** of unused resources under a memory budget.
 - **Platform overrides** for texture settings.
-- **Renderer instancing** and per-asset static batching of composition objects.
+- **Renderer instancing** and per-asset static batching of archetypes.

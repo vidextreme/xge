@@ -90,5 +90,7 @@ namespace xgEditor.CoreCLR
         public string Parent { get; set; } = string.Empty;
         public bool Hidden { get; set; }
         public bool Locked { get; set; }
+        // The chosen icon, or null for the default group icon.
+        public EditorIcon? Icon { get; set; }
     }
 }

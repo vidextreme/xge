@@ -109,6 +109,8 @@ namespace xgEditor.CoreCLR
         public readonly Dictionary<string, bool> Open = new();
         public readonly ContextMenuHost Menu = new("inspector_component_menu");
         public int MenuHookFrames;
+        public readonly IconPicker IconPicker = new("inspector_icons");
+        public int IconHookFrames;
         public readonly List<ComponentType> Filtered = new();
         public readonly xg.imui.TextBuffer Search = new(64);
         // Rotation shown as Euler angles, kept while the transform's rotation stays the one they produced.

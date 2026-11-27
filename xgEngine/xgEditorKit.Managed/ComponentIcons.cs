@@ -32,7 +32,8 @@ namespace xg.editor
     }
 
     // Reads [ComponentIcon] from component types (by name, so any load context works) and caches the result per type.
-    // Image paths are tried as given, then relative to the game project folder, then to gameroot/editor.
+    // Image paths are tried as given, then relative to the game project folder, then to gameroot/editor. Images go through
+    // IconImage.Prepare (background removal for fully opaque images, smooth downscale).
     public static class ComponentIcons
     {
         private static readonly Dictionary<string, ComponentIcon> _byType = new();
@@ -112,6 +113,7 @@ namespace xg.editor
                 byte[]? rgba = ImageFile.LoadRGBA(candidate, out int width, out int height);
                 if (rgba is null)
                     continue;
+                rgba = IconImage.Prepare(rgba, ref width, ref height);
                 texture = new Texture(rgba, width, height);
                 if (texture.IsValid)
                     break;

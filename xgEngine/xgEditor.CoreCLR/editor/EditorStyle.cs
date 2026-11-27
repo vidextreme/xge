@@ -43,5 +43,8 @@ namespace xgEditor.CoreCLR
         public static readonly Color32 DescendantBar = new(61, 139, 253, 90);
         public static readonly Color32 DescendantHover = new(255, 255, 255, 8);
         public static readonly Color32 CellDivider = new(0, 0, 0, 64);
+        // Hierarchy tree lines, and the selected row's path (brighter, neutral).
+        public static readonly Color32 TreeLine = new(255, 255, 255, 40);
+        public static readonly Color32 TreeLineBranch = new(255, 255, 255, 115);
     }
 }

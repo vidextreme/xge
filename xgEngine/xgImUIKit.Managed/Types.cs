@@ -80,6 +80,7 @@ namespace xg.imui
         Eye, FolderOpen, Link,
         Group, GroupOpen,
         Blocks,
+        Actor,
     }
 
     // Mirrors xg::imui::Key. Order is part of the ABI: append only.

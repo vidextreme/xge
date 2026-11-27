@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <Compile Include="PropertyDrawer.cs" />
+    <Compile Include="IconImage.cs" />
     <Compile Include="Selection.cs" />
     <Compile Include="EnumDescriptions.cs" />
     <Compile Include="AssetRef.cs" />

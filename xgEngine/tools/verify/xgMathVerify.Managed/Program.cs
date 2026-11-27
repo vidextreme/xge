@@ -86,6 +86,7 @@ internal static class Program
         Run(nameof(TestArchetypeAsset), TestArchetypeAsset);
         Run(nameof(TestFormerNames), TestFormerNames);
         Run(nameof(TestSceneAsset), TestSceneAsset);
+        Run(nameof(TestIconImage), TestIconImage);
 
         Console.WriteLine($"{_checks} checks, {_failures} failures");
         return _failures == 0 ? 0 : 1;
@@ -1113,6 +1114,43 @@ internal static class Program
             "ReplaceGuid repairs model references");
     }
 
+    private static void TestIconImage()
+    {
+        int w = 100, h = 100;
+        byte[] image = new byte[w * h * 4];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                int i = (y * w + x) * 4;
+                bool ring = (x - 50) * (x - 50) + (y - 50) * (y - 50) is >= 900 and < 1600;
+                byte v = ring ? (byte)0 : (byte)255;
+                image[i] = v;
+                image[i + 1] = v;
+                image[i + 2] = v;
+                image[i + 3] = 255;
+            }
+        int ow = w, oh = h;
+        byte[] prepared = xg.editor.IconImage.Prepare(image, ref ow, ref oh, 1000);
+        Check(ow == 100 && oh == 100, "images within maxSize keep their size");
+        Check(prepared[3] == 0 && prepared[(99 * w + 99) * 4 + 3] == 0, "the edge-connected background becomes transparent");
+        Check(prepared[(50 * w + 50) * 4 + 3] == 255 && prepared[(50 * w + 50) * 4] == 255, "an enclosed area of the background colour stays opaque");
+        Check(prepared[(50 * w + 15) * 4 + 3] == 255 && prepared[(50 * w + 15) * 4] == 0, "the drawing stays opaque");
+        Check(prepared[(10 * w + 50) * 4 + 3] == 0 && prepared[(10 * w + 50) * 4] < 64, "transparent pixels take the colour of their visible neighbours");
+
+        byte[] alpha = (byte[])image.Clone();
+        alpha[3] = 0;
+        int aw = w, ah = h;
+        byte[] kept = xg.editor.IconImage.Prepare(alpha, ref aw, ref ah, 1000);
+        Check(kept[(99 * w + 99) * 4 + 3] == 255, "images that already have transparency keep their alpha");
+
+        int sw = w, sh = h;
+        byte[] small = xg.editor.IconImage.Prepare(image, ref sw, ref sh, 32);
+        Check(sw == 32 && sh == 32 && small.Length == 32 * 32 * 4, "large images shrink to maxSize");
+        Check(small[3] == 0 && small[(16 * 32 + 16) * 4 + 3] == 255, "shrinking keeps transparent corners and the opaque centre");
+        int ringPixel = (16 * 32 + 4) * 4;
+        Check(small[ringPixel + 3] > 0 && small[ringPixel] < 128, "the shrunk ring stays dark where it is visible (no white fringe)");
+    }
+
     private static void TestSceneAsset()
     {
         SceneAsset scene = new() { Meta = new System.Text.Json.Nodes.JsonObject { ["guid"] = AssetMeta.NewGuid(), ["tags"] = new System.Text.Json.Nodes.JsonArray() } };
@@ -1169,6 +1207,18 @@ internal static class Program
         Check(reparsed.Find(child.Id)!.Extra["future"]?["x"]?.GetValue<int>() == 1, "unknown actor keys are kept");
         Check(reparsed.Find(root.Id)!.Compositions[0].Hidden, "a Composition Actor's hidden flag round trips");
         Check(!flaggedJSON.Contains("\"hidden\": false") && !flaggedJSON.Contains("\"locked\": false"), "only set flags are written");
+
+        SceneAsset iconed = scene.Clone();
+        iconed.Find(child.Id)!.Icon = "Camera";
+        iconed.Find(child.Id)!.IconColor = "#7CC4FF";
+        iconed.Find(root.Id)!.Icon = "Assets/UI/ICONS/enemy.png";
+        iconed.Folders.Add(new SceneFolderAsset { Id = AssetMeta.NewGuid(), Name = "Enemies", Icon = "Physics" });
+        string iconedJSON = iconed.ToJSON();
+        SceneAsset iconedBack = SceneAsset.Parse(iconedJSON);
+        Check(iconedBack.SameAs(iconed) && iconedBack.Find(child.Id)!.Icon == "Camera" && iconedBack.Find(child.Id)!.IconColor == "#7CC4FF"
+            && iconedBack.Find(root.Id)!.Icon == "Assets/UI/ICONS/enemy.png" && iconedBack.Find(root.Id)!.IconColor.Length == 0 && iconedBack.Folders[0].Icon == "Physics",
+            "actor and group icons round trip in the editor block");
+        Check(!iconedJSON.Contains("\"hidden\"") && iconedJSON.Contains("\"iconColor\": \"#7CC4FF\""), "an icon alone writes an editor block without flags");
 
         SceneAsset broken = scene.Clone();
         broken.Actors.Add(new SceneActorAsset { Id = root.Id, Name = "Twin" });

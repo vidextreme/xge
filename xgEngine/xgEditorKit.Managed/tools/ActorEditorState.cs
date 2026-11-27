@@ -3,6 +3,10 @@
 
 namespace xg.editor
 {
+    // An editor icon chosen for an actor or a Hierarchy group: a built-in Icon name ("Camera") or a project-relative image
+    // path ("Assets/Icons/enemy.png"), and an optional "#RRGGBB" tint for built-in icons.
+    public readonly record struct EditorIcon(string Name, string? Color);
+
     // Editor-only per-actor state: hidden (skipped by the Scene view only) and locked (selectable and browsable, but tools,
     // context menu tools and the Inspector won't edit it). Both are inherited: an actor is effectively hidden or locked
     // when it, an ancestor, or the container of its root (a Hierarchy folder or the scene, supplied by Containers) is.
@@ -11,6 +15,7 @@ namespace xg.editor
     {
         private static readonly HashSet<ulong> _hidden = new();
         private static readonly HashSet<ulong> _locked = new();
+        private static readonly Dictionary<ulong, EditorIcon> _icons = new();
         private static bool _showHidden;
 
         // Effective state of the container a root actor sits in (its folder chain and scene), or (false, false).
@@ -73,6 +78,37 @@ namespace xg.editor
             return false;
         }
 
+        // The icon chosen for the actor, or null for the default.
+        public static EditorIcon? GetIcon(ActorID actor) => _icons.TryGetValue(actor.Value, out EditorIcon icon) ? icon : null;
+
+        // Sets (or with null clears) the icon of these actors.
+        public static void SetIcon(IReadOnlyList<ActorID> actors, EditorIcon? icon)
+        {
+            List<ActorID> changed = new();
+            foreach (ActorID actor in actors)
+            {
+                if (actor.Value == 0 || GetIcon(actor) == icon)
+                    continue;
+                if (icon is { } value)
+                    _icons[actor.Value] = value;
+                else
+                    _icons.Remove(actor.Value);
+                changed.Add(actor);
+            }
+            if (changed.Count > 0)
+                Bump(changed);
+        }
+
+        // Sets the icon while loading a scene (no Changed event).
+        public static void RestoreIcon(ActorID actor, EditorIcon? icon)
+        {
+            if (icon is { } value)
+                _icons[actor.Value] = value;
+            else if (!_icons.Remove(actor.Value))
+                return;
+            Version++;
+        }
+
         public static void SetHidden(IReadOnlyList<ActorID> actors, bool hidden) => Set(_hidden, actors, hidden);
 
         public static void SetLocked(IReadOnlyList<ActorID> actors, bool locked) => Set(_locked, actors, locked);
@@ -94,6 +130,8 @@ namespace xg.editor
         {
             int removed = _hidden.RemoveWhere(id => ActorTree.GetName(new ActorID(id)).Length == 0)
                 + _locked.RemoveWhere(id => ActorTree.GetName(new ActorID(id)).Length == 0);
+            foreach (ulong id in _icons.Keys.Where(id => ActorTree.GetName(new ActorID(id)).Length == 0).ToArray())
+                removed += _icons.Remove(id) ? 1 : 0;
             if (removed > 0)
                 Version++;
         }

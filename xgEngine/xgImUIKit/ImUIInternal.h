@@ -134,6 +134,7 @@ namespace xg::imui::detail
         Eye, FolderOpen, Link,
         Group, GroupOpen,
         Blocks,
+        Actor,
     };
 
     ImTextureData* CreateIconTexture(const uint8_t* rgba, int width, int height, int size);

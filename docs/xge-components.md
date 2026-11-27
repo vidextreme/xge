@@ -197,7 +197,7 @@ ActorID main = Camera.Main;                         // from any module
 - `Model`, a fallback `Material`, `Flags` (`Hidden`) and up to 8 submesh entries (`Submesh0..7`, the first `SubmeshCount` used): each holds a submesh item GUID from the model's meta, its material and `MeshRendererSubmeshFlags.Hidden`.
 - Per model part: an entry for its submesh sets the material (None = the default material) or hides it; a submesh without an entry draws with `Material` (None = the default material).
 - `SubmeshMaterial`, `SetSubmeshMaterial` and `SetSubmeshVisible` edit entries from code.
-- **Inspector:** Visible, then Mesh and Material: the Model picker, a Submesh | Material table (a draw check and a material per submesh) and Edit Here, which mounts the material editor (preview, properties, Auto Apply, Save, Revert, Save As). With Auto Apply on, the actor draws the edited material's unsaved draft in every view until Save or Revert (`MeshRenderer.SetEditorMaterialOverride`, editor only). The Composition Object Editor's Mesh and Material card uses the same control.
+- **Inspector:** Visible, then Mesh and Material: the Model picker, a Submesh | Material table (a draw check and a material per submesh) and Edit Here, which mounts the material editor (preview, properties, Auto Apply, Save, Revert, Save As). With Auto Apply on, the actor draws the edited material's unsaved draft in every view until Save or Revert (`MeshRenderer.SetEditorMaterialOverride`, editor only). The Archetype Editor's Mesh and Material card uses the same control.
 
 ---
 
@@ -260,5 +260,5 @@ Not implemented yet:
 - **`ComponentDataLookup<T>`:** read-only random access to other actors' elements inside a data update.
 - **Double-buffered pools:** read the previous frame and write the current one, for updates that read neighbouring elements.
 - **Native component sources:** pools owned by native modules (physics bodies) shown in the Inspector through their reflection schema.
-- **Archetypes:** prefab-defined actors with a fixed set of data types in one block, if profiling ever asks for it.
+- **Chunk layouts:** actors with a fixed set of data types stored together in one block (what other ECS engines call archetypes; in xge, Archetype names the `.xco` asset), if profiling ever asks for it.
 - **Native systems** (physics, rendering, animation, audio) registering their own updates on the same pools from C++.

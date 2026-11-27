@@ -29,7 +29,7 @@ namespace xgEditor.CoreCLR
             });
         }
 
-        [ToolButton("Create Empty Actor", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Object), Priority = 10,
+        [ToolButton("Create Empty Actor", Category = "Scene", Group = "Actors", Icon = nameof(Icon.Actor), Priority = 10,
             Tooltip = "Add an empty actor to the active scene (under the selected scene actor, or in the selected group)")]
         public static void CreateEmpty()
         {
@@ -104,7 +104,7 @@ namespace xgEditor.CoreCLR
                 Title = actors.Count == 1 ? "Remove Actor" : "Remove Actors",
                 Message = actors.Count == 1 ? $"Remove {first}?" : $"Remove {actors.Count} actors?",
                 Detail = children ? "Their children are removed too." : "Its components and values are lost.",
-                DrawPreview = (draw, rect) => draw.Icon(Icon.Object, rect.Center, 28.0f, Style.Color(StyleColor.IconObject)),
+                DrawPreview = (draw, rect) => (actors.Count == 1 ? EditorIcons.OfActor(actors[0]) : new ComponentIcon(Icon.Actor, null, Style.Color(StyleColor.IconObject))).Draw(draw, rect.Center, 28.0f),
                 Confirm = () =>
                 {
                     int removed = 0;
@@ -162,7 +162,7 @@ namespace xgEditor.CoreCLR
                 Title = "Rename Actor",
                 Context = string.Join(" / ", path.Prepend(scene)),
                 Name = ActorTree.GetName(actor),
-                DrawPreview = (draw, rect) => draw.Icon(Icon.Object, rect.Center, 28.0f, Style.Color(StyleColor.IconObject)),
+                DrawPreview = (draw, rect) => EditorIcons.OfActor(actor).Draw(draw, rect.Center, 28.0f),
                 Commit = name => SceneManager.Rename(actor, name) ? null : "Only scene actors can be renamed",
             });
         }
@@ -187,7 +187,7 @@ namespace xgEditor.CoreCLR
                 : parent is null && context.Source == BackgroundSource ? SceneManager.FolderTarget : null;
             Actor? Create(Func<Actor?> create) => folder is { } f ? SceneManager.CreateInFolder(f.Scene, f.Folder, create) : create();
             string label = parent is not null ? "Create Child Actor" : folder is { } named ? $"Create Actor in {named.Folder.Name}" : "Create Empty Actor";
-            menu.Item(label, Icon.Object, () =>
+            menu.Item(label, Icon.Actor, () =>
             {
                 if (Create(() => SceneManager.CreateActor("Actor", parent)) is { } created)
                     Selection.Set(created.ID);

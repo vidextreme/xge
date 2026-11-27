@@ -53,8 +53,11 @@ namespace xg.editor
         public string Parent { get; set; } = string.Empty;
         public bool Hidden { get; set; }
         public bool Locked { get; set; }
+        // Editor icon (built-in Icon name or project image path) and its tint; empty = the default.
+        public string Icon { get; set; } = string.Empty;
+        public string IconColor { get; set; } = string.Empty;
 
-        public SceneFolderAsset Clone() => new() { Id = Id, Name = Name, Parent = Parent, Hidden = Hidden, Locked = Locked };
+        public SceneFolderAsset Clone() => new() { Id = Id, Name = Name, Parent = Parent, Hidden = Hidden, Locked = Locked, Icon = Icon, IconColor = IconColor };
     }
 
     // One saved actor: a scene-local id (32 hex digits, stable across saves; runtime ActorIDs are fresh on every load),
@@ -68,6 +71,9 @@ namespace xg.editor
         public string Folder { get; set; } = string.Empty;
         public bool Hidden { get; set; }
         public bool Locked { get; set; }
+        // Editor icon (built-in Icon name or project image path) and its tint; empty = the default.
+        public string Icon { get; set; } = string.Empty;
+        public string IconColor { get; set; } = string.Empty;
         public JsonObject Extra { get; set; } = new();
         public bool HasTransform { get; set; }
         public float[] Position { get; set; } = { 0.0f, 0.0f, 0.0f };
@@ -80,7 +86,7 @@ namespace xg.editor
         {
             SceneActorAsset copy = new()
             {
-                Id = Id, Name = Name, Parent = Parent, Folder = Folder, Hidden = Hidden, Locked = Locked, Extra = Extra.DeepClone().AsObject(),
+                Id = Id, Name = Name, Parent = Parent, Folder = Folder, Hidden = Hidden, Locked = Locked, Icon = Icon, IconColor = IconColor, Extra = Extra.DeepClone().AsObject(),
                 HasTransform = HasTransform,
                 Position = (float[])Position.Clone(), Rotation = (float[])Rotation.Clone(), Scale = (float[])Scale.Clone(),
             };
@@ -162,7 +168,8 @@ namespace xg.editor
                     if (item is JsonObject folder)
                     {
                         (bool hidden, bool locked) = EditorFlags(folder["editor"]);
-                        scene.Folders.Add(new SceneFolderAsset { Id = Text(folder["id"]), Name = Text(folder["name"]), Parent = Text(folder["parent"]), Hidden = hidden, Locked = locked });
+                        (string icon, string iconColor) = EditorIcon(folder["editor"]);
+                        scene.Folders.Add(new SceneFolderAsset { Id = Text(folder["id"]), Name = Text(folder["name"]), Parent = Text(folder["parent"]), Hidden = hidden, Locked = locked, Icon = icon, IconColor = iconColor });
                     }
             if (document["actors"] is JsonArray actors)
                 foreach (JsonNode? item in actors)
@@ -175,6 +182,7 @@ namespace xg.editor
         {
             SceneActorAsset actor = new() { Id = Text(json["id"]), Name = Text(json["name"]), Parent = Text(json["parent"]), Folder = Text(json["folder"]) };
             (actor.Hidden, actor.Locked) = EditorFlags(json["editor"]);
+            (actor.Icon, actor.IconColor) = EditorIcon(json["editor"]);
             foreach ((string key, JsonNode? value) in json)
                 if (!_knownActor.Contains(key))
                     actor.Extra[key] = value?.DeepClone();
@@ -236,16 +244,25 @@ namespace xg.editor
         private static (bool Hidden, bool Locked) EditorFlags(JsonNode? node) =>
             node is JsonObject json ? (Flag(json["hidden"]), Flag(json["locked"])) : (false, false);
 
-        // The "editor" block of a node, or null when no flag is set.
-        private static JsonObject? EditorJSON(bool hidden, bool locked)
+        private static (string Icon, string Color) EditorIcon(JsonNode? node) =>
+            node is JsonObject json ? (Text(json["icon"]), Text(json["iconColor"])) : (string.Empty, string.Empty);
+
+        // The "editor" block of a node, or null when nothing is set.
+        private static JsonObject? EditorJSON(bool hidden, bool locked, string icon = "", string iconColor = "")
         {
-            if (!hidden && !locked)
+            if (!hidden && !locked && icon.Length == 0)
                 return null;
             JsonObject json = new();
             if (hidden)
                 json["hidden"] = true;
             if (locked)
                 json["locked"] = true;
+            if (icon.Length > 0)
+            {
+                json["icon"] = icon;
+                if (iconColor.Length > 0)
+                    json["iconColor"] = iconColor;
+            }
             return json;
         }
 
@@ -274,7 +291,7 @@ namespace xg.editor
                 };
                 if (actor.Folder.Length > 0)
                     json["folder"] = actor.Folder;
-                if (EditorJSON(actor.Hidden, actor.Locked) is JsonObject flags)
+                if (EditorJSON(actor.Hidden, actor.Locked, actor.Icon, actor.IconColor) is JsonObject flags)
                     json["editor"] = flags;
                 if (actor.HasTransform)
                     json["transform"] = new JsonObject { ["position"] = Floats(actor.Position), ["rotation"] = Floats(actor.Rotation), ["scale"] = Floats(actor.Scale) };
@@ -307,7 +324,7 @@ namespace xg.editor
                 foreach (SceneFolderAsset folder in Folders)
                 {
                     JsonObject entry = new() { ["id"] = folder.Id, ["name"] = folder.Name, ["parent"] = folder.Parent.Length > 0 ? folder.Parent : null };
-                    if (EditorJSON(folder.Hidden, folder.Locked) is JsonObject folderFlags)
+                    if (EditorJSON(folder.Hidden, folder.Locked, folder.Icon, folder.IconColor) is JsonObject folderFlags)
                         entry["editor"] = folderFlags;
                     folders.Add(entry);
                 }
